@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: ecotur_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ingresar_contraseña_local #(Recorderis: esta debe ser lamisma que en el .env local)
+      POSTGRES_DB: ecotur_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - ecotur_network
+
+volumes:
+  postgres_data:
+    name: ecotur_pg_data
+
+networks:
+  ecotur_network:
+    driver: bridge
