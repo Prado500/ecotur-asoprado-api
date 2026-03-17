@@ -20,3 +20,6 @@ bcrypt
 pytest
 pytest-asyncio
 httpx
+
+# --- Pruebas (QA) ---
+python-dotenv
