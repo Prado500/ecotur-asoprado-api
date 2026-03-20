@@ -13,7 +13,6 @@ asyncpg
 
 # --- Seguridad y Autenticación ---
 python-jose
-passlib
 bcrypt
 
 # --- Pruebas (QA) ---
