@@ -4,7 +4,7 @@ from sqlalchemy.future import select
 from app.db.database import get_db
 from app.models.user import User, UserRole
 from app.schemas.user import UserCreate, UserResponse
-
+from app.core.security import get_password_hash
 
 router = APIRouter()
 
@@ -25,14 +25,14 @@ async def registrar_turista(usuario: UserCreate, db: AsyncSession = Depends(get_
             detail="Este correo electrónico ya se encuentra registrado."
         )
 
-    hashed_password_mock = usuario.password + "_encriptacion_falsa_temporal"
+    hashed_password = get_password_hash(usuario.password)
 
     nuevo_usuario = User(
         email=usuario.email,
         first_name=usuario.first_name,
         last_name=usuario.last_name,
         phone=usuario.phone,
-        password_hash=hashed_password_mock,
+        password_hash=hashed_password,
         role=UserRole.tourist,
         data_consent=usuario.data_consent
     )
