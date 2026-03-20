@@ -30,7 +30,7 @@ class User(Base):
     first_name = Column(String(100), nullable=False)
     last_name = Column(String(100), nullable=False)
     phone = Column(String(20), nullable=True)
-    role = Column(Enum(UserRole), nullable=False, default=UserRole.tourist)
+    role = Column(Enum(UserRole, name="user_role"), nullable=False, default=UserRole.tourist)
     data_consent = Column(Boolean, nullable=False, default=False)
     is_active = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
