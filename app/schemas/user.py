@@ -19,6 +19,13 @@ class UserCreate(UserBase):
     data_consent: bool = Field(..., description="Aceptación de la Ley 1581 de protección de datos")
 
 
+class UserCreateByAdmin(UserBase):
+    password: str = Field(..., min_length=8, description="Contraseña en texto plano")
+    data_consent: bool = Field(..., description="Aceptación de la Ley 1581 de protección de datos")
+    role: UserRole
+    is_active: bool = False
+
+
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
