@@ -13,10 +13,12 @@ asyncpg
 
 # --- Seguridad y Autenticación ---
 python-jose
-passlib
 bcrypt
 
 # --- Pruebas (QA) ---
 pytest
 pytest-asyncio
 httpx
+
+# --- Inyección de variables de entorno locales ---
+python-dotenv
