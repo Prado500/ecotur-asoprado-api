@@ -3,8 +3,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from app.db.database import get_db
 from app.models.user import User, UserRole
-from app.schemas.user import UserCreate, UserResponse
-from app.core.security import get_password_hash
+from app.schemas.user import UserCreate, UserResponse, UserLogin
+from app.schemas.token import TokenResponse
+from app.core.security import get_password_hash, verify_password, create_access_token
 
 router = APIRouter()
 
@@ -44,3 +45,41 @@ async def registrar_turista(usuario: UserCreate, db: AsyncSession = Depends(get_
 
 
     return nuevo_usuario
+
+@router.post("/login", response_model=TokenResponse)
+async def login(credenciales: UserLogin, db: AsyncSession = Depends(get_db)):
+    """
+    Endpoint para que los usuarios (Turistas o Admins) inicien sesión.
+    Cumple con los criterios de la HU-02.
+    """
+
+    stmt = select(User).where(
+        User.email == credenciales.email,
+        User.is_active == True,
+        User.deleted_at.is_(None)
+    )
+    resultado = await db.execute(stmt)
+    usuario = resultado.scalars().first()
+
+
+
+    if not usuario or not verify_password(credenciales.password, usuario.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Revise su correo y contraseña",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
+    datos_para_token = {
+        "sub": usuario.email,
+        "role": usuario.role.value
+    }
+
+    token_generado = create_access_token(data=datos_para_token)
+
+
+    return {
+        "access_token": token_generado,
+        "token_type": "bearer"
+    }
