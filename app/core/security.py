@@ -4,7 +4,7 @@ from datetime import timedelta, datetime, timezone
 import bcrypt # Hashing de contraseñas y verificación
 import jwt # Tokenización JWT
 
-SECRET_KEY = os.getenv("SECRET_KEY")
+SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 
