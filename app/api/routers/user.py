@@ -6,6 +6,7 @@ from app.models.user import User, UserRole
 from app.schemas.user import UserCreate, UserResponse, UserLogin
 from app.schemas.token import TokenResponse
 from app.core.security import get_password_hash, verify_password, create_access_token
+from app.api.dependencies import get_current_user
 
 router = APIRouter()
 
@@ -83,3 +84,15 @@ async def login(credenciales: UserLogin, db: AsyncSession = Depends(get_db)):
         "access_token": token_generado,
         "token_type": "bearer"
     }
+
+@router.get("/mi-perfil", response_model=UserResponse)
+async def ver_mi_perfil(usuario_actual =  Depends(get_current_user)):
+
+    """
+    Endpoint que permite visualizar la información de un usuario (excluyendo hash de contraseña).
+    :param usuario_actual: un User retornado por get_current_user().
+    :return: User, cuya respuesta se sirve con UserResponse
+    """
+
+    return usuario_actual
+
