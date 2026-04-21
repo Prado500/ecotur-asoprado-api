@@ -35,4 +35,21 @@ async def crear_paquete(
     return nuevo_paquete #En esta iteración es importante no olvidar que las imagenes vendran de regrso a manera de lista vacía.
 
 
+@router.get("/", response_model=List[ServiceListResponse])
+async def listar_paquetes(db: AsyncSession = Depends(get_db)):
+    """
+    Endpoint público que permite listar todos los paquetes turísticos disponibles.
+    Contribuye a la HU-03
+    """
+
+    # selectinload le dice a SQLAlchemy que se traiga todos los servicios Y también sus imágenes asociadas
+    stmt = select(TouristService).options(selectinload(TouristService.images)).where(
+        TouristService.is_available == True,
+        TouristService.deleted_at.is_(None)
+    )
+
+    resultado = await db.execute(stmt)
+    paquetes = resultado.scalars().all()
+
+    return paquetes
 
