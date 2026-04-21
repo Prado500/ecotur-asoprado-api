@@ -1,0 +1,38 @@
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+from sqlalchemy.orm import selectinload # <- IMPORTANTE PARA ASYNC
+from typing import List
+
+from app.db.database import get_db
+from app.models.service import TouristService
+from app.models.user import User, UserRole
+from app.schemas.service import ServiceCreate, ServiceListResponse, ServiceDetailResponse
+from app.api.dependencies import get_current_user
+
+router = APIRouter()
+
+@router.post("/", response_model=ServiceDetailResponse, status_code=status.HTTP_201_CREATED)
+async def crear_paquete(
+
+        paquete: ServiceCreate,
+        db: AsyncSession = Depends(get_db),
+        usuario_actual: User = Depends(get_current_user)
+):
+    """
+    Endpoint privado y exclusivo para administradores que les permite crear un nuevo paquete turístico.
+    """
+
+    if usuario_actual.role != UserRole.admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Privilegios insuficientes.")
+
+    nuevo_paquete = TouristService(**paquete.model_dump())
+    db.add(nuevo_paquete)
+    await db.commit()
+    await db.refresh(nuevo_paquete)
+
+
+    return nuevo_paquete #En esta iteración es importante no olvidar que las imagenes vendran de regrso a manera de lista vacía.
+
+
+
