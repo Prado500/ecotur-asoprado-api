@@ -1,5 +1,6 @@
 import enum
-from sqlalchemy import Column, String, Integer, Numeric, Text, Boolean, DateTime, Enum
+from sqlalchemy import Column, String, Integer, Numeric, Text, Boolean, DateTime, Enum, ForeignKey
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.db.database import Base
 
@@ -21,3 +22,4 @@ class TouristService(Base):
     is_available = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     deleted_at = Column(DateTime(timezone=True), nullable=True)
+
