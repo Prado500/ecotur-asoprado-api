@@ -1,5 +1,16 @@
-import bcrypt
+import os
+from datetime import timedelta, datetime, timezone
 
+import bcrypt # Hashing de contraseñas y verificación
+import jwt # Tokenización JWT
+
+SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+ALGORITHM = os.getenv("ALGORITHM", "HS256")
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+
+"""
+    FÁBRICA DE HASHES
+"""
 def get_password_hash(password: str) -> str:
     """
     Toma la contraseña usada por el usuario en su registro, y:
@@ -26,3 +37,25 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     hashed_password_bytes = hashed_password.encode('utf-8')
 
     return bcrypt.checkpw(password=password_byte_enc, hashed_password=hashed_password_bytes)
+
+"""
+    FÁBRICA DE TOKENS
+"""
+def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
+    """
+    Fabrica el Json Web Token (JWT).
+    Recibe los datos públicos (ej. {"sub": "manuel_ortigoza", "role": "tourist"})
+    y le estampa la firma criptográfica usando la Llave Secreta.
+    """
+    to_encode = data.copy()
+
+    if expires_delta:
+        expire = datetime.now(timezone.utc) + expires_delta
+    else:
+        expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+
+    to_encode.update({"exp": expire})
+
+    encoded_jwt = jwt.encode(payload=to_encode, key=SECRET_KEY, algorithm=ALGORITHM)
+
+    return encoded_jwt
