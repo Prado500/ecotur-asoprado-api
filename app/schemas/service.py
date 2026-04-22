@@ -22,7 +22,10 @@ class ServiceBase(BaseModel):
 
 
 class ServiceCreate(ServiceBase):
-    pass
+    image_urls: List[str] = Field(
+        default=[],
+        description="Lista de URLs de imágenes. La primera será la principal (miniatura)."
+    )
 
 
 class ServiceListResponse(ServiceBase):
