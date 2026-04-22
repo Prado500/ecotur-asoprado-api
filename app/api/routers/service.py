@@ -29,7 +29,13 @@ async def crear_paquete(
     nuevo_paquete = TouristService(**paquete.model_dump())
     db.add(nuevo_paquete)
     await db.commit()
-    await db.refresh(nuevo_paquete)
+
+    stmt = select(TouristService).options(selectinload(TouristService.images)).where(
+        TouristService.id == nuevo_paquete.id
+    )
+    resultado = await db.execute(stmt)
+    nuevo_paquete = resultado.scalar_one()
+
 
 
     return nuevo_paquete #En esta iteración es importante no olvidar que las imagenes vendran de regrso a manera de lista vacía.
