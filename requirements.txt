@@ -5,6 +5,7 @@ python-multipart
 
 # --- Validación y Settings ---
 pydantic
+email-validator
 pydantic-settings
 
 # --- Base de Datos ---
