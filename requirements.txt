@@ -13,8 +13,8 @@ sqlalchemy
 asyncpg
 alembic
 
-
 # --- Seguridad y Autenticación ---
+jwt
 python-jose
 bcrypt
 
