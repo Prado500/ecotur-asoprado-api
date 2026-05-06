@@ -14,8 +14,7 @@ asyncpg
 alembic
 
 # --- Seguridad y Autenticación ---
-jwt
-python-jose
+PyJWT 
 bcrypt
 
 # --- Pruebas (QA) ---
