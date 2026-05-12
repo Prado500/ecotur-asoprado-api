@@ -1,0 +1,9 @@
+# Esqueleto base para iniciar la conexión con Azure DevOps
+trigger: none # Evita que el pipeline corra automáticamente por ahora
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+- script: echo "Esqueleto del pipeline de cd inicializado. Esperando instrucciones de CI/CD..."
+  displayName: 'Mensaje de inicialización'
