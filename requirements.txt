@@ -5,6 +5,7 @@ python-multipart
 
 # --- Validación y Settings ---
 pydantic
+email-validator
 pydantic-settings
 
 # --- Base de Datos ---
@@ -12,9 +13,8 @@ sqlalchemy
 asyncpg
 alembic
 
-
 # --- Seguridad y Autenticación ---
-python-jose
+PyJWT 
 bcrypt
 
 # --- Pruebas (QA) ---
