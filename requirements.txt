@@ -12,6 +12,7 @@ sqlalchemy
 asyncpg
 alembic
 
+
 # --- Seguridad y Autenticación ---
 python-jose
 bcrypt
