@@ -1,9 +1,140 @@
-# Esqueleto base para iniciar la conexión con Azure DevOps
-trigger: none # Evita que el pipeline corra automáticamente por ahora
+trigger: none
+
+resources:
+  pipelines:
+    - pipeline: ci-pipeline
+      source: 'ci-pipeline-ecotur-backend'
+      trigger:
+        branches:
+          include:
+            - develop
+            - staging
+            - main
 
 pool:
   vmImage: 'ubuntu-latest'
 
-steps:
-- script: echo "Esqueleto del pipeline de cd inicializado. Esperando instrucciones de CI/CD..."
-  displayName: 'Mensaje de inicialización'
+variables:
+  imageRepository: 'daldeoscoder/ecotur-api'
+
+stages:
+
+  # ==========================================
+  # STAGE 1: DEPLOY TO DEV
+  # ==========================================
+  - stage: Deploy_Dev
+    displayName: 'Deploy to Development'
+    dependsOn: []
+    # Se ejecuta solo si el artefacto viene de la rama 'develop'
+    condition: and(succeeded(), eq(variables['resources.pipeline.ci-pipeline.sourceBranch'], 'refs/heads/develop'))
+
+    jobs:
+      - deployment: DeployDev
+        environment: 'Development'
+        variables:
+          - group: 'VG-ECOTUR-DEV'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - script: |
+                    echo "Ejecutando migraciones de Alembic en entorno DEV..."
+                    docker run --rm -e DATABASE_URL="$(DATABASE_URL)" $(imageRepository):develop alembic upgrade head
+                  displayName: 'Run Alembic Migrations on DEV Database'
+
+                - task: AzureCLI@2
+                  displayName: 'Configure App Settings & Restart DEV'
+                  inputs:
+                    azureSubscription: 'SC-ARM-ECOTUR-DEV'
+                    scriptType: 'bash'
+                    scriptLocation: 'inlineScript'
+                    inlineScript: |
+                      az webapp config appsettings set -n 'api-ecoturasoprado-dev-f2aaejf9cdc0e3er' -g 'RG-ECOTUR-DEV' --settings DATABASE_URL="$(DATABASE_URL)" WEBSITES_PORT="8000"
+                      az webapp restart -n 'api-ecoturasoprado-dev-f2aaejf9cdc0e3er' -g 'RG-ECOTUR-DEV'
+
+                - task: AzureWebAppContainer@1
+                  displayName: 'Deploy Container Image to DEV'
+                  inputs:
+                    azureSubscription: 'SC-ARM-ECOTUR-DEV'
+                    appName: 'api-ecoturasoprado-dev-f2aaejf9cdc0e3er'
+                    containers: '$(imageRepository):develop'
+
+  # ==========================================
+  # STAGE 2: DEPLOY TO STAGING
+  # ==========================================
+  - stage: Deploy_Stg
+    displayName: 'Deploy to Staging'
+    dependsOn: []
+    # Se ejecuta solo si el artefacto viene de la rama 'staging'
+    condition: and(succeeded(), eq(variables['resources.pipeline.ci-pipeline.sourceBranch'], 'refs/heads/staging'))
+
+    jobs:
+      - deployment: DeployStg
+        environment: 'Staging'
+        variables:
+          - group: 'VG-ECOTUR-STG'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - script: |
+                    echo "Ejecutando migraciones de Alembic en entorno STAGING..."
+                    docker run --rm -e DATABASE_URL="$(DATABASE_URL)" $(imageRepository):staging alembic upgrade head
+                  displayName: 'Run Alembic Migrations on STG Database'
+
+                - task: AzureCLI@2
+                  displayName: 'Configure App Settings & Restart STG'
+                  inputs:
+                    azureSubscription: 'SC-ARM-ECOTUR-STG'
+                    scriptType: 'bash'
+                    scriptLocation: 'inlineScript'
+                    inlineScript: |
+                      az webapp config appsettings set -n 'api-ecoturasoprado-stg-gxb5bxcmcub3ftfx' -g 'RG-ECOTUR-STG' --settings DATABASE_URL="$(DATABASE_URL)" WEBSITES_PORT="8000"
+                      az webapp restart -n 'api-ecoturasoprado-stg-gxb5bxcmcub3ftfx' -g 'RG-ECOTUR-STG'
+
+                - task: AzureWebAppContainer@1
+                  displayName: 'Deploy Container Image to STG'
+                  inputs:
+                    azureSubscription: 'SC-ARM-ECOTUR-STG'
+                    appName: 'api-ecoturasoprado-stg-gxb5bxcmcub3ftfx'
+                    containers: '$(imageRepository):staging'
+
+  # ==========================================
+  # STAGE 3: DEPLOY TO MAIN (PROD)
+  # ==========================================
+  - stage: Deploy_Main
+    displayName: 'Deploy to Production'
+    dependsOn: []
+    # Se ejecuta solo si el artefacto viene de la rama 'main'
+    condition: and(succeeded(), eq(variables['resources.pipeline.ci-pipeline.sourceBranch'], 'refs/heads/main'))
+
+    jobs:
+      - deployment: DeployMain
+        environment: 'Production'
+        variables:
+          - group: 'VG-ECOTUR-MAIN'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - script: |
+                    echo "Ejecutando migraciones de Alembic en entorno MAIN (PROD)..."
+                    docker run --rm -e DATABASE_URL="$(DATABASE_URL)" $(imageRepository):main alembic upgrade head
+                  displayName: 'Run Alembic Migrations on PROD Database'
+
+                - task: AzureCLI@2
+                  displayName: 'Configure App Settings & Restart PROD'
+                  inputs:
+                    azureSubscription: 'SC-ARM-ECOTUR-MAIN'
+                    scriptType: 'bash'
+                    scriptLocation: 'inlineScript'
+                    inlineScript: |
+                      az webapp config appsettings set -n 'api-ecoturasoprado-main-bucve5dfdfbnffgh' -g 'RG-ECOTUR-MAIN' --settings DATABASE_URL="$(DATABASE_URL)" WEBSITES_PORT="8000"
+                      az webapp restart -n 'api-ecoturasoprado-main-bucve5dfdfbnffgh' -g 'RG-ECOTUR-MAIN'
+
+                - task: AzureWebAppContainer@1
+                  displayName: 'Deploy Container Image to PROD'
+                  inputs:
+                    azureSubscription: 'SC-ARM-ECOTUR-MAIN'
+                    appName: 'api-ecoturasoprado-main-bucve5dfdfbnffgh'
+                    containers: '$(imageRepository):main'
