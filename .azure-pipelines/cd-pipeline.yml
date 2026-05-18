@@ -25,7 +25,6 @@ stages:
   - stage: Deploy_Dev
     displayName: 'Deploy to Development'
     dependsOn: []
-    # Se ejecuta solo si el artefacto viene de la rama 'develop'
     condition: and(succeeded(), eq(variables['resources.pipeline.ci-pipeline.sourceBranch'], 'refs/heads/develop'))
 
     jobs:
@@ -42,22 +41,10 @@ stages:
                     docker run --rm -e DATABASE_URL="$(DATABASE_URL)" $(imageRepository):develop alembic upgrade head
                   displayName: 'Run Alembic Migrations on DEV Database'
 
-                - task: AzureCLI@2
-                  displayName: 'Configure App Settings & Restart DEV'
-                  inputs:
-                    azureSubscription: 'SC-ARM-ECOTUR-DEV'
-                    scriptType: 'bash'
-                    scriptLocation: 'inlineScript'
-                    inlineScript: |
-                      az webapp config appsettings set -n 'api-ecoturasoprado-dev-f2aaejf9cdc0e3er' -g 'RG-ECOTUR-DEV' --settings DATABASE_URL="$(DATABASE_URL)" WEBSITES_PORT="8000"
-                      az webapp restart -n 'api-ecoturasoprado-dev-f2aaejf9cdc0e3er' -g 'RG-ECOTUR-DEV'
-
-                - task: AzureWebAppContainer@1
-                  displayName: 'Deploy Container Image to DEV'
-                  inputs:
-                    azureSubscription: 'SC-ARM-ECOTUR-DEV'
-                    appName: 'api-ecoturasoprado-dev-f2aaejf9cdc0e3er'
-                    containers: '$(imageRepository):develop'
+                - script: |
+                    echo "Avisando a Azure Web App que hay una nueva imagen..."
+                    curl -d "" -X POST "$(WEBHOOK_URL_DEV)"
+                  displayName: 'Trigger Azure Web App Webhook'
 
   # ==========================================
   # STAGE 2: DEPLOY TO STAGING
