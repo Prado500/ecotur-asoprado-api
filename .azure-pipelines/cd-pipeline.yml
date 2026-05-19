@@ -26,6 +26,7 @@ stages:
     displayName: 'Deploy to Development'
     dependsOn: []
     condition: and(succeeded(), eq(variables['resources.pipeline.ci-pipeline.sourceBranch'], 'refs/heads/develop'))
+
     jobs:
       - deployment: DeployDev
         environment: 'Development'
@@ -37,9 +38,11 @@ stages:
               steps:
                 - script: |
                     echo "Ejecutando migraciones de Alembic en entorno DEV..."
-                    FIXED_URL="${DATABASE_URL//sslmode=/ssl=}"
+                    FIXED_URL="${MAPPED_DB_URL//sslmode=/ssl=}"
                     docker run --rm -e DATABASE_URL="$FIXED_URL" $(imageRepository):develop alembic upgrade head
                   displayName: 'Run Alembic Migrations on DEV Database'
+                  env:
+                    MAPPED_DB_URL: $(DATABASE_URL)
 
                 - script: |
                     echo "Avisando a Azure Web App (DEV) que hay una nueva imagen..."
@@ -53,6 +56,7 @@ stages:
     displayName: 'Deploy to Staging'
     dependsOn: []
     condition: and(succeeded(), eq(variables['resources.pipeline.ci-pipeline.sourceBranch'], 'refs/heads/staging'))
+
     jobs:
       - deployment: DeployStg
         environment: 'Staging'
@@ -64,9 +68,11 @@ stages:
               steps:
                 - script: |
                     echo "Ejecutando migraciones de Alembic en entorno STAGING..."
-                    FIXED_URL="${DATABASE_URL//sslmode=/ssl=}"
+                    FIXED_URL="${MAPPED_DB_URL//sslmode=/ssl=}"
                     docker run --rm -e DATABASE_URL="$FIXED_URL" $(imageRepository):staging alembic upgrade head
                   displayName: 'Run Alembic Migrations on STG Database'
+                  env:
+                    MAPPED_DB_URL: $(DATABASE_URL)
 
                 - script: |
                     echo "Avisando a Azure Web App (STG) que hay una nueva imagen..."
@@ -80,6 +86,7 @@ stages:
     displayName: 'Deploy to Production'
     dependsOn: []
     condition: and(succeeded(), eq(variables['resources.pipeline.ci-pipeline.sourceBranch'], 'refs/heads/main'))
+
     jobs:
       - deployment: DeployMain
         environment: 'Production'
@@ -90,10 +97,12 @@ stages:
             deploy:
               steps:
                 - script: |
-                    echo "Ejecutando migraciones de Alembic en entorno MAIN (PROD)..."
-                    FIXED_URL="${DATABASE_URL//sslmode=/ssl=}"
+                    echo "Ejecutando migraciones de Alembic en entorno PROD (MAIN)..."
+                    FIXED_URL="${MAPPED_DB_URL//sslmode=/ssl=}"
                     docker run --rm -e DATABASE_URL="$FIXED_URL" $(imageRepository):main alembic upgrade head
                   displayName: 'Run Alembic Migrations on PROD Database'
+                  env:
+                    MAPPED_DB_URL: $(DATABASE_URL)
 
                 - script: |
                     echo "Avisando a Azure Web App (PROD) que hay una nueva imagen..."
