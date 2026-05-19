@@ -26,7 +26,6 @@ stages:
     displayName: 'Deploy to Development'
     dependsOn: []
     condition: and(succeeded(), eq(variables['resources.pipeline.ci-pipeline.sourceBranch'], 'refs/heads/develop'))
-
     jobs:
       - deployment: DeployDev
         environment: 'Development'
@@ -42,7 +41,7 @@ stages:
                   displayName: 'Run Alembic Migrations on DEV Database'
 
                 - script: |
-                    echo "Avisando a Azure Web App que hay una nueva imagen..."
+                    echo "Avisando a Azure Web App (DEV) que hay una nueva imagen..."
                     curl -d "" -X POST "$(WEBHOOK_URL_DEV)"
                   displayName: 'Trigger Azure Web App Webhook'
 
@@ -52,9 +51,7 @@ stages:
   - stage: Deploy_Stg
     displayName: 'Deploy to Staging'
     dependsOn: []
-    # Se ejecuta solo si el artefacto viene de la rama 'staging'
     condition: and(succeeded(), eq(variables['resources.pipeline.ci-pipeline.sourceBranch'], 'refs/heads/staging'))
-
     jobs:
       - deployment: DeployStg
         environment: 'Staging'
@@ -69,22 +66,10 @@ stages:
                     docker run --rm -e DATABASE_URL="$(DATABASE_URL)" $(imageRepository):staging alembic upgrade head
                   displayName: 'Run Alembic Migrations on STG Database'
 
-                - task: AzureCLI@2
-                  displayName: 'Configure App Settings & Restart STG'
-                  inputs:
-                    azureSubscription: 'SC-ARM-ECOTUR-STG'
-                    scriptType: 'bash'
-                    scriptLocation: 'inlineScript'
-                    inlineScript: |
-                      az webapp config appsettings set -n 'api-ecoturasoprado-stg-gxb5bxcmcub3ftfx' -g 'RG-ECOTUR-STG' --settings DATABASE_URL="$(DATABASE_URL)" WEBSITES_PORT="8000"
-                      az webapp restart -n 'api-ecoturasoprado-stg-gxb5bxcmcub3ftfx' -g 'RG-ECOTUR-STG'
-
-                - task: AzureWebAppContainer@1
-                  displayName: 'Deploy Container Image to STG'
-                  inputs:
-                    azureSubscription: 'SC-ARM-ECOTUR-STG'
-                    appName: 'api-ecoturasoprado-stg-gxb5bxcmcub3ftfx'
-                    containers: '$(imageRepository):staging'
+                - script: |
+                    echo "Avisando a Azure Web App (STG) que hay una nueva imagen..."
+                    curl -d "" -X POST "$(WEBHOOK_URL_STG)"
+                  displayName: 'Trigger Azure Web App Webhook'
 
   # ==========================================
   # STAGE 3: DEPLOY TO MAIN (PROD)
@@ -92,9 +77,7 @@ stages:
   - stage: Deploy_Main
     displayName: 'Deploy to Production'
     dependsOn: []
-    # Se ejecuta solo si el artefacto viene de la rama 'main'
     condition: and(succeeded(), eq(variables['resources.pipeline.ci-pipeline.sourceBranch'], 'refs/heads/main'))
-
     jobs:
       - deployment: DeployMain
         environment: 'Production'
@@ -109,19 +92,7 @@ stages:
                     docker run --rm -e DATABASE_URL="$(DATABASE_URL)" $(imageRepository):main alembic upgrade head
                   displayName: 'Run Alembic Migrations on PROD Database'
 
-                - task: AzureCLI@2
-                  displayName: 'Configure App Settings & Restart PROD'
-                  inputs:
-                    azureSubscription: 'SC-ARM-ECOTUR-MAIN'
-                    scriptType: 'bash'
-                    scriptLocation: 'inlineScript'
-                    inlineScript: |
-                      az webapp config appsettings set -n 'api-ecoturasoprado-main-bucve5dfdfbnffgh' -g 'RG-ECOTUR-MAIN' --settings DATABASE_URL="$(DATABASE_URL)" WEBSITES_PORT="8000"
-                      az webapp restart -n 'api-ecoturasoprado-main-bucve5dfdfbnffgh' -g 'RG-ECOTUR-MAIN'
-
-                - task: AzureWebAppContainer@1
-                  displayName: 'Deploy Container Image to PROD'
-                  inputs:
-                    azureSubscription: 'SC-ARM-ECOTUR-MAIN'
-                    appName: 'api-ecoturasoprado-main-bucve5dfdfbnffgh'
-                    containers: '$(imageRepository):main'
+                - script: |
+                    echo "Avisando a Azure Web App (PROD) que hay una nueva imagen..."
+                    curl -d "" -X POST "$(WEBHOOK_URL_MAIN)"
+                  displayName: 'Trigger Azure Web App Webhook'
