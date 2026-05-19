@@ -37,7 +37,8 @@ stages:
               steps:
                 - script: |
                     echo "Ejecutando migraciones de Alembic en entorno DEV..."
-                    docker run --rm -e DATABASE_URL="$(DATABASE_URL)" $(imageRepository):develop alembic upgrade head
+                    FIXED_URL="${DATABASE_URL//sslmode=/ssl=}"
+                    docker run --rm -e DATABASE_URL="$FIXED_URL" $(imageRepository):develop alembic upgrade head
                   displayName: 'Run Alembic Migrations on DEV Database'
 
                 - script: |
@@ -63,7 +64,8 @@ stages:
               steps:
                 - script: |
                     echo "Ejecutando migraciones de Alembic en entorno STAGING..."
-                    docker run --rm -e DATABASE_URL="$(DATABASE_URL)" $(imageRepository):staging alembic upgrade head
+                    FIXED_URL="${DATABASE_URL//sslmode=/ssl=}"
+                    docker run --rm -e DATABASE_URL="$FIXED_URL" $(imageRepository):staging alembic upgrade head
                   displayName: 'Run Alembic Migrations on STG Database'
 
                 - script: |
@@ -89,7 +91,8 @@ stages:
               steps:
                 - script: |
                     echo "Ejecutando migraciones de Alembic en entorno MAIN (PROD)..."
-                    docker run --rm -e DATABASE_URL="$(DATABASE_URL)" $(imageRepository):main alembic upgrade head
+                    FIXED_URL="${DATABASE_URL//sslmode=/ssl=}"
+                    docker run --rm -e DATABASE_URL="$FIXED_URL" $(imageRepository):main alembic upgrade head
                   displayName: 'Run Alembic Migrations on PROD Database'
 
                 - script: |
