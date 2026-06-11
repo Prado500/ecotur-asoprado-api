@@ -28,3 +28,6 @@ steps:
   - script: |
       pytest -v
     displayName: 'Compuerta de Calidad: Ejecutar Pruebas Unitarias (Pytest)'
+    env:
+      DATABASE_URL: "sqlite+aiosqlite:///:memory:"
+      JWT_SECRET_KEY: "super_secreto_ficticio_para_el_ci_pipeline"
