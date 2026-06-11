@@ -21,6 +21,7 @@ bcrypt
 pytest
 pytest-asyncio
 httpx
+aiosqlite
 
 # --- Inyección de variables de entorno locales ---
 python-dotenv
