@@ -1,32 +1,52 @@
-trigger: none
+trigger:
+  branches:
+    include:
+      - develop
+      - staging
+      - main
 
-resources:
-  pipelines:
-    - pipeline: ci-pipeline
-      source: 'ci-pipeline-ecotur-backend'
-      trigger:
-        branches:
-          include:
-            - develop
-            - staging
-            - main
+pr: none
 
 pool:
   vmImage: 'ubuntu-latest'
 
 variables:
+
+  dockerRegistryServiceConnection: 'SC-DR-ECOTUR'
   imageRepository: 'daldeoscoder/ecotur-api'
+  containerRegistry: 'index.docker.io'
+  dockerfilePath: '**/Dockerfile'
+  shaTag: '$(Build.SourceVersion)'
+  envTag: '$(Build.SourceBranchName)'
 
 stages:
+  # ==========================================
+  # STAGE 0: BUILD & PUSH IMAGE
+  # ==========================================
+  - stage: Build
+    displayName: 'Build & Push Docker Image'
+    jobs:
+      - job: BuildContainer
+        displayName: 'Build and Push to Docker Hub'
+        steps:
+          - task: Docker@2
+            displayName: 'Docker Build & Push'
+            inputs:
+              command: buildAndPush
+              repository: $(imageRepository)
+              dockerfile: $(dockerfilePath)
+              containerRegistry: $(dockerRegistryServiceConnection)
+              tags: |
+                $(shaTag)
+                $(envTag)
 
   # ==========================================
   # STAGE 1: DEPLOY TO DEV
   # ==========================================
   - stage: Deploy_Dev
     displayName: 'Deploy to Development'
-    dependsOn: []
-    condition: and(succeeded(), eq(variables['resources.pipeline.ci-pipeline.sourceBranch'], 'refs/heads/develop'))
-
+    dependsOn: Build
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/develop'))
     jobs:
       - deployment: DeployDev
         environment: 'Development'
@@ -54,9 +74,8 @@ stages:
   # ==========================================
   - stage: Deploy_Stg
     displayName: 'Deploy to Staging'
-    dependsOn: []
-    condition: and(succeeded(), eq(variables['resources.pipeline.ci-pipeline.sourceBranch'], 'refs/heads/staging'))
-
+    dependsOn: Build
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/staging'))
     jobs:
       - deployment: DeployStg
         environment: 'Staging'
@@ -84,9 +103,8 @@ stages:
   # ==========================================
   - stage: Deploy_Main
     displayName: 'Deploy to Production'
-    dependsOn: []
-    condition: and(succeeded(), eq(variables['resources.pipeline.ci-pipeline.sourceBranch'], 'refs/heads/main'))
-
+    dependsOn: Build
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
     jobs:
       - deployment: DeployMain
         environment: 'Production'
