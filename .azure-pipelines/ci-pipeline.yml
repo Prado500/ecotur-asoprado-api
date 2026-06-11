@@ -1,0 +1,44 @@
+trigger:
+  branches:
+    include:
+      - develop
+      - staging
+      - main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  # Conexión a tu DockerHub configurada en Azure DevOps
+  dockerRegistryServiceConnection: 'SC-DR-ECOTUR'
+  imageRepository: 'daldeoscoder/ecotur-api'
+  containerRegistry: 'index.docker.io'
+  dockerfilePath: '**/Dockerfile'
+  # Etiquetado Doble Estratégico
+  shaTag: '$(Build.SourceVersion)'        # Identificador único del commit (Merge del PR)
+  envTag: '$(Build.SourceBranchName)'     # Entorno: develop, staging o main
+
+stages:
+  - stage: Build
+    displayName: 'Build & Push Stage'
+    jobs:
+      - job: Build
+        displayName: 'Build Container Image'
+        steps:
+          - task: Docker@2
+            displayName: 'Build & Push to Docker Hub'
+            inputs:
+              command: buildAndPush
+              repository: $(imageRepository)
+              dockerfile: $(dockerfilePath)
+              containerRegistry: $(dockerRegistryServiceConnection)
+              tags: |
+                $(shaTag)
+                $(envTag)
+                
+          # Publicar artefactos para que el pipeline de CD pueda iniciar
+          - task: PublishBuildArtifacts@1
+            displayName: 'Publish Build Info'
+            inputs:
+              PathtoPublish: '$(Build.SourcesDirectory)'
+              ArtifactName: 'source-code'

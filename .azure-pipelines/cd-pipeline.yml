@@ -1,0 +1,110 @@
+trigger: none
+
+resources:
+  pipelines:
+    - pipeline: ci-pipeline
+      source: 'ci-pipeline-ecotur-backend'
+      trigger:
+        branches:
+          include:
+            - develop
+            - staging
+            - main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  imageRepository: 'daldeoscoder/ecotur-api'
+
+stages:
+
+  # ==========================================
+  # STAGE 1: DEPLOY TO DEV
+  # ==========================================
+  - stage: Deploy_Dev
+    displayName: 'Deploy to Development'
+    dependsOn: []
+    condition: and(succeeded(), eq(variables['resources.pipeline.ci-pipeline.sourceBranch'], 'refs/heads/develop'))
+
+    jobs:
+      - deployment: DeployDev
+        environment: 'Development'
+        variables:
+          - group: 'VG-ECOTUR-DEV'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - script: |
+                    echo "Ejecutando migraciones de Alembic en entorno DEV..."
+                    FIXED_URL="${MAPPED_DB_URL//sslmode=/ssl=}"
+                    docker run --rm -e DATABASE_URL="$FIXED_URL" $(imageRepository):develop alembic upgrade head
+                  displayName: 'Run Alembic Migrations on DEV Database'
+                  env:
+                    MAPPED_DB_URL: $(DATABASE_URL)
+
+                - script: |
+                    echo "Avisando a Azure Web App (DEV) que hay una nueva imagen..."
+                    curl -d "" -X POST "$(WEBHOOK_URL_DEV)"
+                  displayName: 'Trigger Azure Web App Webhook'
+
+  # ==========================================
+  # STAGE 2: DEPLOY TO STAGING
+  # ==========================================
+  - stage: Deploy_Stg
+    displayName: 'Deploy to Staging'
+    dependsOn: []
+    condition: and(succeeded(), eq(variables['resources.pipeline.ci-pipeline.sourceBranch'], 'refs/heads/staging'))
+
+    jobs:
+      - deployment: DeployStg
+        environment: 'Staging'
+        variables:
+          - group: 'VG-ECOTUR-STG'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - script: |
+                    echo "Ejecutando migraciones de Alembic en entorno STAGING..."
+                    FIXED_URL="${MAPPED_DB_URL//sslmode=/ssl=}"
+                    docker run --rm -e DATABASE_URL="$FIXED_URL" $(imageRepository):staging alembic upgrade head
+                  displayName: 'Run Alembic Migrations on STG Database'
+                  env:
+                    MAPPED_DB_URL: $(DATABASE_URL)
+
+                - script: |
+                    echo "Avisando a Azure Web App (STG) que hay una nueva imagen..."
+                    curl -d "" -X POST "$(WEBHOOK_URL_STG)"
+                  displayName: 'Trigger Azure Web App Webhook'
+
+  # ==========================================
+  # STAGE 3: DEPLOY TO MAIN (PROD)
+  # ==========================================
+  - stage: Deploy_Main
+    displayName: 'Deploy to Production'
+    dependsOn: []
+    condition: and(succeeded(), eq(variables['resources.pipeline.ci-pipeline.sourceBranch'], 'refs/heads/main'))
+
+    jobs:
+      - deployment: DeployMain
+        environment: 'Production'
+        variables:
+          - group: 'VG-ECOTUR-MAIN'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - script: |
+                    echo "Ejecutando migraciones de Alembic en entorno PROD (MAIN)..."
+                    FIXED_URL="${MAPPED_DB_URL//sslmode=/ssl=}"
+                    docker run --rm -e DATABASE_URL="$FIXED_URL" $(imageRepository):main alembic upgrade head
+                  displayName: 'Run Alembic Migrations on PROD Database'
+                  env:
+                    MAPPED_DB_URL: $(DATABASE_URL)
+
+                - script: |
+                    echo "Avisando a Azure Web App (PROD) que hay una nueva imagen..."
+                    curl -d "" -X POST "$(WEBHOOK_URL_MAIN)"
+                  displayName: 'Trigger Azure Web App Webhook'
