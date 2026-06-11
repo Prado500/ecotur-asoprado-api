@@ -5,18 +5,22 @@ python-multipart
 
 # --- Validación y Settings ---
 pydantic
+email-validator
 pydantic-settings
 
 # --- Base de Datos ---
 sqlalchemy
 asyncpg
+alembic
 
 # --- Seguridad y Autenticación ---
-python-jose
-passlib
+PyJWT 
 bcrypt
 
 # --- Pruebas (QA) ---
 pytest
 pytest-asyncio
 httpx
+
+# --- Inyección de variables de entorno locales ---
+python-dotenv
