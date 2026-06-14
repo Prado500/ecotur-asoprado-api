@@ -26,7 +26,7 @@ async def crear_paquete(
     Primero, excluye la clave image_urls que llega con la petición del cliente para crear un objeto SQLAlchemy
     Con el cual preparar el statement de inserción inicial y cuyos atributos sean coherentes de acuerdo a la tabla tourist_services.
 
-    Después pobla el atributo virtual de relacionamiento entre tourist_services (bd) y service_images(bd)
+    Después pobla el atributo virtual de relacionamiento entre tourist_services (bd) y service_images (bd)
     propio del modelo TouristService, valiéndose de un ciclo for.
 
     Finalmente, se realiza flush en la base de datos usando el objeto SQLAlchemy nuevo_paquete
@@ -44,11 +44,11 @@ async def crear_paquete(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Privilegios insuficientes.")
 
     datos_paquete = paquete.model_dump(exclude={"image_urls"})
-    nuevo_paquete = TouristService(**datos_paquete)
+    nuevo_paquete = TouristService(**datos_paquete) # Primer objeto SQLAlchemy de inserción, es un renglon e la tabla.
 
     for idx, url in enumerate(paquete.image_urls):
-        nueva_imagen = ServiceImage(
-            image_url=url,
+        nueva_imagen = ServiceImage( # Segundo objeto SQLALchemy de inserción, es un renglon de la tabla.
+            image_url=str(url), #Se parsea porque en ServiceCreate, cada imágen se retorna como objeto y no como String.
             # Si el índice es 0 (la primera foto de la lista), es_primary será True.
             # Para la 2da, 3ra, etc. será False.
             is_primary=(idx == 0)
