@@ -48,7 +48,7 @@ async def crear_paquete(
 
     for idx, url in enumerate(paquete.image_urls):
         nueva_imagen = ServiceImage( # Segundo objeto SQLALchemy de inserción, es un renglon de la tabla.
-            image_url=url,
+            image_url=str(url), #Se parsea porque en ServiceCreate, cada imágen se retorna como objeto y no como String.
             # Si el índice es 0 (la primera foto de la lista), es_primary será True.
             # Para la 2da, 3ra, etc. será False.
             is_primary=(idx == 0)
