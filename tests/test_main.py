@@ -6,4 +6,4 @@ async def test_read_root(client):
     """
     response = await client.get("/")
     assert response.status_code == 200
-    assert response.json() == {"status": "ok", "message": "Ecotur-ASOPRADO API (Iteración 1) está en línea"}
+    assert response.json() == {"status": "ok", "message": "Ecotur-ASOPRADO API (v0.1.0) está en línea"}

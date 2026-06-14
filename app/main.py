@@ -103,4 +103,4 @@ app.include_router(service.router, prefix="/servicios", tags=["Servicios Turíst
 
 @app.get("/", tags=["Health Check"])
 async def root():
-    return {"status": "ok", "message": "Ecotur-ASOPRADO API (v0.2.0) está en línea"}
+    return {"status": "ok", "message": "Ecotur-ASOPRADO API (v0.1.0) está en línea"}
