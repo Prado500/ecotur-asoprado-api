@@ -75,7 +75,7 @@ async def login(credenciales: UserLogin, db: AsyncSession = Depends(get_db)):
     if not usuario or not verify_password(credenciales.password, usuario.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Revise su correo y contraseña",
+            detail="Revise su correo y contraseña o verifique su correo electrónico",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
