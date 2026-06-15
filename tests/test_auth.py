@@ -1,6 +1,7 @@
 import pytest
 
 USER_PAYLOAD = {
+    "cedula": "1005911792",
     "email": "turista@example.com",
     "first_name": "Juan",
     "last_name": "Perez",
@@ -18,7 +19,9 @@ async def test_registro_usuario_exitoso(client):
     assert data["email"] == USER_PAYLOAD["email"]
     assert data["first_name"] == USER_PAYLOAD["first_name"]
     assert "id" in data
-    assert "password" not in data # Garantiza que no exponemos la contraseña plana
+    assert "password" not in data
+    assert data["cedula"] == USER_PAYLOAD["cedula"]
+    assert data["is_active"] is False
 
 async def test_registro_usuario_duplicado(client):
     """Prueba que el sistema rechace un registro con un correo ya existente (HTTP 400)."""
