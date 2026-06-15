@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy.sql.operators import or_
+
 from app.db.database import get_db
 from app.models.user import User, UserRole
 from app.schemas.user import UserCreate, UserResponse, UserLogin
@@ -18,18 +20,24 @@ async def registrar_turista(usuario: UserCreate, db: AsyncSession = Depends(get_
     Contribuye a resolver la HU-01.
     """
 
-    stmt = select(User).where(User.email == usuario.email)
+    stmt = select(User).where(
+        or_(
+        User.cedula == usuario.cedula,
+        User.email == usuario.email
+    )
+    )
     resultado = await db.execute(stmt)
     usuario_existente = resultado.scalars().first()
     if usuario_existente:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Este correo electrónico ya se encuentra registrado."
+            detail="Este usuario ya se encuentra registrado."
         )
 
     hashed_password = get_password_hash(usuario.password)
 
     nuevo_usuario = User(
+        cedula = usuario.cedula,
         email=usuario.email,
         first_name=usuario.first_name,
         last_name=usuario.last_name,
