@@ -25,6 +25,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     DICCIONARIO_CAMPOS = {
         "first_name": "nombres",
         "last_name": "apellidos",
+        "cedula": "documento",
         "phone": "teléfono",
         "email": "correo electrónico",
         "password": "contraseña",
