@@ -1,4 +1,7 @@
 import pytest
+from sqlalchemy.future import select
+
+from app.models.user import User
 
 USER_PAYLOAD = {
     "cedula": "1005911792",
@@ -9,6 +12,8 @@ USER_PAYLOAD = {
     "password": "passwordSegura123",
     "data_consent": True
 }
+
+
 
 async def test_registro_usuario_exitoso(client):
     """Prueba que un usuario nuevo se pueda registrar correctamente."""
@@ -32,20 +37,31 @@ async def test_registro_usuario_duplicado(client):
     response = await client.post("/usuarios/registro", json=USER_PAYLOAD)
 
     assert response.status_code == 400
-    assert response.json()["detail"] == "Este correo electrónico ya se encuentra registrado."
+    assert response.json()["detail"] == "Este usuario ya se encuentra registrado."
 
-async def test_login_exitoso(client):
-    """Prueba que un usuario registrado pueda iniciar sesión y recibir un JWT."""
-    # 1. Crear el usuario
+async def test_login_exitoso(client, db_session):
+    """Prueba que un usuario registrado y ACTIVADO pueda iniciar sesión."""
+
+    # 1. ARRANGE: Crear el usuario (El backend lo guarda como is_active=False)
     await client.post("/usuarios/registro", json=USER_PAYLOAD)
 
-    # 2. Iniciar sesión
+    # 2. ARRANGE (Mutación de Estado): Simulamos que ya hizo clic en el correo
+    stmt = select(User).where(User.email == USER_PAYLOAD["email"])
+    resultado = await db_session.execute(stmt)
+    usuario = resultado.scalars().first()
+
+    # Lo activamos manualmente a nivel de base de datos
+    usuario.is_active = True
+    await db_session.commit()
+
+    # 3. ACT: Iniciar sesión (Solo enviamos lo que Pydantic exige)
     login_data = {
         "email": USER_PAYLOAD["email"],
         "password": USER_PAYLOAD["password"]
     }
     response = await client.post("/usuarios/login", json=login_data)
 
+    # 4. ASSERT: Validamos que ahora sí entre con 200 OK
     assert response.status_code == 200
     data = response.json()
     assert "access_token" in data
