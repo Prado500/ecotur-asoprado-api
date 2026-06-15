@@ -7,6 +7,7 @@ import jwt # Tokenización JWT
 SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+VERIFICATION_TOKEN_EXPIRE_MINUTES = int(os.getenv("VERIFICATION_TOKEN_EXPIRE_MINUTES", "15"))
 
 """
     FÁBRICA DE HASHES
@@ -55,6 +56,23 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
         expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
 
     to_encode.update({"exp": expire})
+
+    encoded_jwt = jwt.encode(payload=to_encode, key=SECRET_KEY, algorithm=ALGORITHM)
+
+    return encoded_jwt
+
+def create_verification_token(email: str) -> str:
+    """
+    Fabrica un JWT de un solo uso estrictamente para la verificación de identidad.
+    Contiene un 'scope' específico para prevenir su uso como token de autorización general.
+    """
+    expire = datetime.now(timezone.utc) + timedelta(minutes=VERIFICATION_TOKEN_EXPIRE_MINUTES)
+
+    to_encode = {
+        "sub": email,
+        "scope": "email_verification",
+        "exp": expire
+    }
 
     encoded_jwt = jwt.encode(payload=to_encode, key=SECRET_KEY, algorithm=ALGORITHM)
 
