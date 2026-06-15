@@ -20,9 +20,9 @@ async def get_current_user(
         db: AsyncSession = Depends(get_db)
 ) -> User:
     """
-    Esta función verifica la validez de los JWTs de acuerdo a su firma y tiempo de expiración.
+    Esta función verifica la validez de los JWT de acuerdo a su firma y tiempo de expiración.
     Se inyecta en cualquier endpoint protegido. Además de Validar la firma del token y su fecha de expiración,
-    Verifica que el payload del token sea coherente y que el  usuario aún exista en la base de datos antes de retornarlo.
+    Verifica que el payload del token sea coherente y que el usuario aún exista en la base de datos antes de retornarlo.
 
     Retorna y proporciona a cada endpoint protegido un User listo para ejecutar consultas en la bd.
     """
