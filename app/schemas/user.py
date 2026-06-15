@@ -10,7 +10,18 @@ class UserRole(str, Enum):
 class UserBase(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
+    cedula: str = Field(
+        ...,
+        min_length=6,
+        max_length=10,
+        pattern="^\d{6,10}$",
+        description="Cédula de ciudadanía. Solo puede contener números del 0 al 9, y su longitud debe ser entre 6 y 10 dígitos"
+    )
+
+
     email: EmailStr = Field(..., description="Correo electrónico debe ser válido")
+
+
 
     first_name: str = Field(
         ...,

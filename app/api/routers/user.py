@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy.sql.operators import or_
+
 from app.db.database import get_db
 from app.models.user import User, UserRole
 from app.schemas.user import UserCreate, UserResponse, UserLogin
@@ -18,25 +20,32 @@ async def registrar_turista(usuario: UserCreate, db: AsyncSession = Depends(get_
     Contribuye a resolver la HU-01.
     """
 
-    stmt = select(User).where(User.email == usuario.email)
+    stmt = select(User).where(
+        or_(
+        User.cedula == usuario.cedula,
+        User.email == usuario.email
+    )
+    )
     resultado = await db.execute(stmt)
     usuario_existente = resultado.scalars().first()
     if usuario_existente:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Este correo electrónico ya se encuentra registrado."
+            detail="Este usuario ya se encuentra registrado."
         )
 
     hashed_password = get_password_hash(usuario.password)
 
     nuevo_usuario = User(
+        cedula = usuario.cedula,
         email=usuario.email,
         first_name=usuario.first_name,
         last_name=usuario.last_name,
         phone=usuario.phone,
         password_hash=hashed_password,
         role=UserRole.tourist,
-        data_consent=usuario.data_consent
+        data_consent=usuario.data_consent,
+        is_active = False
     )
 
     db.add(nuevo_usuario)
@@ -56,12 +65,10 @@ async def login(credenciales: UserLogin, db: AsyncSession = Depends(get_db)):
 
     stmt = select(User).where(
         User.email == credenciales.email,
-        User.is_active == True,
         User.deleted_at.is_(None)
     )
     resultado = await db.execute(stmt)
     usuario = resultado.scalars().first()
-
 
 
     if not usuario or not verify_password(credenciales.password, usuario.password_hash):
@@ -71,6 +78,11 @@ async def login(credenciales: UserLogin, db: AsyncSession = Depends(get_db)):
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    if not usuario.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Debe verificar su cuenta. Revise su correo electrónico y complete su registro para poder ingresar",
+        )
 
     datos_para_token = {
         "sub": usuario.email,
