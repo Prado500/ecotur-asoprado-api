@@ -64,21 +64,24 @@ async def login(credenciales: UserLogin, db: AsyncSession = Depends(get_db)):
 
     stmt = select(User).where(
         User.email == credenciales.email,
-        User.is_active == True,
         User.deleted_at.is_(None)
     )
     resultado = await db.execute(stmt)
     usuario = resultado.scalars().first()
 
 
-
     if not usuario or not verify_password(credenciales.password, usuario.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Revise su correo y contraseña o verifique su correo electrónico",
+            detail="Revise su correo y contraseña",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    if not usuario.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Debe verificar su cuenta. Revise su correo electrónico y complete su registro para poder ingresar",
+        )
 
     datos_para_token = {
         "sub": usuario.email,
