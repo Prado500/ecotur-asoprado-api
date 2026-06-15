@@ -44,7 +44,8 @@ async def registrar_turista(usuario: UserCreate, db: AsyncSession = Depends(get_
         phone=usuario.phone,
         password_hash=hashed_password,
         role=UserRole.tourist,
-        data_consent=usuario.data_consent
+        data_consent=usuario.data_consent,
+        is_active = False
     )
 
     db.add(nuevo_usuario)
