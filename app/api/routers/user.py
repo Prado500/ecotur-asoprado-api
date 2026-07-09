@@ -1,110 +1,37 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
-from sqlalchemy.sql.operators import or_
-
-from app.db.database import get_db
-from app.models.user import User, UserRole
+from fastapi import APIRouter, Depends, status
 from app.schemas.user import UserCreate, UserResponse, UserLogin
 from app.schemas.token import TokenResponse
-from app.core.security import get_password_hash, verify_password, create_access_token
-from app.api.dependencies import get_current_user
+from app.models.user import User
+from app.api.dependencies import get_current_user, get_user_service
+from app.services.user_service import UserService
 
 router = APIRouter()
 
-
 @router.post("/registro", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-async def registrar_turista(usuario: UserCreate, db: AsyncSession = Depends(get_db)):
+async def registrar_turista(
+        usuario: UserCreate,
+        user_service: UserService = Depends(get_user_service)
+):
+    """ Delegates User creation to UserService.
+        Returns a JSON representation containing
+        general information of a registered User.
     """
-    Endpoint público para que los turistas creen su cuenta en ASOPRADO.
-    Contribuye a resolver la HU-01.
-    """
+    return await user_service.register_tourist(usuario)
 
-    stmt = select(User).where(
-        or_(
-        User.cedula == usuario.cedula,
-        User.email == usuario.email
-    )
-    )
-    resultado = await db.execute(stmt)
-    usuario_existente = resultado.scalars().first()
-    if usuario_existente:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Este usuario ya se encuentra registrado."
-        )
-
-    hashed_password = get_password_hash(usuario.password)
-
-    nuevo_usuario = User(
-        cedula = usuario.cedula,
-        email=usuario.email,
-        first_name=usuario.first_name,
-        last_name=usuario.last_name,
-        phone=usuario.phone,
-        password_hash=hashed_password,
-        role=UserRole.tourist,
-        data_consent=usuario.data_consent,
-        is_active = False
-    )
-
-    db.add(nuevo_usuario)
-    await db.commit()
-    await db.refresh(
-        nuevo_usuario)  # Se forza refrescar la sesión para obtener valores generados por el SGBD (los campos id y created_at)
-
-
-    return nuevo_usuario
 
 @router.post("/login", response_model=TokenResponse)
-async def login(credenciales: UserLogin, db: AsyncSession = Depends(get_db)):
+async def login(
+        credenciales: UserLogin,
+        user_service: UserService = Depends(get_user_service)
+):
+    """ Delegates authentication and JWT provisioning to UserService.
+        Returns a signed and temporal JWT token for general access
+        to protected resources.
     """
-    Endpoint para que los usuarios (Turistas o Admins) inicien sesión.
-    Cumple con los criterios de la HU-02.
-    """
+    return await user_service.authenticate_user(credenciales)
 
-    stmt = select(User).where(
-        User.email == credenciales.email,
-        User.deleted_at.is_(None)
-    )
-    resultado = await db.execute(stmt)
-    usuario = resultado.scalars().first()
-
-
-    if not usuario or not verify_password(credenciales.password, usuario.password_hash):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Revise su correo y contraseña",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    if not usuario.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Debe verificar su cuenta. Revise su correo electrónico y complete su registro para poder ingresar",
-        )
-
-    datos_para_token = {
-        "sub": usuario.email,
-        "role": usuario.role.value
-    }
-
-    token_generado = create_access_token(data=datos_para_token)
-
-
-    return {
-        "access_token": token_generado,
-        "token_type": "bearer"
-    }
 
 @router.get("/mi-perfil", response_model=UserResponse)
-async def ver_mi_perfil(usuario_actual =  Depends(get_current_user)):
-
-    """
-    Endpoint que permite visualizar la información de un usuario (excluyendo hash de contraseña).
-    :param usuario_actual: un User retornado por get_current_user().
-    :return: User, cuya respuesta se sirve con UserResponse
-    """
-
+async def ver_mi_perfil(usuario_actual: User = Depends(get_current_user)):
+    """ Protected Endpoint: Returns generic data of a registered user. """
     return usuario_actual
-

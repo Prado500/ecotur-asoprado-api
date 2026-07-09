@@ -1,4 +1,4 @@
-# 🍃 Ecotur-ASOPRADO API - Backend Architecture (v0.1.0)
+# 🍃 Ecotur-ASOPRADO API - Backend Architecture (v0.1.1)
 
 ![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)
 ![Python](https://img.shields.io/badge/Python-3.11+-blue?style=for-the-badge&logo=python)
@@ -12,13 +12,20 @@ Este repositorio aloja el backend transaccional para **Ecotur-ASOPRADO**, un eco
 
 La arquitectura fue diseñada bajo el estándar de **Clean Architecture**, priorizando la escalabilidad, el rendimiento asíncrono y la seguridad de la información.
 
-### 🎯 Alcance del Sprint 1 (MVP Base)
-Esta versión contiene el Producto Mínimo Viable (MVP) consolidado en el primer sprint, satisfaciendo las siguientes Historias de Usuario:
+###  Alcance del Sprint 4: Gobernanza, Experiencia Base y Cloud (En curso)
+Este sprint tiene como objetivo robustecer la gobernanza de datos, preparar la infraestructura para almacenamiento en la nube e investigar las integraciones financieras.
+* **Habilitador Técnico (v0.1.1):** Refactorización arquitectónica profunda hacia *Clean Architecture* (Separación en capas de Servicios y Repositorios) para mitigar deuda técnica.
+* **HU-10 & HU-11:** Gobernanza de Datos. Implementación de validación de identidad (Cédula) y mutación de estados mediante **Borrado Lógico**.
+* **HU-12:** Infraestructura Cloud Multimedia. Transición de inyección de URLs en texto plano a recepción de binarios (`multipart/form-data`) y conexión con CDN/Object Storage.
+* **Spike (Investigación):** Prueba de concepto para la integración transaccional y Webhooks con la API de Wompi Bancolombia.
+
+###  Alcance del Sprint 1: MVP Base (v0.1.0)
+Esta versión contiene el Producto Mínimo Viable (MVP) consolidado en el primer sprint:
+* **Habilitador Técnico:** Contenerización, creación y configuración de infraestrutura cloud (Azure) y despliegue bajo pipelines de CI/CD en 3 entornos de nube (Develop, Staging y Main).
 * **HU-01:** Registro de turistas (con hashing de contraseñas).
 * **HU-02:** Inicio de sesión (Autenticación JWT).
 * **HU-03:** Visualización de paquetes turísticos.
 * **HU-08:** Creación de paquetes turísticos.
-* **Habilitador Técnico:** Endpoint de perfil para validación de Acceso Basado en Roles (RBAC).
 
 ---
 
@@ -31,18 +38,20 @@ El proyecto separa las responsabilidades en capas estrictas para garantizar un b
  ┣ 📂 .azure-pipelines/  # Definición de flujos CI/CD (Pipeline as Code)
  ┣ 📂 alembic/           # Scripts y control de versiones de la base de datos
  ┣ 📂 app/               # Código fuente principal de la aplicación
- ┃ ┣ 📂 api/             # Enrutadores (Endpoints) y dependencias de inyección
- ┃ ┣ 📂 core/            # Configuraciones globales, seguridad (JWT) y variables de entorno
- ┃ ┣ 📂 crud/            # Lógica de persistencia y operaciones transaccionales
- ┃ ┣ 📂 db/              # Configuración de sesión y conexión con PostgreSQL
- ┃ ┣ 📂 models/          # Entidades y mapeo relacional (SQLAlchemy)
+ ┃ ┣ 📂 api/             # Enrutadores (Slim Controllers) e Inyección de Dependencias
+ ┃ ┣ 📂 core/            # Configuraciones globales, seguridad (JWT) y variables
+ ┃ ┣ 📂 db/              # Directorio central de metadatos (SQLAlchemy 2.0)
+ ┃ ┣ 📂 models/          # Entidades y mapeo relacional (ORM)
+ ┃ ┣ 📂 repositories/    # Capa de Acceso a Datos (Consultas SQL aisladas)
  ┃ ┣ 📂 schemas/         # Validadores de entrada/salida y DTOs (Pydantic)
+ ┃ ┣ 📂 services/        # Capa de Lógica de Negocio y reglas transaccionales
  ┃ ┗ 📜 main.py          # Punto de entrada de la aplicación FastAPI
- ┣ 📂 tests/             # Batería de pruebas (QA y validaciones de API)
- ┣ 📜 alembic.ini        # Configuración del motor de migraciones
+ ┣ 📂 tests/             # Batería de pruebas automatizadas (Pytest)
+ ┣ 📜 .python-version    # Declaración estricta del runtime del proyecto (3.11)
+ ┣ 📜 alembic.ini        # Configuración nativa del motor de migraciones
  ┣ 📜 docker-compose.yml # Orquestación de servicios locales (API + DB)
  ┣ 📜 Dockerfile         # Receta de construcción de la imagen del contenedor
- ┣ 📜 requirements.txt   # Dependencias de Python
+ ┣ 📜 pyproject.toml     # Gestión moderna de dependencias y configuración (PEP 518)
  ┗ 📜 .env.example       # Plantilla de variables de entorno seguras
 ```
 

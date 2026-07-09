@@ -4,23 +4,17 @@ from sqlalchemy.sql import func
 from app.db.database import Base
 
 """
-Se decide crear y aplicar tipos enumerados de acuerdo a los roles existentes para garantizar
-consistencia y coherencia a nivel de la información que
-persiste en la base de datos.
+Enum type according to user roles employed to guarantee coherence and consistency
+across registers within the persistence layer.
 """
-
-
 class UserRole(str, enum.Enum):
     admin = "admin"
     tourist = "tourist"
 
 
 """
-Definición de las clases modelo; estas delimitan la metadata que SQLAlchemy creará y utilizará
-para generar y enviar a ejecutar al SGBD el código SQL plano que crea per sé las tablas en la base de datos.
+Domain model implementation of the User entity as an SQLAlchemy model class.
 """
-
-
 class User(Base):
     __tablename__ = "users"
 

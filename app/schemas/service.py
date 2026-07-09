@@ -12,7 +12,7 @@ class ServiceImageResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 class ServiceBase(BaseModel):
-    # Eliminar espacios en blanco al inicio y al final de cualquier string.
+
     model_config = ConfigDict(str_strip_whitespace=True)
 
     name: str = Field(
@@ -35,22 +35,21 @@ class ServiceBase(BaseModel):
     max_capacity: int = Field(..., gt=0, le=30, description="Capacidad máxima de turistas")
     is_available: bool = Field(default=True)
 
-    # === MUTADOR SILENCIOSO DE HIGIENE DE DATOS ===
+    # === TITLE DATA HYGIENE ===
     @field_validator('name')
     @classmethod
     def format_service_name(cls, v: str) -> str:
         """
-        Transforma silenciosamente inputs como ' pAqUeTe tuRIsTiCo '
-        a 'Paquete Turístico'. Se emplea .title() para que funcione como "Title Case" (primeras Letras En Mayúscula)
+        Transforms inputs such as 'pAqUeTe tuRIsTiCo' into 'Paquete Turístico'
+        It implements title case employing .title()
         """
-        # Elimina espacios dobles accidentales en el medio ("Tour   por el rio" -> "Tour por el rio")
-        limpio = " ".join(v.split())
+        # Elimination of double whitespaces ("Tour   por el rio" -> "Tour por el rio")
+        clean = " ".join(v.split())
 
-        return limpio.title()
+        return clean.title()
 
 class ServiceCreate(ServiceBase):
-    # HttpUrl delega a Rust la validación estricta de que el string
-    # empiece con http:// o https:// y tenga un dominio válido.
+    # HttpUrl delegates the image url string domain and protocol verification to Rust.
     image_urls: List[HttpUrl] = Field(
         default=[],
         max_length=10,
