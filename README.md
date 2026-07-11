@@ -141,11 +141,11 @@ Below are the main MVP routes and the required payloads for successful testing.
 
 ### Public (No token required)
 
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| **POST** | `/usuarios/registro` | `Registration of new users with password hashing at the backend layer  (HU-01)` |
-| **POST** | `/usuarios/login` | `Login and obtain a JWT token (HU-02)` |
-| **GET** | `/servicios/` | `Public catalog of all tourist services available (HU-03)` |
+| Method | Endpoint | Description                                                                   |
+| :--- | :--- |:------------------------------------------------------------------------------|
+| **POST** | `/usuarios/registro` | Registration of new users with password hashing at the backend layer  (HU-01) |
+| **POST** | `/usuarios/login` | Login and obtain a JWT token (HU-02)                                          |
+| **GET** | `/servicios/` | Public catalog of all tourist services available (HU-03)                      |
 
 ### JSON Example for /usuarios/registro :
 
@@ -170,10 +170,10 @@ Below are the main MVP routes and the required payloads for successful testing.
 ```
 ## Private (Require Bearer Token in the Header)
 
-| Method | Endpoint | Description | Access Level| 
-| :--- | :--- | :--- | :--- |
+| Method | Endpoint | Description                                                                     | Access Level| 
+| :--- | :--- |:--------------------------------------------------------------------------------| :--- |
 | **GET** | `/usuarios/mi-perfil` | Allows a user to view his/her own specific profile containing generic user data |Authenticated Users Only |
-| **POST** | `/servicios/` | Allows an admin to create a tourist service | Admins Only | 
+| **POST** | `/servicios/` | Allows an admin to create a tourist service (HU-08)                             | Admins Only | 
 
 
 
