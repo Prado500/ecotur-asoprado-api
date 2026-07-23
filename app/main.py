@@ -9,20 +9,19 @@ from app.api.routers import user, service
 app = FastAPI(
     title="Ecotur-ASOPRADO API",
     description="API RESTful asíncrona para la gestión de paquetes turísticos",
-    version="0.1.0",
+    version="0.1.1",
 )
 
-# === MANEJADOR GLOBAL DE EXCEPCIONES DE PYDANTIC (UX FRIENDLY/ UserCreate) ===
+# ===  GLOBAL PYDANTIC EXCEPTION HANDLER (UX FRIENDLY/ UserCreate) ===
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     """
-    Atrapa los errores de validación de Pydantic y los traduce a un formato amigable
-    para el Frontend, aplicando nombres de campos en español.
+    Catches Pydantic validation exceptions and translates them
+    to a user-friendly format containing field names in spanish.
     """
-    errores_formateados = []
+    formated_errors = []
 
-    # Diccionario para traducir variables técnicas a lenguaje humano
-    DICCIONARIO_CAMPOS = {
+    field_dict = {
         "first_name": "nombres",
         "last_name": "apellidos",
         "cedula": "documento",
@@ -37,52 +36,52 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
     for error in exc.errors():
 
-        campo_tecnico = error.get("loc")[-1] if error.get("loc") else "desconocido"
-        tipo_error = error.get("type")
+        raw_filed = error.get("loc")[-1] if error.get("loc") else "desconocido"
+        error_type = error.get("type")
 
-        mensaje_original = error.get("msg", "")
-
-
-        campo_humano = DICCIONARIO_CAMPOS.get(campo_tecnico, campo_tecnico)
+        raw_err_msg = error.get("msg", "")
 
 
-        if "Value error, " in mensaje_original:
-            mensaje_original = mensaje_original.replace("Value error, ", "")
+        translated_field = field_dict.get(raw_filed, raw_filed)
 
-        # === DICCIONARIO DE TRADUCCIÓN DE ERRORES ===
-        if tipo_error == "string_pattern_mismatch":
-            mensaje = f"El campo '{campo_humano}' contiene caracteres no permitidos o formato inválido."
-        elif tipo_error == "string_too_short":
-            mensaje = f"El campo '{campo_humano}' es demasiado corto."
-        elif tipo_error == "string_too_long":
-            mensaje = f"El campo '{campo_humano}' excede el número máximo de caracteres permitidos."
-        elif tipo_error == "missing":
-            mensaje = f"El campo '{campo_humano}' es obligatorio."
-        elif campo_tecnico == "email" and tipo_error == "value_error":
-            # Atrapa los errores en inglés de la librería email-validator
-            mensaje = f"El {campo_humano} ingresado no tiene un formato válido."
-        elif tipo_error == "value_error":
-            # Atrapa validaciones (@field_validator) limpias
-            mensaje = mensaje_original
+
+        if "Value error, " in raw_err_msg:
+            raw_err_msg = raw_err_msg.replace("Value error, ", "")
+
+        # === ERROR TRANSLATION DICTIONARY ===
+        if error_type == "string_pattern_mismatch":
+            message = f"El campo '{translated_field}' contiene caracteres no permitidos o formato inválido."
+        elif error_type == "string_too_short":
+            message = f"El campo '{translated_field}' es demasiado corto."
+        elif error_type == "string_too_long":
+            message = f"El campo '{translated_field}' excede el número máximo de caracteres permitidos."
+        elif error_type == "missing":
+            message = f"El campo '{translated_field}' es obligatorio."
+        elif raw_filed == "email" and error_type == "value_error":
+            # catches errors in english languages thrown by email-validator library.
+            message = f"El {translated_field} ingresado no tiene un formato válido."
+        elif error_type == "value_error":
+            # Catches clean (@Field_validator) exceptions.
+            message = raw_err_msg
         else:
-            mensaje = f"Error en '{campo_humano}': Revisar el formato ingresado."
+            message = f"Error en '{translated_field}': Revisar el formato ingresado."
 
-        errores_formateados.append({
-            "campo": campo_tecnico, # Para que el Frontend sepa qué input pintar de rojo
-            "mensaje": mensaje      # Para que el Humano lo lea
+        formated_errors.append({
+            "raw_field": raw_filed, # For the client to understand what to paint red
+            "message": message      # For the human eye to read.
         })
 
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content={"detalle": errores_formateados},
+        content={"detalle": formated_errors},
     )
 
-# === MANEJADOR GLOBAL DE EXCEPCIONES DE BASE DE DATOS ===
+# === GLOBAL DATABASE EXCEPTION HANDLER ===
 @app.exception_handler(IntegrityError)
 async def sqlalchemy_integrity_error_handler(request: Request, exc: IntegrityError):
     """
-    Atrapa cualquier violación de integridad en la BD (ej. Condición de carrera en UNIQUE)
-    y previene un Error 500, retornando un 409 Conflict limpio al cliente.
+    Catches any integrity transgression at the persistence layer (e.g. race condition set UNIQUE)
+    and prevents 500 error obtention by returning a 409 Conflict response instead.
     """
     return JSONResponse(
         status_code=status.HTTP_409_CONFLICT,
@@ -104,4 +103,4 @@ app.include_router(service.router, prefix="/servicios", tags=["Servicios Turíst
 
 @app.get("/", tags=["Health Check"])
 async def root():
-    return {"status": "ok", "message": "Ecotur-ASOPRADO API (v0.1.0) está en línea"}
+    return {"status": "ok", "message": "Ecotur-ASOPRADO API (v0.1.1) está en línea"}

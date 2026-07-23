@@ -16,7 +16,7 @@ USER_PAYLOAD = {
 
 
 async def test_registro_usuario_exitoso(client):
-    """Prueba que un usuario nuevo se pueda registrar correctamente."""
+    """Test that a new user can successfully register."""
     response = await client.post("/usuarios/registro", json=USER_PAYLOAD)
 
     assert response.status_code == 201
@@ -29,46 +29,46 @@ async def test_registro_usuario_exitoso(client):
     assert data["is_active"] is False
 
 async def test_registro_usuario_duplicado(client):
-    """Prueba que el sistema rechace un registro con un correo ya existente (HTTP 400)."""
-    # 1. Registramos al usuario por primera vez
+    """Test that the system rejects any registration attempts with already-registered email addresses (HTTP 400)."""
+    # 1. Simulation of first-time user registration.
     await client.post("/usuarios/registro", json=USER_PAYLOAD)
 
-    # 2. Intentamos registrar el mismo usuario nuevamente
+    # 2. Attempt to register the same user with the same email again.
     response = await client.post("/usuarios/registro", json=USER_PAYLOAD)
 
     assert response.status_code == 400
     assert response.json()["detail"] == "Este usuario ya se encuentra registrado."
 
 async def test_login_exitoso(client, db_session):
-    """Prueba que un usuario registrado y ACTIVADO pueda iniciar sesión."""
+    """Test that a registered and active user can log in."""
 
-    # 1. ARRANGE: Crear el usuario (El backend lo guarda como is_active=False)
+    # 1. ARRANGE: User creation (backend will send it disabled by default is_active=False).
     await client.post("/usuarios/registro", json=USER_PAYLOAD)
 
-    # 2. ARRANGE (Mutación de Estado): Simulamos que ya hizo clic en el correo
+    # 2. ARRANGE (State mutation): Simulation of successful user email verification.
     stmt = select(User).where(User.email == USER_PAYLOAD["email"])
-    resultado = await db_session.execute(stmt)
-    usuario = resultado.scalars().first()
+    result = await db_session.execute(stmt)
+    user = result.scalars().first()
 
-    # Lo activamos manualmente a nivel de base de datos
-    usuario.is_active = True
+    # Simulation of user activation at persistency layer.
+    user.is_active = True
     await db_session.commit()
 
-    # 3. ACT: Iniciar sesión (Solo enviamos lo que Pydantic exige)
+    # 3. ACT: Afterward, the verified user logs in.
     login_data = {
         "email": USER_PAYLOAD["email"],
         "password": USER_PAYLOAD["password"]
     }
     response = await client.post("/usuarios/login", json=login_data)
 
-    # 4. ASSERT: Validamos que ahora sí entre con 200 OK
+    # 4. ASSERT: After a successful login, response code should be 200 OK.
     assert response.status_code == 200
     data = response.json()
     assert "access_token" in data
     assert data["token_type"] == "bearer"
 
 async def test_login_credenciales_invalidas(client):
-    """Prueba que credenciales incorrectas devuelvan HTTP 401."""
+    """Test that invalid credentials trigger an HTTP 401 response."""
     login_data = {
         "email": "noexiste@example.com",
         "password": "claveIncorrecta"

@@ -1,4 +1,4 @@
-trigger: none # Apagado para push directos
+trigger: none
 
 pr:
   branches:
@@ -21,9 +21,8 @@ steps:
       versionSpec: '$(pythonVersion)'
 
   - script: |
-      python -m pip install --upgrade pip
-      pip install -r requirements.txt
-    displayName: 'Instalar dependencias (requirements.txt)'
+      pip install -e .[test]
+    displayName: 'Instalar dependencias (pyproject.toml)'
 
   - script: |
       pytest -v

@@ -14,7 +14,7 @@ class UserBase(BaseModel):
         ...,
         min_length=6,
         max_length=10,
-        pattern="^\d{6,10}$",
+        pattern=r"^\d{6,10}$",
         description="Cédula de ciudadanía. Solo puede contener números del 0 al 9, y su longitud debe ser entre 6 y 10 dígitos"
     )
 
@@ -42,16 +42,15 @@ class UserBase(BaseModel):
         pattern=r"^3\d{9}$",
         description="Número de celular (debe tener 10 dígitos y comenzar por el número tres (3) )"
     )
-    # === HIGIENE DE DATOS ===
+    # === DATA HYGIENE ===
     @field_validator('first_name', 'last_name')
     @classmethod
     def format_title_case(cls, v: str) -> str:
         """
-        Aplica la Ley de Postel: Transforma silenciosamente inputs como 'joSE MaNuEL'
-        a 'Jose Manuel' antes de inyectarlos en la Base de Datos.
+        Applies Postel's Law: silently transforms inputs like 'joSE MaNuEL'
+        into 'Jose Manuel' before they are persisted to the database.
         """
-        # El método .title() convierte la primera letra de cada palabra en mayúscula
-        # y el resto en minúsculas.
+        # .title() converts the first char of each word into CAPS; the rest of the chars are left in lowercase.
         return v.title()
 
 class UserCreate(UserBase):
@@ -62,13 +61,13 @@ class UserCreate(UserBase):
     )
     data_consent: bool = Field(..., description="Aceptación de la Ley 1581 de protección de datos")
 
-    # === VALIDACIÓN EFICIENTE Y GRANULAR DE LA CONTRASEÑA ===
+    # === EFFICIENT AND GRANULAR PASSWORD VALIDATION ===
     @field_validator('password')
     @classmethod
     def validate_password_strength(cls, v: str) -> str:
         """
-        Validación de contraseña sin look-aheads de regex, evitando errores en Rust (Pydantic V2)
-        y permitiendo mensajes de error específicos (UX granular).
+       Password strength validation without regex lookaheads, avoiding Rust-side issues (Pydantic V2)
+       and enabling specific, granular error messages for better UX.
         """
         if not any(c.isupper() for c in v):
             raise ValueError('La contraseña debe contener al menos una letra mayúscula.')
@@ -81,11 +80,11 @@ class UserCreate(UserBase):
 
         return v
 
-    # === VALIDACIÓN LÓGICA DE CONSENTIMIENTO ===
+    # ===  CONSENT LOGIC VALIDATION ===
     @field_validator('data_consent')
     @classmethod
     def check_consent(cls, v: bool) -> bool:
-        """Validador lógico: El sistema no debe permitir registros si no acepta la ley de datos."""
+        """Logical validator: the system must not allow registration if the data protection law consent is not accepted."""
         if not v:
             raise ValueError('Debe aceptar la política de tratamiento de datos para registrarse.')
         return v

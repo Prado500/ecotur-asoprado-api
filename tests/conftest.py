@@ -10,7 +10,7 @@ from app.db.database import Base, get_db
 
 DATABASE_URL_TEST = "sqlite+aiosqlite:///:memory:"
 
-# StaticPool permite que la base de datos en memoria persista durante la ejecución del test
+# StaticPool allows for the in-memory database to exist until the test session is over.
 engine_test = create_async_engine(
     DATABASE_URL_TEST,
     poolclass=StaticPool,
@@ -28,9 +28,10 @@ TestingSessionLocal = async_sessionmaker(
 @pytest_asyncio.fixture(autouse=True)
 async def setup_database():
     """
-    Se ejecuta ANTES de cada prueba: Crea las tablas.
-    Se ejecuta DESPUÉS de cada prueba (yield): Borra las tablas.
-    Garantiza que cada test arranque con una BD completamente en blanco.
+    This function is executed before each test (as it creates the database tables)
+    and after each test (to perform database table deletion).
+
+    It guarantees each test counts on a clean database.
     """
     async with engine_test.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -42,15 +43,15 @@ async def setup_database():
 
 @pytest_asyncio.fixture
 async def db_session():
-    """Retorna la sesión de base de datos de prueba."""
+    """Returns test database session"""
     async with TestingSessionLocal() as session:
         yield session
 
 @pytest_asyncio.fixture
 async def client(db_session):
     """
-    Sobrescribe la dependencia `get_db` de la API para que use la sesión SQLite.
-    Levanta un cliente HTTP asíncrono (httpx) apuntando a nuestra app FastAPI.
+    Overwrites non-testable `get_db` API dependency over the SQLite session for testing.
+    Runs an async HTTP client (httpx) aiming to this FastAPI app.
     """
     async def override_get_db():
         yield db_session

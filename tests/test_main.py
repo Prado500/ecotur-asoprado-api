@@ -2,8 +2,8 @@ import pytest
 
 async def test_read_root(client):
     """
-    Verifica que el endpoint raíz responda 200 OK y devuelva el mensaje esperado.
+    verifies the root health check endpoint responds with an 200 code and the defined response message.
     """
     response = await client.get("/")
     assert response.status_code == 200
-    assert response.json() == {"status": "ok", "message": "Ecotur-ASOPRADO API (v0.1.0) está en línea"}
+    assert response.json() == {"status": "ok", "message": "Ecotur-ASOPRADO API (v0.1.1) está en línea"}

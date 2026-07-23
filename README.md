@@ -1,137 +1,156 @@
-# 🍃 Ecotur-ASOPRADO API - Backend Architecture (v0.1.0)
 
+---
+# Ecotur-ASOPRADO API - Backend Architecture (v0.1.1)
+
+---
 ![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)
 ![Python](https://img.shields.io/badge/Python-3.11+-blue?style=for-the-badge&logo=python)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql)
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker)
 ![Azure DevOps](https://img.shields.io/badge/Azure_DevOps-0078D7?style=for-the-badge&logo=azuredevops)
 
-## 📋 Contexto del Proyecto
+##  Project Context
 
-Este repositorio aloja el backend transaccional para **Ecotur-ASOPRADO**, un ecosistema digital web y móvil desarrollado como trabajo de grado para diversificar y gestionar la oferta turística del distrito de adecuación de tierras de Prado, Tolima. 
+This repository hosts the transactional backend for **Ecotur-ASOPRADO**, a web and mobile digital ecosystem developed as a degree project to diversify and manage the tourist offerings of the land adaptation district of Prado, Tolima.
 
-La arquitectura fue diseñada bajo el estándar de **Clean Architecture**, priorizando la escalabilidad, el rendimiento asíncrono y la seguridad de la información.
+The architecture was designed under the **Clean Architecture** standard, prioritizing scalability, asynchronous performance, and information security.
 
-### 🎯 Alcance del Sprint 1 (MVP Base)
-Esta versión contiene el Producto Mínimo Viable (MVP) consolidado en el primer sprint, satisfaciendo las siguientes Historias de Usuario:
-* **HU-01:** Registro de turistas (con hashing de contraseñas).
-* **HU-02:** Inicio de sesión (Autenticación JWT).
-* **HU-03:** Visualización de paquetes turísticos.
-* **HU-08:** Creación de paquetes turísticos.
-* **Habilitador Técnico:** Endpoint de perfil para validación de Acceso Basado en Roles (RBAC).
+### Sprint 4 Scope: U+D Operations with Soft Delete, Governance, Cloud Storage for images, and Wompi API POC (In progress)
+This sprint aims to implement the update and soft delete (U+D) operations for User and TouristService, strengthen data governance, prepare the infrastructure for cloud storage, and investigate financial integrations.
+* **Technical Enabler (v0.1.1):** Deep architectural refactoring towards *Clean Architecture* (Separation into Services and Repositories layers) to mitigate technical debt.
+* **HU-10 & HU-11:** Operations implementation (U+D) with state mutation via **Soft Delete** and Data Governance. Implementation of national ID (Cédula) verification.
+* **HU-12:** Multimedia Cloud Infrastructure. Transitioning from plaintext URL storage to binary file uploads (`multipart/form-data`) and integration with CDN/Object Storage.
+* **Spike (Research):** Proof of Concept (POC) for transactional integration and Webhooks with Bancolombia's Wompi API.
+
+### Sprint 1 Scope: Core MVP (v0.1.0)
+This release contains the Minimum Viable Product (MVP) consolidated in the first sprint:
+* **Technical Enabler  (v0.1.0):** Containerization, creation, and configuration of cloud infrastructure (Azure), and deployment under automated CI/CD pipelines across 3 cloud environments (Develop, Staging, and Main).
+* **HU-01:** Tourist registration (with password hashing).
+* **HU-02:** Login (JWT Authentication).
+* **HU-03:** Visualization of tourist packages.
+* **HU-08:** Creation of tourist packages.
 
 ---
 
-## 📁 Estructura de Directorios (Clean Architecture)
+##  Directory Structure (Clean Architecture)
 
-El proyecto separa las responsabilidades en capas estrictas para garantizar un bajo acoplamiento y alta cohesión:
+The project separates responsibilities into strict layers to ensure low coupling and high cohesion:
 
 ```text
 📦 ECOTUR-ASOPRADO
- ┣ 📂 .azure-pipelines/  # Definición de flujos CI/CD (Pipeline as Code)
- ┣ 📂 alembic/           # Scripts y control de versiones de la base de datos
- ┣ 📂 app/               # Código fuente principal de la aplicación
- ┃ ┣ 📂 api/             # Enrutadores (Endpoints) y dependencias de inyección
- ┃ ┣ 📂 core/            # Configuraciones globales, seguridad (JWT) y variables de entorno
- ┃ ┣ 📂 crud/            # Lógica de persistencia y operaciones transaccionales
- ┃ ┣ 📂 db/              # Configuración de sesión y conexión con PostgreSQL
- ┃ ┣ 📂 models/          # Entidades y mapeo relacional (SQLAlchemy)
- ┃ ┣ 📂 schemas/         # Validadores de entrada/salida y DTOs (Pydantic)
- ┃ ┗ 📜 main.py          # Punto de entrada de la aplicación FastAPI
- ┣ 📂 tests/             # Batería de pruebas (QA y validaciones de API)
- ┣ 📜 alembic.ini        # Configuración del motor de migraciones
- ┣ 📜 docker-compose.yml # Orquestación de servicios locales (API + DB)
- ┣ 📜 Dockerfile         # Receta de construcción de la imagen del contenedor
- ┣ 📜 requirements.txt   # Dependencias de Python
- ┗ 📜 .env.example       # Plantilla de variables de entorno seguras
+ ┣ 📂 .azure-pipelines/  # CI/CD flow definition (Pipeline as Code)
+ ┣ 📂 alembic/           # Database version control and scripts
+ ┣ 📂 app/               # Main application source code
+ ┃ ┣ 📂 api/             # Routers (Slim Controllers) and Dependency Injection
+ ┃ ┣ 📂 core/            # Global configs, security (JWT), and environment variables
+ ┃ ┣ 📂 db/              # Central metadata directory (SQLAlchemy 2.0)
+ ┃ ┣ 📂 models/          # Entities and relational mapping (ORM)
+ ┃ ┣ 📂 repositories/    # Data Access Layer (Isolated SQL queries)
+ ┃ ┣ 📂 schemas/         # Input/output validators and DTOs (Pydantic)
+ ┃ ┣ 📂 services/        # Business Logic Layer and transactional rules
+ ┃ ┗ 📜 main.py          # FastAPI application entry point
+ ┣ 📂 tests/             # Automated testing suite (Pytest)
+ ┣ 📜 .python-version    # Strict project runtime declaration (3.11)
+ ┣ 📜 alembic.ini        # Native migration engine config
+ ┣ 📜 docker-compose.yml # Local services orchestration (API + DB)
+ ┣ 📜 Dockerfile         # Container image build recipe
+ ┣ 📜 pyproject.toml     # Modern dependency management and configuration (PEP 518)
+ ┗ 📜 .env.example       # Secure environment variables template
 ```
+---
+##  System Overview
 
-## 🚀 Resumen del Sistema
-Sistema transaccional desarrollado con FastAPI (modo asíncrono), persistencia relacional en PostgreSQL, y seguridad mediante autenticación JWT. El despliegue está completamente automatizado mediante estrategias de Pipeline as Code en Azure DevOps.
+Transactional system developed with FastAPI (asynchronous mode), relational persistence in PostgreSQL, and security via JWT authentication. Deployment is fully automated using Pipeline as Code strategies in Azure DevOps.
 
-### **Características Principales**
+### **Main Features**
 
-**Seguridad:** Autenticación JWT y control de acceso basado en roles (Turista / Admin).
+**Security:** JWT Authentication and Role-Based Access Control (Tourist / Admin).
 
-**Catálogo Diverso y Biocultural:** Gestión de paquetes turísticos con soporte para múltiples imágenes.
+**Diverse and Biocultural Catalog:** Management of tourist packages with support for multiple images.
 
-**Base de Datos Relacional:** Migraciones automatizadas y mapeo objeto-relacional seguro.
+**Relational Database:** Automated migrations and secure object-relational mapping.
 
-**Auto-Documentación:** Especificación OpenAPI interactiva disponible en la ruta /docs.
+**Auto-Documentation:** Interactive OpenAPI specification available at the /docs route.
 
-**Integración Continua:** CI/CD robusto orquestado con Microsoft Azure.
+**Continuous Integration:** Robust CI/CD orchestrated with Microsoft Azure.
 
-## ☁️ Entornos Desplegados (CI/CD - Azure DevOps)
-El pipeline promueve automáticamente el código a entornos específicos basándose en la rama de Git:
 
-| Entorno | Rama | URL Base de la API |
+---
+## Deployed Environments (CI/CD - Azure DevOps)
+
+The pipeline automatically promotes code to specific environments based on the Git branch:
+
+| Environment | Branch | API Base URL |
 | :--- | :--- | :--- |
-| **Desarrollo (DEV)** | `develop` | `https://api-ecoturasoprado-dev-f2aaejf9cdc0e3er.canadacentral-01.azurewebsites.net` |
-| **Pruebas (STG)** | `staging` | `https://api-ecoturasoprado-stg-gxb5bxcmcub3ftfx.canadacentral-01.azurewebsites.net` |
-| **Producción (MAIN)** | `main` | `https://api-ecoturasoprado-main-bucve5dfdfbnffgh.canadacentral-01.azurewebsites.net` |
+| **Development (DEV)** | `develop` | `https://api-ecoturasoprado-dev-f2aaejf9cdc0e3er.canadacentral-01.azurewebsites.net` |
+| **Staging (STG)** | `staging` | `https://api-ecoturasoprado-stg-gxb5bxcmcub3ftfx.canadacentral-01.azurewebsites.net` |
+| **Production (MAIN)** | `main` | `https://api-ecoturasoprado-main-bucve5dfdfbnffgh.canadacentral-01.azurewebsites.net` |
 
-## 🛠️ Stack Tecnológico
+---
 
-**Lenguaje:** Python 3.11+
 
-**Framework:** FastAPI (Asíncrono)
+## Tech Stack
+
+**Language:** Python 3.11+
+
+**Framework:** FastAPI (Asynchronous)
 
 **ORM:** SQLAlchemy
 
-**Validación de Datos:** Pydantic
+**Data Validation:** Pydantic
 
-**Migraciones:** Alembic
+**Migrations:** Alembic
 
-**Base de Datos:** PostgreSQL
+**Database:** PostgreSQL
 
-**Contenedores:** Docker & Docker Compose
+**Containers:** Docker & Docker Compose
 
-## ⚙️ Instalación y Ejecución Local
+---
+## Local Setup & Execution
 
-**1. Clonar el repositorio**
-```Bash
+**1. Clone the repository**
+
+```Code snippet
 git clone https://github.com/Prado500/ecotur-asoprado-api
+
 cd ecotur-asoprado-backend
 ```
-**2. Variables de Entorno**
 
-Cree un archivo .env en la raíz del proyecto copiando la estructura de .env.example y asignando las credenciales proporcionadas por el administrador del sistema.
+**2. Environment Variables**
 
+Create a .env file in the project root by copying the .env.example structure and assigning the credentials provided by the system administrator.
 
-**3. Ejecutar con Docker (Recomendado)**
+**3. Run with Docker (Recommended)**
 
-```Bash
-docker-compose up -d --build
+```Code snippe
+tdocker-compose up -d --build
 ```
+Once up and running, initialize the database by executing the migrations:
 
-
-Una vez levantado, inicialice la base de datos ejecutando las migraciones:
-
-
-```Bash
+```Code snippet
 docker-compose exec web alembic upgrade head
 ```
+API Base URL: http://localhost:8000
 
-API Base: http://localhost:8000
+Interactive Documentation (Swagger): http://localhost:8000/docs
+
+---
+
+##  Main Endpoints and Test Templates (JSON)
+Below are the main MVP routes and the required payloads for successful testing.
+
+### Public (No token required)
+
+| Method | Endpoint | Description                                                                   |
+| :--- | :--- |:------------------------------------------------------------------------------|
+| **POST** | `/usuarios/registro` | Registration of new users with password hashing at the backend layer  (HU-01) |
+| **POST** | `/usuarios/login` | Login and obtain a JWT token (HU-02)                                          |
+| **GET** | `/servicios/` | Public catalog of all tourist services available (HU-03)                      |
+
+### JSON Example for /usuarios/registro :
 
 
-Documentación Interactiva (Swagger): http://localhost:8000/docs
-
-## 📚 Endpoints Principales y Plantillas de Prueba (JSON)
-
-A continuación se detallan las rutas principales del MVP y los payloads requeridos para realizar pruebas exitosas.
-
-### 🔓 Públicos (No requieren token)
-
-| Método | Endpoint | Descripción |
-| :--- | :--- | :--- |
-| **POST** | `/usuarios/registro` | `Registro de nuevos turistas con contraseña hasheada desde el backend (HU-01)` |
-| **POST** | `/usuarios/login` | `Inicio de sesión para obtención de Token JWT (HU-02)` |
-| **GET** | `/servicios/` | `Ver catálogo general de paquetes turísticos (HU-03)` |
-
-### **Ejemplo JSON para** `/usuarios/registro` :
-
-```JSON
+```Code snippet
 {
   "email": "mario.turista@rutadelarroz.com",
   "first_name": "Mario",
@@ -141,32 +160,30 @@ A continuación se detallan las rutas principales del MVP y los payloads requeri
   "data_consent": true
 }
 ```
-### **Ejemplo JSON para** `/usuarios/login`:
+### JSON Example for /usuarios/login: (Upon successful execution, it will return the Bearer Token required for private routes).
 
-(Al ejecutar con éxito, retornará el Token Bearer necesario para rutas privadas).
-
-```JSON
+```Code snippet
 {
     "email": "mario.turista@rutadelarroz.com",
     "password": "ciscocisco"
 }
 ```
+## Private (Require Bearer Token in the Header)
 
-## 🔒 Privados (Requieren Token Bearer en el Header)
-
-| Método | Endpoint | Descripción | Nivel de Acceso| Descripción |
-| :--- | :--- | :--- | :--- | :--- |
-| **GET** | `/usuarios/mi-perfil` | `Ver catálogo general de paquetes turísticos (HU-03)` |Usuario Autenticado| Ver detalles del perfil del usuario actual. |
-| **POST** | `/servicios/` | `Ver catálogo general de paquetes turísticos (HU-03)` | Administrador | Crear nuevo paquete turístico (HU-08). |
-
-**Nota sobre GETs Privados:** El endpoint `/usuarios/mi-perfil` no requiere cuerpo (body) en la petición JSON. Únicamente requiere inyectar el Token Bearer en las cabeceras de autorización (Authorization: Bearer `<token>`).
+| Method | Endpoint | Description                                                                     | Access Level| 
+| :--- | :--- |:--------------------------------------------------------------------------------| :--- |
+| **GET** | `/usuarios/mi-perfil` | Allows a user to view his/her own specific profile containing generic user data |Authenticated Users Only |
+| **POST** | `/servicios/` | Allows an admin to create a tourist service (HU-08)                             | Admins Only | 
 
 
-### Ejemplo JSON para `/servicios/` (Creación de Paquete - Solo Admin):
 
-**⚠️ Nota importante sobre la Creación de Paquetes (`/servicios/`):** El campo category está estrictamente validado por un `Enum` de Pydantic. Los únicos valores permitidos en el cuerpo de la petición son: `"agroturismo"`, `"recreacional"`, `"metalmecanico"`, u `"otro"`.
+**Note on Private GETs:** The /usuarios/mi-perfil endpoint does not require a body in the JSON request. It only requires injecting the Bearer Token into the authorization headers (Authorization: Bearer ).
 
-```JSON
+### JSON Example for /servicios/ (Package Creation - Admin Only):
+
+**⚠️ Important note on Package Creation (/servicios/):** The category field is strictly validated by a Pydantic Enum. The only allowed values in the request body are: "agroturismo", "recreacional", "metalmecanico", or "otro".
+
+```Code snippet
 {
   "name": "TEST",
   "description": "ESTE ES UN PAQUETE DE PRUEBA",
@@ -180,14 +197,14 @@ A continuación se detallan las rutas principales del MVP y los payloads requeri
   ]
 }
 ```
-
-## 🔐 Seguridad
-
-**Autenticación:** JSON Web Tokens (JWT) inyectados vía cabecera de Autorización (Bearer <token>).
-
-**Control de Acceso (RBAC):** Restricciones granulares a nivel de endpoint dependiendo del rol del usuario en la base de datos.
-
-**Criptografía:** Contraseñas protegidas mediante algoritmos de hashing unidireccional (Bcrypt).
+---
 
 
+## Security
+* **Authentication:** JSON Web Tokens (JWT) injected via Authorization header (Bearer ).
 
+* **Access Control (RBAC):** Granular endpoint-level restrictions depending on the user's role in the database.
+
+* **Cryptography:** Passwords protected by one-way hashing algorithms (Bcrypt).
+
+---
