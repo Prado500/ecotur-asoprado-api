@@ -1,8 +1,8 @@
 import os
 from datetime import timedelta, datetime, timezone
 
-import bcrypt # Hashing de contraseñas y verificación
-import jwt # Tokenización JWT
+import bcrypt
+import jwt
 
 SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")

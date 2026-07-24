@@ -1,8 +1,12 @@
-from fastapi import HTTPException, status
+import jwt
+from fastapi import HTTPException, status, BackgroundTasks
+
+from app.core.email import send_verification_email
 from app.repositories.user_repository import UserRepository
 from app.schemas.user import UserCreate, UserLogin
 from app.models.user import User, UserRole
-from app.core.security import get_password_hash, verify_password, create_access_token
+from app.core.security import get_password_hash, verify_password, create_access_token, SECRET_KEY, ALGORITHM, \
+    create_verification_token
 from app.schemas.token import TokenResponse
 
 class UserService:
@@ -12,7 +16,7 @@ class UserService:
     def __init__(self, user_repo: UserRepository):
         self.user_repo = user_repo
 
-    async def register_tourist(self, user_data: UserCreate) -> User:
+    async def register_tourist(self, user_data: UserCreate, background_tasks: BackgroundTasks, base_url: str) -> User:
         existing_user = await self.user_repo.get_user_by_email_or_cedula(
             email=user_data.email,
             cedula=user_data.cedula
@@ -34,10 +38,52 @@ class UserService:
             data_consent=user_data.data_consent,
             is_active=False
         )
-        return await self.user_repo.create_user(new_user)
+
+        # 1. Persist the inactive user
+        saved_user = await self.user_repo.create_user(new_user)
+
+        # 2. Generate the single-use token
+        token = create_verification_token(saved_user.email)
+
+        # 3. Dispatch the email in the background to prevent blocking the HTTP response
+        background_tasks.add_task(
+            send_verification_email,
+            email_to=saved_user.email,
+            first_name=saved_user.first_name,
+            token=token,
+            base_url=base_url
+        )
+
+        return saved_user
+
+
+    async def verify_email_account(self, token: str) -> dict:
+        """
+        Decodes the verification token and activates the user account.
+        """
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            email: str = payload.get("sub")
+            scope: str = payload.get("scope")
+
+            if email is None or scope != "email_verification":
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Token de verificación inválido.")
+
+        except jwt.ExpiredSignatureError:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El enlace de verificación ha expirado. Por favor solicite uno nuevo.")
+        except jwt.InvalidTokenError:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Token de verificación inválido o corrupto.")
+
+        activation_success = await self.user_repo.activate_user(email)
+
+        if not activation_success:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado.")
+
+        return {"success": True, "message": "Cuenta verificada exitosamente. Ya puede iniciar sesión."}
+
 
     async def authenticate_user(self, credentials: UserLogin) -> TokenResponse:
-        user = await self.user_repo.get_active_user_by_email(credentials.email)
+        user = await self.user_repo.get_non_deleted_user_by_email(credentials.email)
 
         if not user or not verify_password(credentials.password, user.password_hash):
             raise HTTPException(

@@ -19,7 +19,8 @@ dependencies = [
     "python-multipart",
     "bcrypt",
     "pyjwt",
-    "python-dotenv"
+    "python-dotenv",
+    "fastapi-mail>=1.4.1",
 ]
 
 [project.optional-dependencies]
