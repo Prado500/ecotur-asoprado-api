@@ -11,8 +11,9 @@ pool:
   vmImage: 'ubuntu-latest'
 
 variables:
-
-  pythonVersion: '3.14'
+  - name: pythonVersion
+    value: '3.14'
+  - group: VG-ECOTUR-DEV
 
 steps:
   - task: UsePythonVersion@0
@@ -30,3 +31,5 @@ steps:
     env:
       DATABASE_URL: "sqlite+aiosqlite:///:memory:"
       JWT_SECRET_KEY: "super_secreto_ficticio_para_el_ci_pipeline"
+      MAIL_USERNAME: $(MAIL_USERNAME)
+      MAIL_PASSWORD: $(MAIL_PASSWORD)
