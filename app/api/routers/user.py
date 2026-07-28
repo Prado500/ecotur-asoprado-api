@@ -53,3 +53,19 @@ async def login(
 async def ver_mi_perfil(usuario_actual: User = Depends(get_current_user)):
     """ Protected Endpoint: Returns generic data of a registered user. """
     return usuario_actual
+
+
+@router.delete("/{cedula}", status_code=status.HTTP_200_OK)
+async def eliminar_usuario(
+        cedula: str,
+        user_service: UserService = Depends(get_user_service),
+        usuario_actual: User = Depends(get_current_user)
+):
+    """
+    Protected Endpoint: Performs a soft-delete on a target user account.
+    Requires Admin privileges or Self-Ownership.
+    """
+    return await user_service.delete_user_account(
+        target_cedula=cedula,
+        current_user=usuario_actual
+    )

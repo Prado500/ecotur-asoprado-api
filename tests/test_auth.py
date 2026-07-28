@@ -130,3 +130,42 @@ async def test_login_credenciales_invalidas(client):
 
     assert response.status_code == 401
     assert response.json()["detail"] == "Revise su correo y contraseña"
+
+async def test_borrado_logico_usuario(client, db_session):
+    """Test that a soft-deleted user retains their DB row but cannot log in (HTTP 403)."""
+
+    # 1. ARRANGE: Register and activate a user
+    await client.post("/usuarios/registro", json=USER_PAYLOAD)
+    stmt = select(User).where(User.email == USER_PAYLOAD["email"])
+    result = await db_session.execute(stmt)
+    user = result.scalars().first()
+    user.is_active = True
+    await db_session.commit()
+
+    # 2. ARRANGE: Login to get the Bearer token for authorization
+    login_data = {"email": USER_PAYLOAD["email"], "password": USER_PAYLOAD["password"]}
+    login_response = await client.post("/usuarios/login", json=login_data)
+    token = login_response.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # 3. ACT: Request self-deletion using CEDULA instead of email
+    target_cedula = USER_PAYLOAD["cedula"]
+    target_email = USER_PAYLOAD["email"]
+    delete_response = await client.delete(f"/usuarios/{target_cedula}", headers=headers)
+
+    # 4. ASSERT: Verify successful response and exact custom message
+    assert delete_response.status_code == 200
+    response_data = delete_response.json()
+    assert response_data["success"] is True
+    assert response_data["message"] == f"La cuenta vinculada a {target_email}, con C.C. {target_cedula} ha sido eliminada exitosamente."
+
+    # 5. ASSERT: Verify the row still exists but is structurally deactivated
+    result = await db_session.execute(stmt)
+    deleted_user = result.scalars().first()
+    assert deleted_user is not None  # The row must NOT be deleted
+    assert deleted_user.deleted_at is not None  # Timestamp must exist
+    assert deleted_user.is_active is False  # Must be deactivated
+
+    # 6. ASSERT: Attempt to login again should be strictly rejected
+    failed_login = await client.post("/usuarios/login", json=login_data)
+    assert failed_login.status_code == 401

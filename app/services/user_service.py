@@ -105,3 +105,30 @@ class UserService:
 
         generated_token = create_access_token(data=token_payload)
         return TokenResponse(access_token=generated_token, token_type="bearer")
+
+    async def delete_user_account(self, target_cedula: str, current_user: User) -> dict:
+        """
+        Orchestrates the soft deletion of a user account enforcing RBAC.
+        Only an Administrator or the owner of the account can trigger this action.
+        """
+        # 1. RBAC Security Check
+        if current_user.role != UserRole.admin and current_user.cedula != target_cedula:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Privilegios insuficientes. No tiene autorización para eliminar esta cuenta."
+            )
+
+        # 2. Database Delegation
+        soft_deleted_user = await self.user_repo.soft_delete_user(target_cedula)
+
+        # 3. Handle specific 404
+        if not soft_deleted_user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="El usuario especificado no existe o ya ha sido eliminado del sistema."
+            )
+
+        return {
+            "success": True,
+            "message": f"La cuenta vinculada a {soft_deleted_user.email}, con C.C. {target_cedula} ha sido eliminada exitosamente."
+        }
