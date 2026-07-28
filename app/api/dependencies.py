@@ -67,7 +67,7 @@ async def get_current_user(
         raise credentials_exception
 
     # UserRepository is delegated to run the query
-    usuario = await user_repo.get_active_user_by_email(token_data.email)
+    usuario = await user_repo.get_non_deleted_user_by_email(token_data.email)
 
     if usuario is None or not usuario.is_active:
         raise credentials_exception

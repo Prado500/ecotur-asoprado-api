@@ -1,6 +1,6 @@
 
 ---
-# Ecotur-ASOPRADO API - Backend Architecture (v0.1.1)
+# Ecotur-ASOPRADO API - Backend Architecture (v0.2.0-dev)
 
 ---
 ![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)
