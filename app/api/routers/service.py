@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, status
 from typing import List
 
 from app.models.user import User
-from app.schemas.service import ServiceCreate, ServiceListResponse, ServiceDetailResponse
+from app.schemas.service import ServiceCreate, ServiceListResponse, ServiceDetailResponse, ServiceUpdate
 from app.api.dependencies import get_current_user, get_service_service
 from app.services.tourist_services_service import TouristServicesService
 
@@ -27,3 +27,98 @@ async def listar_paquetes(service_service: TouristServicesService = Depends(get_
     Public endpoint: Returns a list of all tourist services created which are in active state.
     """
     return await service_service.list_active_packages()
+
+@router.get("/admin/inactivos", response_model=List[ServiceListResponse])
+async def listar_inactivos(
+        service_service: TouristServicesService = Depends(get_service_service),
+        usuario_actual: User = Depends(get_current_user)
+):
+    """
+    Protected Endpoint: Retrieves the collection of inactive packages.
+
+    Serves the 'Por Activar' Kanban column for the administrative UI.
+    Requires an active JWT session with an 'admin' role payload.
+    """
+    return await service_service.list_inactive_packages(usuario_actual)
+
+@router.get("/admin/eliminados", response_model=List[ServiceDetailResponse])
+async def listar_eliminados(
+        service_service: TouristServicesService = Depends(get_service_service),
+        usuario_actual: User = Depends(get_current_user)
+):
+    """
+    Protected Endpoint: Retrieves the collection of soft-deleted packages.
+
+    Serves the 'Eliminados' Kanban column. Returns a detailed DTO structure
+    including the timestamp of deletion to comply with Data Governance audits.
+    """
+    return await service_service.list_deleted_packages(usuario_actual)
+
+@router.put("/{service_id}", response_model=ServiceDetailResponse)
+async def modificar_paquete(
+        service_id: int,
+        update_data: ServiceUpdate,
+        service_service: TouristServicesService = Depends(get_service_service),
+        usuario_actual: User = Depends(get_current_user)
+):
+    """
+    Protected Endpoint: Modifies existing attributes of a target package.
+
+    Expects a partial or full JSON payload. Image URL lists are handled through
+    absolute replacement (destructive update).
+    """
+    return await service_service.update_package_details(service_id, update_data, usuario_actual)
+
+@router.patch("/{service_id}/activar")
+async def activar_paquete(
+        service_id: int,
+        service_service: TouristServicesService = Depends(get_service_service),
+        usuario_actual: User = Depends(get_current_user)
+):
+    """
+    Protected Endpoint: Triggers a state mutation transitioning a package to active.
+
+    The package will immediately become visible in the public tourist catalog.
+    """
+    return await service_service.toggle_package_status(service_id, True, usuario_actual)
+
+@router.patch("/{service_id}/desactivar")
+async def desactivar_paquete(
+        service_id: int,
+        service_service: TouristServicesService = Depends(get_service_service),
+        usuario_actual: User = Depends(get_current_user)
+):
+    """
+    Protected Endpoint: Triggers a state mutation transitioning a package to inactive.
+
+    The package is un-published from the public catalog but remains structurally intact.
+    """
+    return await service_service.toggle_package_status(service_id, False, usuario_actual)
+
+@router.delete("/{service_id}")
+async def borrar_paquete_logico(
+        service_id: int,
+        service_service: TouristServicesService = Depends(get_service_service),
+        usuario_actual: User = Depends(get_current_user)
+):
+    """
+    Protected Endpoint: Performs a logical deletion (Soft Delete) on the target package.
+
+    This fulfills the referential integrity constraints avoiding hard deletions.
+    The package is hidden and stamped with a UTC deletion timestamp.
+    """
+    return await service_service.soft_delete_package(service_id, usuario_actual)
+
+@router.patch("/{service_id}/recuperar")
+async def recuperar_paquete(
+        service_id: int,
+        service_service: TouristServicesService = Depends(get_service_service),
+        usuario_actual: User = Depends(get_current_user)
+):
+    """
+    Protected Endpoint: Recovers a soft-deleted package.
+
+    Resets the deletion timestamp and forces the package state to inactive
+    to require manual publishing validation.
+    """
+    return await service_service.recover_package(service_id, usuario_actual)
