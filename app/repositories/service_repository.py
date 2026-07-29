@@ -66,5 +66,8 @@ class ServiceRepository:
     async def save_service(self, service: TouristService) -> TouristService:
         """Commits changes to an existing service and refreshes relationships"""
         await self.db.commit()
-        await self.db.refresh(service)
-        return service
+        stmt = select(TouristService).options(selectinload(TouristService.images)).where(
+            TouristService.id == service.id
+        )
+        result = await self.db.execute(stmt)
+        return result.scalars().first()
