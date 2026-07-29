@@ -67,3 +67,20 @@ class ServiceDetailResponse(ServiceBase):
     deleted_at: Optional[datetime] = None
     images: List[ServiceImageResponse] = []
     model_config = ConfigDict(from_attributes=True)
+
+class ServiceUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=20, max_length=65)
+    description: Optional[str] = Field(None, max_length=1000)
+    category: Optional[ServiceCategory] = None
+    base_price: Optional[Decimal] = Field(None, ge=40000, max_digits=10, decimal_places=2)
+    max_capacity: Optional[int] = Field(None, gt=0, le=30)
+    is_available: Optional[bool] = None
+    image_urls: Optional[List[HttpUrl]] = Field(None, max_length=10)
+
+    @field_validator('name')
+    @classmethod
+    def format_service_name(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        clean = " ".join(v.split())
+        return clean.title()
