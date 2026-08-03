@@ -110,3 +110,39 @@ class UserResponse(UserBase):
     is_active: bool
     created_at: datetime
     model_config = {"from_attributes": True}
+
+class UserUpdate(BaseModel):
+    """
+    Data Transfer Object (DTO) for updating existing user records.
+
+    Enforces partial updates (PATCH/PUT behavior) by making all fields optional.
+    Sensitive immutable fields such as 'cedula' and 'password' are fundamentally
+    excluded to prevent unauthorized architectural mutations.
+    """
+    email: Optional[EmailStr] = Field(None, description="Correo electrónico válido")
+    first_name: Optional[str] = Field(
+        None,
+        min_length=2,
+        max_length=65,
+        pattern=r"^[A-Za-zÁÉÍÓÚáéíóúÜüÑñ]+(?:\s[A-Za-zÁÉÍÓÚáéíóúÜüÑñ]+)*$"
+    )
+    last_name: Optional[str] = Field(
+        None,
+        min_length=2,
+        max_length=65,
+        pattern=r"^[A-Za-zÁÉÍÓÚáéíóúÜüÑñ]+(?:\s[A-Za-zÁÉÍÓÚáéíóúÜüÑñ]+)*$"
+    )
+    phone: Optional[str] = Field(None, pattern=r"^3\d{9}$")
+    role: Optional[UserRole] = None
+    is_active: Optional[bool] = None
+
+    @field_validator('first_name', 'last_name')
+    @classmethod
+    def format_title_case(cls, v: Optional[str]) -> Optional[str]:
+        """
+        Silently applies title casing if the field is present in the payload.
+        """
+        if v is None:
+            return v
+        clean = " ".join(v.split())
+        return clean.title()
