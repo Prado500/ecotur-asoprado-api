@@ -1,7 +1,7 @@
 import os
 
 from fastapi import APIRouter, Depends, status, BackgroundTasks
-from app.schemas.user import UserCreate, UserResponse, UserLogin
+from app.schemas.user import UserCreate, UserResponse, UserLogin, UserUpdate
 from app.schemas.token import TokenResponse
 from app.models.user import User
 from app.api.dependencies import get_current_user, get_user_service
@@ -67,5 +67,39 @@ async def eliminar_usuario(
     """
     return await user_service.delete_user_account(
         target_cedula=cedula,
+        current_user=usuario_actual
+    )
+
+@router.get("/", response_model=list[UserResponse])
+async def listar_usuarios(
+        user_service: UserService = Depends(get_user_service),
+        usuario_actual: User = Depends(get_current_user)
+):
+    """
+    Protected Endpoint: Retrieves the user directory.
+
+    Delegates hierarchical visibility rules to the UserService to ensure
+    Standard Admins cannot retrieve Superadmin entities.
+    Requires an active JWT session.
+    """
+    return await user_service.get_all_registered_users(usuario_actual)
+
+@router.patch("/{cedula}", response_model=UserResponse)
+async def actualizar_usuario(
+        cedula: str,
+        update_data: UserUpdate,
+        user_service: UserService = Depends(get_user_service),
+        usuario_actual: User = Depends(get_current_user)
+):
+    """
+    Protected Endpoint: Updates a specific user's profile information.
+
+    Delegates strict RBAC precedence and self-service rules to the UserService.
+    Expects a partial JSON payload (PATCH behavior).
+    Requires an active JWT session.
+    """
+    return await user_service.update_user_account(
+        target_cedula=cedula,
+        update_data=update_data,
         current_user=usuario_actual
     )
