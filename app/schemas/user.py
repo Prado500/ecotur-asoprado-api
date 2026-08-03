@@ -4,6 +4,13 @@ from datetime import datetime
 from enum import Enum
 
 class UserRole(str, Enum):
+    """
+    Pydantic enumeration for user roles validation.
+
+    Mirrors the SQLAlchemy UserRole enum to strictly validate incoming
+    and outgoing payload data representing user privileges at the API boundary.
+    """
+    superadmin = "superadmin"
     admin = "admin"
     tourist = "tourist"
 
