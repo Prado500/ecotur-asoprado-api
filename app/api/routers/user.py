@@ -1,7 +1,7 @@
 import os
 
 from fastapi import APIRouter, Depends, status, BackgroundTasks
-from app.schemas.user import UserCreate, UserResponse, UserLogin, UserUpdate
+from app.schemas.user import UserCreate, UserResponse, UserLogin, UserUpdate, UserCreateByAdmin
 from app.schemas.token import TokenResponse
 from app.models.user import User
 from app.api.dependencies import get_current_user, get_user_service
@@ -101,5 +101,57 @@ async def actualizar_usuario(
     return await user_service.update_user_account(
         target_cedula=cedula,
         update_data=update_data,
+        current_user=usuario_actual
+    )
+
+@router.get("/admin/eliminados", response_model=list[UserResponse])
+async def listar_usuarios_eliminados(
+        user_service: UserService = Depends(get_user_service),
+        usuario_actual: User = Depends(get_current_user)
+):
+    """
+    Protected Endpoint: Retrieves the collection of logically deleted users.
+
+    Delegates hierarchical visibility rules to the UserService to ensure
+    standard admins cannot retrieve soft-deleted Superadmin entities.
+    Requires an active JWT session.
+    """
+    return await user_service.get_deleted_users(usuario_actual)
+
+
+@router.patch("/{cedula}/recuperar")
+async def recuperar_usuario(
+        cedula: str,
+        user_service: UserService = Depends(get_user_service),
+        usuario_actual: User = Depends(get_current_user)
+):
+    """
+    Protected Endpoint: Recovers a soft-deleted user account.
+
+    Delegates RBAC precedence rules to the UserService to prevent standard
+    admins from recovering equal or higher-tier accounts.
+    Requires an active JWT session.
+    """
+    return await user_service.recover_user_account(
+        target_cedula=cedula,
+        current_user=usuario_actual
+    )
+
+
+@router.post("/admin", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+async def crear_administrador(
+        usuario: UserCreateByAdmin,
+        user_service: UserService = Depends(get_user_service),
+        usuario_actual: User = Depends(get_current_user)
+):
+    """
+    Protected Endpoint: Provisions a new administrative account.
+
+    Strictly delegates execution to the UserService, which enforces that
+    only a Superadmin can access this provisioning pipeline.
+    Requires an active JWT session.
+    """
+    return await user_service.create_administrative_account(
+        user_data=usuario,
         current_user=usuario_actual
     )
