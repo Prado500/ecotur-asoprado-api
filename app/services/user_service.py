@@ -3,7 +3,7 @@ from fastapi import HTTPException, status, BackgroundTasks
 
 from app.core.email import send_verification_email
 from app.repositories.user_repository import UserRepository
-from app.schemas.user import UserCreate, UserLogin, UserUpdate
+from app.schemas.user import UserCreate, UserLogin, UserUpdate, UserCreateByAdmin
 from app.models.user import User, UserRole
 from app.core.security import get_password_hash, verify_password, create_access_token, SECRET_KEY, ALGORITHM, \
     create_verification_token
@@ -223,3 +223,128 @@ class UserService:
             setattr(target_user, key, value)
 
         return await self.user_repo.save_user(target_user)
+
+    async def get_deleted_users(self, current_user: User) -> list[User]:
+        """
+        Retrieves the collection of logically deleted users (Recycle Bin).
+
+        Enforces hierarchical visibility: Standard admins cannot query deleted
+        Superadmin accounts. Superadmins have unrestricted visibility.
+
+        Args:
+            current_user (User): The authenticated administrator making the request.
+
+        Returns:
+            list[User]: A filtered list of logically deleted User ORM entities.
+
+        Raises:
+            HTTPException: 403 Forbidden if the requester is a standard tourist.
+        """
+        if current_user.role == UserRole.tourist:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Privilegios insuficientes para acceder a la papelera de usuarios."
+            )
+
+        # Query all users bypassing the default active-only filter
+        users = await self.user_repo.get_all_users(include_deleted=True)
+
+        # Isolate strictly deleted entities
+        deleted_users = [u for u in users if u.deleted_at is not None]
+
+        # RBAC Visibility Filter
+        if current_user.role == UserRole.admin:
+            deleted_users = [u for u in deleted_users if u.role != UserRole.superadmin]
+
+        return deleted_users
+
+    async def recover_user_account(self, target_cedula: str, current_user: User) -> dict:
+        """
+        Restores a soft-deleted user account enforcing RBAC precedence.
+
+        Recovered accounts are structurally restored but forced into an inactive
+        state (is_active=False) by default, requiring explicit administrative
+        approval before network access is granted.
+
+        Args:
+            target_cedula (str): The primary identifier of the account to recover.
+            current_user (User): The authenticated administrator.
+
+        Returns:
+            dict: Standardized confirmation payload.
+
+        Raises:
+            HTTPException: 404 Not Found if the user is not in the recycle bin.
+            HTTPException: 403 Forbidden if a standard admin attempts to recover a higher-tier account.
+        """
+        target_user = await self.user_repo.get_user_by_cedula(target_cedula, include_deleted=True)
+
+        if not target_user or target_user.deleted_at is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="El usuario no existe o no se encuentra en la papelera."
+            )
+
+        # Evaluate Hierarchical Precedence
+        if current_user.role == UserRole.admin and target_user.role in [UserRole.admin, UserRole.superadmin]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Violación de jerarquía: No tiene autorización para recuperar esta cuenta."
+            )
+
+        # State Mutation
+        target_user.deleted_at = None
+        target_user.is_active = False
+        await self.user_repo.save_user(target_user)
+
+        return {"success": True, "cc": target_user.cedula, "correo": target_user.email, "nombre": target_user.first_name, "apellido": target_user.last_name, "message": "Usuario recuperado. Se encuentra inactivo por seguridad."}
+
+    async def create_administrative_account(self, user_data: UserCreateByAdmin, current_user: User) -> User:
+        """
+        Provisions a new administrative account bypassing the public pipeline.
+
+        Strictly limited to the Superadmin tier to prevent unauthorized privilege
+        escalation. The account is created instantly without requiring email verification.
+
+        Args:
+            user_data (UserCreateByAdmin): DTO containing profile and explicit role definitions.
+            current_user (User): The authenticated superadmin executing the creation.
+
+        Returns:
+            User: The newly persisted administrative ORM entity.
+
+        Raises:
+            HTTPException: 403 Forbidden if the requester is not a superadmin.
+            HTTPException: 400 Bad Request if the cedula or email already exists.
+        """
+        if current_user.role != UserRole.superadmin:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Violación de jerarquía: Solo un Superusuario puede aprovisionar cuentas administrativas."
+            )
+
+        existing_user = await self.user_repo.get_user_by_email_or_cedula(
+            email=user_data.email,
+            cedula=user_data.cedula
+        )
+
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="El correo electrónico o la cédula ya se encuentran registrados en el sistema."
+            )
+
+        # Instantiation leveraging the specific admin DTO
+        new_user = User(
+            cedula=user_data.cedula,
+            email=user_data.email,
+            first_name=user_data.first_name,
+            last_name=user_data.last_name,
+            phone=user_data.phone,
+            password_hash=get_password_hash(user_data.password),
+            role=user_data.role,
+            data_consent=user_data.data_consent,
+            is_active=user_data.is_active
+        )
+
+        return await self.user_repo.create_user(new_user)
