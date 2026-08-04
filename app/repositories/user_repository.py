@@ -76,3 +76,37 @@ class UserRepository:
 
         await self.db.commit()
         return user
+
+    async def get_all_users(self, include_deleted: bool = False) -> list[User]:
+        """
+        Retrieves the complete collection of users.
+
+        Filters out logically deleted users by default unless specified,
+        ordering the results by ID descending to surface newest records first.
+        """
+        stmt = select(User)
+        if not include_deleted:
+            stmt = stmt.where(User.deleted_at.is_(None))
+
+        stmt = stmt.order_by(User.id.desc())
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())
+
+    async def get_user_by_cedula(self, cedula: str, include_deleted: bool = False) -> Optional[User]:
+        """
+        Retrieves a single user utilizing the primary business identifier (cedula).
+        """
+        stmt = select(User).where(User.cedula == cedula)
+        if not include_deleted:
+            stmt = stmt.where(User.deleted_at.is_(None))
+
+        result = await self.db.execute(stmt)
+        return result.scalars().first()
+
+    async def save_user(self, user: User) -> User:
+        """
+        Commits any pending state mutations of an existing User entity to the database.
+        """
+        await self.db.commit()
+        await self.db.refresh(user)
+        return user

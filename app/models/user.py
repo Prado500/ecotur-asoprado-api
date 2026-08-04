@@ -3,19 +3,29 @@ from sqlalchemy import Column, Integer, String, Boolean, DateTime, Enum
 from sqlalchemy.sql import func
 from app.db.database import Base
 
-"""
-Enum type according to user roles employed to guarantee coherence and consistency
-across registers within the persistence layer.
-"""
 class UserRole(str, enum.Enum):
+    """
+    Enumeration of system user roles.
+
+    Defines the hierarchical Access Control levels within the platform,
+    ensuring coherence across the persistence layer.
+
+    Attributes:
+        superadmin: Highest privilege level. Can create admins and tourists.
+        admin: Mid privilege level. Can manage tourist accounts.
+        tourist: Base privilege level. Standard consumer of the platform.
+    """
+    superadmin = "superadmin"
     admin = "admin"
     tourist = "tourist"
 
-
-"""
-Domain model implementation of the User entity as an SQLAlchemy model class.
-"""
 class User(Base):
+    """
+    SQLAlchemy domain model for the User entity.
+
+    Represents the 'users' table in the database, handling authentication
+    credentials, personal identification, and Role-Based Access Control (RBAC).
+    """
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
