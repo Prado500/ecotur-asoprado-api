@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from unittest.mock import patch
 
 import pytest
@@ -295,3 +296,127 @@ async def test_listar_usuarios_visibilidad_jerarquica(client, db_session):
     assert "tourist" in roles_returned
     assert "admin" in roles_returned
     assert "superadmin" not in roles_returned # Obscured successfully
+
+async def test_listar_usuarios_eliminados_visibilidad(client, db_session):
+    """
+    Validates dynamic directory visibility for the Recycle Bin.
+    A standard Admin requesting the deleted user list should receive deleted
+    Tourists, but deleted Superadmins must be completely obscured.
+    """
+    # 1. ARRANGE: Create users and soft-delete some of them
+    admin = User(cedula="999999", email="admin101@test.com", first_name="Marisol", last_name="Gutierrez", password_hash="x", role=UserRole.admin, is_active=True, data_consent=True)
+    deleted_tourist = User(cedula="888888", email="tourist102@test.com", first_name="Antonio", last_name="Delgado", password_hash="x", role=UserRole.tourist, is_active=False, data_consent=True, deleted_at=datetime.now(timezone.utc))
+    deleted_super = User(cedula="777777", email="super103@test.com", first_name="Jose", last_name="Flores", password_hash="x", role=UserRole.superadmin, is_active=False, data_consent=True, deleted_at=datetime.now(timezone.utc))
+
+    db_session.add_all([admin, deleted_tourist, deleted_super])
+    await db_session.commit()
+
+    admin_token = create_access_token(data={"sub": admin.email, "role": admin.role.value})
+
+    # 2. ACT: Admin fetches deleted user directory
+    response = await client.get("/usuarios/admin/eliminados", headers={"Authorization": f"Bearer {admin_token}"})
+
+    # 3. ASSERT
+    assert response.status_code == 200
+    data = response.json()
+    cedulas_returned = [user["cedula"] for user in data]
+
+    assert "888888" in cedulas_returned # Tourist is visible
+    assert "777777" not in cedulas_returned # Superadmin is mathematically obscured
+
+async def test_recuperar_usuario_exitoso(client, db_session):
+    """
+    Validates the Helpdesk recovery pattern: An Admin can recover a Tourist's account.
+    Asserts that the recovered account transitions to an inactive state by default.
+    """
+    # 1. ARRANGE: Create Admin and a soft-deleted Tourist
+    admin = User(cedula="111111", email="admin201@test.com", first_name="Andres", last_name="Angarita", password_hash="x", role=UserRole.admin, is_active=True, data_consent=True)
+    tourist = User(cedula="222222", email="tourist202@test.com", first_name="Tulio", last_name="Torres", password_hash="x", role=UserRole.tourist, is_active=False, data_consent=True, deleted_at=datetime.now(timezone.utc))
+
+    db_session.add_all([admin, tourist])
+    await db_session.commit()
+
+    admin_token = create_access_token(data={"sub": admin.email, "role": admin.role.value})
+
+    # 2. ACT: Admin recovers Tourist
+    response = await client.patch(f"/usuarios/{tourist.cedula}/recuperar", headers={"Authorization": f"Bearer {admin_token}"})
+
+    # 3. ASSERT
+    assert response.status_code == 200
+    assert response.json()["success"] is True
+
+    await db_session.refresh(tourist)
+    assert tourist.deleted_at is None
+    assert tourist.is_active is False # Strict security rule enforced
+
+async def test_recuperar_usuario_violacion_jerarquia(client, db_session):
+    """
+    Validates hierarchical precedence rules during recovery: An Admin MUST NOT
+    be able to recover the account of a soft-deleted Superadmin (403 Forbidden).
+    """
+    # 1. ARRANGE: Create Admin and a soft-deleted Superadmin
+    admin = User(cedula="111111", email="admin301@test.com", first_name="Arnulfo", last_name="Anzoátegui", password_hash="x", role=UserRole.admin, is_active=True, data_consent=True)
+    superadmin = User(cedula="222222", email="super302@test.com", first_name="Sandra", last_name="Sanchez", password_hash="x", role=UserRole.superadmin, is_active=False, data_consent=True, deleted_at=datetime.now(timezone.utc))
+
+    db_session.add_all([admin, superadmin])
+    await db_session.commit()
+
+    admin_token = create_access_token(data={"sub": admin.email, "role": admin.role.value})
+
+    # 2. ACT: Admin attempts to recover Superadmin
+    response = await client.patch(f"/usuarios/{superadmin.cedula}/recuperar", headers={"Authorization": f"Bearer {admin_token}"})
+
+    # 3. ASSERT
+    assert response.status_code == 403
+    assert "jerarquía" in response.json()["detail"].lower()
+
+async def test_crear_administrador_violacion_jerarquia(client, db_session):
+    """
+    Validates that standard Admins cannot provision new administrative accounts (403 Forbidden).
+    """
+    # 1. ARRANGE: Create standard Admin
+    admin = User(cedula="111111", email="admin401@test.com", first_name="Amelio", last_name="Ardiles", password_hash="x", role=UserRole.admin, is_active=True, data_consent=True)
+    db_session.add(admin)
+    await db_session.commit()
+
+    admin_token = create_access_token(data={"sub": admin.email, "role": admin.role.value})
+
+    new_admin_payload = {
+        "cedula": "222222", "email": "newadmin@test.com", "first_name": "Federico",
+        "last_name": "Murcia", "phone": "3000000000", "password": "Password123",
+        "role": "admin", "data_consent": True, "is_active": True
+    }
+
+    # 2. ACT: Standard Admin tries to create another Admin
+    response = await client.post("/usuarios/admin", json=new_admin_payload, headers={"Authorization": f"Bearer {admin_token}"})
+
+    # 3. ASSERT
+    assert response.status_code == 403
+    assert "superusuario" in response.json()["detail"].lower()
+
+async def test_crear_administrador_exitoso(client, db_session):
+    """
+    Validates that a Superadmin can successfully provision new administrative accounts.
+    """
+    # 1. ARRANGE: Create Superadmin
+    superadmin = User(cedula="666666", email="super501@test.com", first_name="Federico", last_name="Perez", password_hash="x", role=UserRole.superadmin, is_active=True, data_consent=True)
+    db_session.add(superadmin)
+    await db_session.commit()
+
+    super_token = create_access_token(data={"sub": superadmin.email, "role": superadmin.role.value})
+
+    new_admin_payload = {
+        "cedula": "555555", "email": "newadmin502@test.com", "first_name": "New",
+        "last_name": "Admin", "phone": "3000000000", "password": "Password123",
+        "role": "admin", "data_consent": True, "is_active": True
+    }
+
+    # 2. ACT: Superadmin creates an Admin
+    response = await client.post("/usuarios/admin", json=new_admin_payload, headers={"Authorization": f"Bearer {super_token}"})
+
+    # 3. ASSERT
+    assert response.status_code == 201
+    data = response.json()
+    assert data["role"] == "admin"
+    assert data["cedula"] == "555555"
+    assert data["is_active"] is True
