@@ -111,15 +111,22 @@ class UserService:
         Orchestrates the soft deletion of a user account enforcing RBAC.
         Only an Administrator or the owner of the account can trigger this action.
         """
-        # 1. RBAC Security Check
+        soft_deleted_user = await self.user_repo.get_user_by_cedula(target_cedula)
+
+        # 1. RBAC Security Check #1
         if current_user.role != UserRole.admin and current_user.cedula != target_cedula:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Privilegios insuficientes. No tiene autorización para eliminar esta cuenta."
             )
 
-        # 2. Database Delegation
-        soft_deleted_user = await self.user_repo.soft_delete_user(target_cedula)
+
+        # 2 RBAC Security Check #2
+        if soft_deleted_user.role in [UserRole.superadmin, UserRole.admin] and current_user.role != UserRole.superadmin:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Violación de jerarquía: Un administrador no puede eliminar cuentas de su mismo o mayor nivel."
+            )
 
         # 3. Handle specific 404
         if not soft_deleted_user:
@@ -127,6 +134,9 @@ class UserService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="El usuario especificado no existe o ya ha sido eliminado del sistema."
             )
+
+        # 4. Soft-deletion delegated to repository layer
+        await self.user_repo.soft_delete_user(target_cedula)
 
         return {
             "success": True,
