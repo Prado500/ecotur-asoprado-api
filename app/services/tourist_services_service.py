@@ -49,9 +49,9 @@ class TouristServicesService:
             current_user (User): The user entity extracted from the current JWT session.
 
         Raises:
-            HTTPException: 403 Forbidden if the user's role is not 'admin'.
+            HTTPException: 403 Forbidden if the user's role is not 'admin' or 'superadmin' .
         """
-        if current_user.role != UserRole.admin:
+        if current_user.role not in [UserRole.admin, UserRole.superadmin] :
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Privilegios insuficientes."
