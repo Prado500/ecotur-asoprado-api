@@ -5,12 +5,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database import get_db
 from app.models.user import User
+from app.repositories.audit_repository import AuditRepository
 from app.schemas.token import TokenData
 from app.core.security import SECRET_KEY, ALGORITHM
 
 # Repository injection
 from app.repositories.user_repository import UserRepository
 from app.repositories.service_repository import ServiceRepository
+from app.services.audit_service import AuditService
 
 # Service injection
 from app.services.user_service import UserService
@@ -26,11 +28,19 @@ def get_user_repository(db: AsyncSession = Depends(get_db)) -> UserRepository:
 def get_tourist_services_repository(db: AsyncSession = Depends(get_db)) -> ServiceRepository:
     return ServiceRepository(db)
 
+def get_audit_repository(db: AsyncSession = Depends(get_db)) -> AuditRepository: # <-- NEW
+    return AuditRepository(db)
+
+
 def get_user_service(user_repo: UserRepository = Depends(get_user_repository)) -> UserService:
     return UserService(user_repo)
 
 def get_service_service(service_repo: ServiceRepository = Depends(get_tourist_services_repository)) -> TouristServicesService:
     return TouristServicesService(service_repo)
+
+
+def get_audit_service(audit_repo: AuditRepository = Depends(get_audit_repository)) -> AuditService: # <-- NEW
+    return AuditService(audit_repo)
 
 # --- ENDPOINT ACCESS CONTROL ---
 
