@@ -20,11 +20,7 @@ class TouristServicesService:
         self.audit_service = audit_service
 
     async def create_tourist_package(self, package_data: ServiceCreate, current_user: User) -> TouristService:
-        if current_user.role not in [UserRole.admin]:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Privilegios insuficientes."
-            )
+        self._verify_admin(current_user)
 
         tourist_service_data = package_data.model_dump(exclude={"image_urls"})
         new_tourist_service = TouristService(**tourist_service_data)
