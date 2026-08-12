@@ -2,19 +2,23 @@ import jwt
 from fastapi import HTTPException, status, BackgroundTasks
 
 from app.core.email import send_verification_email
+from app.models.audit import AuditAction
 from app.repositories.user_repository import UserRepository
 from app.schemas.user import UserCreate, UserLogin, UserUpdate, UserCreateByAdmin
 from app.models.user import User, UserRole
 from app.core.security import get_password_hash, verify_password, create_access_token, SECRET_KEY, ALGORITHM, \
     create_verification_token
 from app.schemas.token import TokenResponse
+from app.services.audit_service import AuditService
+
 
 class UserService:
     """
     Encapsulates business logic and rules, validations, and the operational logic of User entity.
     """
-    def __init__(self, user_repo: UserRepository):
+    def __init__(self, user_repo: UserRepository, audit_service: AuditService):
         self.user_repo = user_repo
+        self.audit_service = audit_service
 
     async def register_tourist(self, user_data: UserCreate, background_tasks: BackgroundTasks, base_url: str) -> User:
         existing_user = await self.user_repo.get_user_by_email_or_cedula(
@@ -42,10 +46,16 @@ class UserService:
         # 1. Persist the inactive user
         saved_user = await self.user_repo.create_user(new_user)
 
-        # 2. Generate the single-use token
+        # 2.  Log Registry (registration)
+        await self.audit_service.log_transaction(
+            entity_name="User", entity_id=saved_user.cedula,
+            action=AuditAction.CREATE, performed_by=saved_user.cedula
+        )
+
+        # 3. Generate the single-use token
         token = create_verification_token(saved_user.email)
 
-        # 3. Dispatch the email in the background to prevent blocking the HTTP response
+        # 4. Dispatch the email in the background to prevent blocking the HTTP response
         background_tasks.add_task(
             send_verification_email,
             email_to=saved_user.email,
@@ -137,6 +147,12 @@ class UserService:
 
         # 4. Soft-deletion delegated to repository layer
         await self.user_repo.soft_delete_user(target_cedula)
+
+        # 5. Log Registry (soft-deletion)
+        await self.audit_service.log_transaction(
+            entity_name="User", entity_id=target_cedula,
+            action=AuditAction.SOFT_DELETE, performed_by=current_user.cedula
+        )
 
         return {
             "success": True,
@@ -232,6 +248,13 @@ class UserService:
         for key, value in update_dict.items():
             setattr(target_user, key, value)
 
+        # 4. Log Registry
+        if update_dict:
+            await self.audit_service.log_transaction(
+                entity_name="User", entity_id=target_cedula,
+                action=AuditAction.UPDATE, performed_by=current_user.cedula, changes=update_dict
+            )
+
         return await self.user_repo.save_user(target_user)
 
     async def get_deleted_users(self, current_user: User) -> list[User]:
@@ -307,6 +330,11 @@ class UserService:
         target_user.is_active = False
         await self.user_repo.save_user(target_user)
 
+        await self.audit_service.log_transaction(
+            entity_name="User", entity_id=target_cedula,
+            action=AuditAction.RECOVER, performed_by=current_user.cedula
+        )
+
         return {"success": True, "cc": target_user.cedula, "correo": target_user.email, "nombre": target_user.first_name, "apellido": target_user.last_name, "message": "Usuario recuperado. Se encuentra inactivo por seguridad."}
 
     async def create_administrative_account(self, user_data: UserCreateByAdmin, current_user: User) -> User:
@@ -355,6 +383,11 @@ class UserService:
             role=user_data.role,
             data_consent=user_data.data_consent,
             is_active=user_data.is_active
+        )
+
+        await self.audit_service.log_transaction(
+            entity_name="User", entity_id=user_data.cedula,
+            action=AuditAction.CREATE, performed_by=current_user.cedula, changes={"role": user_data.role.value}
         )
 
         return await self.user_repo.create_user(new_user)

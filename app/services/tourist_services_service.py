@@ -7,14 +7,17 @@ from app.repositories.service_repository import ServiceRepository
 from app.models.user import User, UserRole
 from app.models.service import TouristService, ServiceImage
 from app.schemas.service import ServiceCreate, ServiceUpdate
+from app.services.audit_service import AuditService
+from app.models.audit import AuditAction
 
 
 class TouristServicesService:
     """
         Encapsulates business logic and rules, validations, and the operational logic of TouristService entity.
     """
-    def __init__(self, service_repo: ServiceRepository):
+    def __init__(self, service_repo: ServiceRepository, audit_service: AuditService):
         self.service_repo = service_repo
+        self.audit_service = audit_service
 
     async def create_tourist_package(self, package_data: ServiceCreate, current_user: User) -> TouristService:
         if current_user.role != UserRole.admin:
@@ -33,7 +36,13 @@ class TouristServicesService:
             )
             new_tourist_service.images.append(nueva_imagen)
 
-        return await self.service_repo.create_service(new_tourist_service)
+        saved = await self.service_repo.create_service(new_tourist_service)
+        await self.audit_service.log_transaction(
+            entity_name="TouristService", entity_id=str(saved.id),
+            action=AuditAction.CREATE, performed_by=current_user.cedula, changes=package_data.model_dump()
+        )
+
+        return saved
 
     async def list_active_packages(self) -> List[TouristService]:
         return await self.service_repo.get_all_active_services()
@@ -118,7 +127,16 @@ class TouristServicesService:
         service.is_available = is_available
         await self.service_repo.save_service(service)
 
+
+
+        action = AuditAction.ACTIVATE if is_available else AuditAction.DEACTIVATE
+        await self.audit_service.log_transaction(
+            entity_name="TouristService", entity_id=str(service_id),
+            action=action, performed_by=current_user.cedula
+        )
+
         estado = "activado" if is_available else "desactivado"
+
         return {"success": True, "message": f"El paquete ha sido {estado} exitosamente."}
 
     async def soft_delete_package(self, service_id: int, current_user: User) -> dict:
@@ -152,6 +170,10 @@ class TouristServicesService:
         service.is_available = False
 
         await self.service_repo.save_service(service)
+        await self.audit_service.log_transaction(
+            entity_name="TouristService", entity_id=str(service_id),
+            action=AuditAction.SOFT_DELETE, performed_by=current_user.cedula
+        )
         return {"success": True, "message": "Paquete movido a la papelera (Eliminado lógicamente).", "UID": service_id}
 
     async def recover_package(self, service_id: int, current_user: User) -> dict:
@@ -187,6 +209,12 @@ class TouristServicesService:
         service.is_available = False
 
         await self.service_repo.save_service(service)
+
+        await self.audit_service.log_transaction(
+            entity_name="TouristService", entity_id=str(service_id),
+            action=AuditAction.RECOVER, performed_by=current_user.cedula
+        )
+
         return {"success": True, "message": "Paquete recuperado. Se encuentra en la sección 'Por Activar'.", "UID": service_id}
 
     async def update_package_details(self, service_id: int, update_data: ServiceUpdate, current_user: User) -> TouristService:
@@ -229,5 +257,12 @@ class TouristServicesService:
             for idx, url in enumerate(update_data.image_urls):
                 nueva_imagen = ServiceImage(image_url=str(url), is_primary=(idx == 0))
                 service.images.append(nueva_imagen)
+
+        payload_changes = update_data.model_dump(exclude_unset=True)
+        if payload_changes:
+            await self.audit_service.log_transaction(
+                entity_name="TouristService", entity_id=str(service_id),
+                action=AuditAction.UPDATE, performed_by=current_user.cedula, changes=payload_changes
+            )
 
         return await self.service_repo.save_service(service)
