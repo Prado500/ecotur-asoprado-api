@@ -237,7 +237,7 @@ class UserService:
                 )
 
         # 2. Payload Sanitization
-        update_dict = update_data.model_dump(exclude_unset=True)
+        update_dict = update_data.model_dump(mode='json', exclude_unset=True)
 
         # Defensive sanitization: Ensure self-updating tourists cannot escalate privileges or revive banned accounts
         if is_self_update and current_user.role == UserRole.tourist:

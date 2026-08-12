@@ -20,7 +20,7 @@ class TouristServicesService:
         self.audit_service = audit_service
 
     async def create_tourist_package(self, package_data: ServiceCreate, current_user: User) -> TouristService:
-        if current_user.role != UserRole.admin:
+        if current_user.role not in [UserRole.admin]:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Privilegios insuficientes."
@@ -39,7 +39,7 @@ class TouristServicesService:
         saved = await self.service_repo.create_service(new_tourist_service)
         await self.audit_service.log_transaction(
             entity_name="TouristService", entity_id=str(saved.id),
-            action=AuditAction.CREATE, performed_by=current_user.cedula, changes=package_data.model_dump()
+            action=AuditAction.CREATE, performed_by=current_user.cedula, changes=package_data.model_dump(mode='json')
         )
 
         return saved
@@ -258,7 +258,7 @@ class TouristServicesService:
                 nueva_imagen = ServiceImage(image_url=str(url), is_primary=(idx == 0))
                 service.images.append(nueva_imagen)
 
-        payload_changes = update_data.model_dump(exclude_unset=True)
+        payload_changes = update_data.model_dump(mode='json', exclude_unset=True)
         if payload_changes:
             await self.audit_service.log_transaction(
                 entity_name="TouristService", entity_id=str(service_id),

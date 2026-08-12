@@ -7,8 +7,8 @@ from app.models.audit import AuditLog
 @pytest.fixture
 async def superadmin_token(db_session) -> dict:
     admin = User(
-        cedula="999", email="audit@test.com", first_name="A", last_name="A",
-        password_hash=get_password_hash("pass"), role=UserRole.superadmin,
+        cedula="999888", email="audit@test.com", first_name="AdminAdmin", last_name="AdminAdmin",
+        password_hash=get_password_hash("ciscociscoA1"), role=UserRole.superadmin,
         is_active=True, data_consent=True
     )
     db_session.add(admin)
@@ -23,8 +23,8 @@ async def test_audit_trail_creation_and_retrieval(client, superadmin_token, db_s
     """
     # 1. Trigger an operation (Create a package)
     pkg_payload = {"name": "Paquete De Auditoria Test", "category": "otro", "base_price": 50000, "max_capacity": 10, "is_available": True, "image_urls": []}
-    await client.post("/servicios/", json=pkg_payload, headers=superadmin_token)
-
+    post_response = await client.post("/servicios/", json=pkg_payload, headers=superadmin_token)
+    assert post_response.status_code == 201
     # 2. Retrieve Audit History
     response = await client.get("/auditoria/", headers=superadmin_token)
 
@@ -35,7 +35,7 @@ async def test_audit_trail_creation_and_retrieval(client, superadmin_token, db_s
     # Verify the snapshot properties
     assert logs[0]["entity_name"] == "TouristService"
     assert logs[0]["action"] == "CREATE"
-    assert logs[0]["performed_by"] == "999"
+    assert logs[0]["performed_by"] == "999888"
 
 async def test_audit_trail_forbidden_for_tourist(client, db_session):
     """
