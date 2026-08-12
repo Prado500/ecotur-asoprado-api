@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from sqlalchemy.exc import IntegrityError
 
-from app.api.routers import user, service
+from app.api.routers import user, service, audit
 
 app = FastAPI(
     title="Ecotur-ASOPRADO API",
@@ -100,6 +100,7 @@ app.add_middleware(
 
 app.include_router(user.router, prefix="/usuarios", tags=["Usuarios"])
 app.include_router(service.router, prefix="/servicios", tags=["Servicios Turísticos"])
+app.include_router(audit.router, prefix="/auditoria", tags=["Auditoría"])
 
 @app.get("/", tags=["Health Check"])
 async def root():
