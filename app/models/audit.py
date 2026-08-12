@@ -1,5 +1,5 @@
 import enum
-from sqlalchemy import Column, Integer, String, DateTime, Enum
+from sqlalchemy import Column, Integer, String, DateTime, Enum, JSON
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
 from app.db.database import Base
@@ -26,7 +26,7 @@ class AuditLog(Base):
 
     id = Column(Integer, primary_key=True, index=True)
 
-    # "User" or "TouristService"
+    # "User" o "TouristService"
     entity_name = Column(String(50), nullable=False, index=True)
 
     # String to gracefully support both INT (Service ID) and VARCHAR (Cedula)
@@ -35,7 +35,7 @@ class AuditLog(Base):
     action = Column(Enum(AuditAction, name="audit_action_enum"), nullable=False)
 
     # Dictionary snapshot containing 'old_values' and 'new_values'
-    changes = Column(JSONB, nullable=True)
+    changes = Column(JSON().with_variant(JSONB, 'postgresql'), nullable=True)
 
     # The 'cedula' of the administrator who triggered the transaction
     performed_by = Column(String(50), nullable=False, index=True)
