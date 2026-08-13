@@ -104,4 +104,4 @@ app.include_router(audit.router, prefix="/auditoria", tags=["Auditoría"])
 
 @app.get("/", tags=["Health Check"])
 async def root():
-    return {"status": "ok", "message": "Ecotur-ASOPRADO API (v0.2.0-dev) está en línea"}
+    return {"status": "ok", "message": "El ASOPRADO API (v0.2.0-dev) está en línea"}
