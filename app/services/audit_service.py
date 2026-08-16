@@ -35,7 +35,14 @@ class AuditService:
         )
         return await self.audit_repo.create_audit_log(new_log)
 
-    async def retrieve_audit_history(self, current_user: User, limit: int = 100) -> List[AuditLog]:
+    async def retrieve_audit_history(
+            self,
+            current_user: User,
+            limit: int = 20,
+            offset: int = 0,
+            entity_name: Optional[str] = None,
+            entity_id: Optional[str] = None
+    ) -> List[AuditLog]:
         """
         Retrieves the global audit history enforcing Role-Based Access Control.
 
@@ -43,10 +50,13 @@ class AuditService:
 
         Args:
             current_user (User): The authenticated user making the request.
-            limit (int): Maximum number of records to return. Defaults to 100.
+            limit (int): Maximum number of records to return. Defaults to 20.
+            offset (int): Number of records to skip for pagination.
+            entity_name (str, optional): Filter by entity class name.
+            entity_id (str, optional): Filter by exact entity identifier.
 
         Returns:
-            List[AuditLog]: A collection of the most recent audit logs.
+            List[AuditLog]: A collection of the requested audit logs.
 
         Raises:
             HTTPException: 403 Forbidden if the requester is a standard tourist.
@@ -57,4 +67,9 @@ class AuditService:
                 detail="Privilegios insuficientes para visualizar la auditoría del sistema."
             )
 
-        return await self.audit_repo.get_all_audit_logs(limit=limit)
+        return await self.audit_repo.get_all_audit_logs(
+            limit=limit,
+            offset=offset,
+            entity_name=entity_name,
+            entity_id=entity_id
+        )
