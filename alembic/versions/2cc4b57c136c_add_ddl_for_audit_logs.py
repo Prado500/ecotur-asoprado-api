@@ -1,8 +1,8 @@
 """add_ddl_for_audit_logs
 
-Revision ID: f8bc1a93a130
+Revision ID: 2cc4b57c136c
 Revises: 9d54a65f0971
-Create Date: 2026-08-19 15:28:06.424629
+Create Date: 2026-08-19 17:11:47.730654
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = 'f8bc1a93a130'
+revision: str = '2cc4b57c136c'
 down_revision: Union[str, Sequence[str], None] = '9d54a65f0971'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
