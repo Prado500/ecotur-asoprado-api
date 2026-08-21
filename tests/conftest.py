@@ -1,9 +1,12 @@
+from unittest.mock import MagicMock, AsyncMock
+
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.api.dependencies import get_storage_client
 from app.main import app
 from app.db.database import Base, get_db
 
@@ -62,3 +65,21 @@ async def client(db_session):
         yield ac
 
     app.dependency_overrides.clear()
+
+@pytest_asyncio.fixture(autouse=True)
+def override_azure_storage_client():
+    """
+    Overwrites the AzureStorageClient dependency globally for all tests.
+    Ensures that no test attempts to instantiate the real cloud client,
+    preventing missing environment variable errors and avoiding real HTTP egress.
+    """
+    mock_client = MagicMock()
+
+    mock_client.upload_image = AsyncMock(return_value="https://ecoturasopradocdn2026.blob.core.windows.net/ecotur-images/fake_image.jpg")
+
+
+    app.dependency_overrides[get_storage_client] = lambda: mock_client
+
+    yield
+
+    app.dependency_overrides.pop(get_storage_client, None)

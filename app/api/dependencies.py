@@ -3,6 +3,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.storage import AzureStorageClient
 from app.db.database import get_db
 from app.models.user import User
 from app.repositories.audit_repository import AuditRepository
@@ -37,15 +38,20 @@ def get_audit_service(audit_repo: AuditRepository = Depends(get_audit_repository
 
 def get_user_service(
         user_repo: UserRepository = Depends(get_user_repository),
-        audit_service: AuditService = Depends(get_audit_service) # <-- Inyectado
+        audit_service: AuditService = Depends(get_audit_service)
 ) -> UserService:
     return UserService(user_repo, audit_service)
 
+# --- AZURE BLOB STORAGE DEPENDENCY HANDLING --- #
+
+def get_storage_client() -> AzureStorageClient:
+    return AzureStorageClient()
 def get_service_service(
         service_repo: ServiceRepository = Depends(get_tourist_services_repository),
-        audit_service: AuditService = Depends(get_audit_service) # <-- Inyectado
+        audit_service: AuditService = Depends(get_audit_service),
+        storage_client: AzureStorageClient = Depends(get_storage_client)
 ) -> TouristServicesService:
-    return TouristServicesService(service_repo, audit_service)
+    return TouristServicesService(service_repo, audit_service, storage_client)
 
 # --- ENDPOINT ACCESS CONTROL ---
 
@@ -88,3 +94,6 @@ async def get_current_user(
         raise credentials_exception
 
     return usuario
+
+
+

@@ -1,8 +1,9 @@
 from datetime import datetime, timezone
 
-from fastapi import HTTPException, status
+from fastapi import HTTPException, status, UploadFile
 from typing import List
 
+from app.core.storage import AzureStorageClient
 from app.repositories.service_repository import ServiceRepository
 from app.models.user import User, UserRole
 from app.models.service import TouristService, ServiceImage
@@ -15,24 +16,36 @@ class TouristServicesService:
     """
         Encapsulates business logic and rules, validations, and the operational logic of TouristService entity.
     """
-    def __init__(self, service_repo: ServiceRepository, audit_service: AuditService):
+    def __init__(self, service_repo: ServiceRepository, audit_service: AuditService, storage_client: AzureStorageClient):
         self.service_repo = service_repo
         self.audit_service = audit_service
+        self.storage_client = storage_client
 
-    async def create_tourist_package(self, package_data: ServiceCreate, current_user: User) -> TouristService:
+    async def create_tourist_package(
+        self,
+        package_data: ServiceCreate,
+        image_files: List[UploadFile],
+        current_user: User) -> TouristService:
+
         self._verify_admin(current_user)
 
         tourist_service_data = package_data.model_dump(exclude={"image_urls"})
         new_tourist_service = TouristService(**tourist_service_data)
 
-        for idx, url in enumerate(package_data.image_urls):
+
+
+        for idx, image_chunk in enumerate(image_files):
+
+            url = await self.storage_client.upload_image(image_chunk)
+
             nueva_imagen = ServiceImage(
-                image_url=str(url),
+                image_url=url,
                 is_primary=(idx == 0)
             )
             new_tourist_service.images.append(nueva_imagen)
 
         saved = await self.service_repo.create_service(new_tourist_service)
+
         await self.audit_service.log_transaction(
             entity_name="TouristService", entity_id=str(saved.id),
             action=AuditAction.CREATE, performed_by=current_user.cedula, changes=package_data.model_dump(mode='json')
