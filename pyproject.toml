@@ -21,6 +21,7 @@ dependencies = [
     "pyjwt",
     "python-dotenv",
     "fastapi-mail>=1.4.1",
+    "azure-storage-blob"
 ]
 
 [project.optional-dependencies]
