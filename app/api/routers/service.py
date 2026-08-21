@@ -8,7 +8,8 @@ from app.schemas.service import ServiceCreate, ServiceListResponse, ServiceDetai
 from app.api.dependencies import get_current_user, get_service_service
 from app.services.tourist_services_service import TouristServicesService
 from app.models.service import ServiceCategory
-
+from pydantic import ValidationError
+from fastapi.exceptions import RequestValidationError
 router = APIRouter()
 
 # -------------------------------------------------------------------
@@ -29,15 +30,21 @@ def multipart_package_adapter(
     multipart/form-data payload, assembles them, and triggers strict
     Pydantic validation by instantiating the ServiceCreate DTO.
     """
-    return ServiceCreate(
-        name=name,
-        description=description,
-        category=category,
-        base_price=base_price,
-        max_capacity=max_capacity,
-        is_available=is_available,
-        image_urls=[]
-    )
+
+    try:
+        return ServiceCreate(
+            name=name,
+            description=description,
+            category=category,
+            base_price=base_price,
+            max_capacity=max_capacity,
+            is_available=is_available,
+            image_urls=[]
+         )
+    except ValidationError as exc:
+        # Re-raise Pydantic's native error as FastAPI's RequestValidationError
+        # This successfully triggers the custom global UX handler defined in main.py
+        raise RequestValidationError(exc.errors())
 
 @router.post("/", response_model=ServiceDetailResponse, status_code=status.HTTP_201_CREATED)
 async def crear_paquete(
