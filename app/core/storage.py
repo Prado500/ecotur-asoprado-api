@@ -2,6 +2,7 @@ import os
 import uuid
 from fastapi import UploadFile, HTTPException, status
 from azure.storage.blob.aio import BlobServiceClient
+from azure.storage.blob import ContentSettings
 
 class AzureStorageClient:
     """
@@ -39,7 +40,12 @@ class AzureStorageClient:
 
             # Stream the file directly to Azure
             file_content = await file.read()
-            await blob_client.upload_blob(file_content, overwrite=True)
+
+            # Explicitly instruct Azure to serve this blob as an image,
+            # allowing browsers to render it inline instead of forcing a download.
+            image_content_settings = ContentSettings(content_type=file.content_type)
+
+            await blob_client.upload_blob(file_content, overwrite=True, content_settings=image_content_settings)
 
             return blob_client.url
 
