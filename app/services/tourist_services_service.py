@@ -1,8 +1,11 @@
 from datetime import datetime, timezone
 
 from fastapi import HTTPException, status, UploadFile
-from typing import List
+from typing import List, Dict
 
+from pydantic import HttpUrl
+
+from app.core import storage
 from app.core.storage import AzureStorageClient
 from app.repositories.service_repository import ServiceRepository
 from app.models.user import User, UserRole
@@ -226,7 +229,48 @@ class TouristServicesService:
 
         return {"success": True, "message": "Paquete recuperado. Se encuentra en la sección 'Por Activar'.", "UID": service_id}
 
-    async def update_package_details(self, service_id: int, update_data: ServiceUpdate, current_user: User) -> TouristService:
+    async def image_uploader(self,
+                             current_user: User,
+                             images_files: List[UploadFile]
+                             )-> dict:
+        """
+        Uploads images asynchronously to the Azure CDN.
+
+        Args:
+        current_user (User): The administrator triggering the image upload.
+        image_files (List[UploadFile]): List of image files to be uploaded.
+
+        Returns:
+            dict: a ServiceImageOutput compliant dictionary, containing a list of urls to the blob files once they exist inside Azure CDN.
+
+        Raises:
+            HTTPException: 503 Service Unavailable if the uploading process happens to fail due to any Azure CDN outages.
+        """
+
+        self._verify_admin(current_user)
+
+        if len(images_files) > 10:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                detail="El número de imágenes a subir excede el límite permitido por paquete (10). "
+                                )
+
+        blob_urls: List[str] = []
+        try:
+            for image_chunk in images_files:
+                fresh_url = await self.storage_client.upload_image(image_chunk)
+                blob_urls.append(fresh_url)
+        except Exception as e:
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                                detail="Ha ocurrido un fallo en la nube de Azure. El CDN no está disponible."
+                                )
+
+        return {"image_urls": blob_urls}
+
+
+    async def update_package_details(self,
+                                     service_id: int,
+                                     update_data: ServiceUpdate,
+                                     current_user: User) -> TouristService:
         """
         Applies a partial or complete scalar update to an existing package.
 
@@ -244,6 +288,7 @@ class TouristServicesService:
 
         Raises:
             HTTPException: 404 Not Found if the target package is unavailable.
+
         """
         self._verify_admin(current_user)
         service = await self.service_repo.get_service_by_id(service_id)
@@ -254,6 +299,8 @@ class TouristServicesService:
                 detail="Paquete no encontrado. Está deshabilitado (deleted_at != None) o no exíste."
             )
 
+
+
         # 1. Update primitive fields (Scalar Mutation)
         update_dict = update_data.model_dump(exclude_unset=True, exclude={"image_urls"})
         for key, value in update_dict.items():
@@ -261,11 +308,21 @@ class TouristServicesService:
 
         # 2. Update relational fields (Destruction and Re-creation paradigm)
         if update_data.image_urls is not None:
+
+            # 0. Verify that there is room for those new images and throw exception if not.
+            if len(update_data.image_urls) > 10:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                    detail="El número de imágenes a subir excede el límite permitido por paquete (10). "
+                                    )
+
+
             # Clearing triggers Alembic's cascade deletion of old images
             service.images.clear()
             for idx, url in enumerate(update_data.image_urls):
                 nueva_imagen = ServiceImage(image_url=str(url), is_primary=(idx == 0))
                 service.images.append(nueva_imagen)
+
+
 
         payload_changes = update_data.model_dump(mode='json', exclude_unset=True)
         if payload_changes:

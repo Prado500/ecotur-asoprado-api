@@ -4,13 +4,18 @@ from fastapi import APIRouter, Depends, status, UploadFile, File, Form
 from typing import List
 
 from app.models.user import User
-from app.schemas.service import ServiceCreate, ServiceListResponse, ServiceDetailResponse, ServiceUpdate
+from app.schemas.service import ServiceCreate, ServiceListResponse, ServiceDetailResponse, ServiceUpdate, \
+    ServiceImageOutput
 from app.api.dependencies import get_current_user, get_service_service
 from app.services.tourist_services_service import TouristServicesService
 from app.models.service import ServiceCategory
-from pydantic import ValidationError
+from pydantic import ValidationError, HttpUrl
 from fastapi.exceptions import RequestValidationError
 router = APIRouter()
+
+
+
+
 
 # -------------------------------------------------------------------
 # DEPENDENCY INJECTION ADAPTER (Data Extractor & Validator when receiving multipart/form data)
@@ -45,6 +50,20 @@ def multipart_package_adapter(
         # Re-raise Pydantic's native error as FastAPI's RequestValidationError
         # This successfully triggers the custom global UX handler defined in main.py
         raise RequestValidationError(exc.errors())
+
+@router.post("/upload-images/", response_model= ServiceImageOutput, status_code=status.HTTP_200_OK)
+async def upload_images(
+
+        service_service: TouristServicesService = Depends(get_service_service),
+        usuario_actual: User = Depends(get_current_user),
+        images: List[UploadFile] = File(...),
+):
+    """
+      Protected endpoint: Allows image uploading via service-layer-delegation per tourist service.
+      Returns a JSON representation containing a list of urls redirecting to images stored inside azure blob storage .
+    """
+    return await service_service.image_uploader(current_user=usuario_actual, images_files=images)
+
 
 @router.post("/", response_model=ServiceDetailResponse, status_code=status.HTTP_201_CREATED)
 async def crear_paquete(
@@ -96,9 +115,9 @@ async def listar_eliminados(
 @router.put("/{service_id}", response_model=ServiceDetailResponse)
 async def modificar_paquete(
         service_id: int,
-        update_data: ServiceUpdate,
+        update_data: ServiceUpdate = Depends(multipart_package_adapter),
         service_service: TouristServicesService = Depends(get_service_service),
-        usuario_actual: User = Depends(get_current_user)
+        usuario_actual: User = Depends(get_current_user),
 ):
     """
     Protected Endpoint: Modifies existing attributes of a target package.
