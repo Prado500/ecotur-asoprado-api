@@ -24,21 +24,20 @@ async def test_audit_trail_creation_and_retrieval(client, superadmin_token, db_s
     to the Audit Trail via Dependency Injection.
     """
 
-    form_data = {
+    # 1. Sustituimos el multipart/form-data por un JSON puro que cumple con ServiceCreate
+    json_payload = {
         "name": "Paquete De Auditoria Test",
         "category": "otro",
-        "description": "Prueba con multipart",
+        "description": "Prueba con JSON puro sin multipart",
         "base_price": 50000,
         "max_capacity": 10,
-        "is_available": True
+        "is_available": True,
+        "image_urls": ["https://ecoturasopradocdn2026.blob.core.windows.net/temp-ecotur-images/test.jpg"]
     }
-
-    fake_file = ("images", ("test.jpg", b"fake_binary_content", "image/jpeg"))
 
     post_response = await client.post(
         "/servicios/",
-        data=form_data,
-        files=[fake_file],
+        json=json_payload,
         headers=superadmin_token
     )
 

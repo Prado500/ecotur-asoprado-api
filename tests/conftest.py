@@ -75,8 +75,19 @@ def override_azure_storage_client():
     """
     mock_client = MagicMock()
 
-    mock_client.upload_image = AsyncMock(return_value="https://ecoturasopradocdn2026.blob.core.windows.net/ecotur-images/fake_image.jpg")
+    # Mocking environment variables bound to the client
+    mock_client.temporal_container_name = "temp-ecotur-images"
+    mock_client.container_name = "ecotur-images"
 
+    # Mocking I/O Coroutines
+    mock_client.upload_image = AsyncMock(return_value="https://ecoturasopradocdn2026.blob.core.windows.net/temp-ecotur-images/fake_image.jpg")
+    mock_client.delete_image = AsyncMock(return_value=None)
+
+    # Simulating Azure's Copy & Delete promotion behavior dynamically
+    async def mock_promote(url: str) -> str:
+        return url.replace("temp-ecotur-images", "ecotur-images")
+
+    mock_client.promote_to_permanent = AsyncMock(side_effect=mock_promote)
 
     app.dependency_overrides[get_storage_client] = lambda: mock_client
 
