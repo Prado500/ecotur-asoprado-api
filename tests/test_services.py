@@ -156,3 +156,83 @@ async def test_update_package_details(client, auth_headers, test_package, db_ses
     await db_session.refresh(test_package)
     assert test_package.name == "Paquete Modificado Exitosamente"
     assert test_package.max_capacity == 25
+
+async def test_upload_images_staging_endpoint(client, auth_headers):
+    """
+    Validates the ephemeral CDN staging endpoint.
+    Asserts that multipart/form-data binaries are correctly ingested and
+    translated into a JSON payload containing the temporal URLs.
+    """
+    fake_file = ("images", ("test_image.jpg", b"fake_binary_payload", "image/jpeg"))
+
+    response = await client.post("/servicios/upload-images/", files=[fake_file], headers=auth_headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert "image_urls" in data
+    assert len(data["image_urls"]) == 1
+    assert "temp-ecotur-images" in data["image_urls"][0]
+
+
+async def test_update_package_image_ceiling_limit_rejection(client, auth_headers, test_package):
+    """
+    Validates the Fail-Fast mechanism preventing database and CDN bloat.
+    Asserts that payloads exceeding the 10-image limit are intercepted and rejected
+    prior to any Azure Blob Storage I/O execution.
+    """
+    # Forge a malicious payload with 11 images
+    malicious_payload = {
+        "image_urls": [f"https://ecoturasopradocdn2026.blob.core.windows.net/temp-ecotur-images/{i}.jpg" for i in range(11)]
+    }
+
+    response = await client.put(f"/servicios/{test_package.id}", json=malicious_payload, headers=auth_headers)
+
+    assert response.status_code == 422
+    assert "image_urls" in response.text
+
+
+async def test_update_package_concurrent_reconciliation(client, auth_headers, test_package, db_session):
+    """
+    Validates the concurrent CDN reconciliation pattern (Constructive and Destructive).
+
+    Phase 1: Submits temporal URLs and asserts they are promoted to permanent URLs.
+    Phase 2: Submits a differential payload, asserting that missing URLs trigger the
+             deletion workflow and new temporal URLs are appended cleanly.
+    """
+    # --- PHASE 1: Constructive Promotion ---
+    initial_payload = {
+        "image_urls": [
+            "https://ecoturasopradocdn2026.blob.core.windows.net/temp-ecotur-images/cover.jpg",
+            "https://ecoturasopradocdn2026.blob.core.windows.net/temp-ecotur-images/gallery1.jpg"
+        ]
+    }
+
+    res1 = await client.put(f"/servicios/{test_package.id}", json=initial_payload, headers=auth_headers)
+    assert res1.status_code == 200
+
+    images_phase_1 = res1.json()["images"]
+    assert len(images_phase_1) == 2
+    assert images_phase_1[0]["is_primary"] is True
+    assert images_phase_1[1]["is_primary"] is False
+    # Assert wrapper correctly promoted the URLs (mock removed 'temp-')
+    assert "temp-" not in images_phase_1[0]["image_url"]
+
+    # --- PHASE 2: Destructive Pruning & State Reconstruction ---
+    # We drop 'gallery1.jpg', keep 'cover.jpg' (now permanent), and add a new temporal image
+    second_payload = {
+        "image_urls": [
+            images_phase_1[0]["image_url"], # Pre-existing permanent URL
+            "https://ecoturasopradocdn2026.blob.core.windows.net/temp-ecotur-images/new_gallery.jpg"
+        ]
+    }
+
+    res2 = await client.put(f"/servicios/{test_package.id}", json=second_payload, headers=auth_headers)
+    assert res2.status_code == 200
+
+    images_phase_2 = res2.json()["images"]
+    assert len(images_phase_2) == 2
+
+    # The first image must remain entirely untouched (idempotency)
+    assert images_phase_2[0]["image_url"] == images_phase_1[0]["image_url"]
+    # The new image must have been promoted
+    assert "temp-" not in images_phase_2[1]["image_url"]

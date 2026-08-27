@@ -5,14 +5,15 @@ from decimal import Decimal
 
 from app.models.service import ServiceCategory
 
+
 class ServiceImageResponse(BaseModel):
     id: int
     image_url: str
     is_primary: bool
     model_config = ConfigDict(from_attributes=True)
 
-class ServiceBase(BaseModel):
 
+class ServiceBase(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
     name: str = Field(
@@ -48,6 +49,7 @@ class ServiceBase(BaseModel):
 
         return clean.title()
 
+
 class ServiceCreate(ServiceBase):
     # HttpUrl delegates the image url string domain and protocol verification to Rust.
     image_urls: List[HttpUrl] = Field(
@@ -56,10 +58,12 @@ class ServiceCreate(ServiceBase):
         description="Lista de URLs de imágenes. La primera será la principal. Asegúrese de haber pegado un link que empiece por http:// o https://"
     )
 
+
 class ServiceListResponse(ServiceBase):
     id: int
     images: List[ServiceImageResponse] = []
     model_config = ConfigDict(from_attributes=True)
+
 
 class ServiceDetailResponse(ServiceBase):
     id: int
@@ -67,6 +71,11 @@ class ServiceDetailResponse(ServiceBase):
     deleted_at: Optional[datetime] = None
     images: List[ServiceImageResponse] = []
     model_config = ConfigDict(from_attributes=True)
+
+
+class ServiceImageOutput(BaseModel):
+    image_urls: List[HttpUrl] = Field(default_factory=list, max_length=10)
+
 
 class ServiceUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=20, max_length=65)
