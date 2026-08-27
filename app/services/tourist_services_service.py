@@ -317,25 +317,35 @@ class TouristServicesService:
             old_images_urls = {str(img.image_url) for img in service.images}
             new_images_urls = set(str(url) for url in update_data.image_urls)
             urls_to_delete = old_images_urls - new_images_urls
-            for url in urls_to_delete:
-                await self.storage_client.delete_image(url)
+
+            if urls_to_delete:
+                delete_ops = [self.storage_client.delete_image(url) for url in urls_to_delete]
+                await asyncio.gather(*delete_ops)
 
             # 2.3 Clearing triggers Alembic's cascade deletion of old images
             service.images.clear()
 
-            # 2.4 Get the permanent url for each image on azure's CDN and attach them to the service object
-            for idx, url in enumerate(update_data.image_urls):
-
+            # 2.4 Async function employed to provision image persistence coroutines
+            async def resolve_url (url: HttpUrl) -> str:
                 if self.storage_client.temporal_container_name in str(url):
-                    definitive_url = await self.storage_client.promote_to_permanent(str(url))
-
+                    return await self.storage_client.promote_to_permanent(str(url))
                 else:
-                    definitive_url = url
+                    return str(url)
 
-                nueva_imagen = ServiceImage(image_url=str(definitive_url), is_primary=(idx == 0))
+            # 2.5 Iterate and retrieve a coroutine to resolve the tourist service images (sanitizing non-permanent urls)
+            image_resolution_coroutines = [resolve_url(url) for url in update_data.image_urls]
+
+
+            # 2.6 Execute image resolution coroutines and retrieve definitive image urls
+            definitive_urls = await asyncio.gather(*image_resolution_coroutines)
+
+
+            # 2.7 Append each definitive image url to the edited service
+            for idx, url in enumerate(definitive_urls):
+                nueva_imagen = ServiceImage(image_url=str(url), is_primary=(idx == 0))
                 service.images.append(nueva_imagen)
 
-        # 3.) Register changes made on audit table
+        # 3. Register changes made on audit table
         payload_changes = update_data.model_dump(mode='json', exclude_unset=True)
         if payload_changes:
             await self.audit_service.log_transaction(
