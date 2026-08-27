@@ -22,34 +22,7 @@ router = APIRouter()
 # Employed to prevent error 422 unprocessable entity as tourist services creation data comes in multipart/form
 # and not in application/json.
 # -------------------------------------------------------------------
-def multipart_package_adapter(
-        name: str = Form(..., description="Name of the tourist package"),
-        description: str = Form(None, description="Detailed package description"),
-        category: ServiceCategory = Form(..., description="Package category classification"),
-        base_price: Decimal = Form(..., description="Base price in COP"),
-        max_capacity: int = Form(..., description="Maximum tourist capacity"),
-        is_available: bool = Form(True, description="Initial availability status")
-) -> ServiceCreate:
-    """
-    FastAPI dependency that intercepts individual form chunks from a
-    multipart/form-data payload, assembles them, and triggers strict
-    Pydantic validation by instantiating the ServiceCreate DTO.
-    """
 
-    try:
-        return ServiceCreate(
-            name=name,
-            description=description,
-            category=category,
-            base_price=base_price,
-            max_capacity=max_capacity,
-            is_available=is_available,
-            image_urls=[]
-         )
-    except ValidationError as exc:
-        # Re-raise Pydantic's native error as FastAPI's RequestValidationError
-        # This successfully triggers the custom global UX handler defined in main.py
-        raise RequestValidationError(exc.errors())
 
 @router.post("/upload-images/", response_model= ServiceImageOutput, status_code=status.HTTP_200_OK)
 async def upload_images(
@@ -67,16 +40,15 @@ async def upload_images(
 
 @router.post("/", response_model=ServiceDetailResponse, status_code=status.HTTP_201_CREATED)
 async def crear_paquete(
-        paquete: ServiceCreate = Depends(multipart_package_adapter),
-        service_service: TouristServicesService = Depends(get_service_service),
+        paquete: ServiceCreate,
         usuario_actual: User = Depends(get_current_user),
-        images: List[UploadFile] = File(...),
+        service_service: TouristServicesService = Depends(get_service_service)
 ):
     """
     Protected endpoint: Delegates tourist services creation to TouristServicesService.
     Returns a JSON representation containing generic information of a tourist service just created.
     """
-    return await service_service.create_tourist_package(package_data=paquete, image_files=images, current_user=usuario_actual)
+    return await service_service.create_tourist_package(package_data=paquete, current_user=usuario_actual)
 
 
 @router.get("/", response_model=List[ServiceListResponse])
@@ -115,9 +87,9 @@ async def listar_eliminados(
 @router.put("/{service_id}", response_model=ServiceDetailResponse)
 async def modificar_paquete(
         service_id: int,
-        update_data: ServiceUpdate = Depends(multipart_package_adapter),
-        service_service: TouristServicesService = Depends(get_service_service),
+        update_payload : ServiceUpdate,
         usuario_actual: User = Depends(get_current_user),
+        service_service: TouristServicesService = Depends(get_service_service)
 ):
     """
     Protected Endpoint: Modifies existing attributes of a target package.
@@ -125,7 +97,7 @@ async def modificar_paquete(
     Expects a partial or full JSON payload. Image URL lists are handled through
     absolute replacement (destructive update).
     """
-    return await service_service.update_package_details(service_id, update_data, usuario_actual)
+    return await service_service.update_package_details(service_id, update_payload, usuario_actual)
 
 @router.patch("/{service_id}/activar")
 async def activar_paquete(

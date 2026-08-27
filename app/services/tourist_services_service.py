@@ -2,9 +2,7 @@ from datetime import datetime, timezone
 
 from fastapi import HTTPException, status, UploadFile
 from typing import List, Dict
-
 from pydantic import HttpUrl
-
 from app.core import storage
 from app.core.storage import AzureStorageClient
 from app.repositories.service_repository import ServiceRepository
@@ -13,36 +11,40 @@ from app.models.service import TouristService, ServiceImage
 from app.schemas.service import ServiceCreate, ServiceUpdate
 from app.services.audit_service import AuditService
 from app.models.audit import AuditAction
+import asyncio
 
 
 class TouristServicesService:
     """
         Encapsulates business logic and rules, validations, and the operational logic of TouristService entity.
     """
-    def __init__(self, service_repo: ServiceRepository, audit_service: AuditService, storage_client: AzureStorageClient):
+
+    def __init__(self, service_repo: ServiceRepository, audit_service: AuditService,
+                 storage_client: AzureStorageClient):
         self.service_repo = service_repo
         self.audit_service = audit_service
         self.storage_client = storage_client
 
     async def create_tourist_package(
-        self,
-        package_data: ServiceCreate,
-        image_files: List[UploadFile],
-        current_user: User) -> TouristService:
+            self,
+            package_data: ServiceCreate,
+            current_user: User) -> TouristService:
 
         self._verify_admin(current_user)
+
+        if len(package_data.image_urls) > 10:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                detail="El número de imágenes a subir excede el límite permitido por paquete (10). "
+                                )
 
         tourist_service_data = package_data.model_dump(exclude={"image_urls"})
         new_tourist_service = TouristService(**tourist_service_data)
 
-
-
-        for idx, image_chunk in enumerate(image_files):
-
-            url = await self.storage_client.upload_image(image_chunk)
+        for idx, url in enumerate(package_data.image_urls):
+            persistent_url = await self.storage_client.promote_to_permanent(str(url))
 
             nueva_imagen = ServiceImage(
-                image_url=url,
+                image_url=persistent_url,
                 is_primary=(idx == 0)
             )
             new_tourist_service.images.append(nueva_imagen)
@@ -72,7 +74,7 @@ class TouristServicesService:
         Raises:
             HTTPException: 403 Forbidden if the user's role is not 'admin' or 'superadmin' .
         """
-        if current_user.role not in [UserRole.admin, UserRole.superadmin] :
+        if current_user.role not in [UserRole.admin, UserRole.superadmin]:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Privilegios insuficientes."
@@ -138,8 +140,6 @@ class TouristServicesService:
 
         service.is_available = is_available
         await self.service_repo.save_service(service)
-
-
 
         action = AuditAction.ACTIVATE if is_available else AuditAction.DEACTIVATE
         await self.audit_service.log_transaction(
@@ -227,12 +227,13 @@ class TouristServicesService:
             action=AuditAction.RECOVER, performed_by=current_user.cedula
         )
 
-        return {"success": True, "message": "Paquete recuperado. Se encuentra en la sección 'Por Activar'.", "UID": service_id}
+        return {"success": True, "message": "Paquete recuperado. Se encuentra en la sección 'Por Activar'.",
+                "UID": service_id}
 
     async def image_uploader(self,
                              current_user: User,
                              images_files: List[UploadFile]
-                             )-> dict:
+                             ) -> dict:
         """
         Uploads images asynchronously to the Azure CDN.
 
@@ -261,11 +262,10 @@ class TouristServicesService:
                 blob_urls.append(fresh_url)
         except Exception as e:
             raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                                detail="Ha ocurrido un fallo en la nube de Azure. El CDN no está disponible."
+                                detail=f"Ha ocurrido un fallo en la nube de Azure. El CDN no está disponible.\n{e}"
                                 )
 
         return {"image_urls": blob_urls}
-
 
     async def update_package_details(self,
                                      service_id: int,
@@ -299,8 +299,6 @@ class TouristServicesService:
                 detail="Paquete no encontrado. Está deshabilitado (deleted_at != None) o no exíste."
             )
 
-
-
         # 1. Update primitive fields (Scalar Mutation)
         update_dict = update_data.model_dump(exclude_unset=True, exclude={"image_urls"})
         for key, value in update_dict.items():
@@ -309,21 +307,35 @@ class TouristServicesService:
         # 2. Update relational fields (Destruction and Re-creation paradigm)
         if update_data.image_urls is not None:
 
-            # 0. Verify that there is room for those new images and throw exception if not.
+            # 2.1 Verify that there is room for those new images and throw exception if not.
             if len(update_data.image_urls) > 10:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                                     detail="El número de imágenes a subir excede el límite permitido por paquete (10). "
                                     )
 
+            # 2.2 Set up image comparison basis and delete removed images (if there's any)
+            old_images_urls = {str(img.image_url) for img in service.images}
+            new_images_urls = set(str(url) for url in update_data.image_urls)
+            urls_to_delete = old_images_urls - new_images_urls
+            for url in urls_to_delete:
+                await self.storage_client.delete_image(url)
 
-            # Clearing triggers Alembic's cascade deletion of old images
+            # 2.3 Clearing triggers Alembic's cascade deletion of old images
             service.images.clear()
+
+            # 2.4 Get the permanent url for each image on azure's CDN and attach them to the service object
             for idx, url in enumerate(update_data.image_urls):
-                nueva_imagen = ServiceImage(image_url=str(url), is_primary=(idx == 0))
+
+                if self.storage_client.temporal_container_name in str(url):
+                    definitive_url = await self.storage_client.promote_to_permanent(str(url))
+
+                else:
+                    definitive_url = url
+
+                nueva_imagen = ServiceImage(image_url=str(definitive_url), is_primary=(idx == 0))
                 service.images.append(nueva_imagen)
 
-
-
+        # 3.) Register changes made on audit table
         payload_changes = update_data.model_dump(mode='json', exclude_unset=True)
         if payload_changes:
             await self.audit_service.log_transaction(
