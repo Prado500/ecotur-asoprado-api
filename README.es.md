@@ -1,42 +1,40 @@
+README.md ESP sp 4 release
 
----
-#  Ecotur-ASOPRADO API - Backend Architecture (v0.2.0-dev)
-
-![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)
-![Python](https://img.shields.io/badge/Python-3.11+-blue?style=for-the-badge&logo=python)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql)
-![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker)
-![Azure DevOps](https://img.shields.io/badge/Azure_DevOps-0078D7?style=for-the-badge&logo=azuredevops)
-
-
----
+#  Ecotur-ASOPRADO API - Arquitectura Backend (v0.2.0)
 
 ##  Contexto del Proyecto
 
-Este repositorio aloja el backend transaccional para **Ecotur-ASOPRADO**, un ecosistema digital web y móvil desarrollado como trabajo de grado para diversificar y gestionar la oferta turística del distrito de adecuación de tierras de Prado, Tolima.
+Este repositorio aloja el backend transaccional para **Ecotur-ASOPRADO**, un ecosistema digital web y móvil desarrollado como trabajo de grado para diversificar y gestionar la oferta turística del distrito de adecuación de tierras de Prado, Tolima. La arquitectura fue diseñada bajo el estándar de **Clean Architecture** (Arquitectura Limpia), priorizando la escalabilidad, el rendimiento asíncrono y la seguridad de la información.
 
-La arquitectura fue diseñada bajo el estándar de **Clean Architecture**, priorizando la escalabilidad, el rendimiento asíncrono y la seguridad de la información.
+###  Alcance y Evolución: De v0.1.0 a v0.2.0
 
-###  Alcance del Sprint 4: Operaciones U+D con Borrado Lógico, Gobernanza, Cloud Storaging para imágenes y POC API Wompi (En curso)
-Este sprint tiene como objetivo implementar las operaciones de actualización y el borrado lógico (U+D) para User y TouristService, robustecer la gobernanza de datos, preparar la infraestructura para almacenamiento en la nube e investigar las integraciones financieras.
-* **Habilitador Técnico (v0.1.1):** Refactorización arquitectónica profunda hacia *Clean Architecture* (Separación en capas de Servicios y Repositorios) para mitigar deuda técnica.
-* **HU-10 & HU-11:** Implementación de Operaciones (u+D) con mutación de estados mediante **Borrado Lógico** y Gobernanza de Datos. Implementación de validación de identidad (Cédula).
-* **HU-12:** Infraestructura Cloud Multimedia. Transición de inyección de URLs en texto plano a recepción de binarios (`multipart/form-data`) y conexión con CDN/Object Storage.
-* **Spike (Investigación):** Prueba de concepto para la integración transaccional y Webhooks con la API de Wompi Bancolombia.
+Este *release* mayor consolida la transición desde el MVP base (Sprint 1) hacia una arquitectura robusta y de grado empresarial (Sprint 4) que abarca la Gobernanza de Datos, Almacenamiento en la Nube (Cloud Storage) y un Control de Acceso Basado en Roles (RBAC) avanzado.
 
-###  Alcance del Sprint 1: MVP Base (v0.1.0)
-Esta versión contiene el Producto Mínimo Viable (MVP) consolidado en el primer sprint:
-* **Habilitador Técnico:** Contenerización, creación y configuración de infraestrutura cloud (Azure) y despliegue bajo pipelines de CI/CD en 3 entornos de nube (Develop, Staging y Main).
-* **HU-01:** Registro de turistas (con hashing de contraseñas).
-* **HU-02:** Inicio de sesión (Autenticación JWT).
-* **HU-03:** Visualización de paquetes turísticos.
-* **HU-08:** Creación de paquetes turísticos.
+* **HU-10 (Verificación de Identidad):** Implementación de validación obligatoria de Cédula de Ciudadanía para turistas. El sistema ahora impone un flujo de *onboarding* Zero-Trust (Cero Confianza) donde las cuentas nacen por defecto con `is_active=False`. La activación requiere verificación a través de un JWT efímero de un solo uso despachado asíncronamente vía correo electrónico.
+* **HU-11 (Gobernanza de Datos y Borrado Lógico):** Erradicación de sentencias físicas `DELETE` de la base de datos para mantener la integridad histórica de las reservas. Se implementó un patrón estricto de Borrado Lógico (Soft Delete) mediante los campos `is_active` y `deleted_at`, junto con operaciones REST dedicadas para una Papelera de Reciclaje y recuperación jerárquica de cuentas.
+* **HU-12 (CDN Cloud Multimedia):** Transición del almacenamiento de URLs en texto plano a una arquitectura de *Asynchronous Media Staging* (Almacenamiento Temporal de Medios Asíncrono). El sistema ahora recibe fragmentos binarios (`multipart/form-data`) en un contenedor efímero de Azure Blob Storage, devolviendo URLs temporales al frontend. Un algoritmo de reconciliación de I/O concurrente ejecuta patrones de "Copiar y Borrar" (Copy & Delete) para promover los *blobs* al almacenamiento permanente mediante contratos JSON estrictos (`application/json`).
+
+
+* **HU-13 (Robustez Transaccional):** Imposición de límites estrictos de precisión financiera (`base_price` >= 40.000 COP) e integración de manejadores de excepciones globales para traducir errores de integridad de base de datos (HTTP 409) y de validación de Pydantic (HTTP 422) en respuestas sanitizadas y orientadas a la UX.
+* **Ecosistema de Auditoría (Audit Trail):** Ingeniería de un repositorio de logs de auditoría basado en JSONB para interceptar y persistir silenciosamente mutaciones estructurales o de estado desencadenadas por el personal administrativo sobre todas las entidades del dominio, previniendo el agotamiento de memoria O(N) mediante paginación limit-offset.
+* **Refactorización CI/CD:** Desacoplamiento de los pipelines para inyectar una Compuerta de Calidad (Quality Gate) con Pytest que exige 100% de éxito en los Pull Requests antes de habilitar las fusiones. Reemplazo de los despliegues de Azure ARM por disparadores asíncronos basados en webhooks nativos para evadir las restricciones de *tenant* de Entra ID.
 
 ---
 
-##  Estructura de Directorios (Clean Architecture)
+## Decisiones Arquitectónicas e Interrelación de Componentes
 
-El proyecto separa las responsabilidades en capas estrictas para garantizar un bajo acoplamiento y alta cohesión:
+La arquitectura `v0.2.0` impone estrictamente la **Separación de Responsabilidades (SoC)** a través del empaquetado moderno de Python (`pyproject.toml`) y la Inversión de Control (IoC):
+
+1. **Slim Controllers (`app/api/routers/`)**: Los enrutadores están totalmente desacoplados de la base de datos. Reciben las peticiones HTTP, parsean los tokens y delegan inmediatamente los *payloads* a la capa de Servicios.
+2. **Capa de Lógica de Negocio (`app/services/`)**: Centraliza y valida las reglas de dominio complejas. Por ejemplo, el `UserService` aplica un algoritmo RBAC Híbrido de 3 niveles (Superadmin -> Admin -> Turista) garantizando políticas de precedencia estrictas para operaciones de actualización y borrado (U+D).
+3. **Capa de Acceso a Datos (`app/repositories/`)**: La única capa que contiene instrucciones de SQLAlchemy 2.0. Aísla la lógica de negocio de los dialectos SQL directos y maneja las relaciones del ORM.
+
+
+4. **Delegación de I/O Asíncrono (`app/core/`)**: La salida de red externa (correos SMTP, subidas a Azure Blob Storage) se despacha concurrentemente mediante `asyncio.gather` y `BackgroundTasks` de FastAPI para evitar bloquear el *event loop* principal.
+
+---
+
+## Estructura de Directorios (Clean Architecture)
 
 ```text
 📦 ECOTUR-ASOPRADO
@@ -44,175 +42,151 @@ El proyecto separa las responsabilidades en capas estrictas para garantizar un b
  ┣ 📂 alembic/           # Scripts y control de versiones de la base de datos
  ┣ 📂 app/               # Código fuente principal de la aplicación
  ┃ ┣ 📂 api/             # Enrutadores (Slim Controllers) e Inyección de Dependencias
- ┃ ┣ 📂 core/            # Configuraciones globales, seguridad (JWT) y variables
- ┃ ┣ 📂 db/              # Directorio central de metadatos (SQLAlchemy 2.0)
+ ┃ ┣ 📂 core/            # Configuraciones globales, seguridad (JWT), clientes de almacenamiento y correos
+ ┃ ┣ 📂 db/              # Directorio central de metadatos (SQLAlchemy 2.0 DeclarativeBase)
  ┃ ┣ 📂 models/          # Entidades y mapeo relacional (ORM)
  ┃ ┣ 📂 repositories/    # Capa de Acceso a Datos (Consultas SQL aisladas)
  ┃ ┣ 📂 schemas/         # Validadores de entrada/salida y DTOs (Pydantic)
  ┃ ┣ 📂 services/        # Capa de Lógica de Negocio y reglas transaccionales
- ┃ ┗ 📜 main.py          # Punto de entrada de la aplicación FastAPI
- ┣ 📂 tests/             # Batería de pruebas automatizadas (Pytest)
+ ┃ ┗ 📜 main.py          # Punto de entrada de FastAPI con manejadores de excepciones globales
+ ┣ 📂 tests/             # Batería de pruebas Pytest (Mocks Asíncronos, SQLite en memoria)
  ┣ 📜 .python-version    # Declaración estricta del runtime del proyecto (3.11)
  ┣ 📜 alembic.ini        # Configuración nativa del motor de migraciones
  ┣ 📜 docker-compose.yml # Orquestación de servicios locales (API + DB)
  ┣ 📜 Dockerfile         # Receta de construcción de la imagen del contenedor
  ┣ 📜 pyproject.toml     # Gestión moderna de dependencias y configuración (PEP 518)
  ┗ 📜 .env.example       # Plantilla de variables de entorno seguras
+
 ```
----
-##  Resumen del Sistema
-Sistema transaccional desarrollado con FastAPI (modo asíncrono), persistencia relacional en PostgreSQL, y seguridad mediante autenticación JWT. El despliegue está completamente automatizado mediante estrategias de Pipeline as Code en Azure DevOps.
-
-### **Características Principales**
-
-**Seguridad:** Autenticación JWT y control de acceso basado en roles (Turista / Admin).
-
-**Catálogo Diverso y Biocultural:** Gestión de paquetes turísticos con soporte para múltiples imágenes.
-
-**Base de Datos Relacional:** Migraciones automatizadas y mapeo objeto-relacional seguro.
-
-**Auto-Documentación:** Especificación OpenAPI interactiva disponible en la ruta /docs.
-
-**Integración Continua:** CI/CD robusto orquestado con Microsoft Azure.
 
 ---
 
-##  Entornos Desplegados (CI/CD - Azure DevOps)
-El pipeline promueve automáticamente el código a entornos específicos basándose en la rama de Git:
+## Entornos Desplegados (CI/CD - Azure DevOps)
 
 | Entorno | Rama | URL Base de la API |
-| :--- | :--- | :--- |
-| **Desarrollo (DEV)** | `develop` | `https://api-ecoturasoprado-dev-f2aaejf9cdc0e3er.canadacentral-01.azurewebsites.net` |
-| **Pruebas (STG)** | `staging` | `https://api-ecoturasoprado-stg-gxb5bxcmcub3ftfx.canadacentral-01.azurewebsites.net` |
-| **Producción (MAIN)** | `main` | `https://api-ecoturasoprado-main-bucve5dfdfbnffgh.canadacentral-01.azurewebsites.net` |
+| --- | --- | --- |
+| **Desarrollo (DEV)** | `develop` | `[https://api-ecoturasoprado-dev-f2aaejf9cdc0e3er.canadacentral-01.azurewebsites.net](https://api-ecoturasoprado-dev-f2aaejf9cdc0e3er.canadacentral-01.azurewebsites.net)`<br> |
+| **Pruebas (STG)** | `staging` | `[https://api-ecoturasoprado-stg-gxb5bxcmcub3ftfx.canadacentral-01.azurewebsites.net](https://api-ecoturasoprado-stg-gxb5bxcmcub3ftfx.canadacentral-01.azurewebsites.net)`<br> |
+| **Producción (MAIN)** | `main` | `[https://api-ecoturasoprado-main-bucve5dfdfbnffgh.canadacentral-01.azurewebsites.net](https://api-ecoturasoprado-main-bucve5dfdfbnffgh.canadacentral-01.azurewebsites.net)`<br> |
 
 ---
 
-##  Stack Tecnológico
+## Stack Tecnológico
 
-**Lenguaje:** Python 3.11+
+* **Lenguaje:** Python 3.11+
 
-**Framework:** FastAPI (Asíncrono)
 
-**ORM:** SQLAlchemy
+* **Framework:** FastAPI (Asíncrono)
 
-**Validación de Datos:** Pydantic
 
-**Migraciones:** Alembic
+* **ORM:** SQLAlchemy 2.0
 
-**Base de Datos:** PostgreSQL
 
-**Contenedores:** Docker & Docker Compose
+* **Validación de Datos:** Pydantic V2
+
+
+* **Migraciones:** Alembic
+
+
+* **Base de Datos:** PostgreSQL
+
+
+* **Almacenamiento Cloud:** Azure Blob Storage SDK (`azure-storage-blob`)
+* **Testing/QA:** Pytest, pytest-asyncio, httpx, aiosqlite
+* **Contenedores:** Docker & Docker Compose
+
+
 
 ---
 
-##  Instalación y Ejecución Local
+## Instalación y Ejecución Local
 
 **1. Clonar el repositorio**
-```Bash
+
+```bash
 git clone https://github.com/Prado500/ecotur-asoprado-api
 cd ecotur-asoprado-backend
+
 ```
+
 **2. Variables de Entorno**
-
-Cree un archivo .env en la raíz del proyecto copiando la estructura de .env.example y asignando las credenciales proporcionadas por el administrador del sistema.
-
+Cree un archivo `.env` en la raíz del proyecto copiando la estructura de `.env.example` y asigne las credenciales locales.
 
 **3. Ejecutar con Docker (Recomendado)**
 
-```Bash
+```bash
 docker-compose up -d --build
-```
 
+```
 
 Una vez levantado, inicialice la base de datos ejecutando las migraciones:
 
-
-```Bash
+```bash
 docker-compose exec web alembic upgrade head
+
 ```
-
-API Base: http://localhost:8000
-
-
-Documentación Interactiva (Swagger): http://localhost:8000/docs
 
 ---
 
-##  Endpoints Principales y Plantillas de Prueba (JSON)
+## Endpoints Principales y Plantillas de Prueba (JSON)
 
-A continuación se detallan las rutas principales del MVP y los payloads requeridos para realizar pruebas exitosas.
+### Rutas Públicas (No requieren token)
 
-###  Públicos (No requieren token)
+* **`POST /usuarios/registro`**: Registro de usuarios exigiendo documento de identidad (`cedula`) y desencadenando el correo electrónico asíncrono de verificación.
 
-| Método | Endpoint | Descripción                                                                  |
-| :--- | :--- |:-----------------------------------------------------------------------------|
-| **POST** | `/usuarios/registro` | Registro de nuevos turistas con contraseña hasheada desde el backend (HU-01) |
-| **POST** | `/usuarios/login` | Inicio de sesión para obtención de Token JWT (HU-02)                         |
-| **GET** | `/servicios/` | Ver catálogo general de paquetes turísticos (HU-03)                          |
 
-### **Ejemplo JSON para** `/usuarios/registro` :
+* **`POST /usuarios/login`**: Retorna HTTP 403 si el usuario está inactivo, o HTTP 401 si las credenciales son inválidas.
+* **`GET /servicios/`**: Catálogo público (omite automáticamente los servicios borrados lógicamente mediante filtros del ORM).
 
-```JSON
+**Ejemplo de Payload (`/usuarios/registro`):**
+
+```json
 {
   "email": "mario.turista@rutadelarroz.com",
   "first_name": "Mario",
   "last_name": "Pacheco",
   "phone": "3111111111",
-  "password": "ciscocisco",
+  "cedula": "1002345678",
+  "password": "Ciscocisco123",
   "data_consent": true
 }
-```
-### **Ejemplo JSON para** `/usuarios/login`:
 
-(Al ejecutar con éxito, retornará el Token Bearer necesario para rutas privadas).
-
-```JSON
-{
-    "email": "mario.turista@rutadelarroz.com",
-    "password": "ciscocisco"
-}
 ```
 
-##  Privados (Requieren Token Bearer en el Header)
+### Rutas Privadas (Requieren Token Bearer en el Header)
 
-| Método | Endpoint | Descripción                                         | Nivel de Acceso| 
-| :--- | :--- |:----------------------------------------------------| :--- |
-| **GET** | `/usuarios/mi-perfil` | Ver detalles del perfil del usuario actual          |Usuario Autenticado| 
-| **POST** | `/servicios/` | Crear nuevo paquete turístico (HU-08)               | Administrador | 
-
-**Nota sobre GETs Privados:** El endpoint `/usuarios/mi-perfil` no requiere cuerpo (body) en la petición JSON. Únicamente requiere inyectar el Token Bearer en las cabeceras de autorización (Authorization: Bearer `<token>`).
+* **`GET /usuarios/mi-perfil`**: Retorna los datos específicos del perfil (Solo Usuarios Autenticados).
 
 
-### Ejemplo JSON para `/servicios/` (Creación de Paquete - Solo Admin):
+* **`POST /upload-images/`**: Acepta `List[UploadFile]` hasta un límite de 10 archivos y devuelve un arreglo de URLs efímeras del CDN (Solo Administradores).
+* **`POST /servicios/`**: Crea un paquete turístico consumiendo las URLs temporales retornadas por el endpoint anterior (Solo Administradores).
 
-**⚠️ Nota importante sobre la Creación de Paquetes (`/servicios/`):** El campo category está estrictamente validado por un `Enum` de Pydantic. Los únicos valores permitidos en el cuerpo de la petición son: `"agroturismo"`, `"recreacional"`, `"metalmecanico"`, u `"otro"`.
 
-```JSON
+* **`GET /auditoria/`**: Recupera el historial JSONB paginado de mutaciones administrativas (Solo Admins/Superadmins).
+* **`GET /usuarios/admin/eliminados`**: Recupera el directorio de la Papelera de Reciclaje de cuentas borradas (Solo Admins/Superadmins).
+
+**Ejemplo de Payload (`/servicios/`):**
+
+```json
 {
-  "name": "TEST",
-  "description": "ESTE ES UN PAQUETE DE PRUEBA",
-  "category": "metalmecanico",
+  "name": "Ruta de la Cascada Prado",
+  "description": "Detalle exhaustivo de la experiencia de ecoturismo...",
+  "category": "recreacional",
   "base_price": 85000.00,
-  "max_capacity": 20,
+  "max_capacity": 15,
   "is_available": true,
   "image_urls": [
-    "[https://www.ndstudies.gov/energy/level2/files/level2/img/module04/iStock_000000730824Medium_hoover_dam_turbines-optimized.jpg](https://www.ndstudies.gov/energy/level2/files/level2/img/module04/iStock_000000730824Medium_hoover_dam_turbines-optimized.jpg)",
-    "[https://s3.wasabisys.com/assets.elcronista.co/assets/media/monitoreo-permanente-a-represa-de-prado-realizan-autoridades.jpg](https://s3.wasabisys.com/assets.elcronista.co/assets/media/monitoreo-permanente-a-represa-de-prado-realizan-autoridades.jpg)"
+    "https://ecoturasopradocdn.blob.core.windows.net/temp-ecotur-images/uuid-1.jpg",
+    "https://ecoturasopradocdn.blob.core.windows.net/temp-ecotur-images/uuid-2.jpg"
   ]
 }
+
 ```
 
 ---
 
-##  Seguridad
+## Seguridad y Notas Críticas
 
-**Autenticación:** JSON Web Tokens (JWT) inyectados vía cabecera de Autorización (Bearer <token>).
-
-**Control de Acceso (RBAC):** Restricciones granulares a nivel de endpoint dependiendo del rol del usuario en la base de datos.
-
-**Criptografía:** Contraseñas protegidas mediante algoritmos de hashing unidireccional (Bcrypt).
-
-
-
-
+* **Advertencia de Serialización de Datos:** Al interactuar con la implementación JSONB del `AuditLog`, asegúrese de que los tipos complejos de Pydantic (como `Decimal` o `HttpUrl`) sean estrictamente sanitizados a primitivas estándar de Python mediante `.model_dump(mode='json')` antes de la persistencia para prevenir caídas fatales por `StatementError`.
+* **Jerarquía RBAC:** Las identidades de la capa Superadmin están dinámicamente ofuscadas de las consultas de los administradores estándar. Los administradores estándar están bloqueados a nivel de backend (HTTP 403) para aplicar borrado lógico o recuperar cuentas de un nivel igual o superior.
+* **Mutabilidad I/O del CDN:** El backend maneja las promociones físicas de archivos en Azure de forma concurrente mediante el *wrapper* interno `resolve_url`. El frontend debe enviar únicamente URLs HTTP válidas para evitar fallos de validación transaccional (HTTP 422).
