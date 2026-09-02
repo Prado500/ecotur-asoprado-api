@@ -34,7 +34,7 @@ class ServiceBase(BaseModel):
     )
 
     max_capacity: int = Field(..., gt=0, le=30, description="Capacidad máxima de turistas")
-    is_available: bool = Field(default=True)
+    is_available: bool = Field(default=False)
 
     # === TITLE DATA HYGIENE ===
     @field_validator('name')
