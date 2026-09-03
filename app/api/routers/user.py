@@ -1,98 +1,157 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
-from app.db.database import get_db
-from app.models.user import User, UserRole
-from app.schemas.user import UserCreate, UserResponse, UserLogin
+import os
+
+from fastapi import APIRouter, Depends, status, BackgroundTasks
+from app.schemas.user import UserCreate, UserResponse, UserLogin, UserUpdate, UserCreateByAdmin
 from app.schemas.token import TokenResponse
-from app.core.security import get_password_hash, verify_password, create_access_token
-from app.api.dependencies import get_current_user
+from app.models.user import User
+from app.api.dependencies import get_current_user, get_user_service
+from app.services.user_service import UserService
 
 router = APIRouter()
 
-
 @router.post("/registro", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-async def registrar_turista(usuario: UserCreate, db: AsyncSession = Depends(get_db)):
-    """
-    Endpoint público para que los turistas creen su cuenta en ASOPRADO.
-    Contribuye a resolver la HU-01.
-    """
+async def registrar_turista(
+        usuario: UserCreate,
+        background_tasks: BackgroundTasks,
+        user_service: UserService = Depends(get_user_service)
+):
+    """ Delegates User creation to UserService and dispatches verification email in the background. """
 
-    stmt = select(User).where(User.email == usuario.email)
-    resultado = await db.execute(stmt)
-    usuario_existente = resultado.scalars().first()
-    if usuario_existente:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Este correo electrónico ya se encuentra registrado."
-        )
+    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")
 
-    hashed_password = get_password_hash(usuario.password)
-
-    nuevo_usuario = User(
-        email=usuario.email,
-        first_name=usuario.first_name,
-        last_name=usuario.last_name,
-        phone=usuario.phone,
-        password_hash=hashed_password,
-        role=UserRole.tourist,
-        data_consent=usuario.data_consent
+    return await user_service.register_tourist(
+        user_data=usuario,
+        background_tasks=background_tasks,
+        base_url=frontend_url
     )
 
-    db.add(nuevo_usuario)
-    await db.commit()
-    await db.refresh(
-        nuevo_usuario)  # Se forza refrescar la sesión para obtener valores generados por el SGBD (los campos id y created_at)
+@router.get("/verificar-email", status_code=status.HTTP_200_OK)
+async def verificar_cuenta(
+        token: str,
+        user_service: UserService = Depends(get_user_service)
+):
+    """
+    Public Endpoint: Decodes the JWT token sent via email and activates the user account.
+    Returns a success message JSON.
+    """
+    return await user_service.verify_email_account(token)
 
-
-    return nuevo_usuario
 
 @router.post("/login", response_model=TokenResponse)
-async def login(credenciales: UserLogin, db: AsyncSession = Depends(get_db)):
+async def login(
+        credenciales: UserLogin,
+        user_service: UserService = Depends(get_user_service)
+):
+    """ Delegates authentication and JWT provisioning to UserService.
+        Returns a signed and temporal JWT token for general access
+        to protected resources.
     """
-    Endpoint para que los usuarios (Turistas o Admins) inicien sesión.
-    Cumple con los criterios de la HU-02.
-    """
+    return await user_service.authenticate_user(credenciales)
 
-    stmt = select(User).where(
-        User.email == credenciales.email,
-        User.is_active == True,
-        User.deleted_at.is_(None)
-    )
-    resultado = await db.execute(stmt)
-    usuario = resultado.scalars().first()
-
-
-
-    if not usuario or not verify_password(credenciales.password, usuario.password_hash):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Revise su correo y contraseña",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-
-    datos_para_token = {
-        "sub": usuario.email,
-        "role": usuario.role.value
-    }
-
-    token_generado = create_access_token(data=datos_para_token)
-
-
-    return {
-        "access_token": token_generado,
-        "token_type": "bearer"
-    }
 
 @router.get("/mi-perfil", response_model=UserResponse)
-async def ver_mi_perfil(usuario_actual =  Depends(get_current_user)):
-
-    """
-    Endpoint que permite visualizar la información de un usuario (excluyendo hash de contraseña).
-    :param usuario_actual: un User retornado por get_current_user().
-    :return: User, cuya respuesta se sirve con UserResponse
-    """
-
+async def ver_mi_perfil(usuario_actual: User = Depends(get_current_user)):
+    """ Protected Endpoint: Returns generic data of a registered user. """
     return usuario_actual
 
+
+@router.delete("/{cedula}", status_code=status.HTTP_200_OK)
+async def eliminar_usuario(
+        cedula: str,
+        user_service: UserService = Depends(get_user_service),
+        usuario_actual: User = Depends(get_current_user)
+):
+    """
+    Protected Endpoint: Performs a soft-delete on a target user account.
+    Requires Admin privileges or Self-Ownership.
+    """
+    return await user_service.delete_user_account(
+        target_cedula=cedula,
+        current_user=usuario_actual
+    )
+
+@router.get("/", response_model=list[UserResponse])
+async def listar_usuarios(
+        user_service: UserService = Depends(get_user_service),
+        usuario_actual: User = Depends(get_current_user)
+):
+    """
+    Protected Endpoint: Retrieves the user directory.
+
+    Delegates hierarchical visibility rules to the UserService to ensure
+    Standard Admins cannot retrieve Superadmin entities.
+    Requires an active JWT session.
+    """
+    return await user_service.get_all_registered_users(usuario_actual)
+
+@router.patch("/{cedula}", response_model=UserResponse)
+async def actualizar_usuario(
+        cedula: str,
+        update_data: UserUpdate,
+        user_service: UserService = Depends(get_user_service),
+        usuario_actual: User = Depends(get_current_user)
+):
+    """
+    Protected Endpoint: Updates a specific user's profile information.
+
+    Delegates strict RBAC precedence and self-service rules to the UserService.
+    Expects a partial JSON payload (PATCH behavior).
+    Requires an active JWT session.
+    """
+    return await user_service.update_user_account(
+        target_cedula=cedula,
+        update_data=update_data,
+        current_user=usuario_actual
+    )
+
+@router.get("/admin/eliminados", response_model=list[UserResponse])
+async def listar_usuarios_eliminados(
+        user_service: UserService = Depends(get_user_service),
+        usuario_actual: User = Depends(get_current_user)
+):
+    """
+    Protected Endpoint: Retrieves the collection of logically deleted users.
+
+    Delegates hierarchical visibility rules to the UserService to ensure
+    standard admins cannot retrieve soft-deleted Superadmin entities.
+    Requires an active JWT session.
+    """
+    return await user_service.get_deleted_users(usuario_actual)
+
+
+@router.patch("/{cedula}/recuperar")
+async def recuperar_usuario(
+        cedula: str,
+        user_service: UserService = Depends(get_user_service),
+        usuario_actual: User = Depends(get_current_user)
+):
+    """
+    Protected Endpoint: Recovers a soft-deleted user account.
+
+    Delegates RBAC precedence rules to the UserService to prevent standard
+    admins from recovering equal or higher-tier accounts.
+    Requires an active JWT session.
+    """
+    return await user_service.recover_user_account(
+        target_cedula=cedula,
+        current_user=usuario_actual
+    )
+
+
+@router.post("/admin", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+async def crear_administrador(
+        usuario: UserCreateByAdmin,
+        user_service: UserService = Depends(get_user_service),
+        usuario_actual: User = Depends(get_current_user)
+):
+    """
+    Protected Endpoint: Provisions a new administrative account.
+
+    Strictly delegates execution to the UserService, which enforces that
+    only a Superadmin can access this provisioning pipeline.
+    Requires an active JWT session.
+    """
+    return await user_service.create_administrative_account(
+        user_data=usuario,
+        current_user=usuario_actual
+    )

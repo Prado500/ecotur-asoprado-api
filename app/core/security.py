@@ -1,23 +1,26 @@
 import os
 from datetime import timedelta, datetime, timezone
 
-import bcrypt # Hashing de contraseñas y verificación
-import jwt # Tokenización JWT
+import bcrypt
+import jwt
 
 SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+VERIFICATION_TOKEN_EXPIRE_MINUTES = int(os.getenv("VERIFICATION_TOKEN_EXPIRE_MINUTES", "15"))
 
 """
-    FÁBRICA DE HASHES
+   HASH FACTORY
 """
 def get_password_hash(password: str) -> str:
     """
-    Toma la contraseña usada por el usuario en su registro, y:
-    1. Convierte el string a bytes.
-    2. Genera la sal automática.
-    3. Hashea agregando la sal al resto del hash y devuelve un string decodificado para PostgreSQL, que es el que como tal
-       se guarda en la base de datos.
+    Performs the following operations using the given user password:
+
+    1. Turns the string into bytes.
+    2. Automatically generates the salt.
+    3. Hashes and includes the salt to the hash. Then, it returns the decoded and salted password hash
+       to be stored in the database.
+
     """
     pwd_bytes = password.encode('utf-8')
     salt = bcrypt.gensalt()
@@ -27,11 +30,13 @@ def get_password_hash(password: str) -> str:
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """
-    Compara la contraseña plana con la que se intenta iniciar sesión con el hash de la base de datos.
-    Ambos deben convertirse a bytes para que bcrypt pueda:
-    1. Identificar y extraer la sal del hash de la base de datos.
-    2. Hashear la contraseña plana usando la misma sal empleada en el hasheo de la contraseña que se usó al crearse la cuenta
-    3. Comparar ambos hash y retornar True si coinciden, o False si no.
+    Compares the raw password string against the hashed password.
+
+    Bcrypt turns into bytes both the raw password entry and the hashed db password string in order to:
+
+    1. Identify and extract the salt out of the db hashed password.
+    2. Hash the raw entry using the retrieved salt.
+    3. Compare if both  hashes match mathematically and return True if so,and false otherwise.
     """
     password_byte_enc = plain_password.encode('utf-8')
     hashed_password_bytes = hashed_password.encode('utf-8')
@@ -39,13 +44,16 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     return bcrypt.checkpw(password=password_byte_enc, hashed_password=hashed_password_bytes)
 
 """
-    FÁBRICA DE TOKENS
+    TOKEN FACTORY
 """
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     """
-    Fabrica el Json Web Token (JWT).
-    Recibe los datos públicos (ej. {"sub": "manuel_ortigoza", "role": "tourist"})
-    y le estampa la firma criptográfica usando la Llave Secreta.
+    Generates a signed JWT token with an expiration date.
+
+    It's given a payload (e.g. {"sub": "manuel_ortigoza", "role": "tourist"}), then
+    checks weather there is a given parameter for the token lifespan and includes
+    the expiration date within the payload. Afterward it produces the cryptographic
+    signature using the secret key.
     """
     to_encode = data.copy()
 
@@ -55,6 +63,26 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
         expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
 
     to_encode.update({"exp": expire})
+
+    encoded_jwt = jwt.encode(payload=to_encode, key=SECRET_KEY, algorithm=ALGORITHM)
+
+    return encoded_jwt
+
+def create_verification_token(email: str) -> str:
+    """
+    Generates a single-use JWT token for user email validation purposes.
+
+    There is a specific scope within the token's payload to prevent its usage as a
+    general authorization token.
+
+    """
+    expire = datetime.now(timezone.utc) + timedelta(minutes=VERIFICATION_TOKEN_EXPIRE_MINUTES)
+
+    to_encode = {
+        "sub": email,
+        "scope": "email_verification",
+        "exp": expire
+    }
 
     encoded_jwt = jwt.encode(payload=to_encode, key=SECRET_KEY, algorithm=ALGORITHM)
 

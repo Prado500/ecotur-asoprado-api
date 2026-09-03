@@ -1,90 +1,154 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
-from sqlalchemy.orm import selectinload # <- IMPORTANTE PARA ASYNC
+from decimal import Decimal
+
+from fastapi import APIRouter, Depends, status, UploadFile, File, Form
 from typing import List
 
-from app.db.database import get_db
-from app.models.service import TouristService, ServiceImage
-from app.models.user import User, UserRole
-from app.schemas.service import ServiceCreate, ServiceListResponse, ServiceDetailResponse
-from app.api.dependencies import get_current_user
-
+from app.models.user import User
+from app.schemas.service import ServiceCreate, ServiceListResponse, ServiceDetailResponse, ServiceUpdate, \
+    ServiceImageOutput
+from app.api.dependencies import get_current_user, get_service_service
+from app.services.tourist_services_service import TouristServicesService
+from app.models.service import ServiceCategory
+from pydantic import ValidationError, HttpUrl
+from fastapi.exceptions import RequestValidationError
 router = APIRouter()
+
+
+
+
+
+# -------------------------------------------------------------------
+# DEPENDENCY INJECTION ADAPTER (Data Extractor & Validator when receiving multipart/form data)
+# Employed to prevent error 422 unprocessable entity as tourist services creation data comes in multipart/form
+# and not in application/json.
+# -------------------------------------------------------------------
+
+
+@router.post("/upload-images/", response_model= ServiceImageOutput, status_code=status.HTTP_200_OK)
+async def upload_images(
+
+        service_service: TouristServicesService = Depends(get_service_service),
+        usuario_actual: User = Depends(get_current_user),
+        images: List[UploadFile] = File(...),
+):
+    """
+      Protected endpoint: Allows image uploading via service-layer-delegation per tourist service.
+      Returns a JSON representation containing a list of urls redirecting to images stored inside azure blob storage .
+    """
+    return await service_service.image_uploader(current_user=usuario_actual, images_files=images)
+
 
 @router.post("/", response_model=ServiceDetailResponse, status_code=status.HTTP_201_CREATED)
 async def crear_paquete(
-
         paquete: ServiceCreate,
-        db: AsyncSession = Depends(get_db),
-        usuario_actual: User = Depends(get_current_user)
+        usuario_actual: User = Depends(get_current_user),
+        service_service: TouristServicesService = Depends(get_service_service)
 ):
     """
-    Endpoint privado y exclusivo para administradores que les permite crear un nuevo paquete turístico.
-    Gestiona imágenes para la creación de paquetes turísticos mediante URLS enviadas desde el cliente.
-
-    Primero, excluye la clave image_urls que llega con la petición del cliente para crear un objeto SQLAlchemy
-    Con el cual preparar el statement de inserción inicial y cuyos atributos sean coherentes de acuerdo a la tabla tourist_services.
-
-    Después pobla el atributo virtual de relacionamiento entre tourist_services (bd) y service_images(bd)
-    propio del modelo TouristService, valiéndose de un ciclo for.
-
-    Finalmente, se realiza flush en la base de datos usando el objeto SQLAlchemy nuevo_paquete
-    De manera que solo después que se logre la inserción en la tabla tourist_services,
-    El SGBD retorna el id asignado a dicha inserción para que el ORM pueda asignarlo a cada
-    Objeto del atributo virtual images de TouristService. Inmediatamente después de ello,
-    Se realiza la inserción de cada objeto SQLAlchemy representativo de las imágenes en la tabla service_images.
-
-    Este endpoint retorna la relación entre un paquete turístico y toda su galería de imágenes.
-
-
+    Protected endpoint: Delegates tourist services creation to TouristServicesService.
+    Returns a JSON representation containing generic information of a tourist service just created.
     """
-
-    if usuario_actual.role != UserRole.admin:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Privilegios insuficientes.")
-
-    datos_paquete = paquete.model_dump(exclude={"image_urls"})
-    nuevo_paquete = TouristService(**datos_paquete)
-
-    for idx, url in enumerate(paquete.image_urls):
-        nueva_imagen = ServiceImage(
-            image_url=url,
-            # Si el índice es 0 (la primera foto de la lista), es_primary será True.
-            # Para la 2da, 3ra, etc. será False.
-            is_primary=(idx == 0)
-        )
-        # Agregar cada objeto de inserción de la tabla service_images (imagen) a la lista virtual del paquete (SQLAlchemy se encarga de las llaves foráneas)
-        nuevo_paquete.images.append(nueva_imagen)
-
-    db.add(nuevo_paquete)
-    await db.commit()
-
-    stmt = select(TouristService).options(selectinload(TouristService.images)).where(
-        TouristService.id == nuevo_paquete.id
-    )
-    resultado = await db.execute(stmt)
-    nuevo_paquete = resultado.scalar_one()
-
-
-
-    return nuevo_paquete # En esta iteración, las imágenes vienen desde el frontend a manera de una lista de Strings donde cada String es una url de una imagen.
+    return await service_service.create_tourist_package(package_data=paquete, current_user=usuario_actual)
 
 
 @router.get("/", response_model=List[ServiceListResponse])
-async def listar_paquetes(db: AsyncSession = Depends(get_db)):
+async def listar_paquetes(service_service: TouristServicesService = Depends(get_service_service)):
     """
-    Endpoint público que permite listar todos los paquetes turísticos disponibles.
-    Contribuye a la HU-03
+    Public endpoint: Returns a list of all tourist services created which are in active state.
     """
+    return await service_service.list_active_packages()
 
-    # selectinload le dice a SQLAlchemy que se traiga todos los servicios Y también sus imágenes asociadas
-    stmt = select(TouristService).options(selectinload(TouristService.images)).where(
-        TouristService.is_available == True,
-        TouristService.deleted_at.is_(None)
-    )
+@router.get("/admin/inactivos", response_model=List[ServiceListResponse])
+async def listar_inactivos(
+        service_service: TouristServicesService = Depends(get_service_service),
+        usuario_actual: User = Depends(get_current_user)
+):
+    """
+    Protected Endpoint: Retrieves the collection of inactive packages.
 
-    resultado = await db.execute(stmt)
-    paquetes = resultado.scalars().all()
+    Serves the 'Por Activar' Kanban column for the administrative UI.
+    Requires an active JWT session with an 'admin' role payload.
+    """
+    return await service_service.list_inactive_packages(usuario_actual)
 
-    return paquetes
+@router.get("/admin/eliminados", response_model=List[ServiceDetailResponse])
+async def listar_eliminados(
+        service_service: TouristServicesService = Depends(get_service_service),
+        usuario_actual: User = Depends(get_current_user)
+):
+    """
+    Protected Endpoint: Retrieves the collection of soft-deleted packages.
 
+    Serves the 'Eliminados' Kanban column. Returns a detailed DTO structure
+    including the timestamp of deletion to comply with Data Governance audits.
+    """
+    return await service_service.list_deleted_packages(usuario_actual)
+
+@router.put("/{service_id}", response_model=ServiceDetailResponse)
+async def modificar_paquete(
+        service_id: int,
+        update_payload : ServiceUpdate,
+        usuario_actual: User = Depends(get_current_user),
+        service_service: TouristServicesService = Depends(get_service_service)
+):
+    """
+    Protected Endpoint: Modifies existing attributes of a target package.
+
+    Expects a partial or full JSON payload. Image URL lists are handled through
+    absolute replacement (destructive update).
+    """
+    return await service_service.update_package_details(service_id, update_payload, usuario_actual)
+
+@router.patch("/{service_id}/activar")
+async def activar_paquete(
+        service_id: int,
+        service_service: TouristServicesService = Depends(get_service_service),
+        usuario_actual: User = Depends(get_current_user)
+):
+    """
+    Protected Endpoint: Triggers a state mutation transitioning a package to active.
+
+    The package will immediately become visible in the public tourist catalog.
+    """
+    return await service_service.toggle_package_status(service_id, True, usuario_actual)
+
+@router.patch("/{service_id}/desactivar")
+async def desactivar_paquete(
+        service_id: int,
+        service_service: TouristServicesService = Depends(get_service_service),
+        usuario_actual: User = Depends(get_current_user)
+):
+    """
+    Protected Endpoint: Triggers a state mutation transitioning a package to inactive.
+
+    The package is un-published from the public catalog but remains structurally intact.
+    """
+    return await service_service.toggle_package_status(service_id, False, usuario_actual)
+
+@router.delete("/{service_id}")
+async def borrar_paquete_logico(
+        service_id: int,
+        service_service: TouristServicesService = Depends(get_service_service),
+        usuario_actual: User = Depends(get_current_user)
+):
+    """
+    Protected Endpoint: Performs a logical deletion (Soft Delete) on the target package.
+
+    This fulfills the referential integrity constraints avoiding hard deletions.
+    The package is hidden and stamped with a UTC deletion timestamp.
+    """
+    return await service_service.soft_delete_package(service_id, usuario_actual)
+
+@router.patch("/{service_id}/recuperar")
+async def recuperar_paquete(
+        service_id: int,
+        service_service: TouristServicesService = Depends(get_service_service),
+        usuario_actual: User = Depends(get_current_user)
+):
+    """
+    Protected Endpoint: Recovers a soft-deleted package.
+
+    Resets the deletion timestamp and forces the package state to inactive
+    to require manual publishing validation.
+    """
+    return await service_service.recover_package(service_id, usuario_actual)
