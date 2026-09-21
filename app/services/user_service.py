@@ -124,7 +124,7 @@ class UserService:
         soft_deleted_user = await self.user_repo.get_user_by_cedula(target_cedula)
 
         # 1. RBAC Security Check #1
-        if current_user.role != UserRole.admin and current_user.cedula != target_cedula:
+        if current_user.role not in [UserRole.admin, UserRole.superadmin] and current_user.cedula != target_cedula:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Privilegios insuficientes. No tiene autorización para eliminar esta cuenta."
