@@ -6,7 +6,7 @@ from typing import List
 from app.models.user import User
 from app.schemas.service import ServiceCreate, ServiceListResponse, ServiceDetailResponse, ServiceUpdate, \
     ServiceImageOutput
-from app.api.dependencies import get_current_user, get_service_service
+from app.api.dependencies import get_service_service, get_current_admin_user
 from app.services.tourist_services_service import TouristServicesService
 from app.models.service import ServiceCategory
 from pydantic import ValidationError, HttpUrl
@@ -28,7 +28,7 @@ router = APIRouter()
 async def upload_images(
 
         service_service: TouristServicesService = Depends(get_service_service),
-        usuario_actual: User = Depends(get_current_user),
+        usuario_actual: User = Depends(get_current_admin_user),
         images: List[UploadFile] = File(...),
 ):
     """
@@ -41,7 +41,7 @@ async def upload_images(
 @router.post("/", response_model=ServiceDetailResponse, status_code=status.HTTP_201_CREATED)
 async def crear_paquete(
         paquete: ServiceCreate,
-        usuario_actual: User = Depends(get_current_user),
+        usuario_actual: User = Depends(get_current_admin_user),
         service_service: TouristServicesService = Depends(get_service_service)
 ):
     """
@@ -61,7 +61,7 @@ async def listar_paquetes(service_service: TouristServicesService = Depends(get_
 @router.get("/admin/inactivos", response_model=List[ServiceListResponse])
 async def listar_inactivos(
         service_service: TouristServicesService = Depends(get_service_service),
-        usuario_actual: User = Depends(get_current_user)
+        usuario_actual: User = Depends(get_current_admin_user)
 ):
     """
     Protected Endpoint: Retrieves the collection of inactive packages.
@@ -74,7 +74,7 @@ async def listar_inactivos(
 @router.get("/admin/eliminados", response_model=List[ServiceDetailResponse])
 async def listar_eliminados(
         service_service: TouristServicesService = Depends(get_service_service),
-        usuario_actual: User = Depends(get_current_user)
+        usuario_actual: User = Depends(get_current_admin_user)
 ):
     """
     Protected Endpoint: Retrieves the collection of soft-deleted packages.
@@ -88,7 +88,7 @@ async def listar_eliminados(
 async def modificar_paquete(
         service_id: int,
         update_payload : ServiceUpdate,
-        usuario_actual: User = Depends(get_current_user),
+        usuario_actual: User = Depends(get_current_admin_user),
         service_service: TouristServicesService = Depends(get_service_service)
 ):
     """
@@ -103,7 +103,7 @@ async def modificar_paquete(
 async def activar_paquete(
         service_id: int,
         service_service: TouristServicesService = Depends(get_service_service),
-        usuario_actual: User = Depends(get_current_user)
+        usuario_actual: User = Depends(get_current_admin_user)
 ):
     """
     Protected Endpoint: Triggers a state mutation transitioning a package to active.
@@ -116,7 +116,7 @@ async def activar_paquete(
 async def desactivar_paquete(
         service_id: int,
         service_service: TouristServicesService = Depends(get_service_service),
-        usuario_actual: User = Depends(get_current_user)
+        usuario_actual: User = Depends(get_current_admin_user)
 ):
     """
     Protected Endpoint: Triggers a state mutation transitioning a package to inactive.
@@ -129,7 +129,7 @@ async def desactivar_paquete(
 async def borrar_paquete_logico(
         service_id: int,
         service_service: TouristServicesService = Depends(get_service_service),
-        usuario_actual: User = Depends(get_current_user)
+        usuario_actual: User = Depends(get_current_admin_user)
 ):
     """
     Protected Endpoint: Performs a logical deletion (Soft Delete) on the target package.
@@ -143,7 +143,7 @@ async def borrar_paquete_logico(
 async def recuperar_paquete(
         service_id: int,
         service_service: TouristServicesService = Depends(get_service_service),
-        usuario_actual: User = Depends(get_current_user)
+        usuario_actual: User = Depends(get_current_admin_user)
 ):
     """
     Protected Endpoint: Recovers a soft-deleted package.

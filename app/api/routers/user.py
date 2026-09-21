@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, status, BackgroundTasks
 from app.schemas.user import UserCreate, UserResponse, UserLogin, UserUpdate, UserCreateByAdmin
 from app.schemas.token import TokenResponse
 from app.models.user import User
-from app.api.dependencies import get_current_user, get_user_service
+from app.api.dependencies import get_current_user, get_user_service, get_current_admin_user
 from app.services.user_service import UserService
 
 router = APIRouter()
@@ -89,7 +89,7 @@ async def actualizar_usuario(
         cedula: str,
         update_data: UserUpdate,
         user_service: UserService = Depends(get_user_service),
-        usuario_actual: User = Depends(get_current_user)
+        usuario_actual: User = Depends(get_current_admin_user)
 ):
     """
     Protected Endpoint: Updates a specific user's profile information.
@@ -107,7 +107,7 @@ async def actualizar_usuario(
 @router.get("/admin/eliminados", response_model=list[UserResponse])
 async def listar_usuarios_eliminados(
         user_service: UserService = Depends(get_user_service),
-        usuario_actual: User = Depends(get_current_user)
+        usuario_actual: User = Depends(get_current_admin_user)
 ):
     """
     Protected Endpoint: Retrieves the collection of logically deleted users.
@@ -123,7 +123,7 @@ async def listar_usuarios_eliminados(
 async def recuperar_usuario(
         cedula: str,
         user_service: UserService = Depends(get_user_service),
-        usuario_actual: User = Depends(get_current_user)
+        usuario_actual: User = Depends(get_current_admin_user)
 ):
     """
     Protected Endpoint: Recovers a soft-deleted user account.
@@ -142,7 +142,7 @@ async def recuperar_usuario(
 async def crear_administrador(
         usuario: UserCreateByAdmin,
         user_service: UserService = Depends(get_user_service),
-        usuario_actual: User = Depends(get_current_user)
+        usuario_actual: User = Depends(get_current_admin_user)
 ):
     """
     Protected Endpoint: Provisions a new administrative account.
