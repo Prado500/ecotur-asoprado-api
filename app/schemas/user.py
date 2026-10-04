@@ -146,3 +146,21 @@ class UserUpdate(BaseModel):
             return v
         clean = " ".join(v.split())
         return clean.title()
+
+class PasswordResetRequest(BaseModel):
+    email: EmailStr = Field(..., description="Correo electrónico registrado")
+
+class PasswordResetConfirm(BaseModel):
+    token: str = Field(..., description="Token de recuperación")
+    new_password: str = Field(..., min_length=8, description="Nueva contraseña segura")
+
+    @field_validator('new_password')
+    @classmethod
+    def validate_password_strength(cls, v: str) -> str:
+        if not any(c.isupper() for c in v):
+            raise ValueError('La nueva contraseña debe contener al menos una letra mayúscula.')
+        if not any(c.islower() for c in v):
+            raise ValueError('La nueva contraseña debe contener al menos una letra minúscula.')
+        if not any(c.isdigit() for c in v):
+            raise ValueError('La nueva contraseña debe contener al menos un número.')
+        return v

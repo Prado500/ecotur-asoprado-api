@@ -1,11 +1,13 @@
 import os
 
-from fastapi import APIRouter, Depends, status, BackgroundTasks
-from app.schemas.user import UserCreate, UserResponse, UserLogin, UserUpdate, UserCreateByAdmin
+from fastapi import APIRouter, Depends, status, BackgroundTasks, HTTPException
+from app.schemas.user import UserCreate, UserResponse, UserLogin, UserUpdate, UserCreateByAdmin, PasswordResetRequest, PasswordResetConfirm
 from app.schemas.token import TokenResponse
 from app.models.user import User
 from app.api.dependencies import get_current_user, get_user_service
 from app.services.user_service import UserService
+from app.core.security import create_password_reset_token, SECRET_KEY, ALGORITHM
+from fastapi import APIRouter, Depends, status, BackgroundTasks, Request
 
 router = APIRouter()
 
@@ -154,4 +156,35 @@ async def crear_administrador(
     return await user_service.create_administrative_account(
         user_data=usuario,
         current_user=usuario_actual
+    )
+
+@router.post("/restablecer-contrasena/solicitar", status_code=status.HTTP_200_OK)
+async def request_password_reset(
+        payload: PasswordResetRequest,
+        request: Request,
+        background_tasks: BackgroundTasks,
+        user_service: UserService = Depends(get_user_service)
+):
+    """
+    Solicita el enlace de recuperación de contraseña vía correo electrónico.
+    """
+    #base_url = str(request.base_url)
+    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")
+    return await user_service.request_password_reset(
+        email=payload.email,
+        base_url=frontend_url,
+        background_tasks=background_tasks
+    )
+
+@router.post("/restablecer-contrasena/confirmar", status_code=status.HTTP_200_OK)
+async def confirm_password_reset(
+        payload: PasswordResetConfirm,
+        user_service: UserService = Depends(get_user_service)
+):
+    """
+    Confirma el restablecimiento con el token recibido y la nueva contraseña.
+    """
+    return await user_service.confirm_password_reset(
+        token=payload.token,
+        new_password=payload.new_password
     )

@@ -3,11 +3,13 @@ from datetime import timedelta, datetime, timezone
 
 import bcrypt
 import jwt
+from fastapi import HTTPException, status
 
 SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 VERIFICATION_TOKEN_EXPIRE_MINUTES = int(os.getenv("VERIFICATION_TOKEN_EXPIRE_MINUTES", "15"))
+PASSWORD_RESET_TOKEN_EXPIRE_MINUTES = int(os.getenv("PASSWORD_RESET_TOKEN_EXPIRE_MINUTES", "15"))
 
 """
    HASH FACTORY
@@ -87,3 +89,40 @@ def create_verification_token(email: str) -> str:
     encoded_jwt = jwt.encode(payload=to_encode, key=SECRET_KEY, algorithm=ALGORITHM)
 
     return encoded_jwt
+
+def create_password_reset_token(email: str) -> str:
+    expire = datetime.now(timezone.utc) + timedelta(minutes=PASSWORD_RESET_TOKEN_EXPIRE_MINUTES)
+    to_encode = {
+        "sub": email,
+        "scope": "password_reset",
+        "exp": expire
+    }
+    return jwt.encode(payload=to_encode, key=SECRET_KEY, algorithm=ALGORITHM)
+
+def decode_password_reset_token(token: str) -> str:
+    """
+    Decodifica el token de recuperación y retorna el correo electrónico si es válido.
+    Lanza HTTPException si el token ha expirado o es inválido.
+    """
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email: str = payload.get("sub")
+        scope: str = payload.get("scope")
+
+        if not email or scope != "password_reset":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Token de recuperación inválido."
+            )
+        return email
+
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El enlace de recuperación ha expirado. Por favor solicite uno nuevo."
+        )
+    except jwt.InvalidTokenError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Token de recuperación inválido o corrupto."
+        )

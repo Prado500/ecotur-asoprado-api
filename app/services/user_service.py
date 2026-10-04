@@ -1,7 +1,7 @@
 import jwt
 from fastapi import HTTPException, status, BackgroundTasks
 
-from app.core.email import send_verification_email
+from app.core.email import send_verification_email, send_password_reset_email
 from app.models.audit import AuditAction
 from app.repositories.user_repository import UserRepository
 from app.schemas.user import UserCreate, UserLogin, UserUpdate, UserCreateByAdmin
@@ -391,3 +391,82 @@ class UserService:
         )
 
         return await self.user_repo.create_user(new_user)
+
+    async def request_password_reset(self, email: str, base_url: str, background_tasks: BackgroundTasks) -> dict:
+        """
+        Genera un token temporal de restablecimiento y envía el correo en segundo plano.
+        """
+        # USAR EL MÉTODO EXISTENTE QUE SOLO RECIBE EMAIL:
+        user = await self.user_repo.get_non_deleted_user_by_email(email)
+
+        # Seguridad (OWASP) para no revelar si el correo existe o no en el sistema
+        if not user or not user.is_active:
+            return {
+                "success": True,
+                "message": "Si el correo está registrado y activo, recibirás las instrucciones en breve."
+            }
+
+        # Generación del token especificando el scope de recuperación
+        token = create_access_token(data={"sub": user.email, "scope": "password_reset"})
+
+        # Tarea en segundo plano
+        background_tasks.add_task(
+            send_password_reset_email,
+            email_to=user.email,
+            first_name=user.first_name,
+            token=token,
+            base_url=base_url
+        )
+
+        return {
+            "success": True,
+            "message": "Si el correo está registrado y activo, recibirás las instrucciones en breve."
+        }
+
+    async def confirm_password_reset(self, token: str, new_password: str) -> dict:
+        """
+        Valida el token de restablecimiento y actualiza el hash de la contraseña.
+        """
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            email: str = payload.get("sub")
+            scope: str = payload.get("scope")
+
+            if email is None or scope != "password_reset":
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Token de recuperación inválido."
+                )
+
+        except jwt.ExpiredSignatureError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="El enlace de recuperación ha expirado. Por favor solicite uno nuevo."
+            )
+        except jwt.InvalidTokenError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Token de recuperación inválido o corrupto."
+            )
+
+        user = await self.user_repo.get_non_deleted_user_by_email(email)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Usuario no encontrado."
+            )
+
+        # Asignar nueva contraseña hasheada
+        user.password_hash = get_password_hash(new_password)
+        await self.user_repo.save_user(user)
+
+        # Log de auditoría
+        await self.audit_service.log_transaction(
+            entity_name="User",
+            entity_id=user.cedula,
+            action=AuditAction.UPDATE,
+            performed_by=user.cedula,
+            changes={"password": "reset_via_email_token"}
+        )
+
+        return {"success": True, "message": "Contraseña restablecida exitosamente. Ya puede iniciar sesión."}
