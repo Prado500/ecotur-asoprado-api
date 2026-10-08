@@ -12,6 +12,7 @@ dependencies = [
     "fastapi",
     "uvicorn[standard]",
     "sqlalchemy",
+    "sqlalchemy[asyncio]",
     "asyncpg",
     "alembic",
     "pydantic[email]",
