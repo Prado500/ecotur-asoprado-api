@@ -6,7 +6,7 @@ from pydantic import HttpUrl
 from app.core import storage
 from app.core.storage import AzureStorageClient
 from app.repositories.service_repository import ServiceRepository
-from app.models.user import User, UserRole
+from app.models.user import User
 from app.models.service import TouristService, ServiceImage
 from app.schemas.service import ServiceCreate, ServiceUpdate
 from app.services.audit_service import AuditService
@@ -63,15 +63,12 @@ class TouristServicesService:
 
 
 
-    async def list_inactive_packages(self, current_user: User) -> List[TouristService]:
+    async def list_inactive_packages(self) -> List[TouristService]:
         """
         Retrieves all tourist packages that are physically present but hidden from the public catalog.
 
         These packages belong to the 'Por Activar' Kanban column. They have been
         created and are deactivated, but not logically deleted.
-
-        Args:
-            current_user (User): The user attempting to access the data. Must be an admin.
 
         Returns:
             List[TouristService]: A list of inactive package ORM entities.
@@ -79,15 +76,12 @@ class TouristServicesService:
 
         return await self.service_repo.get_inactive_services()
 
-    async def list_deleted_packages(self, current_user: User) -> List[TouristService]:
+    async def list_deleted_packages(self) -> List[TouristService]:
         """
         Retrieves all soft-deleted tourist packages (Recycle Bin equivalent).
 
         These packages belong to the 'Eliminados' Kanban column and are kept
         strictly for historical referential integrity and potential recovery.
-
-        Args:
-            current_user (User): The user attempting to access the data. Must be an admin.
 
         Returns:
             List[TouristService]: A list of logically deleted package ORM entities.
@@ -214,15 +208,13 @@ class TouristServicesService:
                 "UID": service_id}
 
     async def image_uploader(self,
-                             current_user: User,
                              images_files: List[UploadFile]
                              ) -> dict:
         """
         Uploads images asynchronously to the Azure CDN.
 
         Args:
-        current_user (User): The administrator triggering the image upload.
-        image_files (List[UploadFile]): List of image files to be uploaded.
+            images_files (List[UploadFile]): List of image files to be uploaded.
 
         Returns:
             dict: a ServiceImageOutput compliant dictionary, containing a list of urls to the blob files once they exist inside Azure CDN.
