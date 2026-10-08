@@ -1,3 +1,5 @@
+from enum import Enum
+
 import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -5,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.storage import AzureStorageClient
 from app.db.database import get_db
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.repositories.audit_repository import AuditRepository
 from app.schemas.token import TokenData
 from app.core.security import SECRET_KEY, ALGORITHM
@@ -94,6 +96,26 @@ async def get_current_user(
         raise credentials_exception
 
     return usuario
+
+async def get_current_admin_user(current_user: User = Depends(get_current_user)) -> User:
+        """
+        Validates if the provided user possesses administrative privileges.
+
+        This method acts as a Role-Based Access Control (RBAC) gatekeeper
+        to prevent unauthorized access to resources that should only be available for admin or superadmin users.
+
+        Args:
+        current_user (User): The user entity extracted from the current JWT session.
+
+        Raises:
+        HTTPException: 403 Forbidden if the user's role is not 'admin' or 'superadmin' .
+        """
+        if current_user.role not in [UserRole.admin, UserRole.superadmin]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Privilegios insuficientes."
+            )
+        return current_user
 
 
 

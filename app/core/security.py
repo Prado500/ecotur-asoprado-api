@@ -3,6 +3,11 @@ from datetime import timedelta, datetime, timezone
 
 import bcrypt
 import jwt
+from fastapi import HTTPException
+from starlette import status
+
+from app.models import User
+from app.models.user import UserRole
 
 SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")

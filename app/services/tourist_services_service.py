@@ -6,7 +6,7 @@ from pydantic import HttpUrl
 from app.core import storage
 from app.core.storage import AzureStorageClient
 from app.repositories.service_repository import ServiceRepository
-from app.models.user import User, UserRole
+from app.models.user import User
 from app.models.service import TouristService, ServiceImage
 from app.schemas.service import ServiceCreate, ServiceUpdate
 from app.services.audit_service import AuditService
@@ -30,7 +30,7 @@ class TouristServicesService:
             package_data: ServiceCreate,
             current_user: User) -> TouristService:
 
-        self._verify_admin(current_user)
+
 
         if len(package_data.image_urls) > 10:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
@@ -61,55 +61,32 @@ class TouristServicesService:
     async def list_active_packages(self) -> List[TouristService]:
         return await self.service_repo.get_all_active_services()
 
-    def _verify_admin(self, current_user: User) -> None:
-        """
-        Validates if the provided user possesses administrative privileges.
 
-        This private method acts as a Role-Based Access Control (RBAC) gatekeeper
-        to prevent unauthorized mutation or access to sensitive package data.
 
-        Args:
-            current_user (User): The user entity extracted from the current JWT session.
-
-        Raises:
-            HTTPException: 403 Forbidden if the user's role is not 'admin' or 'superadmin' .
-        """
-        if current_user.role not in [UserRole.admin, UserRole.superadmin]:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Privilegios insuficientes."
-            )
-
-    async def list_inactive_packages(self, current_user: User) -> List[TouristService]:
+    async def list_inactive_packages(self) -> List[TouristService]:
         """
         Retrieves all tourist packages that are physically present but hidden from the public catalog.
 
         These packages belong to the 'Por Activar' Kanban column. They have been
         created and are deactivated, but not logically deleted.
 
-        Args:
-            current_user (User): The user attempting to access the data. Must be an admin.
-
         Returns:
             List[TouristService]: A list of inactive package ORM entities.
         """
-        self._verify_admin(current_user)
+
         return await self.service_repo.get_inactive_services()
 
-    async def list_deleted_packages(self, current_user: User) -> List[TouristService]:
+    async def list_deleted_packages(self) -> List[TouristService]:
         """
         Retrieves all soft-deleted tourist packages (Recycle Bin equivalent).
 
         These packages belong to the 'Eliminados' Kanban column and are kept
         strictly for historical referential integrity and potential recovery.
 
-        Args:
-            current_user (User): The user attempting to access the data. Must be an admin.
-
         Returns:
             List[TouristService]: A list of logically deleted package ORM entities.
         """
-        self._verify_admin(current_user)
+
         return await self.service_repo.get_deleted_services()
 
     async def toggle_package_status(self, service_id: int, is_available: bool, current_user: User) -> dict:
@@ -129,7 +106,7 @@ class TouristServicesService:
         Raises:
             HTTPException: 404 Not Found if the package does not exist or is deleted.
         """
-        self._verify_admin(current_user)
+
         service = await self.service_repo.get_service_by_id(service_id)
 
         if not service:
@@ -168,7 +145,7 @@ class TouristServicesService:
         Raises:
             HTTPException: 404 Not Found if the package is already deleted or doesn't exist.
         """
-        self._verify_admin(current_user)
+
         service = await self.service_repo.get_service_by_id(service_id)
 
         if not service:
@@ -205,7 +182,7 @@ class TouristServicesService:
         Raises:
             HTTPException: 400 Bad Request if the package was not actually deleted.
         """
-        self._verify_admin(current_user)
+
 
         # Override the default repository scope to include soft-deleted records
         service = await self.service_repo.get_service_by_id(service_id, include_deleted=True)
@@ -231,15 +208,13 @@ class TouristServicesService:
                 "UID": service_id}
 
     async def image_uploader(self,
-                             current_user: User,
                              images_files: List[UploadFile]
                              ) -> dict:
         """
         Uploads images asynchronously to the Azure CDN.
 
         Args:
-        current_user (User): The administrator triggering the image upload.
-        image_files (List[UploadFile]): List of image files to be uploaded.
+            images_files (List[UploadFile]): List of image files to be uploaded.
 
         Returns:
             dict: a ServiceImageOutput compliant dictionary, containing a list of urls to the blob files once they exist inside Azure CDN.
@@ -248,7 +223,7 @@ class TouristServicesService:
             HTTPException: 503 Service Unavailable if the uploading process happens to fail due to any Azure CDN outages.
         """
 
-        self._verify_admin(current_user)
+
 
         if len(images_files) > 10:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
@@ -290,7 +265,7 @@ class TouristServicesService:
             HTTPException: 404 Not Found if the target package is unavailable.
 
         """
-        self._verify_admin(current_user)
+
         service = await self.service_repo.get_service_by_id(service_id)
 
         if not service:
