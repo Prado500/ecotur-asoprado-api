@@ -89,7 +89,7 @@ async def actualizar_usuario(
         cedula: str,
         update_data: UserUpdate,
         user_service: UserService = Depends(get_user_service),
-        usuario_actual: User = Depends(get_current_admin_user)
+        usuario_actual: User = Depends(get_current_user)
 ):
     """
     Protected Endpoint: Updates a specific user's profile information.
