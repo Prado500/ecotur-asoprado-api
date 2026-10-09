@@ -174,25 +174,18 @@ class UserService:
         """
         Retrieves the user directory enforcing hierarchical visibility rules.
 
-        Superadmins retrieve the entire user base. Regular admins retrieve
-        the user base excluding superadmin accounts to prevent unauthorized
-        visibility into higher-tier governance.
+        Authorization is enforced at the routing boundary (admin-tier
+        dependency); this method only applies data-scoping rules: superadmins
+        retrieve the entire user base while standard admins receive the
+        directory without superadmin entities.
 
         Args:
-            current_user (User): The authenticated user making the request.
+            current_user (User): The authenticated administrator executing the
+                query. Used to derive visibility scoping, not for authorization.
 
         Returns:
-            list[User]: A filtered list of User ORM entities.
-
-        Raises:
-            HTTPException: 403 Forbidden if the requester is a standard tourist.
+            list[User]: The scoped list of active User ORM entities.
         """
-        if current_user.role == UserRole.tourist:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Privilegios insuficientes para acceder al directorio de usuarios."
-            )
-
         users = await self.user_repo.get_all_users()
 
         # RBAC Visibility Filter: Admins cannot see Superadmins
@@ -281,24 +274,18 @@ class UserService:
         """
         Retrieves the collection of logically deleted users (Recycle Bin).
 
-        Enforces hierarchical visibility: Standard admins cannot query deleted
-        Superadmin accounts. Superadmins have unrestricted visibility.
+        Authorization is enforced at the routing boundary (admin-tier
+        dependency); this method only applies data-scoping rules: standard
+        admins cannot query deleted superadmin accounts while superadmins
+        have unrestricted visibility.
 
         Args:
-            current_user (User): The authenticated administrator making the request.
+            current_user (User): The authenticated administrator executing the
+                query. Used to derive visibility scoping, not for authorization.
 
         Returns:
-            list[User]: A filtered list of logically deleted User ORM entities.
-
-        Raises:
-            HTTPException: 403 Forbidden if the requester is a standard tourist.
+            list[User]: The scoped list of logically deleted User ORM entities.
         """
-        if current_user.role == UserRole.tourist:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Privilegios insuficientes para acceder a la papelera de usuarios."
-            )
-
         # Query all users bypassing the default active-only filter
         users = await self.user_repo.get_all_users(include_deleted=True)
 
@@ -361,8 +348,11 @@ class UserService:
         """
         Provisions a new administrative account bypassing the public pipeline.
 
-        Strictly limited to the Superadmin tier to prevent unauthorized privilege
-        escalation. The account is created instantly without requiring email verification.
+        The superadmin-only guard below is an intentional hierarchical business
+        rule, not a duplicate of the transport frontier: the router's admin-tier
+        dependency only guarantees an admin+ session, while provisioning accounts
+        is reserved for the highest governance tier. The account is created
+        instantly without requiring email verification.
 
         Args:
             user_data (UserCreateByAdmin): DTO containing profile and explicit role definitions.
