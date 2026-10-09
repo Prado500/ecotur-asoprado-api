@@ -11,6 +11,8 @@ from app.core.security import get_password_hash, verify_password, create_access_
 from app.schemas.token import TokenResponse
 from app.services.audit_service import AuditService
 
+ROLE_RANK = {UserRole.tourist: 0, UserRole.admin: 1, UserRole.superadmin: 2}
+
 
 class UserService:
     """
@@ -146,7 +148,6 @@ class UserService:
             )
 
         # 2. ABAC Hierarchical Invariant: self-deletion parity OR strictly higher rank
-        ROLE_RANK = {UserRole.tourist: 0, UserRole.admin: 1, UserRole.superadmin: 2}
         is_self_deletion = current_user.cedula == target_cedula
         actor_outranks_target = ROLE_RANK[current_user.role] > ROLE_RANK[soft_deleted_user.role]
 
@@ -196,14 +197,13 @@ class UserService:
 
     async def update_user_account(self, target_cedula: str, update_data: UserUpdate, current_user: User) -> User:
         """
-        Executes a partial update on a user entity enforcing strict RBAC precedence rules.
+        Executes a partial update on a user entity enforcing hierarchical ABAC.
 
-        Implements a Hybrid RBAC approach with fail-safe invariants:
-        1. Users can self-update their basic profile data.
-        2. Admins can update tourists (Helpdesk pattern) but cannot modify higher tiers.
-        3. Superadmins possess unrestricted update authority.
-        4. Role mutations fail loudly for any actor below superadmin tier.
-        5. is_active mutations fail loudly for tourist actors.
+        Authorization follows the same mathematical dominance rule used by
+        account deletion: self-updates are always permitted, while third-party
+        updates require the actor's role rank to be strictly greater than the
+        target's role rank. Fail-safe invariants additionally block role
+        mutations for non-superadmins and is_active mutations for tourists.
 
         Args:
             target_cedula (str): The primary identifier of the account to update.
@@ -215,7 +215,8 @@ class UserService:
 
         Raises:
             HTTPException: 404 Not Found if target doesn't exist.
-            HTTPException: 403 Forbidden if RBAC precedence or fail-safe invariants are violated.
+            HTTPException: 403 Forbidden if the hierarchical ABAC invariant or
+                any fail-safe field invariant is violated.
         """
         target_user = await self.user_repo.get_user_by_cedula(target_cedula, include_deleted=True)
 
@@ -225,22 +226,14 @@ class UserService:
                 detail="El usuario especificado no existe en la base de datos."
             )
 
-        is_self_update = (current_user.cedula == target_cedula)
+        is_self_update = current_user.cedula == target_cedula
 
-        # 1. Evaluate Hierarchical Precedence
-        if not is_self_update:
-            if current_user.role == UserRole.tourist:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Privilegios insuficientes. Los turistas no pueden modificar otras cuentas."
-                )
-
-            # An admin attempting to modify another admin or superadmin
-            if current_user.role == UserRole.admin and target_user.role in [UserRole.admin, UserRole.superadmin]:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Violación de jerarquía: Un administrador no puede modificar cuentas de su mismo o mayor nivel."
-                )
+        # 1. ABAC Hierarchical Invariant: self-update parity OR strictly higher rank
+        if not is_self_update and ROLE_RANK[current_user.role] <= ROLE_RANK[target_user.role]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Violación de jerarquía: No tiene privilegios para modificar a este usuario."
+            )
 
         # 2. Fail-Safe Invariants: noisy privilege guards instead of silent sanitization
         update_dict = update_data.model_dump(mode='json', exclude_unset=True)
