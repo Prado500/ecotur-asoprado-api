@@ -175,11 +175,9 @@ async def test_borrado_logico_usuario(client, db_session):
 # RBAC AND USER MANAGEMENT (U+D) TESTS
 # ==========================================
 
-async def test_actualizacion_perfil_self_service_y_sanitizacion(client, db_session):
+async def test_actualizacion_perfil_self_service_exitoso(client, db_session):
     """
     Validates that a standard tourist can securely update their own basic profile data.
-    Strictly verifies that malicious attempts to escalate privileges (mutating 'role' or 'is_active')
-    are sanitized and ignored by the Service Layer.
     """
     # 1. ARRANGE: Create and activate a Tourist
     await client.post("/usuarios/registro", json=USER_PAYLOAD)
@@ -192,20 +190,73 @@ async def test_actualizacion_perfil_self_service_y_sanitizacion(client, db_sessi
     token = create_access_token(data={"sub": tourist.email, "role": tourist.role.value})
     headers = {"Authorization": f"Bearer {token}"}
 
-    # 2. ACT: Send PATCH request with valid and malicious fields
-    update_payload = {
-        "first_name": "Nombre Modificado", # Valid scalar update
-        "role": "superadmin",              # Malicious escalation attempt
-        "is_active": False                 # Malicious status mutation
-    }
+    # 2. ACT: Send PATCH request with valid scalar fields
+    update_payload = {"first_name": "Nombre Modificado"}
     response = await client.patch(f"/usuarios/{tourist.cedula}", json=update_payload, headers=headers)
 
-    # 3. ASSERT: Response is successful and sanitization worked
+    # 3. ASSERT: Response is successful and the mutation was persisted
     assert response.status_code == 200
     data = response.json()
     assert data["first_name"] == "Nombre Modificado"
-    assert data["role"] == "tourist"  # Must remain tourist
-    assert data["is_active"] is True  # Must remain active
+    assert data["role"] == "tourist"
+    assert data["is_active"] is True
+
+    await db_session.refresh(tourist)
+    assert tourist.first_name == "Nombre Modificado"
+    assert tourist.role == UserRole.tourist
+    assert tourist.is_active is True
+
+async def test_actualizacion_perfil_escalacion_rol_rechazada(client, db_session):
+    """
+    Validates the fail-safe invariant: a tourist attempting to mutate 'role'
+    is rejected with HTTP 403 and the role remains unchanged in the database.
+    """
+    # 1. ARRANGE: Create and activate a Tourist
+    await client.post("/usuarios/registro", json=USER_PAYLOAD)
+    stmt = select(User).where(User.email == USER_PAYLOAD["email"])
+    tourist = (await db_session.execute(stmt)).scalars().first()
+    tourist.is_active = True
+    await db_session.commit()
+
+    token = create_access_token(data={"sub": tourist.email, "role": tourist.role.value})
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # 2. ACT: Malicious escalation attempt
+    update_payload = {"role": "superadmin"}
+    response = await client.patch(f"/usuarios/{tourist.cedula}", json=update_payload, headers=headers)
+
+    # 3. ASSERT: Loud rejection without any state mutation
+    assert response.status_code == 403
+    assert "detail" in response.json()
+
+    await db_session.refresh(tourist)
+    assert tourist.role == UserRole.tourist
+
+async def test_actualizacion_perfil_mutacion_estado_rechazada(client, db_session):
+    """
+    Validates the fail-safe invariant: a tourist attempting to mutate 'is_active'
+    is rejected with HTTP 403 and the active state remains unchanged.
+    """
+    # 1. ARRANGE: Create and activate a Tourist
+    await client.post("/usuarios/registro", json=USER_PAYLOAD)
+    stmt = select(User).where(User.email == USER_PAYLOAD["email"])
+    tourist = (await db_session.execute(stmt)).scalars().first()
+    tourist.is_active = True
+    await db_session.commit()
+
+    token = create_access_token(data={"sub": tourist.email, "role": tourist.role.value})
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # 2. ACT: Malicious status mutation attempt
+    update_payload = {"is_active": False}
+    response = await client.patch(f"/usuarios/{tourist.cedula}", json=update_payload, headers=headers)
+
+    # 3. ASSERT: Loud rejection without any state mutation
+    assert response.status_code == 403
+    assert "detail" in response.json()
+
+    await db_session.refresh(tourist)
+    assert tourist.is_active is True
 
 async def test_actualizacion_usuario_helpdesk_exitoso(client, db_session):
     """

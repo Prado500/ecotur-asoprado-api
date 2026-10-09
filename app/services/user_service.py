@@ -118,37 +118,48 @@ class UserService:
 
     async def delete_user_account(self, target_cedula: str, current_user: User) -> dict:
         """
-        Orchestrates the soft deletion of a user account enforcing RBAC.
-        Only an Administrator or the owner of the account can trigger this action.
+        Orchestrates the soft deletion of a user account enforcing hierarchical ABAC.
+
+        Authorization follows a pure hierarchical invariant with self-deletion
+        parity: the action is allowed only when the actor deletes their own
+        account or when the actor's role rank is strictly greater than the
+        target's role rank.
+
+        Args:
+            target_cedula (str): The primary identifier of the account to delete.
+            current_user (User): The authenticated user attempting the deletion.
+
+        Returns:
+            dict: Standardized confirmation payload.
+
+        Raises:
+            HTTPException: 404 Not Found if the target doesn't exist.
+            HTTPException: 403 Forbidden if the hierarchical invariant fails.
         """
         soft_deleted_user = await self.user_repo.get_user_by_cedula(target_cedula)
 
-        # 1. RBAC Security Check #1
-        if current_user.role not in [UserRole.admin, UserRole.superadmin] and current_user.cedula != target_cedula:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Privilegios insuficientes. No tiene autorización para eliminar esta cuenta."
-            )
-
-
-        # 2 RBAC Security Check #2
-        if soft_deleted_user.role in [UserRole.superadmin, UserRole.admin] and current_user.role != UserRole.superadmin:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Violación de jerarquía: Un administrador no puede eliminar cuentas de su mismo o mayor nivel."
-            )
-
-        # 3. Handle specific 404
+        # 1. Handle specific 404 before any role evaluation to prevent AttributeError on None
         if not soft_deleted_user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="El usuario especificado no existe o ya ha sido eliminado del sistema."
             )
 
-        # 4. Soft-deletion delegated to repository layer
+        # 2. ABAC Hierarchical Invariant: self-deletion parity OR strictly higher rank
+        ROLE_RANK = {UserRole.tourist: 0, UserRole.admin: 1, UserRole.superadmin: 2}
+        is_self_deletion = current_user.cedula == target_cedula
+        actor_outranks_target = ROLE_RANK[current_user.role] > ROLE_RANK[soft_deleted_user.role]
+
+        if not is_self_deletion and not actor_outranks_target:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Privilegios insuficientes o violación de jerarquía. No tiene autorización para eliminar esta cuenta."
+            )
+
+        # 3. Soft-deletion delegated to repository layer
         await self.user_repo.soft_delete_user(target_cedula)
 
-        # 5. Log Registry (soft-deletion)
+        # 4. Log Registry (soft-deletion)
         await self.audit_service.log_transaction(
             entity_name="User", entity_id=target_cedula,
             action=AuditAction.SOFT_DELETE, performed_by=current_user.cedula
@@ -194,10 +205,12 @@ class UserService:
         """
         Executes a partial update on a user entity enforcing strict RBAC precedence rules.
 
-        Implements a Hybrid RBAC approach:
+        Implements a Hybrid RBAC approach with fail-safe invariants:
         1. Users can self-update their basic profile data.
         2. Admins can update tourists (Helpdesk pattern) but cannot modify higher tiers.
         3. Superadmins possess unrestricted update authority.
+        4. Role mutations fail loudly for any actor below superadmin tier.
+        5. is_active mutations fail loudly for tourist actors.
 
         Args:
             target_cedula (str): The primary identifier of the account to update.
@@ -209,7 +222,7 @@ class UserService:
 
         Raises:
             HTTPException: 404 Not Found if target doesn't exist.
-            HTTPException: 403 Forbidden if RBAC precedence rules are violated.
+            HTTPException: 403 Forbidden if RBAC precedence or fail-safe invariants are violated.
         """
         target_user = await self.user_repo.get_user_by_cedula(target_cedula, include_deleted=True)
 
@@ -236,13 +249,20 @@ class UserService:
                     detail="Violación de jerarquía: Un administrador no puede modificar cuentas de su mismo o mayor nivel."
                 )
 
-        # 2. Payload Sanitization
+        # 2. Fail-Safe Invariants: noisy privilege guards instead of silent sanitization
         update_dict = update_data.model_dump(mode='json', exclude_unset=True)
 
-        # Defensive sanitization: Ensure self-updating tourists and admins cannot escalate privileges or revive banned accounts
-        if is_self_update and current_user.role in [UserRole.tourist, UserRole.admin]:
-            update_dict.pop("role", None)
-            update_dict.pop("is_active", None)
+        if "role" in update_dict and current_user.role != UserRole.superadmin:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Violación de jerarquía: Solo un superadministrador puede modificar roles."
+            )
+
+        if "is_active" in update_dict and current_user.role == UserRole.tourist:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Privilegios insuficientes. No tiene permisos para modificar el estado de la cuenta."
+            )
 
         # 3. Apply Scalar Mutations
         for key, value in update_dict.items():
