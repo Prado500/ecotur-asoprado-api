@@ -5,6 +5,7 @@ from fastapi.exceptions import RequestValidationError
 from sqlalchemy.exc import IntegrityError
 
 from app.api.routers import user, service, audit
+from app.core.exceptions import AuthorizationError
 
 app = FastAPI(
     title="Ecotur-ASOPRADO API",
@@ -88,6 +89,19 @@ async def sqlalchemy_integrity_error_handler(request: Request, exc: IntegrityErr
         content={
             "detail": "Conflicto de datos: El registro que intenta procesar ya existe o la acción no está permitida."
         },
+    )
+
+# === GLOBAL AUTHORIZATION EXCEPTION HANDLER ===
+@app.exception_handler(AuthorizationError)
+async def authorization_error_handler(request: Request, exc: AuthorizationError):
+    """
+    Maps domain-level authorization failures raised by access-control
+    policies to a standardized HTTP 403 Forbidden response, keeping the
+    service layer decoupled from the transport framework.
+    """
+    return JSONResponse(
+        status_code=status.HTTP_403_FORBIDDEN,
+        content={"detail": exc.detail},
     )
 
 app.add_middleware(

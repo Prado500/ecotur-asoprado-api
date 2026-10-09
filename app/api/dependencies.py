@@ -19,6 +19,7 @@ from app.services.audit_service import AuditService
 
 # Service injection
 from app.services.user_service import UserService
+from app.services.user_access_policy import UserAccessPolicy
 from app.services.tourist_services_service import TouristServicesService
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="usuarios/login")
@@ -38,11 +39,15 @@ def get_audit_repository(db: AsyncSession = Depends(get_db)) -> AuditRepository:
 def get_audit_service(audit_repo: AuditRepository = Depends(get_audit_repository)) -> AuditService:
     return AuditService(audit_repo)
 
+def get_user_access_policy() -> UserAccessPolicy:
+    return UserAccessPolicy()
+
 def get_user_service(
         user_repo: UserRepository = Depends(get_user_repository),
-        audit_service: AuditService = Depends(get_audit_service)
+        audit_service: AuditService = Depends(get_audit_service),
+        user_access_policy: UserAccessPolicy = Depends(get_user_access_policy)
 ) -> UserService:
-    return UserService(user_repo, audit_service)
+    return UserService(user_repo, audit_service, user_access_policy)
 
 # --- AZURE BLOB STORAGE DEPENDENCY HANDLING --- #
 

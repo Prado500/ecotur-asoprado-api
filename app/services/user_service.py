@@ -10,17 +10,17 @@ from app.core.security import get_password_hash, verify_password, create_access_
     create_verification_token
 from app.schemas.token import TokenResponse
 from app.services.audit_service import AuditService
-
-ROLE_RANK = {UserRole.tourist: 0, UserRole.admin: 1, UserRole.superadmin: 2}
+from app.services.user_access_policy import UserAccessPolicy
 
 
 class UserService:
     """
     Encapsulates business logic and rules, validations, and the operational logic of User entity.
     """
-    def __init__(self, user_repo: UserRepository, audit_service: AuditService):
+    def __init__(self, user_repo: UserRepository, audit_service: AuditService, user_access_policy: UserAccessPolicy):
         self.user_repo = user_repo
         self.audit_service = audit_service
+        self.user_access_policy = user_access_policy
 
     async def register_tourist(self, user_data: UserCreate, background_tasks: BackgroundTasks, base_url: str) -> User:
         existing_user = await self.user_repo.get_user_by_email_or_cedula(
@@ -136,7 +136,7 @@ class UserService:
 
         Raises:
             HTTPException: 404 Not Found if the target doesn't exist.
-            HTTPException: 403 Forbidden if the hierarchical invariant fails.
+            AuthorizationError: 403 Forbidden if the hierarchical invariant fails.
         """
         soft_deleted_user = await self.user_repo.get_user_by_cedula(target_cedula)
 
@@ -148,14 +148,7 @@ class UserService:
             )
 
         # 2. ABAC Hierarchical Invariant: self-deletion parity OR strictly higher rank
-        is_self_deletion = current_user.cedula == target_cedula
-        actor_outranks_target = ROLE_RANK[current_user.role] > ROLE_RANK[soft_deleted_user.role]
-
-        if not is_self_deletion and not actor_outranks_target:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Privilegios insuficientes o violación de jerarquía. No tiene autorización para eliminar esta cuenta."
-            )
+        self.user_access_policy.assert_can_delete(current_user, soft_deleted_user)
 
         # 3. Soft-deletion delegated to repository layer
         await self.user_repo.soft_delete_user(target_cedula)
@@ -190,8 +183,7 @@ class UserService:
         users = await self.user_repo.get_all_users()
 
         # RBAC Visibility Filter: Admins cannot see Superadmins
-        if current_user.role == UserRole.admin:
-            users = [u for u in users if u.role != UserRole.superadmin]
+        users = [u for u in users if self.user_access_policy.can_see(current_user.role, u.role)]
 
         return users
 
@@ -215,7 +207,7 @@ class UserService:
 
         Raises:
             HTTPException: 404 Not Found if target doesn't exist.
-            HTTPException: 403 Forbidden if the hierarchical ABAC invariant or
+            AuthorizationError: 403 Forbidden if the hierarchical ABAC invariant or
                 any fail-safe field invariant is violated.
         """
         target_user = await self.user_repo.get_user_by_cedula(target_cedula, include_deleted=True)
@@ -226,29 +218,11 @@ class UserService:
                 detail="El usuario especificado no existe en la base de datos."
             )
 
-        is_self_update = current_user.cedula == target_cedula
-
-        # 1. ABAC Hierarchical Invariant: self-update parity OR strictly higher rank
-        if not is_self_update and ROLE_RANK[current_user.role] <= ROLE_RANK[target_user.role]:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Violación de jerarquía: No tiene privilegios para modificar a este usuario."
-            )
-
-        # 2. Fail-Safe Invariants: noisy privilege guards instead of silent sanitization
+        # 1. Compute the mutation set (scalar fields explicitly provided)
         update_dict = update_data.model_dump(mode='json', exclude_unset=True)
 
-        if "role" in update_dict and current_user.role != UserRole.superadmin:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Violación de jerarquía: Solo un superadministrador puede modificar roles."
-            )
-
-        if "is_active" in update_dict and current_user.role == UserRole.tourist:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Privilegios insuficientes. No tiene permisos para modificar el estado de la cuenta."
-            )
+        # 2. ABAC Hierarchical + Fail-Safe Invariants delegated to the access policy
+        self.user_access_policy.assert_can_update(current_user, target_user, update_dict)
 
         # 3. Apply Scalar Mutations
         for key, value in update_dict.items():
@@ -286,8 +260,7 @@ class UserService:
         deleted_users = [u for u in users if u.deleted_at is not None]
 
         # RBAC Visibility Filter
-        if current_user.role == UserRole.admin:
-            deleted_users = [u for u in deleted_users if u.role != UserRole.superadmin]
+        deleted_users = [u for u in deleted_users if self.user_access_policy.can_see(current_user.role, u.role)]
 
         return deleted_users
 
@@ -308,7 +281,7 @@ class UserService:
 
         Raises:
             HTTPException: 404 Not Found if the user is not in the recycle bin.
-            HTTPException: 403 Forbidden if a standard admin attempts to recover a higher-tier account.
+            AuthorizationError: 403 Forbidden if a standard admin attempts to recover a higher-tier account.
         """
         target_user = await self.user_repo.get_user_by_cedula(target_cedula, include_deleted=True)
 
@@ -319,11 +292,7 @@ class UserService:
             )
 
         # Evaluate Hierarchical Precedence
-        if current_user.role == UserRole.admin and target_user.role in [UserRole.admin, UserRole.superadmin]:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Violación de jerarquía: No tiene autorización para recuperar esta cuenta."
-            )
+        self.user_access_policy.assert_can_recover(current_user, target_user)
 
         # State Mutation
         target_user.deleted_at = None
@@ -355,14 +324,10 @@ class UserService:
             User: The newly persisted administrative ORM entity.
 
         Raises:
-            HTTPException: 403 Forbidden if the requester is not a superadmin.
+            AuthorizationError: 403 Forbidden if the requester is not a superadmin.
             HTTPException: 400 Bad Request if the cedula or email already exists.
         """
-        if current_user.role != UserRole.superadmin:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Violación de jerarquía: Solo un Superusuario puede aprovisionar cuentas administrativas."
-            )
+        self.user_access_policy.assert_can_provision_admin(current_user)
 
         existing_user = await self.user_repo.get_user_by_email_or_cedula(
             email=user_data.email,
