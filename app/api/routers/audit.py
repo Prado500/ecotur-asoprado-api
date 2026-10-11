@@ -3,10 +3,10 @@ from typing import List, Optional
 
 from app.schemas.audit import AuditLogResponse
 from app.models.user import User
-from app.api.dependencies import get_current_user, get_audit_service
+from app.api.dependencies import get_current_user, get_current_admin_user, get_audit_service
 from app.services.audit_service import AuditService
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(get_current_admin_user)])
 
 @router.get("/", response_model=List[AuditLogResponse])
 async def obtener_historial_auditoria(
@@ -20,9 +20,13 @@ async def obtener_historial_auditoria(
     """
     Protected Endpoint: Retrieves the global audit history.
 
-    Strictly gated to Administrators and Superadmins via the Service Layer.
-    Utilizes limit/offset parameters to establish cursor-less pagination and prevent
-    RAM exhaustion on large datasets. Exposes explicit Query Params to avoid frontend Over-fetching.
+    Defense in depth: the router-level dependency rejects non-administrative
+    tiers before reaching the handler, while the service layer re-asserts the
+    same administrative rule through UserAccessPolicy using the identity
+    injected here (FastAPI caches get_current_user: a single evaluation per
+    request). Utilizes limit/offset parameters to establish cursor-less
+    pagination and prevent RAM exhaustion on large datasets. Exposes explicit
+    Query Params to avoid frontend Over-fetching.
     """
     return await audit_service.retrieve_audit_history(
         current_user=usuario_actual,

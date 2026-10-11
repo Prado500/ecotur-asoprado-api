@@ -104,6 +104,26 @@ class UserAccessPolicy:
                 "Violación de jerarquía: Solo un Superusuario puede aprovisionar cuentas administrativas."
             )
 
+    def assert_is_admin_plus(self, actor: User) -> None:
+        """
+        Enforces the administrative-tier rule: only admins and superadmins may
+        proceed with the guarded operation (e.g. reading the audit trail).
+
+        The rule inspects nothing beyond the actor role, so it stays reusable
+        for any operation restricted to administrative tiers.
+
+        Args:
+            actor (User): The authenticated user attempting the operation.
+
+        Raises:
+            AuthorizationError: When the actor's role is not admin or
+                superadmin.
+        """
+        if actor.role not in [UserRole.admin, UserRole.superadmin]:
+            raise AuthorizationError(
+                "Privilegios insuficientes para visualizar la auditoría del sistema."
+            )
+
     def can_see(self, viewer_role: UserRole, subject_role: UserRole) -> bool:
         """
         Determines whether a viewer role may see a subject role in directory
