@@ -1,0 +1,14 @@
+{
+  "plan_file": "docs/plan-consolidado-servicios.md",
+  "current_target": "Fase_A",
+  "phases": {
+    "Fase_0": { "status": "pending", "description": "Taxonomia de excepciones. Incremental: A crea DomainError + AuthorizationError; B crea las 5 de user; C crea las 2 de tourist y cierra la fase.", "owner": "A+B+C" },
+    "Fase_A": { "status": "pending", "commit": null, "description": "audit_service transport-agnostic + tests" },
+    "Fase_B": { "status": "pending", "commit": null, "description": "user_service + BackgroundTasks + handler global main.py" },
+    "Fase_C": { "status": "pending", "commit": null, "description": "tourist_services_service + UploadFile neutro + entradas restantes de la tabla del handler" },
+    "Fase_D": { "status": "pending", "commit": null, "description": "Verificacion final, ADR_NOTE, PR y squash message" }
+  },
+  "allowed_statuses": ["pending", "partial", "completed"],
+  "last_handoff": "Estado inicial. pytest verificado en verde manualmente antes de la Sesion A.",
+  "edit_rules": "Solo puedes modificar: status de TU fase, su campo commit, current_target y last_handoff. Prohibido borrar, renombrar o agregar claves. Prohibido editar descripciones de fases ajenas."
+}
