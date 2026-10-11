@@ -1,14 +1,14 @@
 {
   "plan_file": "docs/plan-consolidado-servicios.md",
-  "current_target": "Fase_A",
+  "current_target": "Fase_B",
   "phases": {
-    "Fase_0": { "status": "pending", "description": "Taxonomia de excepciones. Incremental: A crea DomainError + AuthorizationError; B crea las 5 de user; C crea las 2 de tourist y cierra la fase.", "owner": "A+B+C" },
-    "Fase_A": { "status": "pending", "commit": null, "description": "audit_service transport-agnostic + tests" },
+    "Fase_0": { "status": "partial", "description": "Taxonomia de excepciones. Incremental: A crea DomainError + AuthorizationError; B crea las 5 de user; C crea las 2 de tourist y cierra la fase.", "owner": "A+B+C" },
+    "Fase_A": { "status": "completed", "commit": "e581c6a", "description": "audit_service transport-agnostic + tests" },
     "Fase_B": { "status": "pending", "commit": null, "description": "user_service + BackgroundTasks + handler global main.py" },
     "Fase_C": { "status": "pending", "commit": null, "description": "tourist_services_service + UploadFile neutro + entradas restantes de la tabla del handler" },
     "Fase_D": { "status": "pending", "commit": null, "description": "Verificacion final, ADR_NOTE, PR y squash message" }
   },
   "allowed_statuses": ["pending", "partial", "completed"],
-  "last_handoff": "Estado inicial. pytest verificado en verde manualmente antes de la Sesion A.",
+  "last_handoff": "Sesion A completada (commit e581c6a): DomainError creado y AuthorizationError hereda de el; assert_is_admin_plus agregado a UserAccessPolicy; AuditService delega autorizacion en la politica (cero imports FastAPI y cero comparaciones de rol); get_audit_service inyecta la politica; gate a nivel router con get_current_admin_user. 7 tests nuevos (5 politica, 2 servicio autospec, 2 integracion) + suite completa 78 passed en verde. Desviacion menor documentada: docs/progress.json no pudo incluirse en el commit de la fase porque el hash del commit es autorreferencial; se commitea en un commit docs(progress) separado inmediatamente posterior.",
   "edit_rules": "Solo puedes modificar: status de TU fase, su campo commit, current_target y last_handoff. Prohibido borrar, renombrar o agregar claves. Prohibido editar descripciones de fases ajenas."
 }
