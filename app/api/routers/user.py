@@ -4,6 +4,7 @@ from typing import Annotated
 from fastapi import APIRouter, BackgroundTasks, Depends, status
 
 from app.api.dependencies import get_current_admin_user, get_current_user, get_user_service
+from app.core.email import send_verification_email
 from app.models.user import User
 from app.schemas.token import TokenResponse
 from app.schemas.user import UserCreate, UserCreateByAdmin, UserLogin, UserResponse, UserUpdate
@@ -49,9 +50,10 @@ async def registrar_turista(
     """
     Public endpoint: Registers a new tourist account.
 
-    Delegates the registration pipeline to UserService and dispatches the
-    account-verification email as a background task to avoid blocking the
-    HTTP response.
+    Delegates the registration pipeline to UserService, which returns the
+    persisted account plus its verification token. The activation email is
+    scheduled here as a background task: the transport layer decides WHEN
+    the email is dispatched, the service decides WHAT it carries.
 
     Args:
         usuario (UserCreate): Validated payload describing the new tourist account.
@@ -63,11 +65,17 @@ async def registrar_turista(
     """
     frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")
 
-    return await user_service.register_tourist(
-        user_data=usuario,
-        background_tasks=background_tasks,
-        base_url=frontend_url
+    result = await user_service.register_tourist(user_data=usuario)
+
+    background_tasks.add_task(
+        send_verification_email,
+        email_to=result.user.email,
+        first_name=result.user.first_name,
+        token=result.verification_token,
+        base_url=frontend_url,
     )
+
+    return result.user
 
 
 @public_router.get("/verificar-email", status_code=status.HTTP_200_OK)

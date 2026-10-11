@@ -15,7 +15,7 @@ from starlette.requests import Request
 
 from app.api.dependencies import get_user_service
 from app.core.exceptions import AuthorizationError
-from app.main import app, authorization_error_handler
+from app.main import app, domain_error_handler
 from app.models.user import User, UserRole
 from app.services.user_access_policy import UserAccessPolicy
 from app.services.user_service import UserService
@@ -418,8 +418,8 @@ async def test_admin_cannot_escalate_tourist_to_admin_via_patch(client, db_sessi
 # ==========================================
 
 
-async def test_authorization_error_handler_returns_403_with_detail_key():
-    """The global handler maps AuthorizationError to a 403 JSON with a detail key."""
+async def test_authorization_error_maps_to_403_with_detail_key():
+    """The unified domain handler maps AuthorizationError to a 403 JSON with a detail key."""
     request = Request(
         scope={
             "type": "http",
@@ -438,7 +438,7 @@ async def test_authorization_error_handler_returns_403_with_detail_key():
         }
     )
 
-    response = await authorization_error_handler(request, AuthorizationError())
+    response = await domain_error_handler(request, AuthorizationError())
 
     assert response.status_code == 403
     body = json.loads(response.body)

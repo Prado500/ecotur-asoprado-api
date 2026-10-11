@@ -1,7 +1,14 @@
-import jwt
-from fastapi import HTTPException, status, BackgroundTasks
+from typing import NamedTuple
 
-from app.core.email import send_verification_email
+import jwt
+
+from app.core.exceptions import (
+    AccountNotActiveError,
+    AlreadyExistsError,
+    InvalidCredentialsError,
+    InvalidVerificationTokenError,
+    NotFoundError,
+)
 from app.models.audit import AuditAction
 from app.repositories.user_repository import UserRepository
 from app.schemas.user import UserCreate, UserLogin, UserUpdate, UserCreateByAdmin
@@ -13,6 +20,22 @@ from app.services.audit_service import AuditService
 from app.services.user_access_policy import UserAccessPolicy
 
 
+class RegistrationResult(NamedTuple):
+    """
+    Outcome of the tourist registration pipeline.
+
+    Bundles the persisted account with its single-use verification token so
+    the transport layer decides when and how to dispatch the activation email,
+    while the service keeps owning the token generation business rule.
+
+    Attributes:
+        user (User): The newly persisted, still-inactive account.
+        verification_token (str): The signed single-use email-verification JWT.
+    """
+    user: User
+    verification_token: str
+
+
 class UserService:
     """
     Encapsulates business logic and rules, validations, and the operational logic of User entity.
@@ -22,15 +45,31 @@ class UserService:
         self.audit_service = audit_service
         self.user_access_policy = user_access_policy
 
-    async def register_tourist(self, user_data: UserCreate, background_tasks: BackgroundTasks, base_url: str) -> User:
+    async def register_tourist(self, user_data: UserCreate) -> RegistrationResult:
+        """
+        Registers a new tourist account and produces its verification token.
+
+        The email dispatch is deliberately excluded: scheduling work belongs
+        to the transport layer (the router's BackgroundTasks), while the
+        service decides what to send (the token) and persists the account.
+
+        Args:
+            user_data (UserCreate): Validated payload describing the new account.
+
+        Returns:
+            RegistrationResult: The persisted inactive account plus its
+                single-use verification token.
+
+        Raises:
+            AlreadyExistsError: When the email or cedula is already registered.
+        """
         existing_user = await self.user_repo.get_user_by_email_or_cedula(
             email=user_data.email,
             cedula=user_data.cedula
         )
         if existing_user:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Este usuario ya se encuentra registrado."
+            raise AlreadyExistsError(
+                "Este usuario ya se encuentra registrado."
             )
 
         new_user = User(
@@ -54,61 +93,69 @@ class UserService:
             action=AuditAction.CREATE, performed_by=saved_user.cedula
         )
 
-        # 3. Generate the single-use token
+        # 3. Generate the single-use token (the transport decides when it is emailed)
         token = create_verification_token(saved_user.email)
 
-        # 4. Dispatch the email in the background to prevent blocking the HTTP response
-        background_tasks.add_task(
-            send_verification_email,
-            email_to=saved_user.email,
-            first_name=saved_user.first_name,
-            token=token,
-            base_url=base_url
-        )
-
-        return saved_user
+        return RegistrationResult(user=saved_user, verification_token=token)
 
 
     async def verify_email_account(self, token: str) -> dict:
         """
         Decodes the verification token and activates the user account.
+
+        Args:
+            token (str): Single-use JWT issued during registration.
+
+        Returns:
+            dict: Confirmation payload with a success flag.
+
+        Raises:
+            InvalidVerificationTokenError: Token corrupted, expired or
+                carrying an unexpected scope.
+            NotFoundError: No user matches the token subject.
         """
         try:
             payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-            email: str = payload.get("sub")
-            scope: str = payload.get("scope")
-
-            if email is None or scope != "email_verification":
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Token de verificación inválido.")
-
         except jwt.ExpiredSignatureError:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El enlace de verificación ha expirado. Por favor solicite uno nuevo.")
+            raise InvalidVerificationTokenError("El enlace de verificación ha expirado. Por favor solicite uno nuevo.")
         except jwt.InvalidTokenError:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Token de verificación inválido o corrupto.")
+            raise InvalidVerificationTokenError("Token de verificación inválido o corrupto.")
+
+        email: str = payload.get("sub")
+        scope: str = payload.get("scope")
+
+        if email is None or scope != "email_verification":
+            raise InvalidVerificationTokenError("Token de verificación inválido.")
 
         activation_success = await self.user_repo.activate_user(email)
 
         if not activation_success:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado.")
+            raise NotFoundError("Usuario no encontrado.")
 
         return {"success": True, "message": "Cuenta verificada exitosamente. Ya puede iniciar sesión."}
 
 
     async def authenticate_user(self, credentials: UserLogin) -> TokenResponse:
+        """
+        Authenticates credentials and issues an access token.
+
+        Args:
+            credentials (UserLogin): Validated email/password payload.
+
+        Returns:
+            TokenResponse: Signed bearer token granting access.
+
+        Raises:
+            InvalidCredentialsError: Unknown email or password mismatch.
+            AccountNotActiveError: Account pending email verification.
+        """
         user = await self.user_repo.get_non_deleted_user_by_email(credentials.email)
 
         if not user or not verify_password(credentials.password, user.password_hash):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Revise su correo y contraseña",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
+            raise InvalidCredentialsError("Revise su correo y contraseña")
 
         if not user.is_active:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Debe verificar su cuenta. Revise su correo electrónico.",
-            )
+            raise AccountNotActiveError("Debe verificar su cuenta. Revise su correo electrónico.")
 
         token_payload = {
             "sub": user.email,
@@ -135,16 +182,15 @@ class UserService:
             dict: Standardized confirmation payload.
 
         Raises:
-            HTTPException: 404 Not Found if the target doesn't exist.
+            NotFoundError: 404 Not Found if the target doesn't exist.
             AuthorizationError: 403 Forbidden if the hierarchical invariant fails.
         """
         soft_deleted_user = await self.user_repo.get_user_by_cedula(target_cedula)
 
         # 1. Handle specific 404 before any role evaluation to prevent AttributeError on None
         if not soft_deleted_user:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="El usuario especificado no existe o ya ha sido eliminado del sistema."
+            raise NotFoundError(
+                "El usuario especificado no existe o ya ha sido eliminado del sistema."
             )
 
         # 2. ABAC Hierarchical Invariant: self-deletion parity OR strictly higher rank
@@ -206,16 +252,15 @@ class UserService:
             User: The refreshed User ORM entity after persistence.
 
         Raises:
-            HTTPException: 404 Not Found if target doesn't exist.
+            NotFoundError: 404 Not Found if target doesn't exist.
             AuthorizationError: 403 Forbidden if the hierarchical ABAC invariant or
                 any fail-safe field invariant is violated.
         """
         target_user = await self.user_repo.get_user_by_cedula(target_cedula, include_deleted=True)
 
         if not target_user:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="El usuario especificado no existe en la base de datos."
+            raise NotFoundError(
+                "El usuario especificado no existe en la base de datos."
             )
 
         # 1. Compute the mutation set (scalar fields explicitly provided)
@@ -280,15 +325,14 @@ class UserService:
             dict: Standardized confirmation payload.
 
         Raises:
-            HTTPException: 404 Not Found if the user is not in the recycle bin.
+            NotFoundError: 404 Not Found if the user is not in the recycle bin.
             AuthorizationError: 403 Forbidden if a standard admin attempts to recover a higher-tier account.
         """
         target_user = await self.user_repo.get_user_by_cedula(target_cedula, include_deleted=True)
 
         if not target_user or target_user.deleted_at is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="El usuario no existe o no se encuentra en la papelera."
+            raise NotFoundError(
+                "El usuario no existe o no se encuentra en la papelera."
             )
 
         # Evaluate Hierarchical Precedence
@@ -325,7 +369,7 @@ class UserService:
 
         Raises:
             AuthorizationError: 403 Forbidden if the requester is not a superadmin.
-            HTTPException: 400 Bad Request if the cedula or email already exists.
+            AlreadyExistsError: 400 Bad Request if the cedula or email already exists.
         """
         self.user_access_policy.assert_can_provision_admin(current_user)
 
@@ -335,9 +379,8 @@ class UserService:
         )
 
         if existing_user:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="El correo electrónico o la cédula ya se encuentran registrados en el sistema."
+            raise AlreadyExistsError(
+                "El correo electrónico o la cédula ya se encuentran registrados en el sistema."
             )
 
         # Instantiation leveraging the specific admin DTO
