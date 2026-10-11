@@ -8,10 +8,12 @@ from app.core.exceptions import (
     AccountNotActiveError,
     AlreadyExistsError,
     AuthorizationError,
+    BusinessRuleViolationError,
     DomainError,
     InvalidCredentialsError,
     InvalidVerificationTokenError,
     NotFoundError,
+    StorageUnavailableError,
 )
 from app.main import domain_error_handler
 
@@ -29,6 +31,8 @@ class UnknownDomainError(DomainError):
         (InvalidCredentialsError("credentials"), 401),
         (AccountNotActiveError("inactive"), 403),
         (InvalidVerificationTokenError("token"), 400),
+        (BusinessRuleViolationError("rule"), 400),
+        (StorageUnavailableError("outage"), 503),
     ],
 )
 async def test_known_domain_errors_map_to_documented_status(exc, expected_status):

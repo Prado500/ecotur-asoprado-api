@@ -157,3 +157,49 @@ class InvalidVerificationTokenError(DomainError):
             detail (str): Reason exposed to the API consumer.
         """
         super().__init__(detail)
+
+
+class BusinessRuleViolationError(DomainError):
+    """
+    Signals that an operation violates an explicit business rule without any
+    persistence failure (e.g. exceeding the per-package image ceiling or
+    recovering a package that is not in the trash).
+
+    Raised by services whenever a state transition is rejected by policy. The
+    global handler maps it to an HTTP 400 Bad Request response.
+
+    Attributes:
+        detail (str): Human-readable explanation of the violated rule.
+    """
+
+    def __init__(self, detail: str):
+        """
+        Initializes the error with a human-readable failure explanation.
+
+        Args:
+            detail (str): Reason exposed to the API consumer.
+        """
+        super().__init__(detail)
+
+
+class StorageUnavailableError(DomainError):
+    """
+    Signals that the object-storage backend (Azure CDN) is unreachable or
+    failed while processing an upload.
+
+    Raised by services when the storage adapter reports any operational
+    failure. The global handler maps it to an HTTP 503 Service Unavailable
+    response.
+
+    Attributes:
+        detail (str): Human-readable explanation of the storage outage.
+    """
+
+    def __init__(self, detail: str):
+        """
+        Initializes the error with a human-readable failure explanation.
+
+        Args:
+            detail (str): Reason exposed to the API consumer.
+        """
+        super().__init__(detail)

@@ -9,10 +9,12 @@ from app.core.exceptions import (
     AccountNotActiveError,
     AlreadyExistsError,
     AuthorizationError,
+    BusinessRuleViolationError,
     DomainError,
     InvalidCredentialsError,
     InvalidVerificationTokenError,
     NotFoundError,
+    StorageUnavailableError,
 )
 
 app = FastAPI(
@@ -110,6 +112,8 @@ _DOMAIN_ERROR_STATUS: dict[type[DomainError], int] = {
     InvalidCredentialsError: status.HTTP_401_UNAUTHORIZED,
     AccountNotActiveError: status.HTTP_403_FORBIDDEN,
     InvalidVerificationTokenError: status.HTTP_400_BAD_REQUEST,
+    BusinessRuleViolationError: status.HTTP_400_BAD_REQUEST,
+    StorageUnavailableError: status.HTTP_503_SERVICE_UNAVAILABLE,
 }
 
 @app.exception_handler(DomainError)
