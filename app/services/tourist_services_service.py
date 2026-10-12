@@ -1,10 +1,9 @@
 from datetime import datetime, timezone
 
-from fastapi import HTTPException, status, UploadFile
-from typing import List, Dict
+from typing import List
 from pydantic import HttpUrl
-from app.core import storage
-from app.core.storage import AzureStorageClient
+from app.core.exceptions import BusinessRuleViolationError, NotFoundError, StorageUnavailableError
+from app.core.storage import AzureStorageClient, StagedImage
 from app.repositories.service_repository import ServiceRepository
 from app.models.user import User
 from app.models.service import TouristService, ServiceImage
@@ -33,9 +32,9 @@ class TouristServicesService:
 
 
         if len(package_data.image_urls) > 10:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                                detail="El número de imágenes a subir excede el límite permitido por paquete (10). "
-                                )
+            raise BusinessRuleViolationError(
+                detail="El número de imágenes a subir excede el límite permitido por paquete (10). "
+            )
 
         tourist_service_data = package_data.model_dump(exclude={"image_urls"})
         new_tourist_service = TouristService(**tourist_service_data)
@@ -104,14 +103,13 @@ class TouristServicesService:
             dict: A standardized JSON response confirming the state change.
 
         Raises:
-            HTTPException: 404 Not Found if the package does not exist or is deleted.
+            NotFoundError: If the package does not exist or is deleted.
         """
 
         service = await self.service_repo.get_service_by_id(service_id)
 
         if not service:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+            raise NotFoundError(
                 detail="Paquete no encontrado."
             )
 
@@ -143,14 +141,13 @@ class TouristServicesService:
             dict: Standardized confirmation message.
 
         Raises:
-            HTTPException: 404 Not Found if the package is already deleted or doesn't exist.
+            NotFoundError: If the package is already deleted or doesn't exist.
         """
 
         service = await self.service_repo.get_service_by_id(service_id)
 
         if not service:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+            raise NotFoundError(
                 detail="Paquete no encontrado."
             )
 
@@ -180,7 +177,7 @@ class TouristServicesService:
             dict: Standardized confirmation message.
 
         Raises:
-            HTTPException: 400 Bad Request if the package was not actually deleted.
+            BusinessRuleViolationError: If the package was not actually deleted.
         """
 
 
@@ -188,8 +185,7 @@ class TouristServicesService:
         service = await self.service_repo.get_service_by_id(service_id, include_deleted=True)
 
         if not service or service.deleted_at is None:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+            raise BusinessRuleViolationError(
                 detail="El paquete no está en la papelera ('Eliminados')."
             )
 
@@ -208,27 +204,28 @@ class TouristServicesService:
                 "UID": service_id}
 
     async def image_uploader(self,
-                             images_files: List[UploadFile]
+                             images_files: List[StagedImage]
                              ) -> dict:
         """
         Uploads images asynchronously to the Azure CDN.
 
         Args:
-            images_files (List[UploadFile]): List of image files to be uploaded.
+            images_files (List[StagedImage]): List of staged images to be uploaded.
 
         Returns:
             dict: a ServiceImageOutput compliant dictionary, containing a list of urls to the blob files once they exist inside Azure CDN.
 
         Raises:
-            HTTPException: 503 Service Unavailable if the uploading process happens to fail due to any Azure CDN outages.
+            BusinessRuleViolationError: If more than 10 images are staged in a single request.
+            StorageUnavailableError: If the uploading process happens to fail due to any Azure CDN outages.
         """
 
 
 
         if len(images_files) > 10:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                                detail="El número de imágenes a subir excede el límite permitido por paquete (10). "
-                                )
+            raise BusinessRuleViolationError(
+                detail="El número de imágenes a subir excede el límite permitido por paquete (10). "
+            )
 
         blob_urls: List[str] = []
         try:
@@ -236,9 +233,9 @@ class TouristServicesService:
                 fresh_url = await self.storage_client.upload_image(image_chunk)
                 blob_urls.append(fresh_url)
         except Exception as e:
-            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                                detail=f"Ha ocurrido un fallo en la nube de Azure. El CDN no está disponible.\n{e}"
-                                )
+            raise StorageUnavailableError(
+                detail=f"Ha ocurrido un fallo en la nube de Azure. El CDN no está disponible.\n{e}"
+            )
 
         return {"image_urls": blob_urls}
 
@@ -262,15 +259,14 @@ class TouristServicesService:
             TouristService: The refreshed ORM instance after the database commit.
 
         Raises:
-            HTTPException: 404 Not Found if the target package is unavailable.
+            NotFoundError: If the target package is unavailable.
 
         """
 
         service = await self.service_repo.get_service_by_id(service_id)
 
         if not service:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+            raise NotFoundError(
                 detail="Paquete no encontrado. Está deshabilitado (deleted_at != None) o no exíste."
             )
 
@@ -284,9 +280,9 @@ class TouristServicesService:
 
             # 2.1 Verify that there is room for those new images and throw exception if not.
             if len(update_data.image_urls) > 10:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                                    detail="El número de imágenes a subir excede el límite permitido por paquete (10). "
-                                    )
+                raise BusinessRuleViolationError(
+                    detail="El número de imágenes a subir excede el límite permitido por paquete (10). "
+                )
 
             # 2.2 Set up image comparison basis and delete removed images (if there's any)
             old_images_urls = {str(img.image_url) for img in service.images}

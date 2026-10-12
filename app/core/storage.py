@@ -1,8 +1,30 @@
 import os
 import uuid
-from fastapi import UploadFile, HTTPException, status
+from typing import NamedTuple
+
+from fastapi import HTTPException, status
 from azure.storage.blob.aio import BlobServiceClient
 from azure.storage.blob import ContentSettings
+
+
+class StagedImage(NamedTuple):
+    """
+    Transport-neutral in-memory representation of an uploaded image.
+
+    The API transport (routers) is responsible for reading the multipart
+    stream into plain bytes, so this infrastructure layer never depends on
+    FastAPI's UploadFile contract.
+
+    Attributes:
+        filename (str): Original client-provided file name.
+        content_type (str): MIME type declared by the client.
+        content (bytes): Fully buffered binary payload.
+    """
+
+    filename: str
+    content_type: str
+    content: bytes
+
 
 class AzureStorageClient:
     """
@@ -19,19 +41,29 @@ class AzureStorageClient:
 
         self.blob_service_client = BlobServiceClient.from_connection_string(self.connection_string)
 
-    async def upload_image(self, file: UploadFile) -> str:
+    async def upload_image(self, image: StagedImage) -> str:
         """
-        Uploads a binary file stream to Azure and returns its public URL.
+        Uploads a staged in-memory image to Azure and returns its public URL.
+
+        Args:
+            image (StagedImage): Buffered image payload with its filename and MIME type.
+
+        Returns:
+            str: Public URL of the blob once stored in the temporal container.
+
+        Raises:
+            HTTPException: 415 when the MIME type is not an image, or 500 when
+                the Azure CDN communication fails.
         """
         # Validate MIME type to prevent malicious executable uploads
-        if not file.content_type.startswith("image/"):
+        if not image.content_type.startswith("image/"):
             raise HTTPException(
                 status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-                detail=f"El archivo {file.filename} no es una imagen válida."
+                detail=f"El archivo {image.filename} no es una imagen válida."
             )
 
         # Extract extension and generate UUID to prevent file overriding
-        file_extension = file.filename.split(".")[-1] if "." in file.filename else "jpg"
+        file_extension = image.filename.split(".")[-1] if "." in image.filename else "jpg"
         unique_filename = f"{uuid.uuid4()}.{file_extension}"
 
         try:
@@ -39,12 +71,12 @@ class AzureStorageClient:
             container_client = self.blob_service_client.get_container_client(self.temporal_container_name)
             blob_client = container_client.get_blob_client(unique_filename)
 
-            # Stream the file directly to Azure
-            file_content = await file.read()
+            # Stream the staged bytes directly to Azure
+            file_content = image.content
 
             # Explicitly instruct Azure to serve this blob as an image,
             # allowing browsers to render it inline instead of forcing a download.
-            image_content_settings = ContentSettings(content_type=file.content_type)
+            image_content_settings = ContentSettings(content_type=image.content_type)
 
             await blob_client.upload_blob(file_content, overwrite=True, content_settings=image_content_settings)
 
@@ -55,9 +87,6 @@ class AzureStorageClient:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Fallo al comunicar con Azure CDN: {str(e)}"
             )
-        finally:
-            # Ensure RAM is freed after streaming
-            await file.close()
 
     async def delete_image(self, file_url: str):
         """

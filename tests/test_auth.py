@@ -21,10 +21,10 @@ USER_PAYLOAD = {
 @pytest.fixture(autouse=True)
 def mock_send_email():
     """
-    Intercepts the email dispatch function within UserService to avoid
+    Intercepts the email dispatch function within the user router to avoid
     SMTP connection exceptions and accelerate test execution.
     """
-    with patch("app.services.user_service.send_verification_email") as mock:
+    with patch("app.api.routers.user.send_verification_email") as mock:
         yield mock
 
 async def test_registro_usuario_exitoso(client, mock_send_email):

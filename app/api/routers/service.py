@@ -3,6 +3,7 @@ from typing import List
 from fastapi import APIRouter, Depends, File, UploadFile, status
 
 from app.api.dependencies import get_current_admin_user, get_service_service
+from app.core.storage import StagedImage
 from app.models.user import User
 from app.schemas.service import (
     ServiceCreate,
@@ -56,7 +57,9 @@ async def upload_images(
     Protected endpoint: Allows image uploading via service-layer delegation per tourist service.
 
     Images arrive as multipart/form-data binaries, which FastAPI must accept as-is to
-    prevent a 422 error before the payload reaches the service layer.
+    prevent a 422 error before the payload reaches the service layer. The transport
+    reads each stream into a transport-neutral StagedImage and closes it, so the
+    service layer never depends on the UploadFile contract.
 
     Args:
         service_service (TouristServicesService): Injected business-logic service.
@@ -66,7 +69,18 @@ async def upload_images(
         ServiceImageOutput: JSON representation containing a list of urls redirecting
             to images stored inside Azure Blob Storage.
     """
-    return await service_service.image_uploader(images_files=images)
+    staged_images: List[StagedImage] = []
+    for image in images:
+        staged_images.append(
+            StagedImage(
+                filename=image.filename or "",
+                content_type=image.content_type or "",
+                content=await image.read(),
+            )
+        )
+        await image.close()
+
+    return await service_service.image_uploader(images_files=staged_images)
 
 
 @admin_router.post("/", response_model=ServiceDetailResponse, status_code=status.HTTP_201_CREATED)

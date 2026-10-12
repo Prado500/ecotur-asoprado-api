@@ -1,16 +1,17 @@
-from fastapi import HTTPException, status
 from typing import List, Optional, Any
 
 from app.repositories.audit_repository import AuditRepository
 from app.models.audit import AuditLog, AuditAction
-from app.models.user import User, UserRole
+from app.models.user import User
+from app.services.user_access_policy import UserAccessPolicy
 
 class AuditService:
     """
     Encapsulates business logic, rules, and operational logic of the Audit Trail ecosystem.
     """
-    def __init__(self, audit_repo: AuditRepository):
+    def __init__(self, audit_repo: AuditRepository, user_access_policy: UserAccessPolicy):
         self.audit_repo = audit_repo
+        self.user_access_policy = user_access_policy
 
     async def log_transaction(
             self,
@@ -46,7 +47,9 @@ class AuditService:
         """
         Retrieves the global audit history enforcing Role-Based Access Control.
 
-        Strictly gated to Administrators and Superadmins.
+        Authorization is delegated to the UserAccessPolicy administrative-tier
+        rule, keeping the service free of role comparisons and transport
+        semantics. Strictly gated to Administrators and Superadmins.
 
         Args:
             current_user (User): The authenticated user making the request.
@@ -59,13 +62,9 @@ class AuditService:
             List[AuditLog]: A collection of the requested audit logs.
 
         Raises:
-            HTTPException: 403 Forbidden if the requester is a standard tourist.
+            AuthorizationError: If the requester is a standard tourist.
         """
-        if current_user.role not in [UserRole.admin, UserRole.superadmin]:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Privilegios insuficientes para visualizar la auditoría del sistema."
-            )
+        self.user_access_policy.assert_is_admin_plus(current_user)
 
         return await self.audit_repo.get_all_audit_logs(
             limit=limit,

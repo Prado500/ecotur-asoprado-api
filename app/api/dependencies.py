@@ -36,11 +36,14 @@ def get_audit_repository(db: AsyncSession = Depends(get_db)) -> AuditRepository:
     return AuditRepository(db)
 
 
-def get_audit_service(audit_repo: AuditRepository = Depends(get_audit_repository)) -> AuditService:
-    return AuditService(audit_repo)
-
 def get_user_access_policy() -> UserAccessPolicy:
     return UserAccessPolicy()
+
+def get_audit_service(
+        audit_repo: AuditRepository = Depends(get_audit_repository),
+        user_access_policy: UserAccessPolicy = Depends(get_user_access_policy)
+) -> AuditService:
+    return AuditService(audit_repo, user_access_policy)
 
 def get_user_service(
         user_repo: UserRepository = Depends(get_user_repository),

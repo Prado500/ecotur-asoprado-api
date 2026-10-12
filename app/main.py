@@ -5,7 +5,17 @@ from fastapi.exceptions import RequestValidationError
 from sqlalchemy.exc import IntegrityError
 
 from app.api.routers import user, service, audit
-from app.core.exceptions import AuthorizationError
+from app.core.exceptions import (
+    AccountNotActiveError,
+    AlreadyExistsError,
+    AuthorizationError,
+    BusinessRuleViolationError,
+    DomainError,
+    InvalidCredentialsError,
+    InvalidVerificationTokenError,
+    NotFoundError,
+    StorageUnavailableError,
+)
 
 app = FastAPI(
     title="Ecotur-ASOPRADO API",
@@ -91,17 +101,45 @@ async def sqlalchemy_integrity_error_handler(request: Request, exc: IntegrityErr
         },
     )
 
-# === GLOBAL AUTHORIZATION EXCEPTION HANDLER ===
-@app.exception_handler(AuthorizationError)
-async def authorization_error_handler(request: Request, exc: AuthorizationError):
+# === GLOBAL DOMAIN EXCEPTION HANDLER ===
+# Single DRY handler translating every service-layer DomainError into its
+# documented HTTP response. The HTTP status codes live exclusively here,
+# keeping app/services/ free of transport semantics.
+_DOMAIN_ERROR_STATUS: dict[type[DomainError], int] = {
+    AuthorizationError: status.HTTP_403_FORBIDDEN,
+    NotFoundError: status.HTTP_404_NOT_FOUND,
+    AlreadyExistsError: status.HTTP_400_BAD_REQUEST,
+    InvalidCredentialsError: status.HTTP_401_UNAUTHORIZED,
+    AccountNotActiveError: status.HTTP_403_FORBIDDEN,
+    InvalidVerificationTokenError: status.HTTP_400_BAD_REQUEST,
+    BusinessRuleViolationError: status.HTTP_400_BAD_REQUEST,
+    StorageUnavailableError: status.HTTP_503_SERVICE_UNAVAILABLE,
+}
+
+@app.exception_handler(DomainError)
+async def domain_error_handler(request: Request, exc: DomainError):
     """
-    Maps domain-level authorization failures raised by access-control
-    policies to a standardized HTTP 403 Forbidden response, keeping the
-    service layer decoupled from the transport framework.
+    Maps every domain-level failure raised by the service layer to its
+    documented HTTP response, keeping transport semantics out of services.
+
+    Two documented special behaviors:
+    - 401 responses advertise the Bearer scheme via WWW-Authenticate.
+    - DomainError subtypes absent from the mapping table degrade to 500
+      instead of leaking unhandled stack traces.
+
+    Args:
+        request (Request): The incoming HTTP request that raised the failure.
+        exc (DomainError): The domain exception carrying the detail.
+
+    Returns:
+        JSONResponse: Serialized {"detail": ...} payload with the mapped status.
     """
+    status_code = _DOMAIN_ERROR_STATUS.get(type(exc), status.HTTP_500_INTERNAL_SERVER_ERROR)
+    headers = {"WWW-Authenticate": "Bearer"} if status_code == status.HTTP_401_UNAUTHORIZED else None
     return JSONResponse(
-        status_code=status.HTTP_403_FORBIDDEN,
+        status_code=status_code,
         content={"detail": exc.detail},
+        headers=headers,
     )
 
 app.add_middleware(

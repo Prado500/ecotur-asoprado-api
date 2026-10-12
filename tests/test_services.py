@@ -5,12 +5,17 @@ This module validates the Kanban column data retrievals and state mutations,
 ensuring strict adherence to Data Governance policies (Soft Deletions) and
 Role-Based Access Control (RBAC).
 """
+from unittest.mock import AsyncMock, create_autospec
+
 import pytest
 from sqlalchemy.future import select
 
+from app.api.dependencies import get_storage_client
+from app.core.security import get_password_hash, create_access_token
+from app.core.storage import AzureStorageClient, StagedImage
+from app.main import app
 from app.models.user import User, UserRole
 from app.models.service import TouristService, ServiceCategory
-from app.core.security import get_password_hash, create_access_token
 
 # ==========================================
 # TEST FIXTURES (Context Setup)
@@ -172,6 +177,89 @@ async def test_upload_images_staging_endpoint(client, auth_headers):
     assert "image_urls" in data
     assert len(data["image_urls"]) == 1
     assert "temp-ecotur-images" in data["image_urls"][0]
+
+
+async def test_upload_images_ceiling_limit_rejection(client, auth_headers):
+    """
+    Validates the fail-fast ceiling gate on the staging endpoint.
+    Asserts that 11 multipart images are rejected with 400 before any
+    Azure Blob Storage I/O is attempted.
+    """
+    files = [("images", (f"image_{i}.jpg", b"payload", "image/jpeg")) for i in range(11)]
+
+    response = await client.post("/servicios/upload-images/", files=files, headers=auth_headers)
+
+    assert response.status_code == 400
+    assert "detail" in response.json()
+
+    storage_mock = app.dependency_overrides[get_storage_client]()
+    storage_mock.upload_image.assert_not_awaited()
+
+
+async def test_upload_images_storage_outage_returns_503(client, auth_headers):
+    """
+    Validates the CDN outage translation to 503 Service Unavailable.
+    Asserts the storage client was invoked exactly once with a well-formed
+    StagedImage built by the transport layer from the multipart binary.
+    """
+    failing_client = create_autospec(AzureStorageClient, instance=True)
+    failing_client.upload_image = AsyncMock(side_effect=Exception("cdn outage"))
+    app.dependency_overrides[get_storage_client] = lambda: failing_client
+
+    fake_file = ("images", ("test_image.jpg", b"fake_binary_payload", "image/jpeg"))
+    response = await client.post("/servicios/upload-images/", files=[fake_file], headers=auth_headers)
+
+    assert response.status_code == 503
+    assert "detail" in response.json()
+
+    failing_client.upload_image.assert_awaited_once()
+    staged = failing_client.upload_image.call_args.args[0]
+    assert isinstance(staged, StagedImage)
+    assert staged.filename == "test_image.jpg"
+    assert staged.content_type == "image/jpeg"
+    assert staged.content == b"fake_binary_payload"
+
+
+async def test_toggle_nonexistent_package_returns_404(client, auth_headers):
+    """Unhappy path: activating a package that does not exist yields 404, not a mutation."""
+    response = await client.patch("/servicios/999999/activar", headers=auth_headers)
+
+    assert response.status_code == 404
+    assert "detail" in response.json()
+
+
+async def test_soft_delete_nonexistent_package_returns_404(client, auth_headers):
+    """Unhappy path: soft-deleting a package that does not exist yields 404."""
+    response = await client.delete("/servicios/999999", headers=auth_headers)
+
+    assert response.status_code == 404
+    assert "detail" in response.json()
+
+
+async def test_update_nonexistent_package_returns_404(client, auth_headers):
+    """Unhappy path: updating a package that does not exist yields 404."""
+    payload = {"name": "Un Paquete Que No Existe En La Base"}
+
+    response = await client.put("/servicios/999999", json=payload, headers=auth_headers)
+
+    assert response.status_code == 404
+    assert "detail" in response.json()
+
+
+async def test_recover_package_not_in_trash_returns_400(client, auth_headers, test_package):
+    """Edge case: recovering a package that was never soft-deleted is a 400 rule violation."""
+    response = await client.patch(f"/servicios/{test_package.id}/recuperar", headers=auth_headers)
+
+    assert response.status_code == 400
+    assert "detail" in response.json()
+
+
+async def test_recover_nonexistent_package_returns_400(client, auth_headers):
+    """Edge case: recovering a package that does not exist is a 400 rule violation."""
+    response = await client.patch("/servicios/999999/recuperar", headers=auth_headers)
+
+    assert response.status_code == 400
+    assert "detail" in response.json()
 
 
 async def test_update_package_image_ceiling_limit_rejection(client, auth_headers, test_package):
