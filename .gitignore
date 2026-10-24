@@ -17,3 +17,13 @@ venv/
 # IDE-related directories and files
 .idea/
 .vscode/
+
+# Tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+
+# Claude Code personal settings
+.claude/settings.local.json
