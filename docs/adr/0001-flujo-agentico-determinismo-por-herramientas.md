@@ -1,6 +1,6 @@
 # ADR-0001 — Simplificar el flujo agéntico: determinismo por herramientas, no por prosa
 
-- **Estado:** propuesto (pasa a *aceptado* con el OK de David)
+- **Estado:** aceptado (David, oct 23)
 - **Fecha:** 2026-10-23
 - **Ubicación en el repo:** `docs/adr/0001-flujo-agentico-determinismo-por-herramientas.md`
 - **Formato:** ADR según Nygard (contexto → decisión → consecuencias), una página, vive junto al código.
