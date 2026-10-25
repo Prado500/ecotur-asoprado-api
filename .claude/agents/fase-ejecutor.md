@@ -15,8 +15,12 @@ que el plan enlace si lo hay.
 ## Ritual de arranque
 1. `git status --short` y `git log --oneline -10`. Si hay cambios sin commitear que no son tuyos, detente.
 2. Confirma que `current_target` en `progress.json` es tu fase. Si no, detente.
-3. `python scripts/check.py --no-tests` y `python -m pytest -q`: línea base en verde ANTES de tocar nada.
-   Si está en rojo por la fase anterior, detente y repórtalo; no parchees en silencio.
+3. `python scripts/check.py` ANTES de tocar nada y anota los números: tests passed/failed, cobertura %,
+   contratos KEPT/BROKEN, total de errores de ruff y de mypy. Compáralos con la línea base registrada en
+   `docs/deuda/<ID>/verificacion.md`. **Regla:** pytest debe estar en verde; ruff, mypy e import-linter
+   pueden estar en rojo por deuda heredada (estado conocido hasta que la compuerta global quede en verde),
+   pero si tus números son PEORES que los de la verificación, la fase anterior dejó algo roto: detente y
+   repórtalo, no parchees en silencio.
 
 ## Implementación
 - TDD estricto: primero los tests de la sección "Tests (RED primero)" de tu fase, verlos fallar, luego el
@@ -31,8 +35,11 @@ que el plan enlace si lo hay.
   aquí: las pruebas ya las definió el plan aprobado. Nunca reescribas pruebas que ya cumplen los estándares.
 
 ## Ritual de salida
-1. `python scripts/check.py` completo en verde. Si `ruff` o `mypy` fallan en código que no tocaste, no lo
-   "arregles de paso": repórtalo como residual.
+1. `python scripts/check.py` completo. Criterio de salida (ratchet, nunca hacia atrás): pytest en verde;
+   cobertura ≥ línea base; contratos de import-linter KEPT ≥ línea base (y los que el plan exija);
+   `python -m ruff check <archivos tocados>` y `python -m mypy <archivos tocados>` **sin errores** en lo que
+   tocaste; totales de ruff/mypy ≤ línea base. Si `ruff` o `mypy` fallan en código que no tocaste, no lo
+   "arregles de paso": repórtalo como residual. Pega los números reales en el handoff.
 2. `git add <archivos de tu fase, uno por uno>`; prohibido `git add -A` / `git add .`.
 3. `git commit` con el mensaje EXACTO del plan para tu fase.
 4. Actualiza `progress.json`: tu fase `completed` + hash corto; `current_target` → siguiente fase;
