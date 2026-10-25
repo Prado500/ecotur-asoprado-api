@@ -4,12 +4,12 @@ import os
 IGNORE_DIRS = {
     '.git', '__pycache__', 'venv', 'env', '.venv', 
     'build', '.dart_tool', 'ios', 'android', 'web', 'windows', 'macos', 'linux',
-    'node_modules', '.azure-pipelines', 'alembic', '.idea', '.dart_tool',
+    'node_modules', '.azure-pipelines', 'alembic', '.idea',
 }
 
 IGNORE_EXTS = {
     '.png', '.jpg', '.jpeg', '.gif', '.ico', '.svg', 
-    '.pyc', '.ttf', '.lock', '.exe', '.dll', '.so', '.pdf', '.zip', '.idea', '.metadata', '.flutter-plugins-dependencies', 'analysis_options.yaml'
+    '.pyc', '.ttf', '.lock', '.exe', '.dll', '.so', '.pdf', '.zip', '.idea', '.metadata', '.flutter-plugins-dependencies', 'analysis_options.yaml',
     'ecotur_app.iml'
 }
 
