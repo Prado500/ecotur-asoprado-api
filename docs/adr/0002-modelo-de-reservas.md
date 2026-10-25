@@ -1,6 +1,6 @@
 # ADR-0002 — Modelo de reservas del MVP: un paquete, una fecha, una reserva
 
-- **Estado:** propuesto (pasa a *aceptado* con el OK de David; validado verbalmente con la gerencia de ASOPRADO el 23 oct 2026)
+- **Estado:** aceptado (David, oct 23, validado verbalmente con la gerencia de ASOPRADO el 23 oct 2026)
 - **Ubicación en el repo:** `docs/adr/0002-modelo-de-reservas.md`
 
 ## Decisión (resumen)
