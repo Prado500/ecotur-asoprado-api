@@ -45,7 +45,7 @@ planning y es viable en 2–3 días. Todo lo demás es "trabajo futuro" document
 | Notificaciones de cupos liberados | Requiere infraestructura (push/email) que no cabe |
 | Agendamiento y configuración avanzada de fechas | No prometido; alto esfuerzo |
 | Motor de tarifas dinámicas y descuentos | No prometido; alto riesgo |
-| PWA formal (service worker, offline) | Se entrega web responsive; se añade `manifest.json` solo si sobra tiempo |
+| Funcionamiento **offline** del panel administrativo | El panel administrativo web **sí entra**: build web de Flutter con vistas protegidas por rol (paquetes, usuarios, métricas), instalable como PWA básica porque Flutter web incluye `manifest.json` y service worker por defecto. Lo que sale es el modo offline. Día 9: verificar nombre e iconos de Ecotur en el manifest. |
 | "Disponibilidad en tiempo real" | Se redacta honestamente como "consulta de disponibilidad actualizada por petición" |
 
 **Verificado el día 1:** la reserva no existía en backend ni en base de datos. El modelo quedó

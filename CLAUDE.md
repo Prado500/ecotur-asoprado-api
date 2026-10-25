@@ -4,7 +4,10 @@
 
 - **Subagentes** (`.claude/agents/`): `deuda-verificador`, `plan-redactor`, `fase-ejecutor`, `handoff-auditor`.
   Cada uno corre en contexto propio; solo su informe final vuelve a la conversación.
-- **Comandos** (`.claude/commands/`): `/deuda-verificar`, `/deuda-planear`, `/implementar`, `/auditar`.
+- **Comandos** (`.claude/commands/`): `/deuda-verificar`, `/deuda-planear`, `/implementar`, `/auditar`,
+  `/revisar <ID> <artefacto>` (segunda opinión senior, sin tocar nada), `/duda <pregunta>` (modo profesor,
+  anota en `docs/aprendizaje/preguntas.md`) y `/pr` (título, descripción y merge
+  message con las skills `commit-author` y `pr-author`).
 - **Hooks** (`.claude/settings.json`): tras cada edición de un `.py`, `ruff format` + `ruff check --fix`
   sobre ese archivo; si quedan errores, se te devuelven para que los corrijas antes de seguir.
   La compuerta completa (`python scripts/check.py`) la corren `fase-ejecutor` y `handoff-auditor`.

@@ -5,7 +5,7 @@
 > Vive en `docs/CONTEXT.md`. Regla de oro: **el contexto vive en archivos versionados, no en la
 > memoria de un chat.** Cada sesión nueva arranca leyendo esto.
 >
-> **Versión 2.2 — 24 oct 2026 (noche).** Sustituye por completo a la del 22 oct. Fuentes: conversación con
+> **Versión 2.3 — 25 oct 2026.** Sustituye por completo a la del 22 oct. Fuentes: conversación con
 > David (22–23 oct), propuesta de trabajo de grado aprobada (PDF), Word de observaciones del
 > flujo agéntico, notas de deuda funcional, ADR-0001 y ADR-0002.
 
@@ -90,7 +90,7 @@ por el equipo humano"**. → El flujo agéntico es parte de la metodología decl
 | "Disponibilidad en tiempo real" | Se redacta como "consulta de disponibilidad por fecha, por petición" (`GET /packages/{id}/availability`). Sin websockets. |
 | "Modelo de aprendizaje supervisado" (4.2.2) | No aplica al alcance; se justifica en el documento. |
 | "Microservicios" (resumen) vs "modular" | Lo construido es un **monolito modular** con Clean Architecture; se argumenta como decisión correcta para un MVP. |
-| PWA para el panel admin | Web responsive; `manifest.json` solo si sobra tiempo. |
+| PWA para el panel admin | **Entra** como build web de Flutter con vistas protegidas por rol; es instalable (manifest + service worker por defecto de Flutter web). **No** se implementa modo offline; el documento lo redacta así. |
 | Cronograma original de 24 semanas | Sustituido por `docs/PLAN.md` (15 días). |
 
 ## 4. Estado técnico actual (verificado por David el 23 oct)
@@ -154,16 +154,16 @@ la Web App la hala al reiniciar. Operación: 2 clics.
 
 ## 6. Decisiones tomadas (índice)
 
-| Fecha | Decisión | Dueño |
-|---|---|---|
-| 23 oct | D1 Pruebas de usabilidad reales y remotas (gerente como admin + 4–5 perfil turista; SUS). Sesión con el gerente: lunes 2 nov. | `PLAN.md` §1, §7 |
-| 23 oct | D2 Simplificar el flujo agéntico; determinismo por herramientas; runtime Claude Code compatible con OpenCode. | **ADR-0001** |
-| 23 oct | D3 Alcance del MVP (entra / sale). | `PLAN.md` §1, `backlog.md` |
-| 23 oct | Modelo de reservas: un paquete, una fecha, una reserva; `party_size` en el paquete; ventanas de disponibilidad; índice único parcial; precio congelado; expiración perezosa. Validado con gerencia. | **ADR-0002** |
-| 23 oct | Nombre de paquete **no** único (gerencia). | `backlog.md` BE-06 |
-| 23 oct | El gerente sí espera reordenar paquetes desde el kanban → `display_order`. | `backlog.md` BE-08 |
-| 25 oct | Una sola versión de Python (3.14) en desarrollo, CI y producción. | **ADR-0004** |
-| pendiente | Pagos: puerto `PaymentGateway`, `WompiAdapter`, `FakeAdapter`, webhook idempotente. | ADR de pagos (día 5) |
+| Fecha | Decisión | Dueño | Impacto en el documento de grado |
+|---|---|---|---|
+| 23 oct | D1 Pruebas de usabilidad reales y remotas (gerente como admin + 4–5 perfil turista; SUS). Sesión con el gerente: lunes 2 nov. | `PLAN.md` §1, §7 | Cap. de evaluación (obj. específico 4): protocolo, SUS, resultados |
+| 23 oct | D2 Simplificar el flujo agéntico; determinismo por herramientas; runtime Claude Code compatible con OpenCode. | **ADR-0001** | Cap. de metodología (desarrollo asistido por IA) y lecciones aprendidas |
+| 23 oct | D3 Alcance del MVP (entra / sale). | `PLAN.md` §1, `backlog.md` | Alcance del prototipo y cap. de trabajo futuro |
+| 23 oct | Modelo de reservas: un paquete, una fecha, una reserva; `party_size` en el paquete; ventanas de disponibilidad; índice único parcial; precio congelado; expiración perezosa. Validado con gerencia. | **ADR-0002** | Cap. de diseño (MER, diagrama de clases, secuencia de reserva) y requisitos |
+| 23 oct | Nombre de paquete **no** único (gerencia). | `backlog.md` BE-06 | Requisitos (regla de negocio) |
+| 23 oct | El gerente sí espera reordenar paquetes desde el kanban → `display_order`. | `backlog.md` BE-08 | Requisitos y manual de usuario |
+| 25 oct | Una sola versión de Python (3.14) en desarrollo, CI y producción. | **ADR-0004** | Cap. de arquitectura/despliegue y manual técnico |
+| pendiente | Pagos: puerto `PaymentGateway`, `WompiAdapter`, `FakeAdapter`, webhook idempotente. | ADR de pagos (día 5) | Cap. de diseño (secuencia de pago) y arquitectura |
 
 ## 7. Preguntas abiertas
 
@@ -182,3 +182,8 @@ la Web App la hala al reiniciar. Operación: 2 clics.
    imagen con `python:3.14-slim`. Si falla, revertir solo el Dockerfile y abrir ítem en el backlog.
 4. Rama `deuda/BE-01` desde `develop` actualizado y primera pasada por el flujo.
 5. Cierre: bitácora del día + sincronizar este archivo.
+
+## 9. Sesiones de IA
+Cualquier sesión (ingeniería, documento, estudio) arranca con los prompts de `docs/sesiones/` y el ritual
+de apertura descrito allí; ninguna conversación es fuente de verdad. Preguntas de estudio:
+`docs/aprendizaje/preguntas.md` (único dueño de las dudas; la bitácora solo las cuenta y enlaza).
