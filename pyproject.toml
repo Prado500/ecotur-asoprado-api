@@ -7,7 +7,7 @@ name = "ecotur-asoprado-api"
 version = "0.2.0"
 description = "API RESTful asíncrona para la gestión de paquetes turísticos"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.14"
 dependencies = [
     "fastapi",
     "uvicorn[standard]",
@@ -34,6 +34,12 @@ test = [
     "httpx>=0.28.1",
     "aiosqlite"
 ]
+dev = [
+    "ruff>=0.9",
+    "mypy>=1.14",
+    "pytest-cov>=6.0",
+    "import-linter>=2.1",
+]
 
 [tool.pytest.ini_options]
 pythonpath = "."
@@ -44,3 +50,93 @@ asyncio_default_fixture_loop_scope = "function"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["app*"]
+
+# ---------------------------------------------------------------------------
+# Compuerta de calidad (ADR-0001). Se ejecuta con: python scripts/check.py
+# ---------------------------------------------------------------------------
+
+[tool.ruff]
+target-version = "py314"
+line-length = 100
+extend-exclude = ["alembic/versions", "venv", ".venv"]
+
+[tool.ruff.lint]
+# E/W pycodestyle · F pyflakes · I isort · B bugbear · UP pyupgrade · SIM simplify
+# ASYNC errores típicos de código asíncrono · N nomenclatura PEP 8 · D docstrings (formato Google)
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "ASYNC", "N", "D"]
+# D1xx = "falta docstring": se exige en código nuevo por AGENTS.md, no se retro-impone al existente.
+ignore = ["D100", "D101", "D102", "D103", "D104", "D105", "D106", "D107"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.flake8-bugbear]
+# B008 prohíbe llamadas en argumentos por defecto; en FastAPI `Depends()`/`Query()` en defaults es el
+# patrón oficial. Migrar a `Annotated[...]` (backlog D6/S3) elimina la necesidad de esta excepción.
+extend-immutable-calls = [
+    "fastapi.Depends", "fastapi.Query", "fastapi.Body", "fastapi.Form", "fastapi.File",
+    "fastapi.Header", "fastapi.Path", "fastapi.Security",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["D"]
+"alembic/**" = ["D"]
+# E712 sugiere `is True`; en expresiones SQLAlchemy `col == True` es correcto (se traduce a SQL).
+# La forma idiomática es `col.is_(True)`; hasta migrar, se tolera solo en repositorios.
+"app/repositories/**" = ["E712"]
+
+[tool.mypy]
+python_version = "3.14"
+files = ["app"]
+plugins = ["pydantic.mypy"]
+# Estricto gradual: primero que lo que existe sea coherente; disallow_untyped_defs se sube por módulo.
+check_untyped_defs = true
+warn_return_any = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+no_implicit_optional = true
+ignore_missing_imports = true
+
+[tool.importlinter]
+root_package = "app"
+# Necesario para que los contratos puedan prohibir paquetes externos (fastapi, starlette).
+include_external_packages = true
+
+# Capas (ADR-0003 y AGENTS.md): una capa solo importa hacia abajo.
+[[tool.importlinter.contracts]]
+name = "Capas: api -> services -> repositories -> models"
+type = "layers"
+layers = [
+    "app.api",
+    "app.services",
+    "app.repositories",
+    "app.models",
+]
+
+[[tool.importlinter.contracts]]
+name = "Los servicios no conocen el transporte HTTP"
+type = "forbidden"
+source_modules = ["app.services"]
+forbidden_modules = ["fastapi", "starlette", "app.api"]
+
+[[tool.importlinter.contracts]]
+name = "Los repositorios solo conocen SQLAlchemy y los modelos"
+type = "forbidden"
+source_modules = ["app.repositories"]
+forbidden_modules = ["fastapi", "starlette", "app.api", "app.services", "app.schemas"]
+
+[[tool.importlinter.contracts]]
+name = "Los modelos y los schemas no dependen de capas superiores"
+type = "forbidden"
+source_modules = ["app.models", "app.schemas"]
+forbidden_modules = ["app.api", "app.services", "app.repositories"]
+
+[tool.coverage.run]
+source = ["app"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_empty = true
+# Se fija con el valor de la línea base del día 2 y a partir de ahí "no baja".
+fail_under = 0

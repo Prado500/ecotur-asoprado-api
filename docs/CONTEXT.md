@@ -5,7 +5,7 @@
 > Vive en `docs/CONTEXT.md`. Regla de oro: **el contexto vive en archivos versionados, no en la
 > memoria de un chat.** Cada sesión nueva arranca leyendo esto.
 >
-> **Versión 2 — 24 oct 2026.** Sustituye por completo a la del 22 oct. Fuentes: conversación con
+> **Versión 2.2 — 24 oct 2026 (noche).** Sustituye por completo a la del 22 oct. Fuentes: conversación con
 > David (22–23 oct), propuesta de trabajo de grado aprobada (PDF), Word de observaciones del
 > flujo agéntico, notas de deuda funcional, ADR-0001 y ADR-0002.
 
@@ -51,7 +51,7 @@ secciones. Cuando dos documentos digan cosas distintas, gana el ADR más recient
 |---|---|
 | **Deadline** | **7 de noviembre de 2026 — es sábado.** Pendiente confirmar si la oficina recibe ese día o si la entrega es en línea; si no, la fecha real es el **viernes 6**. |
 | **Qué se entrega** | Solo el **documento final**. No hay demo en vivo ese día; la sustentación se define después si el documento se aprueba. |
-| **Capacidad** | 8 h/día, 7 días/semana: 08:00–12:00 y 14:00–18:00 (hora Colombia). Sueño 21:00–05:30, no negociable. |
+| **Capacidad** | 8 h/día, 7 días/semana: 08:00–12:00 y 14:00–18:00 (hora Colombia). Sueño 21:00–05:30, no negociable. Excepción conocida: dom 25 oct solo por la tarde. |
 | **Compañera de tesis** | María Paula Ramos Carrillo. Rol acordado: documento (plantilla, Marco Lógico, manual de usuario, formato, referencias). Pendiente que suba a un Drive lo que ya tiene. |
 | **Evaluadores** | Desconocidos. Supuesto de diseño: al menos uno sabe de ingeniería de software → código defendible, no perfecto. |
 | **Stakeholder** | Gerente de ASOPRADO: aliado total, valida y firma lo que sea **verdad**. Para él Ecotur es una idea que no presiona; para la universidad resuelve un problema real de diversificación. La propuesta compromete "dejar" el prototipo, no garantizar su adopción. Palabras del gerente (23 oct): "vaya implementándolo como usted piensa y lo pulimos sobre la marcha". |
@@ -96,6 +96,7 @@ por el equipo humano"**. → El flujo agéntico es parte de la metodología decl
 ## 4. Estado técnico actual (verificado por David el 23 oct)
 
 ### Backend
+- **Python 3.14 en dev, CI y producción** (**ADR-0004**, escrito por David el 25 oct). Antes convivían 3.14 (venv, CI) y 3.11 (Dockerfile, `.python-version`).
 - **Stack:** FastAPI async, SQLAlchemy async, Alembic, Pydantic, uvicorn. Clean/Onion. Sin
   clases de dominio propias (los modelos SQLAlchemy actúan como entidades: trade-off consciente
   de MVP, documentar).
@@ -140,9 +141,14 @@ la Web App la hala al reiniciar. Operación: 2 clics.
     frontmatter cambia entre `.claude/agents/` y `.opencode/agent/`. Mientras OpenCode no se use
     de verdad, `.opencode/` queda **congelado** como evidencia histórica y no se mantiene en
     paralelo; cuando haga falta, se genera desde `.claude/` con un script de 20 líneas.
-- **Por construir (PLAN día 2):** `AGENTS.md` + `CLAUDE.md`, `.claude/agents/`,
-  `.claude/commands/` (`/deuda-verificar`, `/deuda-planear`, `/implementar`, `/auditar`),
-  hooks, `make check`.
+- **Construido el 24 oct (flujo v1):** `AGENTS.md` v2 (única copia de las reglas) + `CLAUDE.md` (lo
+  importa con `@AGENTS.md`); `scripts/check.py` (compuerta tool-neutral) y configuración de ruff, mypy,
+  import-linter y coverage en `pyproject.toml` (extra `dev`); `.claude/agents/` (`deuda-verificador`,
+  `plan-redactor`, `fase-ejecutor`, `handoff-auditor`); `.claude/commands/` (`/deuda-verificar`,
+  `/deuda-planear`, `/implementar`, `/auditar`); `.claude/settings.json` (hook ruff tras cada edición `.py`;
+  permisos que deniegan `git push/pull/merge/rebase/checkout`, `rm -rf` y leer `.env`);
+  `.claude/skills/` (copia canónica de las skills; `.agents/skills/` queda congelada con la v0).
+  **Pendiente:** calibrarlo con la primera deuda real (BE-01) y conectar `check.py` al CI de Azure (día 3).
 - **Artefactos de datos que se conservan:** `docs/deuda/<tag>/verificacion.md`, `plan.md`,
   `progress.json`, `gaps.md`, `docs/deuda/registro.json`.
 
@@ -156,6 +162,7 @@ la Web App la hala al reiniciar. Operación: 2 clics.
 | 23 oct | Modelo de reservas: un paquete, una fecha, una reserva; `party_size` en el paquete; ventanas de disponibilidad; índice único parcial; precio congelado; expiración perezosa. Validado con gerencia. | **ADR-0002** |
 | 23 oct | Nombre de paquete **no** único (gerencia). | `backlog.md` BE-06 |
 | 23 oct | El gerente sí espera reordenar paquetes desde el kanban → `display_order`. | `backlog.md` BE-08 |
+| 25 oct | Una sola versión de Python (3.14) en desarrollo, CI y producción. | **ADR-0004** |
 | pendiente | Pagos: puerto `PaymentGateway`, `WompiAdapter`, `FakeAdapter`, webhook idempotente. | ADR de pagos (día 5) |
 
 ## 7. Preguntas abiertas
@@ -166,10 +173,12 @@ la Web App la hala al reiniciar. Operación: 2 clics.
   por paquete completo, antelación mínima 1 día, 30 min para pagar una reserva pendiente,
   tarifa de temporada alta como trabajo futuro.
 
-## 8. Próximo paso (sáb 24 oct, 08:00 — PLAN día 2)
+## 8. Próximo paso (dom 25 oct, 14:00)
 
-1. Línea base de tooling que no alcanzó el día 1: ruff, mypy, pytest-cov, import-linter →
-   números "antes" en `PLAN.md` §6. Verificar el diagnóstico de la suite contra el código.
-2. Flujo v1: `AGENTS.md` + `CLAUDE.md`, agentes, comandos, hooks, `make check`.
-3. Primera deuda real por el flujo: BE-01 (500 al crear paquete con URLs inválidas).
-4. Cierre: bitácora del día + sincronizar `CONTEXT.md` si algo cambió.
+1. ~~Escribir ADR-0004~~ hecho.
+2. `git add` / commit / push; PR a `develop` (docs + tooling + Python 3.14) con descripción según
+   la skill `pr-author`; mezclar con *merge commit* (conserva los commits atómicos).
+3. Tras el merge, vigilar el pipeline CD del entorno `develop`: es la primera construcción de la
+   imagen con `python:3.14-slim`. Si falla, revertir solo el Dockerfile y abrir ítem en el backlog.
+4. Rama `deuda/BE-01` desde `develop` actualizado y primera pasada por el flujo.
+5. Cierre: bitácora del día + sincronizar este archivo.

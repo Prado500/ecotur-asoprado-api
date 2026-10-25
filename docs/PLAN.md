@@ -1,7 +1,8 @@
 # Ecotur-ASOPRADO — Plan de 15 días (23 oct → 6 nov 2026)
 
 > Guárdalo en el repo como `docs/PLAN.md`, junto a `docs/CONTEXT.md`.
-> Estado: **v1.2 (24 oct) — decisiones D1–D3 aprobadas; sincronizado con ADR-0002.** Cambio mayor respecto a v1:
+> Estado: **v1.3 (24 oct, noche) — línea base medida; día 3 recortado a media jornada (David no está disponible el domingo por la mañana).**
+> Progreso diario: `docs/bitacora/`. Estado actual del proyecto: `docs/CONTEXT.md` §8. Este plan no lleva estado: lleva fechas y alcance. Cambio mayor respecto a v1:
 > el **módulo de reservas no existía** (ni tabla ni lógica; el botón "reservar" no hacía nada),
 > así que los días 4–5 se dedican a construirlo. Lo compensa que BE-03 y BE-04 ya estaban resueltos.
 > Capacidad: 15 días × 8 h = **120 h de David**, en bloques 08:00–12:00 y 14:00–18:00.
@@ -83,8 +84,8 @@ nunca sueño ni el bloque de documento.
 |---|---|---|---|---|
 | 1 | **Vie 23 oct** | Aprobar este plan. Escribir a María Paula y al gerente (agendar sesión del 2 nov). Consolidar backlog: notas `.txt` de "deuda funcional" + cards de Trello → `docs/backlog.md` con ID, severidad, decisión (entra / sale / documentar). Crear `CLAUDE.md` + `docs/CONTEXT.md` + `docs/PLAN.md` en el repo. | Tooling de calidad en backend: `ruff`, `mypy`, `pytest-cov`, `import-linter` (reglas de capas de Clean Architecture). Correrlos y anotar la **línea base** (nº errores lint, nº errores de tipos, % cobertura, violaciones de capas). Verificar el diagnóstico de la suite de tests contra el código. | Repo con quality gate local + números de línea base (evidencia "antes") |
 | 2 | **Sáb 24** | Flujo agéntico v1 en Claude Code (§5 y ADR-0001): `CLAUDE.md` con reglas, 4 comandos, hooks; portar `deuda-verificador` y `handoff-auditor`; reescribir el paso 6 de `plan-redactor`. | Primera deuda real de punta a punta con el flujo: **BE-01** (500 al crear paquete con URLs inválidas → excepción de dominio + 422/409). Es pequeña, reproducible y tiene test obvio: ideal para calibrar el flujo. | Flujo v1 probado + 1 deuda saldada con PR verde |
-| 3 | **Dom 25** | Suite de tests: fábricas en `conftest.py`, mocks con `spec`/`autospec`, aserciones por código de estado y estructura (no por texto en español), sesión de prueba alineada con `get_db`. | Huecos conocidos + sus correcciones en el mismo PR: auto-degradación de rol (**BE-02** = hueco B2), borrado por superadmin (B3), 404 de cédula inexistente (B4), límite de 10 imágenes en update (**BE-07**). Gate en el pipeline CI de Azure: ruff + mypy + import-linter + cobertura mínima. | CI que de verdad bloquea; cobertura medida |
-| 4 | **Lun 26** | **Reservas, núcleo (implementar ADR-0002).** Migración Alembic: `max_capacity` → `party_size`, `availability_mode`, `min_lead_days`, tabla `package_availability_windows`, tabla `reservations` con el **índice único parcial** `(package_id, reservation_date) WHERE status IN ('pending','confirmed')`. Estados pendiente → confirmada / cancelada / expirada. | Casos de uso y endpoints: crear (guardia de paquete inactivo o eliminado **BE-13**; `IntegrityError` → `DateAlreadyReserved` → 409), cancelar, listar las mías. Tests RED → GREEN, incluido el de concurrencia sobre el índice. | Reservas funcionando sin pago |
+| 3 | **Dom 25** (solo tarde) | — (no disponible) | Mezclar el PR de docs+tooling. **BE-01 por el flujo** (`/deuda-verificar` → `/deuda-planear` → `/implementar` → `/auditar`): primera calibración real. Si sobra: `check.py` en el CI de Azure. | Flujo v1 calibrado + BE-01 saldado + contrato de capas en verde |
+| 4 | **Lun 26** | **Mañana:** `ruff --fix` + formato en un commit mecánico; S1 (modelos a `Mapped[]`); huecos de tests B2/B3/B4 con **BE-02** y **BE-07**; `check.py` en el CI. **Tarde: reservas, núcleo (implementar ADR-0002).** Migración Alembic: `max_capacity` → `party_size`, `availability_mode`, `min_lead_days`, tabla `package_availability_windows`, tabla `reservations` con el **índice único parcial** `(package_id, reservation_date) WHERE status IN ('pending','confirmed')`. Estados pendiente → confirmada / cancelada / expirada. | Casos de uso y endpoints: crear (guardia de paquete inactivo o eliminado **BE-13**; `IntegrityError` → `DateAlreadyReserved` → 409), cancelar, listar las mías. Tests RED → GREEN, incluido el de concurrencia sobre el índice. | Reservas funcionando sin pago |
 | 5 | **Mar 27** | `GET /packages/{id}/availability?from=&to=` (antelación mínima, ventanas, sin reserva activa), expiración perezosa de pendientes **en la misma transacción** antes de insertar, listado de reservas para admin, endpoint de métricas (agregados). | **Redactar el ADR de pagos** (recibirá el siguiente número libre). Puerto `PaymentGateway` + `FakeAdapter`; flujo reserva → pago (fake) → confirmada, de punta a punta con tests. | Dominio de reservas completo; pago desacoplado del proveedor |
 | 6 | **Mié 28** | `WompiAdapter` sandbox: crear transacción, firma de integridad, URL de checkout. | Webhook de eventos idempotente → estado de reserva. `display_order` en paquetes (**BE-08**: columna + `PATCH` + `ORDER BY`). PR develop → staging. **Corte de Wompi 18:00:** si no funciona de punta a punta, queda `FakeAdapter` y se documenta como integración parcial. | Backend del MVP completo en staging |
 | 7 | **Jue 29** | Frontend base: `flutter analyze` + reglas de lint; tema con tokens (color, tipografía, espaciado, radios); componentes base (botón con hover generalizado **FE-06**, card, input, estados vacío/error). | Interceptor HTTP: 401 → limpiar sesión → pantalla de login (**FE-01**). Aplicar tema a autenticación y catálogo. | Sistema de diseño operativo en 3–4 pantallas |
@@ -177,15 +178,21 @@ Eso es investigación aplicada, no tiempo perdido.
 
 ## 6. Línea base → resultado (métricas para el capítulo de resultados)
 
-| Métrica | Línea base (día 1) | Final (día 11) |
+Línea base medida el **24 oct 2026** (`python scripts/check.py`, Python 3.14.3, `develop` en `e4fd14d`):
+
+| Métrica | Línea base (24 oct) | Final (día 11) |
 |---|---|---|
-| Errores `ruff` | | |
-| Errores `mypy` (módulos tocados) | | |
-| Cobertura `pytest-cov` | | |
-| Violaciones de capas (`import-linter`) | | |
-| Tests totales / fallando | | |
+| Archivos sin formatear (`ruff format --check`) | 34 de 90 | |
+| Errores `ruff check` | 531 (E501 137 · D212 110 · B008 41* · UP045 33 · I001 29 · D205 28 · W292 21 · UP006 21 · F401 16 · B904 7 · resto < 12 c/u) | |
+| Errores `mypy` | 44 en 12 archivos (29 en los dos servicios grandes; causa dominante: modelos tipados como `Column[...]` → S1, y `SECRET_KEY: str \| None` → A4) | |
+| Contratos `import-linter` | **3 KEPT · 1 BROKEN.** Roto: "los servicios no conocen el transporte HTTP", por dependencia **transitiva**: `services → core/storage → fastapi` (líneas 60, 86, 138: `HTTPException` 415/500; la 138 es BE-01) y `services → core/security → fastapi/starlette` (imports sin usar: P1). (Antes de evaluar hubo que crear `app/api/__init__.py`: era un namespace package.) | |
+| Tests | 116 passed · 0 failed · 1 warning (S5) | |
+| Cobertura (`pytest-cov`, ramas incluidas) | **89 %** (908 sentencias, 88 sin cubrir). Puntos ciegos: `core/storage.py` **28 %** (zona de BE-01, A7 y SEC2), `core/email.py` 69 %, `main.py` 77 %, `service_repository.py` 77 % | |
 | Casos de caja negra pasados / totales | — | |
 | SUS promedio (turista / admin) | — | |
+
+\* B008 son los 41 `Depends(...)` en argumentos por defecto: patrón oficial de FastAPI; se configuró como
+excepción y desaparece al migrar a `Annotated` (D6/S3).
 
 ---
 
@@ -217,13 +224,3 @@ Eso es investigación aplicada, no tiempo perdido.
 | Perfeccionismo en deuda | Regla a-b-c de §4; lo demás es deuda conocida documentada |
 
 ---
-
-## 9. Estado al cierre del día 1 (vie 23 oct)
-
-- Hecho: decisiones D1–D3 aprobadas; backlog consolidado y verificado por David; ADR-0001 y
-  ADR-0002; reunión con el gerente (modelo de reservas validado; sesión de usabilidad del 2 nov
-  por coordinar); documentos en el repo.
-- **No hecho (pasa al día 2 por la mañana):** línea base de tooling (ruff, mypy, pytest-cov,
-  import-linter) y verificación del diagnóstico de la suite de tests.
-- Día 2 queda: línea base → flujo v1 → BE-01 por el flujo. Si el flujo no se termina de calibrar
-  el sábado, se termina el domingo por la mañana sin mover el resto.

@@ -1,4 +1,4 @@
-# Ecotur-ASOPRADO — Backlog consolidado (triage v1.3, 24 oct 2026 — sincronizado con ADR-0002 y ADR-0003; absorbe registro.json)
+# Ecotur-ASOPRADO — Backlog consolidado (triage v1.5, 24 oct 2026 — auditoría HTML completa + hallazgos de la línea base (import-linter))
 
 > Guárdalo en el repo como `docs/backlog.md`. Fuentes: 19 notas `.txt` de "deuda funcional",
 > Word "deuda técnica adicional identificada", cards del Trello (según David), auditoría previa de
@@ -14,7 +14,7 @@
 
 | ID | Origen | Qué | Sev. | Decisión | Nota técnica |
 |---|---|---|---|---|---|
-| BE-01 | B1 (txt) | Crear paquete con URLs de blobs inexistentes o ajenas al CDN devuelve **500** ("Fallo al consolidar las imágenes en el CDN") | Alta | **Entra · día 4** | Validar en el schema que cada URL pertenece al dominio del CDN; el error del cliente de storage se traduce a excepción de dominio (`ImageNotFound`/`InvalidImageSource`) → handler global → 422/409. Un 500 reproducible desde Postman es lo primero que prueba un jurado curioso. |
+| BE-01 | B1 (txt) + import-linter | Crear paquete con URLs de blobs inexistentes o ajenas al CDN devuelve **500**. **Localizado:** `app/core/storage.py:138` lanza `HTTPException(500, "Fallo al consolidar…")`; además 415 (l.60) y 500 (l.86). Por eso `services → storage → fastapi` rompe el contrato de capas. | Alta | **Entra · día 2 (primera deuda por el flujo)** | `storage.py` deja de conocer HTTP: `UnsupportedMediaTypeError` → 415, `StorageUnavailableError` → 503 (ya existe), blob inexistente / URL ajena al CDN → excepción de dominio → 422. Registrar las nuevas en `_DOMAIN_ERROR_STATUS` (ADR-0003). Incluye A7 (copia síncrona antes de borrar el origen) y tests para `storage.py` (hoy 28 % de cobertura). Verificación final: `lint-imports` → 4 KEPT. |
 | BE-02 | B1 (txt) | Superadmin puede auto-degradarse de rol | Alta | **Entra · día 4** | Regla en la política de acceso: nadie cambia su propio rol; solo un superadmin cambia roles ajenos. Test explícito. |
 | BE-03 | B3 (txt) | `update_user` sin ABAC jerárquico | — | **Cerrado (ya resuelto)** | David verificó: existe `UserAccessPolicy` con el cálculo del ABAC jerárquico para decidir si un sujeto puede editar un objeto. Queda una revisión "por no dejar" el día 2 (que `update_user` y `delete_user_account` usen la misma política y haya test de ambos). |
 | BE-04 | B1 (txt) | `HTTPException` dentro de servicios | — | **Cerrado (ya resuelto)** | David verificó: ninguno de los tres servicios (usuarios, servicios turísticos, audit) importa FastAPI ni lanza `HTTPException`. Para que **siga** siendo así sin depender de la memoria de nadie: contrato de `import-linter` el día 1 (`app.services` no puede importar `fastapi`). Respuesta a la duda original: no hay caso que lo justifique; el único argumento sería velocidad, y los handlers ya existen. |
@@ -38,13 +38,47 @@
 | BE-22 | Trello | Motor de tarifas dinámicas y descuentos (incluye tarifa de temporada alta mencionada por gerencia el 23 oct) | — | **Sale** | No prometido; alto riesgo. ADR-0002 congela el precio en cada reserva, así que añadirlo después no toca el módulo de reservas. |
 | BE-23 | ADR-0003 | `AlreadyExistsError` responde 400; 409 es lo correcto | Baja | **Decidir · día 3** | Residuo declarado en ADR-0003. Cambia el contrato del cliente: hay que revisar dónde Flutter maneja el 400 de duplicados. Si es un solo sitio, entra el día 3 junto con los tests; si no, trabajo futuro. |
 
-### A2. Tags de la auditoría HTML corregidos antes del flujo (migrados desde `registro.json`, que se elimina)
+### A2. Auditoría técnica del backend (21 sep 2026, HEAD f0de961) — triage completo al 24 oct
 
-| ID | Qué | Decisión | Nota |
-|---|---|---|---|
-| b1–b5 | Bloqueos 1–5 de la auditoría (`docs/archive/auditorias/Auditoría Ecotur-ASOPRADO.html`) | **Cerrado · re-verificación día 3** | Corregidos con DeepSeek + verificación de David. Sin `verificacion.md`: el día 3 el verificador corre su procedimiento completo sobre ellos (los huecos de tests B2/B3/B4 son de esta misma auditoría). |
-| d1 | Inversión de dependencias en la capa de servicios | **Cerrado · re-verificación día 3** | Commits `e581c6a`, `cf115a0`, `9cd96c0`, `aab1d3a`. Decisión registrada en **ADR-0003**. |
-| d2…, D*, A*, S* | **Tags restantes del HTML: sin triage** | **Pendiente · día 2** | El backlog v1 se armó con las notas y el Trello, no con el HTML. Hay que volcar cada tag restante aquí con severidad y decisión antes de planear nada más. |
+Fuente: `docs/archive/auditorias/Auditoría Ecotur-ASOPRADO.html`. `registro.json` queda absorbido aquí y
+archivado. **Estado verificado contra el código de `develop` el 24 oct** (grep sobre el snapshot), no
+contra el informe: la auditoría tiene un mes y mucho ya cambió. Esfuerzo: XS ≤ 15 min · S ≤ 1 h · M ≤ 3 h · L > 3 h.
+
+| Tag | Hallazgo (resumen) | Verificación 24 oct | Sev. | Esf. | Decisión |
+|---|---|---|---|---|---|
+| B1–B5 | Bloqueos: módulo caído, escalada de privilegios, superadmin bloqueado, 404, guard de PATCH | Corregidos (DeepSeek + David); 110 tests hoy vs. 26 entonces | — | — | **Cerrado · re-verificación día 3** (sin `verificacion.md`: el verificador corre su procedimiento completo) |
+| A1 | Servicios acoplados a FastAPI (`HTTPException`) | **0** en `app/services`; 5 en `core/storage.py` (residuo declarado) | — | — | **Cerrado · ADR-0003**. `import-linter` lo congela. |
+| A2 | Tres estrategias de autorización incompatibles | `UserAccessPolicy` existe; commit `e581c6a` centralizó audit | Media | S | **Revisar día 3**: confirmar que todos los endpoints usan guard IoC + política; test por endpoint protegido |
+| A3 | Repositorios hacen `commit()` (sin Unit of Work; auditoría antes que creación) | **7** `commit()` en repositorios, 0 en servicios | Alta | M | **Entra · día 4–5**: las reservas nacen con UoW (commit en el límite de la petición); migrar los repos existentes el día 5 si cabe, si no → deuda conocida con justificación |
+| A4 | Configuración dispersa: 14 `os.getenv`, `pydantic-settings` sin usar | **14** `os.getenv`, **0** `BaseSettings` | Alta | S–M | **Entra · día 5** junto con la configuración de Wompi (hace falta `Settings` para sus secretos) |
+| A5 | `echo=True` fijo; sin `lifespan`; cliente Azure por petición | `echo=True` **1**; `lifespan` **aparece 2** (verificar) | Media | XS–S | **Entra · día 5** con A4 (echo por entorno; cliente Azure singleton si `lifespan` ya existe) |
+| A6 | Sin `logging`; 2 `print()`; `IntegrityError` descartado sin registro | **0** `logging`, **2** `print(` | Media | S | **Entra · día 3**: `logging` básico en `main`, reemplazar prints, registrar en handlers |
+| A7 | `promote_to_permanent` borra el origen sin esperar la copia (pérdida de imágenes) | `start_copy_from_url` **1**, sin espera de `copy_status` | Alta | S | **Entra · día 2 (con BE-01)**: misma zona de código; usar copia síncrona (`requires_sync=True`) o esperar el estado |
+| A8 | `get_deleted_users` filtra en memoria | **1** comprensión sobre `deleted_at` | Baja | XS | **Entra · día 3** (filtro en SQL como ya hace `ServiceRepository`) |
+| A9 | `UserResponse` hereda validaciones de entrada → 500 al leer nombres válidos | **1** `class UserResponse(UserBase` | Alta | S | **Entra · día 3** (schema de salida sin validadores de formulario + test con "O'Brien") |
+| D1 | Regla "es administrador" escrita 6 veces | `UserAccessPolicy` + commit `e581c6a` | — | — | **Cerrado · ADR-0003 / re-verificación día 3** |
+| D2 | `UserRole` definido dos veces | **2** definiciones | Media | XS | **Entra · día 3** (schemas importan del modelo, como `ServiceCategory`) |
+| D3 | `jwt.decode` duplicado fuera de `core/security` | **2** fuera | Media | XS | **Entra · día 3** (`decode_access_token`, `decode_verification_token`) |
+| D4 | Límite de 10 imágenes triplicado (2 copias muertas) | **3** `> 10` | Baja | XS | **Entra · día 3** con BE-07 (borrar solo las 2 muertas; conservar la del multipart) |
+| D5 | `format_title_case` duplicado y divergente; patrones repetidos | **2** definiciones | Media | S | **Entra · día 3** (tipos `Annotated` reutilizables) |
+| D6 / S3 | Firma de inyección repetida en 22 endpoints; `Depends` por defecto en vez de `Annotated` | **42** `= Depends(`, **2** `Annotated[` | Baja | S–M | **Día 3 si sobra; si no, trabajo futuro** (mecánico; lo primero que nota un revisor) |
+| S1 | Modelos en estilo SQLAlchemy 1.x (`Column`) sobre base 2.0 | **33** `Column(`, **0** `mapped_column` | Media | M | **Entra · día 4 (primera hora)**: migrar los 3 modelos a `Mapped[]`/`mapped_column` **antes** de crear `Reservation`, para no mezclar estilos; mypy gana tipos reales |
+| S2 | `sqlalchemy.future` legado | **3** | Baja | XS | **Entra · día 3** |
+| S4 | `typing.List/Optional` mezclados con nativos | **10** imports | Baja | XS | **Entra · día 3** (`ruff --fix`, regla UP) |
+| S5 | `HTTP_422_UNPROCESSABLE_ENTITY` deprecado | **1** | Baja | XS | **Entra · día 3** |
+| S6 | `PUT` con semántica `PATCH`; `model_config` como dict | `@router.put` **0** (ya corregido); dict **1** | Baja | XS | **Entra · día 3** (solo el dict) |
+| S7 | `Field(default=[])` | **1** | Baja | XS | **Entra · día 3** |
+| P1 | `core/security` importa `User`, `UserRole`, `HTTPException` y `status` sin usarlos (arrastra el engine y rompe el contrato de capas por transitividad) | **4** imports muertos (l.6–10) | Media | XS | **Entra · día 2, fase A del plan de BE-01** (borrar 4 líneas; `lint-imports` lo confirma) |
+| P2 | Spanglish: 12 handlers en español; clave `"detalle"` vs `"detail"` | **12** handlers, **1** `"detalle"` | Media (el `detalle` es bug funcional) | XS + S | **`detalle`→`detail`: día 3** (verificar el cliente Flutter). Renombrar handlers: día 3 si sobra; rutas públicas se quedan en español (contrato) |
+| P3 | 8 docstrings que contradicen al código | No verificado por grep | Baja | S | **Se corrigen al tocar cada archivo**; lo que quede → trabajo futuro |
+| SEC1 | CORS `*` con credenciales | **1** `allow_origins=["*"]` | Alta | XS | **Entra · día 3**: orígenes desde variable de entorno (se integra a `Settings` el día 5) |
+| SEC2 | Subida de imágenes: sin límite de tamaño, tipo confiado al cliente, SVG permitido | `.read()` **0** (cambió); `svg` **0** (no excluido) | Alta | S | **Verificar día 3** el estado real de `storage.py`; mínimo: lista blanca sin SVG + límite de tamaño |
+| SEC3 | Detalle interno en errores (`str(e)`); enumeración de cuentas por tiempo en login | **4** `str(e)`; `verify_password` **2** | Media | S | **Entra · día 3**: mensaje genérico + log; hash ficticio cuando el usuario no existe |
+| §9 | Suite: mocks sin `spec`, setup duplicado, aserciones en español, sesión ≠ `get_db`, sin cobertura | `MagicMock()` sin spec **1**; `spec=` **13**; aserciones `detail ==` **4**; 110 tests | Alta | M | **Entra · día 3** (ya está parcialmente hecho: medir con cobertura y cerrar lo que falte) |
+| Alembic | `env.py` depende de un efecto colateral de importación | 3 imports de modelos (verificar que importa `app.models` completo) | Baja | XS | **Entra · día 4** al crear la migración de reservas |
+
+**Lectura:** de 31 hallazgos, 7 están cerrados, ~17 son XS/S y caben en la "tarde de higiene" del día 3,
+y 4 son estructurales (A3, A4, S1, SEC2) con día asignado. Ninguno bloquea el módulo de reservas.
 
 ## B. Frontend (Flutter)
 
