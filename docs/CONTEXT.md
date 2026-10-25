@@ -5,7 +5,7 @@
 > Vive en `docs/CONTEXT.md`. Regla de oro: **el contexto vive en archivos versionados, no en la
 > memoria de un chat.** Cada sesión nueva arranca leyendo esto.
 >
-> **Versión 2.3 — 25 oct 2026.** Sustituye por completo a la del 22 oct. Fuentes: conversación con
+> **Versión 2.4 — 25 oct 2026 (cierre).** Sustituye por completo a la del 22 oct. Fuentes: conversación con
 > David (22–23 oct), propuesta de trabajo de grado aprobada (PDF), Word de observaciones del
 > flujo agéntico, notas de deuda funcional, ADR-0001 y ADR-0002.
 
@@ -163,6 +163,7 @@ la Web App la hala al reiniciar. Operación: 2 clics.
 | 23 oct | Nombre de paquete **no** único (gerencia). | `backlog.md` BE-06 | Requisitos (regla de negocio) |
 | 23 oct | El gerente sí espera reordenar paquetes desde el kanban → `display_order`. | `backlog.md` BE-08 | Requisitos y manual de usuario |
 | 25 oct | Una sola versión de Python (3.14) en desarrollo, CI y producción. | **ADR-0004** | Cap. de arquitectura/despliegue y manual técnico |
+| 25 oct | Trinquete de calidad contra la línea base mientras la compuerta global esté en rojo (caduca al quedar en verde). | **ADR-0005** (propuesto) | Cap. de metodología (introducción de herramientas de calidad en código existente) |
 | pendiente | Pagos: puerto `PaymentGateway`, `WompiAdapter`, `FakeAdapter`, webhook idempotente. | ADR de pagos (día 5) | Cap. de diseño (secuencia de pago) y arquitectura |
 
 ## 7. Preguntas abiertas
@@ -173,15 +174,18 @@ la Web App la hala al reiniciar. Operación: 2 clics.
   por paquete completo, antelación mínima 1 día, 30 min para pagar una reserva pendiente,
   tarifa de temporada alta como trabajo futuro.
 
-## 8. Próximo paso (dom 25 oct, 14:00)
+## 8. Próximo paso (lun 26 oct, 08:00)
 
-1. ~~Escribir ADR-0004~~ hecho.
-2. `git add` / commit / push; PR a `develop` (docs + tooling + Python 3.14) con descripción según
-   la skill `pr-author`; mezclar con *merge commit* (conserva los commits atómicos).
-3. Tras el merge, vigilar el pipeline CD del entorno `develop`: es la primera construcción de la
-   imagen con `python:3.14-slim`. Si falla, revertir solo el Dockerfile y abrir ítem en el backlog.
-4. Rama `deuda/BE-01` desde `develop` actualizado y primera pasada por el flujo.
-5. Cierre: bitácora del día + sincronizar este archivo.
+Dónde estamos: `develop` tiene tooling, flujo v1 y Python 3.14. La rama `deuda/BE-01` tiene la
+verificación (hecha, excelente) y dos ajustes de calibración. **Falta todo el ciclo restante de BE-01.**
+
+1. Revisar y aceptar ADR-0005 (5 min).
+2. `/deuda-planear BE-01` → revisar el resumen → aprobar → `/implementar BE-01 A` → `/auditar BE-01 A` →
+   fases B y C → `/pr` → PR → CI → merge. Meta: terminado antes del almuerzo.
+3. Tarde: commit mecánico `ruff --fix` + formato (rama propia), `check.py` en el CI de Azure,
+   S1 (modelos a `Mapped[]`). Ver `PLAN.md` v1.4.
+4. GitHub: marcar el check de CI como *required* en la protección de `develop`.
+5. Cierre: bitácora + sincronizar este archivo.
 
 ## 9. Sesiones de IA
 Cualquier sesión (ingeniería, documento, estudio) arranca con los prompts de `docs/sesiones/` y el ritual
