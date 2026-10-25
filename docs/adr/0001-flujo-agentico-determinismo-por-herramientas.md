@@ -18,7 +18,8 @@ como artefacto histórico (evidencia de iteración para el documento de grado), 
 ## Contexto
 
 - El flujo fue generado con OpenCode + DeepSeek. Tras dos semanas de análisis, David documentó
-  25 observaciones (Word "Modificaciones"). Leídas una a una contra el código fuente de los seis
+  25 observaciones (Word "Modificaciones", archivado en
+  `docs/archive/flujo-agentico-v0/observaciones-flujo-v0.md`). Leídas una a una contra el código fuente de los seis
   `.md`, se distribuyen así:
   - **~85 %** (1, 1.1, 1.1.2, 2, 3.x, 4, 5, 6, 7.x, 8, 9, 10.x, 11, 13.x, 14.x, 15, 16.x, 17,
     20, 21.x, 22, 23) son ambigüedades **dentro del paso 6 de `plan-redactor`**: cómo iterar
