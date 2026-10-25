@@ -20,6 +20,9 @@ por el equipo humano" (propuesta, sección 4).
 - [ ] JWT sin estado: por qué permite sesiones simultáneas y qué cuesta revocarlas (BE-12).
 - [ ] `staged` vs `committed` vs `pushed`; por qué git muestra un rename como delete + add cuando el contenido cambia mucho.
 - [ ] Merge commit vs squash: cuándo cada uno.
+- [ ] Commit hecho en `develop` por error (sin push): mover el commit a una rama con `git switch -c` + `git branch -f develop origin/develop`; por qué no `reset --hard`; reescribir historial no publicado vs `git revert` si ya hubo push.
+- [ ] `git switch`/`git restore` (Git 2.23) vs `git checkout`: por qué se partió `checkout`, el peligro de `git checkout .`, detached HEAD y la ambigüedad rama/archivo con `--`.
+- [ ] `--amend` después de un push: por qué el push sale rechazado (non-fast-forward) y por qué no se arregla con `git pull`; `--force` vs `--force-with-lease` a secas vs `--force-with-lease=<rama>:<hash>` vs `--force-if-includes` (el riesgo del fetch en segundo plano); cuándo es aceptable reescribir historia publicada (rama propia vs compartida).
 
 ## Resueltas
 
