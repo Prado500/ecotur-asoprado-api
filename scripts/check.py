@@ -21,6 +21,13 @@ from pathlib import Path
 PY = sys.executable
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
+# En Windows, al redirigir la salida a un fichero la consola usa cp1252 y los símbolos del RESUMEN
+# rompen con UnicodeEncodeError. Forzamos UTF-8 (con reemplazo) para que la compuerta nunca falle por
+# su propia salida.
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, "reconfigure"):
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+
 # La compuerta siempre se evalúa desde la raíz del repo, sin importar desde dónde se invoque:
 # ruff/mypy/import-linter/pytest leen pyproject.toml y buscan app/ y tests/ relativos a ella.
 os.chdir(REPO_ROOT)
