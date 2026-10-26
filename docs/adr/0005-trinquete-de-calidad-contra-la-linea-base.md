@@ -1,6 +1,7 @@
 # ADR-0005 — Trinquete de calidad: criterio de aceptación relativo a la línea base mientras la compuerta global esté en rojo
 
-- **Estado:** propuesto (redactado por Claude el 25 oct; pendiente de revisión y aceptación por David)
+- **Estado:** aceptado
+- **Propuesta:** Claude (25 oct 2026) · **Aprobada:** David (26 oct 2026)
 - **Ubicación en el repo:** `docs/adr/0005-trinquete-de-calidad-contra-la-linea-base.md`
 - **Relación:** complementa ADR-0001 (determinismo por herramientas). **Caduca** cuando `python scripts/check.py`
   pase completo en `develop`; entonces el criterio vuelve a ser "compuerta en verde" y este ADR se marca superado.
@@ -34,7 +35,10 @@ tocados; totales de `ruff`/`mypy` que no crecen. El rojo heredado en archivos no
 
 - Cada verificación debe registrar la línea base completa (ya lo exige `deuda-verificador`).
 - El ejecutor y el auditor comparan contra esa línea base; el auditor marca BLOQUEANTE cualquier retroceso.
-- Riesgo aceptado: dos fases concurrentes con líneas base distintas; mitigación: una sola deuda en curso
-  a la vez (como ya hace el flujo).
+- Riesgo aceptado: una línea base **desactualizada** (medida antes de que otro ítem bajara los conteos)
+  permitiría a un ejecutor introducir deuda hasta el conteo viejo sin que el auditor lo note. Mitigación en
+  dos capas: disciplina (un solo ítem en curso; todas sus fases auditadas y mezcladas antes del siguiente) y
+  mecanismo (la verificación registra el hash del commit medido; el ejecutor compara ese hash con la base de
+  su rama al arrancar y, si difiere, exige re-verificar). Lectura del riesgo validada por David el 26 oct.
 - Caducidad: tras el commit mecánico de `ruff --fix` y la corrección de mypy (PLAN día 4–5), se vuelve al
   criterio absoluto y este ADR se supersede.

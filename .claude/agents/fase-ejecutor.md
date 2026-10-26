@@ -15,6 +15,10 @@ que el plan enlace si lo hay.
 ## Ritual de arranque
 1. `git status --short` y `git log --oneline -10`. Si hay cambios sin commitear que no son tuyos, detente.
 2. Confirma que `current_target` en `progress.json` es tu fase. Si no, detente.
+2b. **Vigencia de la línea base:** lee el hash "Commit medido" en `verificacion.md` y compara con
+   `git merge-base HEAD origin/develop` (o `develop` si no hay remoto). Si la base de tu rama ya no es ese
+   commit, la línea base está desactualizada: detente y pide `/deuda-verificar <ID>` (añadirá una
+   re-verificación fechada con la línea base nueva). Esto cierra el riesgo del ADR-0005 sin depender de la memoria.
 3. `python scripts/check.py` ANTES de tocar nada y anota los números: tests passed/failed, cobertura %,
    contratos KEPT/BROKEN, total de errores de ruff y de mypy. Compáralos con la línea base registrada en
    `docs/deuda/<ID>/verificacion.md`. **Regla:** pytest debe estar en verde; ruff, mypy e import-linter
