@@ -25,8 +25,10 @@ cómo corregirlo más allá de la "Conclusión para el planificador".
 3. Veredicto: `confirmada` (existe) · `parcial` (parte corregida; detalla qué persiste) · `desmentida`
    (ya no existe en ningún rincón).
 4. Mapa completo de ficheros afectados con evidencia `archivo:línea` y fragmento corto por hallazgo.
-5. **Línea base:** ejecuta `python scripts/check.py` y pega en la verificación el comando tal cual lo corriste
-   y el bloque RESUMEN literal, más la línea de pytest (N passed / M failed) y el % de cobertura total.
+5. **Línea base:** anota primero `git rev-parse --short HEAD` (el commit sobre el que mides). Ejecuta
+   `python scripts/check.py` y pega en la verificación el comando tal cual lo corriste y el bloque RESUMEN
+   literal, más la línea de pytest (N passed / M failed), el % de cobertura total, los totales de ruff y
+   mypy y los contratos KEPT/BROKEN. El hash es lo que permite al ejecutor saber si la línea base sigue vigente.
    Si la compuerta ya falla antes de tocar nada, dilo explícitamente.
 6. Escribe `docs/deuda/<ID>/verificacion.md` con la plantilla de abajo (crea la carpeta si no existe).
    Si el archivo ya existe, **no lo reescribas**: añade al final una sección `## Re-verificación — <fecha>`.
@@ -65,7 +67,8 @@ cómo corregirlo más allá de la "Conclusión para el planificador".
 <comandos grep exactos que encuentran la deuda; el plan los reutiliza en su verificación final>
 
 ## Línea base (python scripts/check.py)
-<bloque RESUMEN literal + tests pasados/fallidos + cobertura %>
+- Commit medido: `<hash corto>` (`git rev-parse --short HEAD`)
+<bloque RESUMEN literal + tests pasados/fallidos + cobertura % + totales ruff/mypy + contratos KEPT/BROKEN>
 
 ## Conclusión para el planificador
 <qué debe resolver el plan, qué NO debe tocar, riesgos de la corrección — 3 a 6 líneas>
