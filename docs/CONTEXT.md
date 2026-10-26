@@ -5,7 +5,7 @@
 > Vive en `docs/CONTEXT.md`. Regla de oro: **el contexto vive en archivos versionados, no en la
 > memoria de un chat.** Cada sesión nueva arranca leyendo esto.
 >
-> **Versión 2.4 — 25 oct 2026 (cierre).** Sustituye por completo a la del 22 oct. Fuentes: conversación con
+> **Versión 2.5 — 26 oct 2026.** Sustituye por completo a la del 22 oct. Fuentes: conversación con
 > David (22–23 oct), propuesta de trabajo de grado aprobada (PDF), Word de observaciones del
 > flujo agéntico, notas de deuda funcional, ADR-0001 y ADR-0002.
 
@@ -32,6 +32,11 @@
 
 Así no hay que "releer todo": el único documento que resume estado es este, y se revisa por
 secciones. Cuando dos documentos digan cosas distintas, gana el ADR más reciente.
+
+**Los días viven solo en el cronograma de `PLAN.md` §3.** El backlog y este archivo referencian
+**bloques de trabajo** (`B-BE01`, `B-RESERVAS`…, definidos en `PLAN.md` §2b), nunca días. Un
+deslizamiento del plan mueve bloques entre filas del cronograma y no toca ningún otro documento.
+(Lección del 26 oct: 56 filas del backlog llevaban días copiados y quedaron falsas tras un deslizamiento.)
 
 ## 1. Acuerdo de trabajo
 
@@ -85,8 +90,8 @@ por el equipo humano"**. → El flujo agéntico es parte de la metodología decl
 ### 3.6 Cabos sueltos de la propuesta y cómo se resuelven (estado al 24 oct)
 | Cabo | Resolución |
 |---|---|
-| Pasarela de pagos (wireframes la nombran; presupuesto dice "No aplica") | **Decidido:** Wompi sandbox, puerto + adaptador, corte fijo (PLAN día 6). ADR de pagos: pendiente de redacción (PLAN día 5); tomará el siguiente número libre. |
-| "Gestión de reservas" prometida | **No existía nada** (ni tabla ni lógica). Se construye los días 4–5 según **ADR-0002**. |
+| Pasarela de pagos (wireframes la nombran; presupuesto dice "No aplica") | **Decidido:** Wompi sandbox, puerto + adaptador, corte fijo (`B-PAGOS`, PLAN §3). ADR de pagos: pendiente de redacción (en `B-PAGOS`); tomará el siguiente número libre. |
+| "Gestión de reservas" prometida | **No existía nada** (ni tabla ni lógica). Se construye en `B-RESERVAS` según **ADR-0002**. |
 | "Disponibilidad en tiempo real" | Se redacta como "consulta de disponibilidad por fecha, por petición" (`GET /packages/{id}/availability`). Sin websockets. |
 | "Modelo de aprendizaje supervisado" (4.2.2) | No aplica al alcance; se justifica en el documento. |
 | "Microservicios" (resumen) vs "modular" | Lo construido es un **monolito modular** con Clean Architecture; se argumenta como decisión correcta para un MVP. |
@@ -119,7 +124,7 @@ la Web App la hala al reiniciar. Operación: 2 clics.
 
 ### Frontend (Flutter, MVVM; web + Android)
 - Servicios ya separados **por recurso** (`audit_service`, `auth_service`, `catalog_service`,
-  `session_service`, `user_service`); el día 9 se añade `reservation_service`.
+  `session_service`, `user_service`); en `B-FE-RESERVAS` se añade `reservation_service`.
 - **No existe:** manejo de 401 (sesión vencida no redirige al login), sistema de diseño,
   skeleton loaders, flujo de reserva/pago, historial, métricas.
 - Kanban con desplazamiento horizontal en pantallas estrechas (patrón aceptable; falta señal
@@ -148,7 +153,7 @@ la Web App la hala al reiniciar. Operación: 2 clics.
   `/deuda-planear`, `/implementar`, `/auditar`); `.claude/settings.json` (hook ruff tras cada edición `.py`;
   permisos que deniegan `git push/pull/merge/rebase/checkout`, `rm -rf` y leer `.env`);
   `.claude/skills/` (copia canónica de las skills; `.agents/skills/` queda congelada con la v0).
-  **Pendiente:** calibrarlo con la primera deuda real (BE-01) y conectar `check.py` al CI de Azure (día 3).
+  **Pendiente:** calibrarlo con la primera deuda real (BE-01) y conectar `check.py` al CI de Azure (`B-CI`).
 - **Artefactos de datos que se conservan:** `docs/deuda/<tag>/verificacion.md`, `plan.md`,
   `progress.json`, `gaps.md`, `docs/deuda/registro.json`.
 
@@ -164,7 +169,7 @@ la Web App la hala al reiniciar. Operación: 2 clics.
 | 23 oct | El gerente sí espera reordenar paquetes desde el kanban → `display_order`. | `backlog.md` BE-08 | Requisitos y manual de usuario |
 | 25 oct | Una sola versión de Python (3.14) en desarrollo, CI y producción. | **ADR-0004** | Cap. de arquitectura/despliegue y manual técnico |
 | 25 oct | Trinquete de calidad contra la línea base mientras la compuerta global esté en rojo (caduca al quedar en verde). | **ADR-0005** (propuesto) | Cap. de metodología (introducción de herramientas de calidad en código existente) |
-| pendiente | Pagos: puerto `PaymentGateway`, `WompiAdapter`, `FakeAdapter`, webhook idempotente. | ADR de pagos (día 5) | Cap. de diseño (secuencia de pago) y arquitectura |
+| pendiente | Pagos: puerto `PaymentGateway`, `WompiAdapter`, `FakeAdapter`, webhook idempotente. | ADR de pagos (`B-PAGOS`) | Cap. de diseño (secuencia de pago) y arquitectura |
 
 ## 7. Preguntas abiertas
 
