@@ -28,4 +28,12 @@ por el equipo humano" (propuesta, sección 4).
 
 ## Resueltas
 
-(ninguna todavía)
+- [x] ADR-0005: qué significa el "riesgo aceptado" de dos fases concurrentes con líneas base distintas; quién
+  mide la línea base y quién la compara (verificador, ejecutor, auditor) y por qué el auditor no puede detectar
+  una regresión si su línea base está desactualizada. (26 oct 2026)
+  > El riesgo aceptado consiste en que la disciplina es lo único que evita que ocurra el registro de un
+  > baseline en el momento indebido, produciendo como resultado, en escenarios de ejecución paralela de fases
+  > pertenecientes a ítems de deuda distintos, que el auditor permita el avance en la ejecución de fases aún
+  > cuando en realidad se ha introducido más deuda de la verdaderamente saldada.
+  > (la disciplina es 1 ítem de deuda a la vez; no se avanza al siguiente hasta que cada fase del anterior
+  > haya sido auditada y mergeada).
