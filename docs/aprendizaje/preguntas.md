@@ -37,3 +37,13 @@ por el equipo humano" (propuesta, sección 4).
   > cuando en realidad se ha introducido más deuda de la verdaderamente saldada.
   > (la disciplina es 1 ítem de deuda a la vez; no se avanza al siguiente hasta que cada fase del anterior
   > haya sido auditada y mergeada).
+- [x] Guardarraíl de línea base del ADR-0005: qué commit anota el verificador y contra cuál compara el
+  ejecutor; por qué registrar `HEAD` y comparar con `merge-base` entra en bucle al re-verificar y, peor, no
+  detecta que `develop` avance; por qué el diseño correcto anota y compara la punta de `origin/develop`
+  tras `git fetch` y nunca mira la rama del ítem. (26 oct 2026)
+  > Como se crea una rama por ítem, cuando el verificador anota la punta de la rama, el ejecutor compara
+  > contra el commit de develop del que nació la rama: si ya hubo commit del verificacion.md, nunca van a
+  > coincidir y el ejecutor se la pasa pidiendo re-verificaciones. Y si develop avanza (alguien más mete
+  > deuda en remoto), ni la punta ni el merge-base de mi rama se mueven, así que no se detecta nada.
+  > La solución: un mecanismo en vez de disciplina; el verificador anota la punta de origin/develop y el
+  > ejecutor compara contra esa misma punta tras fetch, sin mirar el head de la rama específica.
