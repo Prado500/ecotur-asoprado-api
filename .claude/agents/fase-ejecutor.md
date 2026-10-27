@@ -15,10 +15,16 @@ que el plan enlace si lo hay.
 ## Ritual de arranque
 1. `git status --short` y `git log --oneline -10`. Si hay cambios sin commitear que no son tuyos, detente.
 2. Confirma que `current_target` en `progress.json` es tu fase. Si no, detente.
-2b. **Vigencia de la línea base:** lee el hash "Commit medido" en `verificacion.md` y compara con
-   `git merge-base HEAD origin/develop` (o `develop` si no hay remoto). Si la base de tu rama ya no es ese
-   commit, la línea base está desactualizada: detente y pide `/deuda-verificar <ID>` (añadirá una
-   re-verificación fechada con la línea base nueva). Esto cierra el riesgo del ADR-0005 sin depender de la memoria.
+2b. **Vigencia de la línea base** (cierra el riesgo del ADR-0005 sin depender de la memoria). Lee
+   `Base develop` en `verificacion.md` (el último registrado, si hay re-verificaciones). `git fetch origin`;
+   si falla, usa la referencia `origin/develop` local y anota en el handoff "sin refrescar". Dos chequeos
+   contra ese único hash:
+   - `git rev-parse --short origin/develop` debe ser igual a `Base develop`. Si no: `develop` avanzó desde la
+     verificación. Detente y dile a David: "integra develop en esta rama con `git merge origin/develop` y
+     corre `/deuda-verificar <ID>` para re-medir".
+   - `git rev-parse --short $(git merge-base HEAD origin/develop)` debe ser igual a `Base develop`. Si no:
+     la rama fue recreada o rebasada desde otro punto. Mismo mensaje.
+   Nunca compares contra `HEAD`: la punta de la rama cambia con cada fase y eso es normal.
 3. `python scripts/check.py` ANTES de tocar nada y anota los números: tests passed/failed, cobertura %,
    contratos KEPT/BROKEN, total de errores de ruff y de mypy. Compáralos con la línea base registrada en
    `docs/deuda/<ID>/verificacion.md`. **Regla:** pytest debe estar en verde; ruff, mypy e import-linter
