@@ -2,8 +2,7 @@
 
 
 class DomainError(Exception):
-    """
-    Base class for every domain-level failure raised by the service layer.
+    """Base class for every domain-level failure raised by the service layer.
 
     Carries a single human-readable detail so global handlers can expose it to
     API consumers, while transport semantics (HTTP status codes) remain the
@@ -14,8 +13,7 @@ class DomainError(Exception):
     """
 
     def __init__(self, detail: str):
-        """
-        Initializes the error with a human-readable failure explanation.
+        """Initializes the error with a human-readable failure explanation.
 
         Args:
             detail (str): Reason exposed to the API consumer.
@@ -25,9 +23,7 @@ class DomainError(Exception):
 
 
 class AuthorizationError(DomainError):
-    """
-    Signals that an authenticated actor attempted a guarded operation without
-    the required privileges.
+    """Signals that an actor attempted a guarded operation without privileges.
 
     Raised exclusively by access-control policies so the service layer stays
     decoupled from the transport framework (FastAPI). A global exception
@@ -37,9 +33,10 @@ class AuthorizationError(DomainError):
         detail (str): Human-readable explanation of the authorization failure.
     """
 
-    def __init__(self, detail: str = "No tiene los privilegios suficientes para realizar esta acción."):
-        """
-        Initializes the error with a human-readable failure explanation.
+    def __init__(
+        self, detail: str = "No tiene los privilegios suficientes para realizar esta acción."
+    ):
+        """Initializes the error with a human-readable failure explanation.
 
         Args:
             detail (str): Reason exposed to the API consumer. Defaults to a
@@ -49,9 +46,7 @@ class AuthorizationError(DomainError):
 
 
 class NotFoundError(DomainError):
-    """
-    Signals that a business entity required by the current operation does not
-    exist (or was already logically removed) in the persistence layer.
+    """Signals that a required business entity does not exist or was removed.
 
     Raised by services before any authorization or mutation takes place, so
     existence checks (HTTP 404) always dominate privilege checks (HTTP 403).
@@ -61,8 +56,7 @@ class NotFoundError(DomainError):
     """
 
     def __init__(self, detail: str):
-        """
-        Initializes the error with a human-readable failure explanation.
+        """Initializes the error with a human-readable failure explanation.
 
         Args:
             detail (str): Reason exposed to the API consumer.
@@ -71,9 +65,9 @@ class NotFoundError(DomainError):
 
 
 class AlreadyExistsError(DomainError):
-    """
-    Signals that a uniqueness constraint was violated by the current operation
-    (e.g. an email or cedula already registered).
+    """Signals that a uniqueness constraint was violated by the operation.
+
+    Typical case: an email or cedula that is already registered.
 
     Raised by services whenever a duplicate entity is detected before
     persistence. The global handler maps it to an HTTP 400 Bad Request.
@@ -83,8 +77,7 @@ class AlreadyExistsError(DomainError):
     """
 
     def __init__(self, detail: str):
-        """
-        Initializes the error with a human-readable failure explanation.
+        """Initializes the error with a human-readable failure explanation.
 
         Args:
             detail (str): Reason exposed to the API consumer.
@@ -93,9 +86,9 @@ class AlreadyExistsError(DomainError):
 
 
 class InvalidCredentialsError(DomainError):
-    """
-    Signals that an authentication attempt failed (unknown email or password
-    mismatch).
+    """Signals that an authentication attempt failed.
+
+    Causes: unknown email or password mismatch.
 
     Raised by the authentication business rule. The global handler maps it to
     an HTTP 401 Unauthorized response carrying the Bearer challenge header.
@@ -105,8 +98,7 @@ class InvalidCredentialsError(DomainError):
     """
 
     def __init__(self, detail: str):
-        """
-        Initializes the error with a human-readable failure explanation.
+        """Initializes the error with a human-readable failure explanation.
 
         Args:
             detail (str): Reason exposed to the API consumer.
@@ -115,9 +107,9 @@ class InvalidCredentialsError(DomainError):
 
 
 class AccountNotActiveError(DomainError):
-    """
-    Signals that an authentication attempt targeted an account pending email
-    verification or otherwise inactive.
+    """Signals that an authentication attempt targeted an inactive account.
+
+    The account is pending email verification or otherwise inactive.
 
     Raised by the authentication business rule after credentials were accepted.
     The global handler maps it to an HTTP 403 Forbidden response.
@@ -127,8 +119,7 @@ class AccountNotActiveError(DomainError):
     """
 
     def __init__(self, detail: str):
-        """
-        Initializes the error with a human-readable failure explanation.
+        """Initializes the error with a human-readable failure explanation.
 
         Args:
             detail (str): Reason exposed to the API consumer.
@@ -137,9 +128,7 @@ class AccountNotActiveError(DomainError):
 
 
 class InvalidVerificationTokenError(DomainError):
-    """
-    Signals that an email-verification token is invalid, expired or carries an
-    unexpected scope.
+    """Signals that an email-verification token is invalid, expired or mis-scoped.
 
     Raised by the email verification business rule for any token defect that
     prevents account activation. The global handler maps it to an HTTP 400
@@ -150,8 +139,7 @@ class InvalidVerificationTokenError(DomainError):
     """
 
     def __init__(self, detail: str):
-        """
-        Initializes the error with a human-readable failure explanation.
+        """Initializes the error with a human-readable failure explanation.
 
         Args:
             detail (str): Reason exposed to the API consumer.
@@ -160,10 +148,10 @@ class InvalidVerificationTokenError(DomainError):
 
 
 class BusinessRuleViolationError(DomainError):
-    """
-    Signals that an operation violates an explicit business rule without any
-    persistence failure (e.g. exceeding the per-package image ceiling or
-    recovering a package that is not in the trash).
+    """Signals that an operation violates an explicit business rule.
+
+    No persistence failure is involved (e.g. exceeding the per-package image
+    ceiling or recovering a package that is not in the trash).
 
     Raised by services whenever a state transition is rejected by policy. The
     global handler maps it to an HTTP 400 Bad Request response.
@@ -173,8 +161,7 @@ class BusinessRuleViolationError(DomainError):
     """
 
     def __init__(self, detail: str):
-        """
-        Initializes the error with a human-readable failure explanation.
+        """Initializes the error with a human-readable failure explanation.
 
         Args:
             detail (str): Reason exposed to the API consumer.
@@ -183,9 +170,9 @@ class BusinessRuleViolationError(DomainError):
 
 
 class StorageUnavailableError(DomainError):
-    """
-    Signals that the object-storage backend (Azure CDN) is unreachable or
-    failed while processing an upload.
+    """Signals that the object-storage backend (Azure CDN) is unavailable.
+
+    The backend is unreachable or failed while processing an operation.
 
     Raised by services when the storage adapter reports any operational
     failure. The global handler maps it to an HTTP 503 Service Unavailable
@@ -196,8 +183,46 @@ class StorageUnavailableError(DomainError):
     """
 
     def __init__(self, detail: str):
+        """Initializes the error with a human-readable failure explanation.
+
+        Args:
+            detail (str): Reason exposed to the API consumer.
         """
-        Initializes the error with a human-readable failure explanation.
+        super().__init__(detail)
+
+
+class UnsupportedMediaTypeError(DomainError):
+    """Signals that an uploaded file is not an image.
+
+    Raised by the storage adapter before any CDN I/O takes place. The global
+    handler maps it to an HTTP 415 Unsupported Media Type response.
+
+    Attributes:
+        detail (str): Human-readable explanation of the rejected media type.
+    """
+
+    def __init__(self, detail: str):
+        """Initializes the error with a human-readable failure explanation.
+
+        Args:
+            detail (str): Reason exposed to the API consumer.
+        """
+        super().__init__(detail)
+
+
+class InvalidImageUrlError(DomainError):
+    """Signals that an image URL is not an acceptable blob of the own storage account.
+
+    Raised when a URL is foreign to the CDN, has the wrong container, or points
+    to a blob that does not exist. The global handler maps it to an HTTP 400
+    Bad Request response.
+
+    Attributes:
+        detail (str): Human-readable explanation of the rejected URL.
+    """
+
+    def __init__(self, detail: str):
+        """Initializes the error with a human-readable failure explanation.
 
         Args:
             detail (str): Reason exposed to the API consumer.
