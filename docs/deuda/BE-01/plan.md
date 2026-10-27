@@ -306,7 +306,9 @@ tabla), `app/services/tourist_services_service.py` (solo `create_tourist_package
 
 ### Fase D — `PUT /servicios/{id}` aplica la misma regla de URLs (aprobada 2026-10-27; recortable si no cabe hoy)
 - Archivos: `app/services/tourist_services_service.py`, `tests/test_services.py`.
-- Cambios exactos: en `update_package_details`, antes del paso 2.2 (borrado en CDN), clasificar todas las URLs:
+- Cambios exactos: en `create_tourist_package`: separar en dos bucles: primero clasificar todas las URLs
+  (cualquiera no temporal → InvalidImageUrlError), después promover; ninguna promoción antes de validar todas.
+  en `update_package_details`, antes del paso 2.2 (borrado en CDN), clasificar todas las URLs:
   si alguna no es ni temporal ni permanente propia → `InvalidImageUrlError` (nada se borra ni se copia). Sustituir la
   closure `resolve_url` (l.300-304, `in` por substring) por `is_temporal_url` → promover / `is_permanent_url` →
   conservar. Docstring `Raises:` actualizado.
@@ -317,6 +319,7 @@ tabla), `app/services/tourist_services_service.py` (solo `create_tourist_package
   3. `test_update_package_details` (l.136-163): la URL `https://s3.wasabisys.com/ejemplo.jpg` pasa a
      `https://ecoturasopradocdn2026.blob.core.windows.net/ecotur-images/ejemplo.jpg`; aserciones intactas.
   4. `test_update_package_concurrent_reconciliation` intacto y verde (congela temporal → promovida, permanente → intacta).
+  5. `POST /servicios/` con dos URLs temporales válidas y una ajena → 400; promote_to_permanent.assert_not_awaited(); sin filas
 - Criterio de aceptación: `grep -n "temporal_container_name in" app/services/tourist_services_service.py` → vacío; los
   4 casos verdes; ruff 0 y mypy con el mismo conjunto de 10 errores en el servicio (decisión 6); cobertura ≥ 89 %.
 - Fuera de alcance de esta fase: blobs compartidos entre paquetes (ver Residuales); cualquier cambio en `delete_image`.
