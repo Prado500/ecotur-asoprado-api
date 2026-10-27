@@ -1,8 +1,6 @@
 import asyncio
 from datetime import UTC, datetime
 
-from pydantic import HttpUrl
-
 from app.core.exceptions import BusinessRuleViolationError, InvalidImageUrlError, NotFoundError
 from app.core.storage import AzureStorageClient, StagedImage
 from app.models.audit import AuditAction
@@ -43,7 +41,8 @@ class TouristServicesService:
 
         Raises:
             BusinessRuleViolationError: If more than 10 images are supplied.
-            InvalidImageUrlError: If an image is not a temporal blob, or it no longer exists.
+            InvalidImageUrlError: If any image is not a temporal blob (checked for all of them
+                before promoting any), or a temporal blob no longer exists.
             StorageUnavailableError: If the CDN fails while promoting an image.
         """
         if len(package_data.image_urls) > 10:
@@ -54,12 +53,13 @@ class TouristServicesService:
         tourist_service_data = package_data.model_dump(exclude={"image_urls"})
         new_tourist_service = TouristService(**tourist_service_data)
 
-        for idx, url in enumerate(package_data.image_urls):
-            raw_url = str(url)
-            if not self.storage_client.is_temporal_url(raw_url):
-                raise InvalidImageUrlError(
-                    detail="La imagen debe subirse primero por /servicios/upload-images/."
-                )
+        raw_urls = [str(url) for url in package_data.image_urls]
+        if not all(self.storage_client.is_temporal_url(raw) for raw in raw_urls):
+            raise InvalidImageUrlError(
+                detail="La imagen debe subirse primero por /servicios/upload-images/."
+            )
+
+        for idx, raw_url in enumerate(raw_urls):
             persistent_url = await self.storage_client.promote_to_permanent(raw_url)
 
             nueva_imagen = ServiceImage(image_url=persistent_url, is_primary=(idx == 0))
@@ -266,7 +266,10 @@ class TouristServicesService:
 
         Raises:
             NotFoundError: If the target package is unavailable.
-
+            BusinessRuleViolationError: If more than 10 images are supplied.
+            InvalidImageUrlError: If an image is neither a temporal nor a permanent CDN blob;
+                raised before any blob is deleted or copied.
+            StorageUnavailableError: If the CDN fails while deleting or promoting images.
         """
         service = await self.service_repo.get_service_by_id(service_id)
 
@@ -291,30 +294,39 @@ class TouristServicesService:
                     )
                 )
 
-            # 2.2 Set up image comparison basis and delete removed images (if there's any)
+            # 2.2 Classify every URL before any side effect: temporal -> promote,
+            # permanent -> keep, anything else is rejected without touching the CDN.
+            raw_urls = [str(url) for url in update_data.image_urls]
+            unknown_urls = [
+                raw
+                for raw in raw_urls
+                if not self.storage_client.is_temporal_url(raw)
+                and not self.storage_client.is_permanent_url(raw)
+            ]
+            if unknown_urls:
+                raise InvalidImageUrlError(
+                    detail="Las imágenes deben provenir del CDN de la plataforma."
+                )
+
+            # 2.3 Set up image comparison basis and delete removed images (if there's any)
             old_images_urls = {str(img.image_url) for img in service.images}
-            new_images_urls = set(str(url) for url in update_data.image_urls)
-            urls_to_delete = old_images_urls - new_images_urls
+            urls_to_delete = old_images_urls - set(raw_urls)
 
             if urls_to_delete:
                 delete_ops = [self.storage_client.delete_image(url) for url in urls_to_delete]
                 await asyncio.gather(*delete_ops)
 
-            # 2.3 Clearing triggers Alembic's cascade deletion of old images
+            # 2.4 Clearing triggers Alembic's cascade deletion of old images
             service.images.clear()
 
-            # 2.4 Async function employed to provision image persistence coroutines
-            async def resolve_url(url: HttpUrl) -> str:
-                if self.storage_client.temporal_container_name in str(url):
-                    return await self.storage_client.promote_to_permanent(str(url))
-                else:
-                    return str(url)
-
-            # 2.5 Resolve the images concurrently (sanitizing non-permanent urls)
-            image_resolution_coroutines = [resolve_url(url) for url in update_data.image_urls]
+            # 2.5 Promote temporal URLs concurrently; permanent ones are kept as they are
+            async def resolve_url(url: str) -> str:
+                if self.storage_client.is_temporal_url(url):
+                    return await self.storage_client.promote_to_permanent(url)
+                return url
 
             # 2.6 Execute image resolution coroutines and retrieve definitive image urls
-            definitive_urls = await asyncio.gather(*image_resolution_coroutines)
+            definitive_urls = await asyncio.gather(*[resolve_url(url) for url in raw_urls])
 
             # 2.7 Append each definitive image url to the edited service
             for idx, url in enumerate(definitive_urls):

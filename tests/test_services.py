@@ -21,7 +21,7 @@ from app.core.security import create_access_token, get_password_hash
 from app.core.storage import AzureStorageClient, StagedImage
 from app.main import app
 from app.models.audit import AuditLog
-from app.models.service import ServiceCategory, TouristService
+from app.models.service import ServiceCategory, ServiceImage, TouristService
 from app.models.user import User, UserRole
 
 # ==========================================
@@ -162,7 +162,9 @@ async def test_update_package_details(client, auth_headers, test_package, db_ses
     update_payload = {
         "name": "Paquete Modificado Exitosamente",
         "max_capacity": 25,
-        "image_urls": ["https://s3.wasabisys.com/ejemplo.jpg"],
+        "image_urls": [
+            "https://ecoturasopradocdn2026.blob.core.windows.net/ecotur-images/ejemplo.jpg"
+        ],
     }
 
     # 1. ACT: Submit partial update payload
@@ -517,3 +519,91 @@ async def test_upload_images_non_image_returns_415(client, admin_headers, storag
     staged = storage_double.upload_image.call_args.args[0]
     assert isinstance(staged, StagedImage)
     assert staged.content_type == "application/octet-stream"
+
+
+# ==========================================
+# Image URL classification before side effects (BE-01, phase D)
+# ==========================================
+
+CDN_BASE = "https://ecoturasopradocdn2026.blob.core.windows.net"
+FOREIGN_URL = "https://evil.example/temp-ecotur-images/x.jpg"
+
+
+@pytest.fixture
+def classifying_storage(storage_double):
+    """Storage double whose URL classification follows the real CDN prefixes."""
+    storage_double.is_temporal_url.side_effect = lambda url: url.startswith(
+        f"{CDN_BASE}/temp-ecotur-images/"
+    )
+    storage_double.is_permanent_url.side_effect = lambda url: url.startswith(
+        f"{CDN_BASE}/ecotur-images/"
+    )
+    return storage_double
+
+
+async def _stored_image_urls(db_session, service_id: int) -> list[str]:
+    """Returns the image URLs currently persisted for the given package."""
+    rows = await db_session.execute(
+        select(ServiceImage.image_url).where(ServiceImage.service_id == service_id)
+    )
+    return sorted(rows.scalars().all())
+
+
+@pytest.mark.parametrize("foreign", [FOREIGN_URL, "https://s3.wasabisys.com/ejemplo.jpg"])
+async def test_update_package_rejects_foreign_url_without_side_effects(
+    client, admin_headers, classifying_storage, test_package, db_session, foreign
+):
+    """Unhappy path: a foreign URL is a 400 and no blob is deleted, copied or recorded."""
+    db_session.add(ServiceImage(service_id=test_package.id, image_url=PERMANENT_URL))
+    await db_session.commit()
+    package_id = test_package.id
+
+    response = await client.put(
+        f"/servicios/{package_id}",
+        json={"image_urls": [TEMP_URL, foreign]},
+        headers=admin_headers,
+    )
+
+    assert response.status_code == 400
+    assert isinstance(response.json()["detail"], str)
+    classifying_storage.delete_image.assert_not_awaited()
+    classifying_storage.promote_to_permanent.assert_not_awaited()
+    assert await _stored_image_urls(db_session, package_id) == [PERMANENT_URL]
+    audits = (await db_session.execute(select(AuditLog))).scalars().all()
+    assert audits == []
+
+
+async def test_update_package_keeps_permanent_and_promotes_temporal(
+    client, admin_headers, classifying_storage, test_package
+):
+    """Happy path: permanent URLs are kept verbatim, temporal ones are promoted."""
+    classifying_storage.promote_to_permanent.return_value = f"{CDN_BASE}/ecotur-images/new.jpg"
+
+    response = await client.put(
+        f"/servicios/{test_package.id}",
+        json={"image_urls": [PERMANENT_URL, TEMP_URL]},
+        headers=admin_headers,
+    )
+
+    assert response.status_code == 200
+    urls = [img["image_url"] for img in response.json()["images"]]
+    assert urls == [PERMANENT_URL, f"{CDN_BASE}/ecotur-images/new.jpg"]
+    classifying_storage.promote_to_permanent.assert_awaited_once_with(TEMP_URL)
+
+
+async def test_create_package_validates_all_urls_before_promoting(
+    client, admin_headers, classifying_storage, db_session
+):
+    """Edge case: a foreign URL after valid temporal ones promotes nothing."""
+    second_temp = f"{CDN_BASE}/temp-ecotur-images/second.jpg"
+
+    response = await client.post(
+        "/servicios/",
+        json=_create_payload([TEMP_URL, second_temp, FOREIGN_URL]),
+        headers=admin_headers,
+    )
+
+    assert response.status_code == 400
+    assert isinstance(response.json()["detail"], str)
+    classifying_storage.promote_to_permanent.assert_not_awaited()
+    await _assert_nothing_persisted(db_session)
