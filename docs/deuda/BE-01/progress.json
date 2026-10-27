@@ -1,0 +1,29 @@
+{
+  "plan_file": "docs/deuda/BE-01/plan.md",
+  "current_target": "Fase_A",
+  "phases": {
+    "Fase_A": {
+      "status": "pending",
+      "commit": null,
+      "description": "P1: borrar los 4 imports muertos de app/core/security.py; ruff a cero en el archivo."
+    },
+    "Fase_B": {
+      "status": "pending",
+      "commit": null,
+      "description": "storage.py sin fastapi: UnsupportedMediaTypeError (415), InvalidImageUrlError (400), StorageUnavailableError (503); lista blanca de URL, requires_sync=True y copy_status antes de delete_blob (A7); tests unitarios de storage."
+    },
+    "Fase_C": {
+      "status": "pending",
+      "commit": null,
+      "description": "create_tourist_package exige blobs temporales (400 si no); image_uploader deja pasar las excepciones de dominio (415 llega como 415); tests por endpoint."
+    },
+    "Fase_D": {
+      "status": "pending",
+      "commit": null,
+      "description": "update_package_details aplica la misma regla (temporal -> promover, permanente propia -> conservar, otra -> 400) antes de borrar o copiar. Aprobada por David el 2026-10-27 (cambia PUT 200 -> 400 para URL externa); recortable si no cabe hoy."
+    }
+  },
+  "allowed_statuses": ["pending", "partial", "completed"],
+  "last_handoff": "Estado inicial. Plan redactado el 2026-10-27; pendiente de aprobacion humana.",
+  "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
+}
