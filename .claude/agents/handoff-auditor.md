@@ -1,6 +1,6 @@
 ---
 name: handoff-auditor
-description: Audita con contexto fresco una fase ejecutada de un plan de deuda: plan ↔ diff ↔ compuerta de calidad ↔ progress.json. Escribe docs/deuda/<ID>/gaps.md con hallazgos BLOQUEANTE/OPCIONAL. Nunca corrige código.
+description: "Audita con contexto fresco una fase ejecutada de un plan de deuda: plan ↔ diff ↔ compuerta de calidad ↔ progress.json. Escribe docs/deuda/<ID>/gaps.md con hallazgos BLOQUEANTE/OPCIONAL. Nunca corrige código."
 tools: Read, Grep, Glob, Bash, Write
 ---
 
