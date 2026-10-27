@@ -1,10 +1,10 @@
 {
   "plan_file": "docs/deuda/BE-01/plan.md",
-  "current_target": "Fase_A",
+  "current_target": "Fase_B",
   "phases": {
     "Fase_A": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "170839c",
       "description": "P1: borrar los 4 imports muertos de app/core/security.py; ruff a cero en el archivo."
     },
     "Fase_B": {
@@ -23,7 +23,11 @@
       "description": "update_package_details aplica la misma regla (temporal -> promover, permanente propia -> conservar, otra -> 400) antes de borrar o copiar. Aprobada por David el 2026-10-27 (cambia PUT 200 -> 400 para URL externa); recortable si no cabe hoy."
     }
   },
-  "allowed_statuses": ["pending", "partial", "completed"],
-  "last_handoff": "Estado inicial. Plan redactado el 2026-10-27; pendiente de aprobacion humana.",
+  "allowed_statuses": [
+    "pending",
+    "partial",
+    "completed"
+  ],
+  "last_handoff": "Fase A completada (170839c): 4 imports muertos fuera de security.py; ruff 0, mypy mismos 2 errores SECRET_KEY, pytest 116 passed, cobertura 89%.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
