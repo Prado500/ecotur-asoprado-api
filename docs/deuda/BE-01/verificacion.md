@@ -107,3 +107,27 @@ Detalle por paso:
 - **Resolver:** (1) `storage.py` deja de importar FastAPI: 415 → `UnsupportedMediaTypeError`, 500 de `upload_image` → `StorageUnavailableError` (ya existe, `exceptions.py:185`), fallo de promoción/URL ajena/blob inexistente → excepción de dominio nueva → 422; registrar las nuevas en `_DOMAIN_ERROR_STATUS` y en el parametrize de `test_domain_error_handler.py`. (2) `create_tourist_package` debe validar que la URL pertenece al contenedor temporal del CDN **antes** de promover (misma regla que `update_package_details:301`), y el `except Exception` de `image_uploader` (l.235) debe dejar pasar las excepciones de dominio para que el 415 llegue como 415. (3) A7: copia síncrona (`requires_sync=True`) o espera de `copy_status` antes de `delete_blob`. (4) Fase A = P1: borrar `security.py:6-10`; sin eso el contrato sigue BROKEN. (5) Tests: endpoint `POST /servicios/` con URL ajena → 422 y con fallo de promoción → código acordado; `upload-images` con `application/octet-stream` → 415; unitarios de `storage.py` con `BlobServiceClient` mockeado con `autospec` para subir del 28 %; reescribir `tests/test_storage.py`.
 - **No tocar:** `print`/`str(e)`/`os.getenv`/SVG (A6, SEC3, A4, SEC2 tienen su día); el estilo `Column` que mypy marca en el servicio (S1); el ADR-0003 aceptado (si se retira el "residuo declarado", se añade nota o ADR que lo supersede, no edición).
 - **Riesgos:** `HTTPException` hereda de `Exception`, así que cualquier `except Exception` intermedio seguirá absorbiendo excepciones de dominio — hay que excluirlas explícitamente (`except DomainError: raise`). `create_autospec(AzureStorageClient)` en `test_services.py:205` seguirá válido solo si la firma pública no cambia. La compuerta parte en rojo (ruff/mypy/import-linter): el criterio de aceptación realista es "import-linter 4 KEPT, pytest verde, cobertura ≥ 89 %, y ruff/mypy sin errores **nuevos** en los ficheros tocados", no "compuerta verde" global.
+
+## Re-verificación — 2026-10-27
+
+**Veredicto:** confirmada (sin cambios respecto a 2026-10-25). La deuda persiste íntegra.
+
+- Base develop: `8bf9815` (tras `git fetch origin`; merge-base HEAD == origin/develop).
+- Grep global repetido: `app/core/storage.py:5` (import fastapi), `:60`, `:86`, `:138` (`raise HTTPException`); `app/core/security.py:6-7` (fastapi/starlette); `tourist_services_service.py:43` promueve sin validar contenedor, `:301` sí valida. Sin ficheros nuevos afectados.
+- Comando: `PYTHONIOENCODING=utf-8 python scripts/check.py` (EXIT=1)
+
+```
+=== RESUMEN ===
+  ✘ ruff format --check
+  ✘ ruff check
+  ✘ mypy
+  ✘ import-linter
+  ✔ docs (coherencia)
+  ✔ pytest + cobertura
+
+Compuerta NO superada: ruff format --check, ruff check, mypy, import-linter
+```
+- pytest: 116 passed, 1 warning. Cobertura total 89 % (`storage.py` 28 %).
+- ruff check: Found 489 errors (antes 488). mypy: 44 errors en 12 ficheros. import-linter: 3 kept, 1 broken.
+- Cambio vs. anterior: aparece el paso "docs (coherencia)" (OK) y ruff +1 error (en `scripts/`, ajeno a BE-01). La compuerta ya falla antes de tocar nada.
+- La conclusión para el planificador de la verificación inicial sigue vigente.
