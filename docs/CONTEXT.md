@@ -5,7 +5,7 @@
 > Vive en `docs/CONTEXT.md`. Regla de oro: **el contexto vive en archivos versionados, no en la
 > memoria de un chat.** Cada sesión nueva arranca leyendo esto.
 >
-> **Versión 2.7 — 26 oct 2026 (mediodía).** Sustituye por completo a la del 22 oct. Fuentes: conversación con
+> **Versión 2.8 — 26 oct 2026 (cierre).** Sustituye por completo a la del 22 oct. Fuentes: conversación con
 > David (22–23 oct), propuesta de trabajo de grado aprobada (PDF), Word de observaciones del
 > flujo agéntico, notas de deuda funcional, ADR-0001 y ADR-0002.
 
@@ -175,21 +175,20 @@ la Web App la hala al reiniciar. Operación: 2 clics.
   por paquete completo, antelación mínima 1 día, 30 min para pagar una reserva pendiente,
   tarifa de temporada alta como trabajo futuro.
 
-## 8. Próximo paso (lun 26 oct, mediodía)
+## 8. Próximo paso (lun 26 oct, cierre)
 
-Dónde estamos: `develop` tiene tooling, flujo v1 (con los ajustes de calibración y el guardarraíl de
-línea base), Python 3.14, bloques de trabajo y ADR-0001…0005 aceptados. BE-01 está verificado
-(`docs/deuda/BE-01/verificacion.md`, 25 oct) pero esa verificación **no registra hash de commit** (el
-mecanismo es del 26 oct). La rama `deuda/BE-01` se borró tras mezclar la verificación.
+Dónde estamos: `develop` (`f522f48`, PR #57) tiene tooling, flujo v1 con guardarraíl contra
+`origin/develop` y compuerta de docs, Python 3.14, bloques y ADR-0001…0005. BE-01 sigue verificado sin
+hash (25 oct). **La fila del lun 26 de PLAN §3 no se ejecutó** (bitácora del 26, cierre).
 
-1. `git checkout develop && git pull && git checkout -b deuda/BE-01`.
-2. En Claude Code: `/deuda-verificar BE-01` (añade una re-verificación fechada con hash y línea base
-   actual; no reescribe la anterior).
-3. `/deuda-planear BE-01` → pegar el "Resumen para aprobación" a la sesión Mentor → aprobar o ajustar
-   (`/revisar BE-01 plan` si hace falta).
-4. `/implementar BE-01 A` → `/auditar BE-01 A` → B → C → `/pr` → PR → CI → merge.
-5. Tarde: `B-FORMATO` (rama propia), `B-CI`, `B-HIGIENE` (fila de hoy en PLAN §3).
-6. Cierre: bitácora del 26 + este archivo.
+1. Apertura del 27 en sesión Mentor fresca (`docs/sesiones/mentor.md`): decidir en ≤ 15 min cómo
+   absorber el día perdido (opciones en la bitácora del 26) → editar PLAN §3 (v1.6) y este §8.
+2. `git checkout develop && git pull && git checkout -b deuda/BE-01`.
+3. `/deuda-verificar BE-01` (re-verificación con `Base develop`) → `/deuda-planear BE-01` → aprobar en
+   el Mentor → `/implementar`/`/auditar` A, B, C → `/pr` → merge.
+4. Lo demás, según la fila del 27 que resulte del paso 1.
+5. Regla del día: no se toca el flujo (`.claude/`, `scripts/check*.py`, `AGENTS.md`, `docs/sesiones/`)
+   salvo que un bloque se bloquee por su culpa.
 
 ## 9. Sesiones de IA
 Cualquier sesión (ingeniería, documento, estudio, mentor) arranca con los prompts de `docs/sesiones/` y el ritual
