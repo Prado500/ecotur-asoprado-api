@@ -1,7 +1,7 @@
 # Ecotur-ASOPRADO — Plan de 15 días (23 oct → 6 nov 2026)
 
 > Guárdalo en el repo como `docs/PLAN.md`, junto a `docs/CONTEXT.md`.
-> Estado: **v1.5 (26 oct) — el cronograma referencia bloques de trabajo (§2b) en lugar de ítems sueltos; el backlog apunta a bloques y ya no lleva días. Deslizamiento de un día absorbido el 25 oct.**
+> Estado: **v1.6 (27 oct) — segundo deslizamiento de un día (la fila del lun 26 no se ejecutó: calibración del flujo, bitácora del 26), pagado con dos recortes de alcance explícitos (webhook de Wompi condicionado al corte; `B-FE-LISTA` a media jornada) y sin tocar la usabilidad del lun 2 ni el margen del sáb 7. v1.5 (26 oct): bloques de trabajo (§2b). Primer deslizamiento absorbido el 25 oct.**
 > Progreso diario: `docs/bitacora/`. Estado actual del proyecto: `docs/CONTEXT.md` §8. Este plan no lleva estado: lleva fechas y alcance. Cambio mayor respecto a v1:
 > el **módulo de reservas no existía** (ni tabla ni lógica; el botón "reservar" no hacía nada),
 > así que los días 4–5 se dedican a construirlo. Lo compensa que BE-03 y BE-04 ya estaban resueltos.
@@ -111,22 +111,24 @@ nunca sueño ni el bloque de documento.
 | 1 | **Vie 23 oct** | Aprobar este plan. Escribir a María Paula y al gerente (agendar sesión del 2 nov). Consolidar backlog: notas `.txt` de "deuda funcional" + cards de Trello → `docs/backlog.md` con ID, severidad, decisión (entra / sale / documentar). Crear `CLAUDE.md` + `docs/CONTEXT.md` + `docs/PLAN.md` en el repo. | Tooling de calidad en backend: `ruff`, `mypy`, `pytest-cov`, `import-linter` (reglas de capas de Clean Architecture). Correrlos y anotar la **línea base** (nº errores lint, nº errores de tipos, % cobertura, violaciones de capas). Verificar el diagnóstico de la suite de tests contra el código. | Repo con quality gate local + números de línea base (evidencia "antes") |
 | 2 | **Sáb 24** | Flujo agéntico v1 en Claude Code (§5 y ADR-0001): `CLAUDE.md` con reglas, 4 comandos, hooks; portar `deuda-verificador` y `handoff-auditor`; reescribir el paso 6 de `plan-redactor`. | Primera deuda real de punta a punta con el flujo: **BE-01** (500 al crear paquete con URLs inválidas → excepción de dominio + 422/409). Es pequeña, reproducible y tiene test obvio: ideal para calibrar el flujo. | Flujo v1 probado + 1 deuda saldada con PR verde |
 | 3 | **Dom 25** (media jornada) | — | Hecho: PR docs+tooling y Python 3.14 mezclados (CD en verde con 3.14); ADR-0004; sesiones, aprendizaje y comandos; `/deuda-verificar BE-01` (verificación excelente); calibración del flujo (ADR-0005). **No hecho:** plan y fases de BE-01; `check.py` en CI. | Flujo estrenado; BE-01 verificado |
-| 4 | **Lun 26** | **`B-BE01`** completo por el flujo: `/deuda-planear` → aprobar → `/implementar` A, B, C con `/auditar` tras cada una → `/pr` → merge. Calibración real del ciclo entero. | **`B-FORMATO`** (30 min, PR propio) → **`B-CI`** (30 min) → **`B-HIGIENE`** (17 ítems XS/S; lo que no quepa hoy pasa a la mañana del día 11 o a `B-FUTURO`). | BE-01 saldado; contrato 4 KEPT; CI con compuerta; higiene avanzada |
-| 5 | **Mar 27** | **`B-S1`** (2 h) y **`B-TESTS`** (2 h). Si la compuerta queda en verde, ADR-0005 se marca superado. | **`B-RESERVAS`** (esquema): migración con `party_size`, `availability_mode`, `min_lead_days`, ventanas y `reservations` con índice único parcial; entidad; estados. | Compuerta en verde; reservas con esquema |
-| 6 | **Mié 28** | **`B-RESERVAS`** (casos de uso): crear con guardia BE-13 y 409 por índice, cancelar, listar las mías, disponibilidad por rango, expiración perezosa; tests. | **`B-RESERVAS`** (admin y métricas) + **`B-PAGOS`** (ADR de pagos, puerto, `FakeAdapter`, flujo reserva → pago fake → confirmada). | Dominio de reservas completo |
-| 7 | **Jue 29** | **`B-PAGOS`**: `WompiAdapter` sandbox (transacción, firma, checkout), `Settings`. | **`B-PAGOS`** (webhook idempotente) + **`B-ORDEN`**. PR develop → staging. **Corte de Wompi 18:00.** | Backend del MVP completo en staging |
-| 8 | **Vie 30** | **`B-FE-BASE`**: lints, tema con tokens, componentes base. | **`B-FE-BASE`**: interceptor 401; tema en autenticación y catálogo. | Sistema de diseño operativo |
-| 9 | **Sáb 31** | **`B-FE-LISTA`**: sistema de diseño en el resto de pantallas; skeletons. | **`B-FE-LISTA`**: lista corta y refresco del kanban. | Frontend consistente |
-| 10 | **Dom 1 nov** | **`B-FE-RESERVAS`**: flujo de reserva + checkout Wompi. | **`B-FE-RESERVAS`**: historial, métricas admin, orden en kanban; builds Android y web. | MVP de punta a punta |
-| 11 | **Lun 2 nov** | **`B-QA`**: bug bash (+ restos de `B-HIGIENE` si los hay); casos de caja negra (tabla). | **`B-QA`**: usabilidad con el gerente (admin) + 4–5 testers turista, remoto, SUS; despliegue a `main`; capturas. | Evidencia completa |
-| 12 | **Mar 3** | **`B-DOCS-TEC`**: UML desde código, MER, OpenAPI. | **`B-DOCS-TEC`**: manual técnico de despliegue; README al día. | Anexos técnicos |
-| 13 | **Mié 4** | **`B-TESIS`**: capítulo de arquitectura (ADR). | **`B-TESIS`**: capítulo de metodología (Scrum + IA + flujo + lecciones). | Dos capítulos |
-| 14 | **Jue 5** | **`B-TESIS`**: resultados (línea base vs final, caja negra, SUS). | **`B-TESIS`**: integración con María Paula; conclusiones; `B-FUTURO` como capítulo; referencias. | Documento completo |
-| 15 | **Vie 6** | **`B-TESIS`**: lectura completa; correcciones; formato. | **`B-TESIS`**: PDF final; checklist; **entrega** (el sábado 7 queda como margen). | Entregado |
+| 4 | **Lun 26** | **No ejecutado.** El día entero (11 h 35 min) fue calibración del flujo y documentación: bloques de trabajo, LF, ADR-0005 y su guardarraíl, `check_docs.py`, dueños únicos (bitácora del 26). | — | Flujo estable; a partir del 27 solo cambia si un bloque se bloquea por su culpa |
+| 5 | **Mar 27** | **`B-BE01`** completo por el flujo: re-verificación con hash → `/deuda-planear` → aprobar → `/implementar` A, B, C con `/auditar` tras cada una → `/pr` → merge. Primera corrida real del ciclo entero. | **`B-FORMATO`** (sin modelo, 30 min, PR propio) → **`B-CI`** (30 min) → **`B-S1`** (lo que quepa). Si sobra tiempo, se hala en este orden: resto de `B-S1` → `B-TESTS` → esquema de `B-RESERVAS`; lo halado se anota en el cierre (v1.7). | BE-01 saldado; contrato 4 KEPT; CI con compuerta |
+| 6 | **Mié 28** | Resto de **`B-S1`** y **`B-TESTS`**. Si la compuerta queda en verde, ADR-0005 se marca superado. | **`B-RESERVAS`** (esquema): migración con `party_size`, `availability_mode`, `min_lead_days`, ventanas y `reservations` con índice único parcial; entidad; estados. | Compuerta en verde; reservas con esquema |
+| 7 | **Jue 29** | **`B-RESERVAS`** (casos de uso): crear con guardia BE-13 y 409 por índice, cancelar, listar las mías, disponibilidad por rango, expiración perezosa; tests. | **`B-RESERVAS`** (admin y métricas) + **`B-PAGOS`** (ADR de pagos, puerto, `FakeAdapter`, flujo reserva → pago fake → confirmada). | Dominio de reservas completo |
+| 8 | **Vie 30** | **`B-PAGOS`**: `WompiAdapter` sandbox (transacción, firma, checkout), `Settings`. | **`B-PAGOS`** (webhook idempotente **solo si cabe antes de las 18:00; si no → `B-FUTURO`**, recorte 1) + **`B-ORDEN`**. PR develop → staging. **Corte de Wompi 18:00.** | Backend del MVP completo en staging |
+| 9 | **Sáb 31** | **`B-FE-BASE`**: lints, tema con tokens, componentes base. | **`B-FE-BASE`**: interceptor 401; tema en autenticación y catálogo. | Sistema de diseño operativo |
+| 10 | **Dom 1 nov** | **`B-FE-LISTA`** reducido a media jornada (recorte 2): tokens en todas las pantallas; skeletons solo en lista y detalle; lista corta. | **`B-FE-RESERVAS`**: flujo de reserva + checkout Wompi. | Frontend consistente; reserva de punta a punta |
+| 11 | **Lun 2 nov** | **`B-FE-RESERVAS`**: historial, métricas admin, orden en kanban; builds Android y web. Restos de `B-HIGIENE` solo si caben. | **`B-QA`**: usabilidad con el gerente (admin) + 4–5 testers turista, remoto, SUS (fecha fija, D1); despliegue a `main`; capturas. | MVP de punta a punta; evidencia de usabilidad |
+| 12 | **Mar 3** | **`B-QA`**: correcciones a partir de la usabilidad; bug bash; casos de caja negra (tabla). | **`B-DOCS-TEC`**: UML desde código, MER, OpenAPI. | Evidencia completa; anexos iniciados |
+| 13 | **Mié 4** | **`B-DOCS-TEC`**: manual técnico de despliegue; README al día. | **`B-TESIS`**: capítulo de arquitectura (ADR). | Anexos técnicos; un capítulo |
+| 14 | **Jue 5** | **`B-TESIS`**: capítulo de metodología (Scrum + IA + flujo + lecciones). | **`B-TESIS`**: resultados (línea base vs final, caja negra, SUS). | Dos capítulos más |
+| 15 | **Vie 6** | **`B-TESIS`**: integración con María Paula; conclusiones; `B-FUTURO` como capítulo; referencias. | **`B-TESIS`**: lectura completa; correcciones; formato; PDF final; checklist; **entrega**. Es el día más apretado del plan. | Entregado |
+| — | **Sáb 7** | Margen. No es día de trabajo planificado. | Margen. | — |
 
 **Reserva de contingencia:** no hay días libres; la contingencia es el recorte de alcance
-(§1-D3) y el corte de Wompi del día 6. Si el día 9 el frontend no está, el día 10 se usa para
-terminarlo y las pruebas de caja negra se mueven a la mañana del día 11.
+(§1-D3), el corte de Wompi del día 8 y el margen del sáb 7, que solo se usa si el viernes 6 no
+alcanza para la entrega. Si el día 10 el frontend no está, `B-FE-RESERVAS` se reduce a reserva +
+checkout (historial y métricas → `B-FUTURO`); la usabilidad del lun 2 no se mueve.
 
 ---
 
