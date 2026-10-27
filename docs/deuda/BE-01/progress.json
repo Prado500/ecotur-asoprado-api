@@ -1,6 +1,6 @@
 {
   "plan_file": "docs/deuda/BE-01/plan.md",
-  "current_target": "Fase_B",
+  "current_target": "Fase_C",
   "phases": {
     "Fase_A": {
       "status": "completed",
@@ -8,8 +8,8 @@
       "description": "P1: borrar los 4 imports muertos de app/core/security.py; ruff a cero en el archivo."
     },
     "Fase_B": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "867e56c",
       "description": "storage.py sin fastapi: UnsupportedMediaTypeError (415), InvalidImageUrlError (400), StorageUnavailableError (503); lista blanca de URL, requires_sync=True y copy_status antes de delete_blob (A7); tests unitarios de storage."
     },
     "Fase_C": {
@@ -28,6 +28,6 @@
     "partial",
     "completed"
   ],
-  "last_handoff": "Fase A completada (170839c): 4 imports muertos fuera de security.py; ruff 0, mypy mismos 2 errores SECRET_KEY, pytest 116 passed, cobertura 89%.",
+  "last_handoff": "Fase B completada (867e56c): storage.py sin fastapi, 2 excepciones nuevas registradas (415/400), copia requires_sync + copy_status antes de delete; pytest 135 passed, cobertura 93% (storage 100%), lint-imports 4 kept/0 broken, ruff 489->416, mypy 44=44.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
