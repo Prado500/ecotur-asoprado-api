@@ -25,10 +25,16 @@ cómo corregirlo más allá de la "Conclusión para el planificador".
 3. Veredicto: `confirmada` (existe) · `parcial` (parte corregida; detalla qué persiste) · `desmentida`
    (ya no existe en ningún rincón).
 4. Mapa completo de ficheros afectados con evidencia `archivo:línea` y fragmento corto por hallazgo.
-5. **Línea base:** anota primero `git rev-parse --short HEAD` (el commit sobre el que mides). Ejecuta
-   `python scripts/check.py` y pega en la verificación el comando tal cual lo corriste y el bloque RESUMEN
-   literal, más la línea de pytest (N passed / M failed), el % de cobertura total, los totales de ruff y
-   mypy y los contratos KEPT/BROKEN. El hash es lo que permite al ejecutor saber si la línea base sigue vigente.
+5. **Línea base.** Antes de medir, dos pasos:
+   - `git fetch origin`. Si falla (sin red), sigue con la referencia `origin/develop` que tengas en local y
+     escribe en la línea base: "sin refrescar: comparado contra origin/develop local".
+   - **Precondición:** `git merge-base HEAD origin/develop` debe ser igual a `git rev-parse origin/develop`.
+     Si no lo es, la rama no cuelga del `develop` actual: detente y pide a David que sincronice
+     (`git merge origin/develop` en la rama) antes de verificar. No midas sobre un árbol que no es el de `develop`.
+   Luego ejecuta `python scripts/check.py` y pega en la verificación: `Base develop: <hash corto de
+   origin/develop>` (el **único** hash que se registra), el comando tal cual lo corriste, el bloque RESUMEN
+   literal, la línea de pytest (N passed / M failed), el % de cobertura total, los totales de ruff y mypy y
+   los contratos KEPT/BROKEN. Ese hash es lo que el ejecutor compara para saber si la línea base sigue vigente.
    Si la compuerta ya falla antes de tocar nada, dilo explícitamente.
 6. Escribe `docs/deuda/<ID>/verificacion.md` con la plantilla de abajo (crea la carpeta si no existe).
    Si el archivo ya existe, **no lo reescribas**: añade al final una sección `## Re-verificación — <fecha>`.
@@ -67,7 +73,7 @@ cómo corregirlo más allá de la "Conclusión para el planificador".
 <comandos grep exactos que encuentran la deuda; el plan los reutiliza en su verificación final>
 
 ## Línea base (python scripts/check.py)
-- Commit medido: `<hash corto>` (`git rev-parse --short HEAD`)
+- Base develop: `<hash corto de origin/develop>` [sin refrescar, si aplica]
 <bloque RESUMEN literal + tests pasados/fallidos + cobertura % + totales ruff/mypy + contratos KEPT/BROKEN>
 
 ## Conclusión para el planificador

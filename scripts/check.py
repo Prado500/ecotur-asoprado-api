@@ -47,6 +47,7 @@ def steps(no_tests: bool) -> list[tuple[str, list[str]]]:
         ("ruff check", [PY, "-m", "ruff", "check", "."]),
         ("mypy", [PY, "-m", "mypy"]),
         ("import-linter", _lint_imports_cmd()),
+        ("docs (coherencia)", [PY, "scripts/check_docs.py"]),
     ]
     if not no_tests:
         s.append(

@@ -42,3 +42,13 @@ tocados; totales de `ruff`/`mypy` que no crecen. El rojo heredado en archivos no
   su rama al arrancar y, si difiere, exige re-verificar). Lectura del riesgo validada por David el 26 oct.
 - Caducidad: tras el commit mecánico de `ruff --fix` y la corrección de mypy (PLAN día 4–5), se vuelve al
   criterio absoluto y este ADR se supersede.
+
+## Enmienda — 26 oct 2026
+
+El mecanismo descrito en "Consecuencias" (registrar el hash del commit medido y compararlo con la base de la
+rama) era incorrecto: registraba la punta de la rama y comparaba contra el punto de nacimiento, dos valores
+que divergen en cuanto la rama tiene un commit propio, y no detectaba que `develop` avanzara. Hallazgo de
+David al revisar los residuales del PR que lo introdujo. La decisión (trinquete contra la línea base) no
+cambia. **El mecanismo vigente vive en `.claude/agents/deuda-verificador.md` y
+`.claude/agents/fase-ejecutor.md`**, no en este ADR; pista de arqueología: commit `chore(flow): compare
+the baseline against origin/develop, not HEAD` del 26 oct 2026.

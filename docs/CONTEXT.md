@@ -5,7 +5,7 @@
 > Vive en `docs/CONTEXT.md`. Regla de oro: **el contexto vive en archivos versionados, no en la
 > memoria de un chat.** Cada sesión nueva arranca leyendo esto.
 >
-> **Versión 2.5 — 26 oct 2026.** Sustituye por completo a la del 22 oct. Fuentes: conversación con
+> **Versión 2.7 — 26 oct 2026 (mediodía).** Sustituye por completo a la del 22 oct. Fuentes: conversación con
 > David (22–23 oct), propuesta de trabajo de grado aprobada (PDF), Word de observaciones del
 > flujo agéntico, notas de deuda funcional, ADR-0001 y ADR-0002.
 
@@ -23,12 +23,8 @@
 | `docs/backlog.md` | **Vivo.** Inventario de trabajo. | …del estado de cada ítem (entra, sale, cerrado). |
 | `docs/bitacora/AAAA-MM-DD.md` | **Append-only.** Diario. | …de lo que pasó cada día. No se corrige: si algo cambió, se escribe en la entrada del día en que cambió. |
 
-**Ritual de cierre (30 min al final de cada día, ya previsto en el plan):**
-1. Escribir la bitácora del día.
-2. Si hubo una decisión nueva → ADR nuevo.
-3. Si ese ADR cambia el estado del mundo → actualizar **solo** la sección afectada de `CONTEXT.md`
-   (y `PLAN.md` / `backlog.md` si cambia alcance o fechas), dejando el enlace al ADR.
-4. Anotar en la bitácora qué documentos se tocaron.
+**Rituales de apertura y de cierre:** viven en un solo sitio, `docs/sesiones/README.md`. Toda sesión
+los sigue; este archivo no los repite para que no diverjan.
 
 Así no hay que "releer todo": el único documento que resume estado es este, y se revisa por
 secciones. Cuando dos documentos digan cosas distintas, gana el ADR más reciente.
@@ -54,7 +50,7 @@ deslizamiento del plan mueve bloques entre filas del cronograma y no toca ningú
 
 | Hecho | Detalle |
 |---|---|
-| **Deadline** | **7 de noviembre de 2026 — es sábado.** Pendiente confirmar si la oficina recibe ese día o si la entrega es en línea; si no, la fecha real es el **viernes 6**. |
+| **Deadline** | **7 de noviembre de 2026 (sábado).** La entrega es **en línea**, por un enlace de Drive de la oficina de trabajo de grado: no depende de horario de oficina. El plan apunta al viernes 6 y deja el sábado 7 como margen. |
 | **Qué se entrega** | Solo el **documento final**. No hay demo en vivo ese día; la sustentación se define después si el documento se aprueba. |
 | **Capacidad** | 8 h/día, 7 días/semana: 08:00–12:00 y 14:00–18:00 (hora Colombia). Sueño 21:00–05:30, no negociable. Excepción conocida: dom 25 oct solo por la tarde. |
 | **Compañera de tesis** | María Paula Ramos Carrillo. Rol acordado: documento (plantilla, Marco Lógico, manual de usuario, formato, referencias). Pendiente que suba a un Drive lo que ya tiene. |
@@ -130,32 +126,30 @@ la Web App la hala al reiniciar. Operación: 2 clics.
 - Kanban con desplazamiento horizontal en pantallas estrechas (patrón aceptable; falta señal
   visual). Hover solo en algunos botones. Texto seleccionable parcial.
 
-## 5. Flujo agéntico (estado al 24 oct)
+## 5. Flujo agéntico (estado al 26 oct)
 
-- **Decidido (ADR-0001):** se conservan `deuda-verificador` y `handoff-auditor` con poda; se
-  reescribe el paso 6 de `plan-redactor`; el determinismo pasa a herramientas (ruff, mypy,
-  import-linter, pytest-cov) ejecutadas por el ejecutor, el auditor y el CI. Decisiones → ADR.
-- **Runtime principal: Claude Code**, con **compatibilidad con OpenCode** como requisito
-  (posible trabajo futuro con otras personas). Diseño de compatibilidad:
-  - Las reglas del proyecto viven **una sola vez** en `AGENTS.md` (formato que leen varias
-    herramientas); `CLAUDE.md` lo importa (`@AGENTS.md`) y añade solo lo específico de Claude Code.
-  - La compuerta de calidad vive en un objetivo tool-neutral (`make check` o
-    `scripts/check.sh`): los hooks de Claude Code la invocan automáticamente; en OpenCode los
-    agentes la invocan por instrucción. Misma compuerta, distinto disparador.
-  - Los cuerpos de los agentes se escriben sin sintaxis específica de una herramienta; solo el
-    frontmatter cambia entre `.claude/agents/` y `.opencode/agent/`. Mientras OpenCode no se use
-    de verdad, `.opencode/` queda **congelado** como evidencia histórica y no se mantiene en
-    paralelo; cuando haga falta, se genera desde `.claude/` con un script de 20 líneas.
-- **Construido el 24 oct (flujo v1):** `AGENTS.md` v2 (única copia de las reglas) + `CLAUDE.md` (lo
-  importa con `@AGENTS.md`); `scripts/check.py` (compuerta tool-neutral) y configuración de ruff, mypy,
-  import-linter y coverage en `pyproject.toml` (extra `dev`); `.claude/agents/` (`deuda-verificador`,
-  `plan-redactor`, `fase-ejecutor`, `handoff-auditor`); `.claude/commands/` (`/deuda-verificar`,
-  `/deuda-planear`, `/implementar`, `/auditar`); `.claude/settings.json` (hook ruff tras cada edición `.py`;
-  permisos que deniegan `git push/pull/merge/rebase/checkout`, `rm -rf` y leer `.env`);
-  `.claude/skills/` (copia canónica de las skills; `.agents/skills/` queda congelada con la v0).
-  **Pendiente:** calibrarlo con la primera deuda real (BE-01) y conectar `check.py` al CI de Azure (`B-CI`).
-- **Artefactos de datos que se conservan:** `docs/deuda/<tag>/verificacion.md`, `plan.md`,
-  `progress.json`, `gaps.md`, `docs/deuda/registro.json`.
+- **Decidido:** ADR-0001 (se conservan `deuda-verificador` y `handoff-auditor` con poda; se reescribe el
+  paso 6 de `plan-redactor`; el determinismo pasa a herramientas ejecutadas por el ejecutor, el auditor y
+  el CI; decisiones → ADR) y ADR-0005 (trinquete contra la línea base mientras la compuerta global esté en
+  rojo; caduca al quedar en verde; la verificación registra el hash medido y el ejecutor lo compara).
+- **Runtime principal: Claude Code**, con **compatibilidad con OpenCode** como requisito (posible trabajo
+  futuro con otras personas). Diseño de compatibilidad:
+  - Las reglas del proyecto viven **una sola vez** en `AGENTS.md`; `CLAUDE.md` lo importa (`@AGENTS.md`) y
+    añade solo lo específico de Claude Code.
+  - La compuerta de calidad vive en `scripts/check.py`, un punto de entrada tool-neutral: los hooks de
+    Claude Code lo invocan automáticamente; en OpenCode los agentes lo invocan por instrucción.
+  - Los cuerpos de los agentes se escriben sin sintaxis específica de una herramienta; solo el frontmatter
+    cambia entre `.claude/agents/` y `.opencode/agent/`. `.opencode/` queda **congelado** como evidencia
+    histórica; cuando haga falta, se genera desde `.claude/` con un script corto.
+- **Inventario:** no se describe aquí para que no se desactualice. Los agentes son los archivos de
+  `.claude/agents/`; los comandos, los de `.claude/commands/`; hooks y permisos, `.claude/settings.json` y
+  `.claude/hooks/`; skills, `.claude/skills/`. La guía de uso para humanos (cuándo, qué hace, qué no hace)
+  es la tabla de comandos de `docs/sesiones/README.md`, y `scripts/check_docs.py` verifica que ambas
+  coincidan (la guía con el inventario).
+- **Estado:** v1 construida el 24 oct; **bajo calibración** con BE-01 desde el 25 oct (verificación hecha;
+  plan y fases pendientes, ver §8). Pendiente: conectar `check.py` al CI de Azure (`B-CI`).
+- **Artefactos de datos por ítem** (`docs/deuda/<ID>/`): `verificacion.md`, `plan.md`, `progress.json`,
+  `handoff-<fase>.md`, `gaps.md`. El estado de un ítem es lo que existe en su carpeta; no hay índice aparte.
 
 ## 6. Decisiones tomadas (índice)
 
@@ -168,31 +162,36 @@ la Web App la hala al reiniciar. Operación: 2 clics.
 | 23 oct | Nombre de paquete **no** único (gerencia). | `backlog.md` BE-06 | Requisitos (regla de negocio) |
 | 23 oct | El gerente sí espera reordenar paquetes desde el kanban → `display_order`. | `backlog.md` BE-08 | Requisitos y manual de usuario |
 | 25 oct | Una sola versión de Python (3.14) en desarrollo, CI y producción. | **ADR-0004** | Cap. de arquitectura/despliegue y manual técnico |
-| 25 oct | Trinquete de calidad contra la línea base mientras la compuerta global esté en rojo (caduca al quedar en verde). | **ADR-0005** (propuesto) | Cap. de metodología (introducción de herramientas de calidad en código existente) |
+| 25–26 oct | Trinquete de calidad contra la línea base mientras la compuerta global esté en rojo (caduca al quedar en verde); la verificación registra el hash medido y el ejecutor lo compara. | **ADR-0005** | Cap. de metodología (introducción de herramientas de calidad en código existente) |
+| 25 oct | PR con commits atómicos se mezclan con *merge commit*, no squash. | `.claude/commands/pr.md`, `docs/sesiones/README.md` | Cap. de metodología (control de versiones) |
+| 26 oct | Bloques de trabajo: la composición vive en `PLAN.md` §2b y los días solo en el cronograma; backlog y CONTEXT referencian bloques. | `CONTEXT.md` §0, `PLAN.md` §2b | Cap. de metodología (gestión del plan) |
+| 26 oct | Finales de línea normalizados a LF en el repositorio. | `.gitattributes` | — |
 | pendiente | Pagos: puerto `PaymentGateway`, `WompiAdapter`, `FakeAdapter`, webhook idempotente. | ADR de pagos (`B-PAGOS`) | Cap. de diseño (secuencia de pago) y arquitectura |
 
 ## 7. Preguntas abiertas
 
-- ¿La oficina de trabajo de grado recibe el **sábado 7**? Si no, la fecha es el viernes 6.
 - Qué tiene ya María Paula del documento (Drive pendiente).
 - Para mencionar al gerente cuando convenga (no bloquean; están asumidas en ADR-0002): precio
   por paquete completo, antelación mínima 1 día, 30 min para pagar una reserva pendiente,
   tarifa de temporada alta como trabajo futuro.
 
-## 8. Próximo paso (lun 26 oct, 08:00)
+## 8. Próximo paso (lun 26 oct, mediodía)
 
-Dónde estamos: `develop` tiene tooling, flujo v1 y Python 3.14. La rama `deuda/BE-01` tiene la
-verificación (hecha, excelente) y dos ajustes de calibración. **Falta todo el ciclo restante de BE-01.**
+Dónde estamos: `develop` tiene tooling, flujo v1 (con los ajustes de calibración y el guardarraíl de
+línea base), Python 3.14, bloques de trabajo y ADR-0001…0005 aceptados. BE-01 está verificado
+(`docs/deuda/BE-01/verificacion.md`, 25 oct) pero esa verificación **no registra hash de commit** (el
+mecanismo es del 26 oct). La rama `deuda/BE-01` se borró tras mezclar la verificación.
 
-1. Revisar y aceptar ADR-0005 (5 min).
-2. `/deuda-planear BE-01` → revisar el resumen → aprobar → `/implementar BE-01 A` → `/auditar BE-01 A` →
-   fases B y C → `/pr` → PR → CI → merge. Meta: terminado antes del almuerzo.
-3. Tarde: commit mecánico `ruff --fix` + formato (rama propia), `check.py` en el CI de Azure,
-   S1 (modelos a `Mapped[]`). Ver `PLAN.md` v1.4.
-4. GitHub: marcar el check de CI como *required* en la protección de `develop`.
-5. Cierre: bitácora + sincronizar este archivo.
+1. `git checkout develop && git pull && git checkout -b deuda/BE-01`.
+2. En Claude Code: `/deuda-verificar BE-01` (añade una re-verificación fechada con hash y línea base
+   actual; no reescribe la anterior).
+3. `/deuda-planear BE-01` → pegar el "Resumen para aprobación" a la sesión Mentor → aprobar o ajustar
+   (`/revisar BE-01 plan` si hace falta).
+4. `/implementar BE-01 A` → `/auditar BE-01 A` → B → C → `/pr` → PR → CI → merge.
+5. Tarde: `B-FORMATO` (rama propia), `B-CI`, `B-HIGIENE` (fila de hoy en PLAN §3).
+6. Cierre: bitácora del 26 + este archivo.
 
 ## 9. Sesiones de IA
-Cualquier sesión (ingeniería, documento, estudio) arranca con los prompts de `docs/sesiones/` y el ritual
+Cualquier sesión (ingeniería, documento, estudio, mentor) arranca con los prompts de `docs/sesiones/` y el ritual
 de apertura descrito allí; ninguna conversación es fuente de verdad. Preguntas de estudio:
 `docs/aprendizaje/preguntas.md` (único dueño de las dudas; la bitácora solo las cuenta y enlaza).

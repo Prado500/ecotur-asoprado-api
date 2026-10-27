@@ -6,8 +6,8 @@
 > el **módulo de reservas no existía** (ni tabla ni lógica; el botón "reservar" no hacía nada),
 > así que los días 4–5 se dedican a construirlo. Lo compensa que BE-03 y BE-04 ya estaban resueltos.
 > Capacidad: 15 días × 8 h = **120 h de David**, en bloques 08:00–12:00 y 14:00–18:00.
-> **Ojo:** el 7 de noviembre es **sábado**. Confirmar hoy si la oficina de trabajo de grado
-> recibe ese día o si la entrega es en línea; si no, la fecha real es el **viernes 6**.
+> La entrega del 7 de noviembre (sábado) es **en línea** (enlace de Drive): el plan apunta al viernes 6 y
+> deja el sábado 7 como margen.
 
 ---
 
@@ -122,7 +122,7 @@ nunca sueño ni el bloque de documento.
 | 12 | **Mar 3** | **`B-DOCS-TEC`**: UML desde código, MER, OpenAPI. | **`B-DOCS-TEC`**: manual técnico de despliegue; README al día. | Anexos técnicos |
 | 13 | **Mié 4** | **`B-TESIS`**: capítulo de arquitectura (ADR). | **`B-TESIS`**: capítulo de metodología (Scrum + IA + flujo + lecciones). | Dos capítulos |
 | 14 | **Jue 5** | **`B-TESIS`**: resultados (línea base vs final, caja negra, SUS). | **`B-TESIS`**: integración con María Paula; conclusiones; `B-FUTURO` como capítulo; referencias. | Documento completo |
-| 15 | **Vie 6** | **`B-TESIS`**: lectura completa; correcciones; formato. | **`B-TESIS`**: PDF final; checklist; **entrega** (o sáb 7 si la oficina recibe). | Entregado |
+| 15 | **Vie 6** | **`B-TESIS`**: lectura completa; correcciones; formato. | **`B-TESIS`**: PDF final; checklist; **entrega** (el sábado 7 queda como margen). | Entregado |
 
 **Reserva de contingencia:** no hay días libres; la contingencia es el recorte de alcance
 (§1-D3) y el corte de Wompi del día 6. Si el día 9 el frontend no está, el día 10 se usa para
