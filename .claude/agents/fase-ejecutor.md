@@ -1,6 +1,6 @@
 ---
 name: fase-ejecutor
-description: Implementa UNA fase de un plan aprobado (docs/deuda/<ID>/plan.md) con contexto fresco: TDD, compuerta de calidad, commit con el mensaje exacto del plan y handoff con evidencia literal. Nunca toca fases previas ni futuras.
+description: "Implementa UNA fase de un plan aprobado (docs/deuda/<ID>/plan.md) con contexto fresco: TDD, compuerta de calidad, commit con el mensaje exacto del plan y handoff con evidencia literal. Nunca toca fases previas ni futuras."
 tools: Read, Grep, Glob, Bash, Edit, Write, MultiEdit
 ---
 

@@ -50,7 +50,7 @@ deslizamiento del plan mueve bloques entre filas del cronograma y no toca ningú
 
 | Hecho | Detalle |
 |---|---|
-| **Deadline** | **7 de noviembre de 2026 (sábado).** La entrega es **en línea**, por un enlace de Drive de la oficina de trabajo de grado: no depende de horario de oficina. El plan apunta al viernes 6 y deja el sábado 7 como margen. |
+| **Deadline** | **11 de enero de 2027** (prórroga aceptada, comunicada a David el 27 oct 2026). Hasta entonces el deadline era el 7 nov 2026; `PLAN.md` v1.x se construyó sobre esa fecha y queda superado: el nuevo cronograma (v2.0) se escribe el 28 oct. La entrega sigue siendo **en línea** (enlace de Drive). |
 | **Qué se entrega** | Solo el **documento final**. No hay demo en vivo ese día; la sustentación se define después si el documento se aprueba. |
 | **Capacidad** | 8 h/día, 7 días/semana: 08:00–12:00 y 14:00–18:00 (hora Colombia). Sueño 21:00–05:30, no negociable. Excepción conocida: dom 25 oct solo por la tarde. |
 | **Compañera de tesis** | María Paula Ramos Carrillo. Rol acordado: documento (plantilla, Marco Lógico, manual de usuario, formato, referencias). Pendiente que suba a un Drive lo que ya tiene. |
@@ -94,7 +94,7 @@ por el equipo humano"**. → El flujo agéntico es parte de la metodología decl
 | PWA para el panel admin | **Entra** como build web de Flutter con vistas protegidas por rol; es instalable (manifest + service worker por defecto de Flutter web). **No** se implementa modo offline; el documento lo redacta así. |
 | Cronograma original de 24 semanas | Sustituido por `docs/PLAN.md` (15 días). |
 
-## 4. Estado técnico actual (verificado por David el 23 oct)
+## 4. Estado técnico actual (verificado por David el 23 oct; actualizado 27 oct)
 
 ### Backend
 - **Python 3.14 en dev, CI y producción** (**ADR-0004**, escrito por David el 25 oct). Antes convivían 3.14 (venv, CI) y 3.11 (Dockerfile, `.python-version`).
@@ -102,15 +102,19 @@ por el equipo humano"**. → El flujo agéntico es parte de la metodología decl
   clases de dominio propias (los modelos SQLAlchemy actúan como entidades: trade-off consciente
   de MVP, documentar).
 - **Hecho y verificado:** autenticación JWT, registro con hash, handlers globales de
-  excepciones, `UserAccessPolicy` con ABAC jerárquico (cubre delete y update), **ningún servicio
-  importa FastAPI ni lanza `HTTPException`**, auditoría básica (`test_audit.py`).
+  excepciones, `UserAccessPolicy` con ABAC jerárquico (cubre delete y update), auditoría básica
+  (`test_audit.py`). **Desde el 27 oct, los cuatro contratos de capas de `import-linter` se cumplen**
+  (`B-BE01`: `storage.py` y `security.py` dejaron de arrastrar FastAPI; ADR-0006): ningún servicio conoce
+  el transporte HTTP, ni directa ni transitivamente.
 - **No existe:** módulo de reservas (ver ADR-0002), pagos, paginación, recuperación de
   contraseña, `display_order` de paquetes.
-- **Tests:** pytest + mocks. Diagnóstico previo de Claude Code (mocks sin `spec`, setup
-  duplicado, aserciones sobre texto, sesión ≠ `get_db`, huecos B2/B3/B4) **pendiente de
-  verificar contra el código** al montar el tooling. **Confirmado:** no hay linters, ni type
-  checker, ni medición de cobertura.
-- **Deuda y features:** inventario completo con decisión por ítem en `docs/backlog.md` (v1.1).
+- **Tests y calidad:** pytest + mocks; 145 tests, cobertura 93 % (27 oct; línea base del 24 oct:
+  116 y 89 %, PLAN §6). Tooling desde el 24 oct: `ruff`, `mypy`, `import-linter`, `pytest-cov`, unidos
+  en `scripts/check.py` (AGENTS §6); la compuerta global sigue en rojo por deuda heredada (ruff 362,
+  mypy 44) y rige el trinquete de ADR-0005 hasta `B-TESTS`. El diagnóstico de la suite (mocks sin
+  `spec`, setup duplicado, aserciones sobre texto, sesión ≠ `get_db`, huecos B2/B3/B4) es la fila
+  §9/BE-15 del backlog y se corrige en `B-TESTS`.
+- **Deuda y features:** inventario completo con decisión por ítem en `docs/backlog.md`.
 
 ### CI/CD e infraestructura (operativa)
 GitHub → Azure DevOps → Azure (Web App for Containers + BD administrada) → Docker Hub.
@@ -146,8 +150,10 @@ la Web App la hala al reiniciar. Operación: 2 clics.
   `.claude/hooks/`; skills, `.claude/skills/`. La guía de uso para humanos (cuándo, qué hace, qué no hace)
   es la tabla de comandos de `docs/sesiones/README.md`, y `scripts/check_docs.py` verifica que ambas
   coincidan (la guía con el inventario).
-- **Estado:** v1 construida el 24 oct; **bajo calibración** con BE-01 desde el 25 oct (verificación hecha;
-  plan y fases pendientes, ver §8). Pendiente: conectar `check.py` al CI de Azure (`B-CI`).
+- **Estado:** v1 construida el 24 oct; **primer ciclo completo ejecutado el 27 oct** con `B-BE01` (verificar →
+  planear → 4 fases con auditoría → `/pr`), con dos calibraciones ese día (frontmatter de los agentes entre
+  comillas; propuesta de reglas para la sesión Mentor, pendiente). Pendientes de flujo con dueño en §8.4;
+  `check.py` aún no corre en el CI de Azure (`B-CI`).
 - **Artefactos de datos por ítem** (`docs/deuda/<ID>/`): `verificacion.md`, `plan.md`, `progress.json`,
   `handoff-<fase>.md`, `gaps.md`. El estado de un ítem es lo que existe en su carpeta; no hay índice aparte.
 
@@ -166,7 +172,9 @@ la Web App la hala al reiniciar. Operación: 2 clics.
 | 25 oct | PR con commits atómicos se mezclan con *merge commit*, no squash. | `.claude/commands/pr.md`, `docs/sesiones/README.md` | Cap. de metodología (control de versiones) |
 | 26 oct | Bloques de trabajo: la composición vive en `PLAN.md` §2b y los días solo en el cronograma; backlog y CONTEXT referencian bloques. | `CONTEXT.md` §0, `PLAN.md` §2b | Cap. de metodología (gestión del plan) |
 | 26 oct | Finales de línea normalizados a LF en el repositorio. | `.gitattributes` | — |
-| pendiente | Pagos: puerto `PaymentGateway`, `WompiAdapter`, `FakeAdapter`, webhook idempotente. | ADR de pagos (`B-PAGOS`) | Cap. de diseño (secuencia de pago) y arquitectura |
+| 27 oct | Cronograma v1.6: segundo deslizamiento pagado con recortes explícitos; superado el mismo día por la prórroga (entrega 11 ene 2027). | `PLAN.md` (línea de estado), §2 | Cap. de metodología (gestión del plan con hechos) |
+| 27 oct | El adaptador de almacenamiento lanza excepciones de dominio (nunca `HTTPException`); lista blanca de URLs del CDN; copia síncrona antes de borrar; `InvalidImageUrlError` → 400 por contrato con el cliente (remapeo a 422 con P2). Supersede el residuo de `storage.py` de ADR-0003. | **ADR-0006** | Cap. de arquitectura (manejo de errores por capas) y resultados (contrato de capas 4 KEPT, cobertura) |
+| pendiente | Pagos: puerto `PaymentGateway`, `WompiAdapter`, `FakeAdapter`, webhook idempotente. | ADR de pagos (`B-PAGOS`, tomará el 0007) | Cap. de diseño (secuencia de pago) y arquitectura |
 
 ## 7. Preguntas abiertas
 
@@ -175,20 +183,28 @@ la Web App la hala al reiniciar. Operación: 2 clics.
   por paquete completo, antelación mínima 1 día, 30 min para pagar una reserva pendiente,
   tarifa de temporada alta como trabajo futuro.
 
-## 8. Próximo paso (lun 26 oct, cierre)
+## 8. Próximo paso (mar 27 oct, cierre)
 
-Dónde estamos: `develop` (`f522f48`, PR #57) tiene tooling, flujo v1 con guardarraíl contra
-`origin/develop` y compuerta de docs, Python 3.14, bloques y ADR-0001…0005. BE-01 sigue verificado sin
-hash (25 oct). **La fila del lun 26 de PLAN §3 no se ejecutó** (bitácora del 26, cierre).
+Dónde estamos: `B-BE01` (BE-01 + P1 + A7) completo por el flujo, ciclo entero (verificar → planear → A, B,
+C, D con auditoría → `/pr`); contrato de capas **4 KEPT**, `storage.py` 100 %, 145 tests, 93 %; ADR-0006
+aceptado. Rama `deuda/BE-01` lista para PR → `develop` (estado del merge: bitácora del 27, cierre). Dos
+calibraciones del flujo hoy (frontmatter de `handoff-auditor`; el Mentor no debe tocar git ni archivos
+fuera de `docs/`: propuesta pendiente). `B-FORMATO`, `B-CI`, `B-S1`, `B-TESTS` no se han hecho; la
+compuerta global sigue en rojo y ADR-0005 vigente. **El deadline pasó al 11 ene 2027 (§2): PLAN §3 v1.6
+queda superado.**
 
-1. Apertura del 27 en sesión Mentor fresca (`docs/sesiones/mentor.md`): decidir en ≤ 15 min cómo
-   absorber el día perdido (opciones en la bitácora del 26) → editar PLAN §3 (v1.6) y este §8.
-2. `git checkout develop && git pull && git checkout -b deuda/BE-01`.
-3. `/deuda-verificar BE-01` (re-verificación con `Base develop`) → `/deuda-planear BE-01` → aprobar en
-   el Mentor → `/implementar`/`/auditar` A, B, C → `/pr` → merge.
-4. Lo demás, según la fila del 27 que resulte del paso 1.
-5. Regla del día: no se toca el flujo (`.claude/`, `scripts/check*.py`, `AGENTS.md`, `docs/sesiones/`)
-   salvo que un bloque se bloquee por su culpa.
+1. Apertura del 28 en sesión Mentor fresca: **replan en ≤ 1 h → PLAN v2.0** (§1 D3 alcance, §2b bloques,
+   §3 cronograma hasta el 11 ene, §7 usabilidad). Entradas que solo David puede dar: capacidad real por
+   semana hasta enero; si la sesión con el gerente del lun 2 nov se mantiene como primera ronda de
+   usabilidad; qué ítems de `B-FUTURO` vuelven a entrar. Regla que no cambia: el alcance del MVP (D3) es el
+   alcance; el tiempo extra va a calidad (compuerta en verde antes de reservas), a lo prometido por la
+   propuesta y al documento, no a features nuevas sin ADR.
+2. Si el PR de BE-01 no se mezcló el 27: CI verde → merge commit → `backlog.md` BE-01/P1/A7 → `Hecho (PR #N)`.
+3. Con PLAN v2.0 aprobado: `B-FORMATO` (sin modelo) → `B-CI` → `B-S1` → `B-TESTS`, en ese orden, porque
+   S1 es prerrequisito de `Reservation` y `B-TESTS` hace caducar ADR-0005.
+4. Pendientes de flujo (no urgentes, con dueño): `check_docs.py` parsea los frontmatter de `.claude/agents/`
+   con YAML estricto; `/pr` deja de mostrar `#N` como marcador; README: la compuerta se corre con el venv
+   activo; decidir dónde viven las reglas del Mentor (`docs/sesiones/`).
 
 ## 9. Sesiones de IA
 Cualquier sesión (ingeniería, documento, estudio, mentor) arranca con los prompts de `docs/sesiones/` y el ritual

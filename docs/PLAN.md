@@ -1,7 +1,7 @@
 # Ecotur-ASOPRADO — Plan de 15 días (23 oct → 6 nov 2026)
 
 > Guárdalo en el repo como `docs/PLAN.md`, junto a `docs/CONTEXT.md`.
-> Estado: **v1.6 (27 oct) — segundo deslizamiento de un día (la fila del lun 26 no se ejecutó: calibración del flujo, bitácora del 26), pagado con dos recortes de alcance explícitos (webhook de Wompi condicionado al corte; `B-FE-LISTA` a media jornada) y sin tocar la usabilidad del lun 2 ni el margen del sáb 7. v1.5 (26 oct): bloques de trabajo (§2b). Primer deslizamiento absorbido el 25 oct.**
+> Estado: **SUPERADO el 27 oct (cierre): el deadline pasó al 11 de enero de 2027 (CONTEXT §2); el cronograma v2.0 se escribe el 28 oct en la apertura. Hasta entonces, §1 (decisiones y alcance), §2b (bloques), §4–§8 siguen vigentes; §3 no.** Última versión del cronograma de 15 días: v1.6 (27 oct) — segundo deslizamiento de un día (la fila del lun 26 no se ejecutó: calibración del flujo, bitácora del 26), pagado con dos recortes de alcance explícitos (webhook de Wompi condicionado al corte; `B-FE-LISTA` a media jornada) y sin tocar la usabilidad del lun 2 ni el margen del sáb 7. v1.5 (26 oct): bloques de trabajo (§2b). Primer deslizamiento absorbido el 25 oct.**
 > Progreso diario: `docs/bitacora/`. Estado actual del proyecto: `docs/CONTEXT.md` §8. Este plan no lleva estado: lleva fechas y alcance. Cambio mayor respecto a v1:
 > el **módulo de reservas no existía** (ni tabla ni lógica; el botón "reservar" no hacía nada),
 > así que los días 4–5 se dedican a construirlo. Lo compensa que BE-03 y BE-04 ya estaban resueltos.

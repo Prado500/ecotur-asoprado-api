@@ -1,26 +1,23 @@
 import itertools
-from unittest.mock import MagicMock, AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 import pytest_asyncio
-from httpx import AsyncClient, ASGITransport
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 from app.api.dependencies import get_storage_client
 from app.core.security import create_access_token
-from app.main import app
 from app.db.database import Base, get_db
+from app.main import app
 from app.models.user import User, UserRole
-
 
 DATABASE_URL_TEST = "sqlite+aiosqlite:///:memory:"
 
 # StaticPool allows for the in-memory database to exist until the test session is over.
 engine_test = create_async_engine(
-    DATABASE_URL_TEST,
-    poolclass=StaticPool,
-    connect_args={"check_same_thread": False}
+    DATABASE_URL_TEST, poolclass=StaticPool, connect_args={"check_same_thread": False}
 )
 
 TestingSessionLocal = async_sessionmaker(
@@ -30,6 +27,7 @@ TestingSessionLocal = async_sessionmaker(
     autocommit=False,
     autoflush=False,
 )
+
 
 @pytest_asyncio.fixture(autouse=True)
 async def setup_database():
@@ -47,11 +45,13 @@ async def setup_database():
     async with engine_test.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
 
+
 @pytest_asyncio.fixture
 async def db_session():
     """Returns test database session"""
     async with TestingSessionLocal() as session:
         yield session
+
 
 @pytest_asyncio.fixture
 async def client(db_session):
@@ -59,6 +59,7 @@ async def client(db_session):
     Overwrites non-testable `get_db` API dependency over the SQLite session for testing.
     Runs an async HTTP client (httpx) aiming to this FastAPI app.
     """
+
     async def override_get_db():
         yield db_session
 
@@ -68,6 +69,7 @@ async def client(db_session):
         yield ac
 
     app.dependency_overrides.clear()
+
 
 @pytest_asyncio.fixture(autouse=True)
 def override_azure_storage_client():
@@ -83,7 +85,9 @@ def override_azure_storage_client():
     mock_client.container_name = "ecotur-images"
 
     # Mocking I/O Coroutines
-    mock_client.upload_image = AsyncMock(return_value="https://ecoturasopradocdn2026.blob.core.windows.net/temp-ecotur-images/fake_image.jpg")
+    mock_client.upload_image = AsyncMock(
+        return_value="https://ecoturasopradocdn2026.blob.core.windows.net/temp-ecotur-images/fake_image.jpg"
+    )
     mock_client.delete_image = AsyncMock(return_value=None)
 
     # Simulating Azure's Copy & Delete promotion behavior dynamically
@@ -91,6 +95,11 @@ def override_azure_storage_client():
         return url.replace("temp-ecotur-images", "ecotur-images")
 
     mock_client.promote_to_permanent = AsyncMock(side_effect=mock_promote)
+
+    # URL classification by prefix, mirroring the real adapter
+    cdn_prefix = "https://ecoturasopradocdn2026.blob.core.windows.net/"
+    mock_client.is_temporal_url = lambda url: url.startswith(f"{cdn_prefix}temp-ecotur-images/")
+    mock_client.is_permanent_url = lambda url: url.startswith(f"{cdn_prefix}ecotur-images/")
 
     app.dependency_overrides[get_storage_client] = lambda: mock_client
 
@@ -121,6 +130,7 @@ def make_user():
         defaults; keyword overrides customize role, is_active, deleted_at
         or any other scalar column.
     """
+
     def _make_user(
         *,
         role: UserRole = UserRole.tourist,
@@ -155,6 +165,7 @@ def make_token():
         Callable[[User], str]: Factory producing a signed bearer token with
         the user's email and role as claims.
     """
+
     def _make_token(user: User) -> str:
         return create_access_token(data={"sub": user.email, "role": user.role.value})
 
@@ -170,6 +181,7 @@ def make_auth_headers(make_token):
         Callable[[User], dict]: Factory producing a ready-to-use header dict
         embedding a freshly signed bearer token.
     """
+
     def _make_auth_headers(user: User) -> dict:
         return {"Authorization": f"Bearer {make_token(user)}"}
 
@@ -185,6 +197,7 @@ async def persist_user(db_session, make_user):
         Callable[..., User]: Async factory producing a refreshed, persisted
         User entity; keyword overrides are forwarded to make_user.
     """
+
     async def _persist(**overrides) -> User:
         user = make_user(**overrides)
         db_session.add(user)
