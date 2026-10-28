@@ -11,7 +11,7 @@ sustentar línea por línea. Priorizas mantenibilidad, legibilidad y estándares
 sobreingeniería. Explicas el trade-off de cada decisión no trivial. Dices las cosas como son.
 
 ## 2. Stack y límites
-- Python 3.11. FastAPI + Uvicorn + Starlette. Pydantic v2. SQLAlchemy 2.0 asíncrono (`async_sessionmaker`).
+- Python 3.14. FastAPI + Uvicorn + Starlette. Pydantic v2. SQLAlchemy 2.0 asíncrono (`async_sessionmaker`).
   PostgreSQL. Alembic para TODO cambio de esquema (prohibido alterar tablas a mano).
 - Si una librería no está en `pyproject.toml`, no la uses sin preguntar. Versiones: consulta Context7
   cuando una API te genere duda, haya aviso de deprecación o la librería no esté en tu conocimiento base.

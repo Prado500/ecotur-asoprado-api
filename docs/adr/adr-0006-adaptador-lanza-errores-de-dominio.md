@@ -1,11 +1,10 @@
-# ADR-0006 (BORRADOR) — El adaptador de almacenamiento lanza excepciones de dominio; política de URLs de imagen y copia síncrona
+# ADR-0006 - El adaptador de almacenamiento lanza excepciones de dominio; política de URLs de imagen y copia síncrona
 
-- **Estado:** **aceptado por David el 2026-10-27** (propuesto por el plan de BE-01 el mismo día), con un cambio
-  respecto al borrador inicial: `InvalidImageUrlError` → **400**, no 422 (ver Decisión 2 y Alternativas).
-  Permanece en `docs/deuda/BE-01/` hasta que David lo mueva, en un commit propio antes del PR, a
-  `docs/adr/0006-adaptador-de-almacenamiento-lanza-errores-de-dominio.md` con la sección de evidencia rellenada
-  con los números reales; tomará el siguiente número libre (comprobar que el ADR de pagos no lo haya ocupado
-  antes). Ni el ejecutor ni el auditor lo mueven.
+- **Estado:** aceptado
+- **Propuesta:** plan de BE-01 (`plan-redactor`, 27 oct 2026) · **Aprobada:** David (27 oct 2026), con un cambio
+  respecto al borrador: `InvalidImageUrlError` → **400**, no 422 (ver Decisión 2 y Alternativas).
+- **Fecha de la decisión:** 2026-10-27 · **Fecha de registro:** 2026-10-27
+- **Ubicación en el repo:** `docs/adr/0006-adaptador-de-almacenamiento-lanza-errores-de-dominio.md`
 - **Supersede parcialmente:** ADR-0003, apartado "Residuos declarados (vigentes)", primer punto
   (`app/core/storage.py` conserva `HTTPException` 415/500). El resto de ADR-0003 sigue vigente.
 - **Relación:** ADR-0003 (handler global y tabla `_DOMAIN_ERROR_STATUS`), ADR-0005 (trinquete), backlog BE-01, A7, P1.
@@ -91,7 +90,12 @@ por substring) y borra el origen sin esperar la copia (A7).
 - **Reutilizar `BusinessRuleViolationError` (400) en lugar de una excepción propia.** Descartada: perdería el
   punto de remapeo a 422 y mezclaría "URL fuera de la lista blanca" con reglas de negocio ajenas (11 imágenes).
 
-## Evidencia (a completar por el ejecutor/auditor)
+## Evidencia (medida por `handoff-auditor` en cada fase, 27 oct 2026; `docs/deuda/BE-01/gaps.md`)
 
-- `lint-imports` → "Contracts: 4 kept, 0 broken." · `grep -rn "HTTPException" app/core tests` → vacío.
-- Cobertura de `app/core/storage.py` ≥ 90 % (línea base 28 %). Suite completa en verde.
+- `lint-imports` → `Contracts: 4 kept, 0 broken.` (línea base del 25 oct: 3 kept, 1 broken).
+- `grep -rn "HTTPException\|from fastapi" app/core tests` → vacío.
+- Cobertura de `app/core/storage.py`: 28 % → **100 %**; total: 89 % → **93 %**. pytest: 116 → **145 passed**.
+- Totales del trinquete (ADR-0005): ruff 489 → 362; mypy 44 = 44 (los 12 errores que quedan en los archivos
+  tocados son A4 y S1, mismo conjunto de líneas antes y después).
+- Textos `detail` preexistentes conservados letra a letra frente a `git show 8bf9815:app/core/storage.py`.
+- Commits: `170839c` (fase A, P1), `867e56c` (fase B, BE-01 + A7), `c5fc0b7` (fase C), `4295334` (fase D).
