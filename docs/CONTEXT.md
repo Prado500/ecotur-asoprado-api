@@ -5,9 +5,9 @@
 > Vive en `docs/CONTEXT.md`. Regla de oro: **el contexto vive en archivos versionados, no en la
 > memoria de un chat.** Cada sesión nueva arranca leyendo esto.
 >
-> **Versión 2.8 — 26 oct 2026 (cierre).** Sustituye por completo a la del 22 oct. Fuentes: conversación con
-> David (22–23 oct), propuesta de trabajo de grado aprobada (PDF), Word de observaciones del
-> flujo agéntico, notas de deuda funcional, ADR-0001 y ADR-0002.
+> **Versión 2.9 — 28 oct 2026.** Cambios de esta versión: bitácoras `2026-10-27` (§2 deadline, §4, §8; no subió
+> versión ese día) y `2026-10-28` (§0 versionado, §6 ADR-0007). Versionado según ADR-0007; la historia de versiones
+> anteriores vive en las bitácoras del 22 al 26 oct.
 
 ---
 

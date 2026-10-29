@@ -1,8 +1,9 @@
 # Ecotur-ASOPRADO — Plan de 15 días (23 oct → 6 nov 2026)
 
-> **Versión 1.6 — 27 oct 2026.** Cambios de esta versión: bitácora `2026-10-27` (deslizamiento de un día). Versiones
-> anteriores: `2026-10-25` (v1.4, primer deslizamiento), `2026-10-26` (v1.5, bloques de trabajo §2b). Versionado según
-> ADR-0007: la versión es del archivo, no del cronograma.
+> **Versión 1.7 — 28 oct 2026.** Cambios de esta versión: bitácora `2026-10-28` (solo la forma de este encabezado,
+> según ADR-0007; sin cambios de contenido). Versiones anteriores: `2026-10-27` (v1.6, deslizamiento de un día),
+> `2026-10-26` (v1.5, bloques de trabajo §2b), `2026-10-25` (v1.4, primer deslizamiento). Versionado según ADR-0007:
+> la versión es del archivo, no del cronograma.
 > **Superado el 27 oct (cierre):** el deadline pasó al 11 de enero de 2027 (CONTEXT §2). La v2.0 se escribe el 28 oct.
 > Hasta entonces, §1 (decisiones y alcance), §2b (bloques) y §4–§8 siguen vigentes; §3 (cronograma) no.
 > Progreso diario: `docs/bitacora/`. Estado actual del proyecto: `docs/CONTEXT.md` §8. Este plan no lleva estado: lleva

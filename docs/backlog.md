@@ -1,6 +1,9 @@
-# Ecotur-ASOPRADO — Backlog consolidado (v1.7, 26 oct 2026 — vocabulario cerrado de decisiones; el estado intermedio se lee de docs/deuda/<ID>/)
+# Ecotur-ASOPRADO — Backlog consolidado
 
-> Guárdalo en el repo como `docs/backlog.md`. Fuentes: 19 notas `.txt` de "deuda funcional",
+> **Versión 1.8 — 28 oct 2026.** Cambios de esta versión: bitácora `2026-10-28` (BE-01, P1 y A7 → Hecho, PR #61);
+> `2026-10-27` (BE-24..26, sin subir versión ese día); `2026-10-26` (v1.7, vocabulario cerrado de decisiones).
+> Versionado según ADR-0007.
+> Fuentes: 19 notas `.txt` de "deuda funcional",
 > Word "deuda técnica adicional identificada", cards del Trello (según David), auditoría previa de
 > Claude Code sobre la suite de tests, y último sprint planning con el gerente.
 >
@@ -17,7 +20,7 @@
 
 | ID | Origen | Qué | Sev. | Decisión | Nota técnica |
 |---|---|---|---|---|---|
-| BE-01 | nota `B1_*.txt` de David (no es el tag B1 de la auditoría) + import-linter | Crear paquete con URLs de blobs inexistentes o ajenas al CDN devuelve **500**. **Localizado:** `app/core/storage.py:138` lanza `HTTPException(500, "Fallo al consolidar…")`; además 415 (l.60) y 500 (l.86). Por eso `services → storage → fastapi` rompe el contrato de capas. | Alta | **Entra · `B-BE01`** | `storage.py` deja de conocer HTTP: `UnsupportedMediaTypeError` → 415, `StorageUnavailableError` → 503 (ya existe), blob inexistente / URL ajena al CDN → excepción de dominio → 400 (remap a 422 con P2). Registrar las nuevas en `_DOMAIN_ERROR_STATUS` (ADR-0003). Incluye A7 (copia síncrona antes de borrar el origen) y tests para `storage.py` (hoy 28 % de cobertura). Verificación final: `lint-imports` → 4 KEPT. |
+| BE-01 | nota `B1_*.txt` de David (no es el tag B1 de la auditoría) + import-linter | Crear paquete con URLs de blobs inexistentes o ajenas al CDN devuelve **500**. **Localizado:** `app/core/storage.py:138` lanza `HTTPException(500, "Fallo al consolidar…")`; además 415 (l.60) y 500 (l.86). Por eso `services → storage → fastapi` rompe el contrato de capas. | Alta | **Hecho (PR #61, 27 oct; ADR-0006)** | `storage.py` deja de conocer HTTP: `UnsupportedMediaTypeError` → 415, `StorageUnavailableError` → 503 (ya existe), blob inexistente / URL ajena al CDN → excepción de dominio → 400 (remap a 422 con P2). Registrar las nuevas en `_DOMAIN_ERROR_STATUS` (ADR-0003). Incluye A7 (copia síncrona antes de borrar el origen) y tests para `storage.py` (hoy 28 % de cobertura). Verificación final: `lint-imports` → 4 KEPT. |
 | BE-02 | B1 (txt) | Superadmin puede auto-degradarse de rol | Alta | **Entra · `B-TESTS`** | Regla en la política de acceso: nadie cambia su propio rol; solo un superadmin cambia roles ajenos. Test explícito. |
 | BE-03 | B3 (txt) | `update_user` sin ABAC jerárquico | — | **Hecho (antes del flujo; verificado 23 oct)** | David verificó: existe `UserAccessPolicy` con el cálculo del ABAC jerárquico para decidir si un sujeto puede editar un objeto. Queda una revisión "por no dejar" en `B-TESTS` (que `update_user` y `delete_user_account` usen la misma política y haya test de ambos). |
 | BE-04 | B1 (txt) | `HTTPException` dentro de servicios | — | **Hecho (antes del flujo; verificado 23 oct)** | David verificó: ninguno de los tres servicios (usuarios, servicios turísticos, audit) importa FastAPI ni lanza `HTTPException`. Para que **siga** siendo así sin depender de la memoria de nadie: contrato de `import-linter` desde el 24 oct (`app.services` no puede importar `fastapi`). Respuesta a la duda original: no hay caso que lo justifique; el único argumento sería velocidad, y los handlers ya existen. |
@@ -59,7 +62,7 @@ contra el informe: la auditoría tiene un mes y mucho ya cambió. Esfuerzo: XS �
 | A4 | Configuración dispersa: 14 `os.getenv`, `pydantic-settings` sin usar | **14** `os.getenv`, **0** `BaseSettings` | Alta | S–M | **Entra · `B-PAGOS`**
 | A5 | `echo=True` fijo; sin `lifespan`; cliente Azure por petición | `echo=True` **1**; `lifespan` **aparece 2** (verificar) | Media | XS–S | **Entra · `B-PAGOS`**
 | A6 | Sin `logging`; 2 `print()`; `IntegrityError` descartado sin registro | **0** `logging`, **2** `print(` | Media | S | **Entra · `B-HIGIENE`**
-| A7 | `promote_to_permanent` borra el origen sin esperar la copia (pérdida de imágenes) | `start_copy_from_url` **1**, sin espera de `copy_status` | Alta | S | **Entra · `B-BE01`**
+| A7 | `promote_to_permanent` borra el origen sin esperar la copia (pérdida de imágenes) | `start_copy_from_url` **1**, sin espera de `copy_status` | Alta | S | **Hecho (PR #61, 27 oct)**
 | A8 | `get_deleted_users` filtra en memoria | **1** comprensión sobre `deleted_at` | Baja | XS | **Entra · `B-HIGIENE`**
 | A9 | `UserResponse` hereda validaciones de entrada → 500 al leer nombres válidos | **1** `class UserResponse(UserBase` | Alta | S | **Entra · `B-HIGIENE`**
 | D1 | Regla "es administrador" escrita 6 veces | `UserAccessPolicy` + commit `e581c6a` | — | — | **Hecho (ADR-0003, PR #45; re-verificación en `B-TESTS`)** |
@@ -74,7 +77,7 @@ contra el informe: la auditoría tiene un mes y mucho ya cambió. Esfuerzo: XS �
 | S5 | `HTTP_422_UNPROCESSABLE_ENTITY` deprecado | **1** | Baja | XS | **Entra · `B-HIGIENE`**
 | S6 | `PUT` con semántica `PATCH`; `model_config` como dict | `@router.put` **0** (ya corregido); dict **1** | Baja | XS | **Entra · `B-HIGIENE` (solo el dict)**
 | S7 | `Field(default=[])` | **1** | Baja | XS | **Entra · `B-HIGIENE`**
-| P1 | `core/security` importa `User`, `UserRole`, `HTTPException` y `status` sin usarlos (arrastra el engine y rompe el contrato de capas por transitividad) | **4** imports muertos (l.6–10) | Media | XS | **Entra · `B-BE01` (fase A)**
+| P1 | `core/security` importa `User`, `UserRole`, `HTTPException` y `status` sin usarlos (arrastra el engine y rompe el contrato de capas por transitividad) | **4** imports muertos (l.6–10) | Media | XS | **Hecho (PR #61, 27 oct)**
 | P2 | Spanglish: 12 handlers en español; clave `"detalle"` vs `"detail"` | **12** handlers, **1** `"detalle"` | Media (el `detalle` es bug funcional) | XS + S | **Entra · `B-HIGIENE` (`detalle`→`detail`; renombrar handlers solo si sobra, si no → `B-FUTURO`)**
 | P3 | 8 docstrings que contradicen al código | No verificado por grep | Baja | S | **Entra · `B-HIGIENE` (al tocar cada archivo; lo que quede → `B-FUTURO`)**
 | SEC1 | CORS `*` con credenciales | **1** `allow_origins=["*"]` | Alta | XS | **Entra · `B-HIGIENE`**
