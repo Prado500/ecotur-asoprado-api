@@ -5,9 +5,9 @@
 > Vive en `docs/CONTEXT.md`. Regla de oro: **el contexto vive en archivos versionados, no en la
 > memoria de un chat.** Cada sesión nueva arranca leyendo esto.
 >
-> **Versión 2.8 — 26 oct 2026 (cierre).** Sustituye por completo a la del 22 oct. Fuentes: conversación con
-> David (22–23 oct), propuesta de trabajo de grado aprobada (PDF), Word de observaciones del
-> flujo agéntico, notas de deuda funcional, ADR-0001 y ADR-0002.
+> **Versión 2.9 — 28 oct 2026.** Cambios de esta versión: bitácoras `2026-10-27` (§2 deadline, §4, §8; no subió
+> versión ese día) y `2026-10-28` (§0 versionado, §6 ADR-0007). Versionado según ADR-0007; la historia de versiones
+> anteriores vive en las bitácoras del 22 al 26 oct.
 
 ---
 
@@ -25,6 +25,12 @@
 
 **Rituales de apertura y de cierre:** viven en un solo sitio, `docs/sesiones/README.md`. Toda sesión
 los sigue; este archivo no los repite para que no diverjan.
+
+**Versionado (ADR-0007):** este archivo, `PLAN.md`, `backlog.md` y los artefactos de `docs/sesiones/` se versionan
+**como archivos**: una línea `Versión X.Y — fecha` en el encabezado, seguida solo de las bitácoras que explican esa
+versión. Las secciones no llevan versión ni fecha de revisión; las fechas dentro del texto son fechas de hechos.
+Mayor (X.0) cuando cambia una premisa (deadline, alcance, capacidad, reglas); menor (X.Y) cuando cambia el
+contenido. Se incrementa una vez por día de cambios (es decir, cuando el archivo y/o sus contenidos sufren de modificaciones), en el ritual de cierre.
 
 Así no hay que "releer todo": el único documento que resume estado es este, y se revisa por
 secciones. Cuando dos documentos digan cosas distintas, gana el ADR más reciente.
@@ -174,7 +180,8 @@ la Web App la hala al reiniciar. Operación: 2 clics.
 | 26 oct | Finales de línea normalizados a LF en el repositorio. | `.gitattributes` | — |
 | 27 oct | Cronograma v1.6: segundo deslizamiento pagado con recortes explícitos; superado el mismo día por la prórroga (entrega 11 ene 2027). | `PLAN.md` (línea de estado), §2 | Cap. de metodología (gestión del plan con hechos) |
 | 27 oct | El adaptador de almacenamiento lanza excepciones de dominio (nunca `HTTPException`); lista blanca de URLs del CDN; copia síncrona antes de borrar; `InvalidImageUrlError` → 400 por contrato con el cliente (remapeo a 422 con P2). Supersede el residuo de `storage.py` de ADR-0003. | **ADR-0006** | Cap. de arquitectura (manejo de errores por capas) y resultados (contrato de capas 4 KEPT, cobertura) |
-| pendiente | Pagos: puerto `PaymentGateway`, `WompiAdapter`, `FakeAdapter`, webhook idempotente. | ADR de pagos (`B-PAGOS`, tomará el 0007) | Cap. de diseño (secuencia de pago) y arquitectura |
+| 28 oct | Versionado de los documentos vivos: la versión es del archivo, no de una sección; mayor cuando cambia una premisa, menor cuando cambia el contenido; encabezado con solo referencias a bitácoras; aplica a CONTEXT, PLAN, backlog y `docs/sesiones/`. | **ADR-0007** | Cap. de metodología (gestión documental del proyecto) |
+| pendiente | Pagos: puerto `PaymentGateway`, `WompiAdapter`, `FakeAdapter`, webhook idempotente. | ADR de pagos (`B-PAGOS`, tomará el siguiente número libre) | Cap. de diseño (secuencia de pago) y arquitectura |
 
 ## 7. Preguntas abiertas
 
@@ -183,28 +190,35 @@ la Web App la hala al reiniciar. Operación: 2 clics.
   por paquete completo, antelación mínima 1 día, 30 min para pagar una reserva pendiente,
   tarifa de temporada alta como trabajo futuro.
 
-## 8. Próximo paso (mar 27 oct, cierre)
+## 8. Próximo paso (mié 28 oct, cierre)
 
-Dónde estamos: `B-BE01` (BE-01 + P1 + A7) completo por el flujo, ciclo entero (verificar → planear → A, B,
-C, D con auditoría → `/pr`); contrato de capas **4 KEPT**, `storage.py` 100 %, 145 tests, 93 %; ADR-0006
-aceptado. Rama `deuda/BE-01` lista para PR → `develop` (estado del merge: bitácora del 27, cierre). Dos
-calibraciones del flujo hoy (frontmatter de `handoff-auditor`; el Mentor no debe tocar git ni archivos
-fuera de `docs/`: propuesta pendiente). `B-FORMATO`, `B-CI`, `B-S1`, `B-TESTS` no se han hecho; la
-compuerta global sigue en rojo y ADR-0005 vigente. **El deadline pasó al 11 ene 2027 (§2): PLAN §3 v1.6
-queda superado.**
+Dónde estamos: `B-BE01` **mezclado** (PR #61, `c8853af`, 27 oct 21:29); contrato de capas 4 KEPT, 145 tests, 93 %;
+ADR-0006 aceptado; backlog BE-01/P1/A7 en `Hecho`. No hay ítem de deuda en curso (`docs/deuda/BE-01/progress.json`
+con `current_target: null`). **El 28 fue día de replanificación, no de deuda:** David traía inconsistencias
+detectadas en los `.md` mezclados y las contrastó con la sesión Mentor fresca (bitácora del 28). Resultado: ADR-0007
+(versionado de documentos vivos) aceptado y aplicado; tres fe de erratas sobre el cierre del 27 corregidas; el numeral 3
+(PLAN repetía el deadline cinco veces; el mapa de dueños vive en dos sitios en prosa y `check_docs.py` solo escanea
+"día N" en backlog y CONTEXT) quedó **diagnosticado con propuesta A–D y sin decidir**: David cerró el día cansado antes
+que decidir cambios a profundidad. **PLAN v2.0 no se escribió**; PLAN 1.7 sigue superado (deadline 11 ene 2027, §2).
+`B-FORMATO`, `B-CI`, `B-S1`, `B-TESTS` no se han hecho; compuerta global en rojo y ADR-0005 vigente.
 
-1. Apertura del 28 en sesión Mentor fresca: **replan en ≤ 1 h → PLAN v2.0** (§1 D3 alcance, §2b bloques,
-   §3 cronograma hasta el 11 ene, §7 usabilidad). Entradas que solo David puede dar: capacidad real por
-   semana hasta enero; si la sesión con el gerente del lun 2 nov se mantiene como primera ronda de
-   usabilidad; qué ítems de `B-FUTURO` vuelven a entrar. Regla que no cambia: el alcance del MVP (D3) es el
-   alcance; el tiempo extra va a calidad (compuerta en verde antes de reservas), a lo prometido por la
-   propuesta y al documento, no a features nuevas sin ADR.
-2. Si el PR de BE-01 no se mezcló el 27: CI verde → merge commit → `backlog.md` BE-01/P1/A7 → `Hecho (PR #N)`.
-3. Con PLAN v2.0 aprobado: `B-FORMATO` (sin modelo) → `B-CI` → `B-S1` → `B-TESTS`, en ese orden, porque
-   S1 es prerrequisito de `Reservation` y `B-TESTS` hace caducar ADR-0005.
-4. Pendientes de flujo (no urgentes, con dueño): `check_docs.py` parsea los frontmatter de `.claude/agents/`
-   con YAML estricto; `/pr` deja de mostrar `#N` como marcador; README: la compuerta se corre con el venv
-   activo; decidir dónde viven las reglas del Mentor (`docs/sesiones/`).
+1. Apertura del 29 en sesión Mentor fresca: numerales restantes de la revisión de David; después **decidir A–D del
+   numeral 3** (bitácora del 28): (A) un solo mapa de dueños a grano de hecho en §0, (B) una copia derivada por
+   documento con el dueño entre paréntesis y nunca en títulos, (C) tres reglas mecánicas en `check_docs.py`, (D) PLAN
+   v2.0 sin copias de hechos ajenos. Lo decidido → ADR si cambia una regla; §0 si solo cambia el mapa.
+2. Luego **replan en ≤ 1 h → PLAN v2.0** (§1 D3 alcance, §2b bloques, §3 cronograma hasta el 11 ene, §7 usabilidad).
+   Entradas que solo David puede dar: capacidad real por semana hasta enero; si la sesión con el gerente del lun 2 nov
+   se mantiene como primera ronda de usabilidad; qué ítems de `B-FUTURO` vuelven a entrar. Regla que no cambia: el
+   alcance del MVP (D3) es el alcance; el tiempo extra va a calidad (compuerta en verde antes de reservas), a lo
+   prometido por la propuesta y al documento, no a features nuevas sin ADR.
+3. Con PLAN v2.0 aprobado: `B-FORMATO` (sin modelo) → `B-CI` → `B-S1` → `B-TESTS`, en ese orden, porque S1 es
+   prerrequisito de `Reservation` y `B-TESTS` hace caducar ADR-0005.
+4. Pendientes de flujo (no urgentes, con dueño): `check_docs.py` parsea los frontmatter de `.claude/agents/` con YAML
+   estricto; `rule_no_days` escanea también PLAN fuera de §3; la fecha de entrega que aparezca en PLAN coincide con §2;
+   `rule_version_header` (fecha del encabezado ≥ último commit del archivo, ADR-0007); `--estado` no distingue "mezclado"
+   (BE-01 sigue apareciendo "en ejecución"); `/pr` deja de mostrar `#N` como marcador; README: la compuerta se corre con el
+   venv activo; formalizar en `docs/sesiones/` las reglas del Mentor, asumidas desde el 28 (solo `git log`; nada fuera de
+   `docs/`; propuesta y permiso antes de escribir).
 
 ## 9. Sesiones de IA
 Cualquier sesión (ingeniería, documento, estudio, mentor) arranca con los prompts de `docs/sesiones/` y el ritual

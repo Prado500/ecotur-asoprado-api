@@ -1,6 +1,7 @@
 # ADR-0003 — Manejo de errores agnóstico al transporte: excepciones de dominio + un handler global
 
-- **Estado:** aceptado (retroactivo)
+- **Estado:** aceptado (retroactivo). El primer punto de "Residuos declarados" (`storage.py` conserva `HTTPException`)
+  está **superado por ADR-0006** (27 oct 2026); el resto sigue vigente.
 - **Fecha de la decisión:** 2026-10-10 · **Fecha de registro en este formato:** 2026-10-24
 - **Ubicación en el repo:** `docs/adr/0003-manejo-de-errores-agnostico-al-transporte.md`
 - **Origen:** `ADR_NOTE.md` (flujo agéntico v0), reescrito al formato de la casa sin cambiar
