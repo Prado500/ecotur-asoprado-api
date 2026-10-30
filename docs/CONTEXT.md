@@ -6,7 +6,8 @@
 > memoria de un chat.** Cada sesión nueva arranca leyendo esto.
 >
 > **Versión 3.0 — 30 oct 2026.** Cambios de esta versión: bitácora `2026-10-30` (§0: tabla hecho → dueño y política
-> de copias, ADR-0008 —cambia una regla, por eso mayor—; §6: fila del ADR-0008 y fe de erratas de D1; §8). Versiones
+> de copias, ADR-0008 —cambia una regla, por eso mayor—, regla de addendum y orden de resolución de huérfanas por el
+> addendum de ADR-0008; §6: fila del ADR-0008 y fe de erratas de D1; §8). Versiones
 > anteriores: `2026-10-29` (2.10: §8), `2026-10-28` (2.9: §0 versionado, §6 ADR-0007), `2026-10-27` (§2, §4, §8; no
 > subió versión ese día). Versionado según ADR-0007; la historia anterior vive en las bitácoras del 22 al 26 oct.
 
@@ -48,10 +49,15 @@ solo las copias derivadas que un documento concreto lleva por diseño.
 | Versión de un documento vivo | su encabezado (ADR-0007) | — |
 
 La tabla crece por incidente: cuando aparece una divergencia sobre información cuyo dueño no está registrado aquí, se
-determina el dueño (el documento que cambiaría si el hecho cambiara; si serían dos, se consulta a David) y se añade
-la fila ese día. Esas divergencias se detectan al leer (apertura de una sesión, revisiones de David), por la regla
-"hecho duro sin cita" de `check_docs.py`, o al ir a consignar un hecho y no encontrar su fila (ADR-0008, puntos 3 y 5).
-Naturaleza de cada archivo: los ADR son inmutables (se superseden); CONTEXT, PLAN, backlog y `docs/sesiones/` son
+determina el dueño (el documento que cambiaría **de fondo** si el hecho cambiara) y se añade la fila ese día. Si parece
+afectar a más de un documento, la sesión sigue el orden del addendum de ADR-0008: partir (cada parte, su dueño) → si no
+se parte, uno decide y el otro lleva copia citada → solo si dos deciden de fondo, consultar a David; en los tres casos
+llega con una propuesta y David valida antes de que la tabla crezca. Esas divergencias se detectan al leer (de forma
+oportunista: aperturas que contrastan, revisiones de David), por la regla "hecho duro sin cita" de `check_docs.py`
+cuando exista, o al ir a consignar un hecho y no encontrar su fila (ADR-0008, puntos 3 y 5 y addendum).
+Naturaleza de cada archivo: los ADR son inmutables: un ADR aceptado no se edita, se supersede, o recibe un **addendum
+fechado** que aclara o corrige una omisión sin alterar el texto original ni cambiar la decisión (si la decisión cambia,
+es un ADR nuevo; primer uso: ADR-0008, 30 oct); CONTEXT, PLAN, backlog y `docs/sesiones/` son
 vivos y versionados; las bitácoras son append-only (si algo cambió, se escribe en la entrada del día en que cambió).
 
 **Rituales de apertura y de cierre:** viven en un solo sitio, `docs/sesiones/README.md`. Toda sesión

@@ -2,7 +2,7 @@
 
 > **Versión 1.0 — 30 oct 2026.** Primera versión numerada (ADR-0007: los artefactos de `docs/sesiones/` toman 1.0 en su
 > primer cambio). Cambios: bitácora `2026-10-30` (paso 3 del ritual de cierre: dueños → tabla de `CONTEXT.md` §0; pasada
-> de citas de ADR-0008).
+> de citas de ADR-0008; herramientas de git para saber cuál cambió último, addendum de ADR-0008).
 
 Las sesiones **no se sincronizan entre sí: se sincronizan a través del repositorio.** Cada una arranca
 leyendo los mismos archivos y cierra actualizándolos. Cuatro roles, cuatro prompts:
@@ -39,6 +39,8 @@ porque cada uno alimenta al siguiente:
    demás documentos (`scripts/check_docs.py` cuando tenga la regla; mientras tanto, `grep -n "(CONTEXT §2)"
    docs/*.md docs/sesiones/*.md`, una vez por dueño tocado) y revisa cada copia: si diverge, la corrige hacia el
    dueño; si cree que la copia es la correcta o más reciente, no corrige, lo anota en la bitácora y pregunta a David.
+   Para saber cuál cambió último: `git log -1 --format=%ad -- <archivo>` (archivo) y `git blame -L <n>,<n> -- <archivo>`
+   (línea); copia commiteada después que el dueño = alarma, no corrección (ADR-0008, addendum).
    Nada de esto recae en David salvo esa decisión. Lo que `check_docs.py` pueda verificar, lo verifica; lo demás es
    responsabilidad de la sesión que hizo el cambio.
 4. **Commit** (y PR). Un archivo sin commitear no existe para una sesión que arranca con `git pull` en

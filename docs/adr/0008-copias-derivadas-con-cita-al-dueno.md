@@ -94,3 +94,32 @@
 - Hunt, A. y Thomas, D., *The Pragmatic Programmer* (DRY: "every piece of knowledge must have a single,
   unambiguous, authoritative representation within a system").
 - Anthropic, *Building effective agents* (patrón evaluator-optimizer), citado en ADR-0001.
+
+## Addendum — 30 oct 2026 (David)
+
+Completa el ADR tras la revisión del autor el mismo día de su aceptación (bitácora 2026-10-30). No altera el texto
+anterior ni cambia la decisión: corrige dos omisiones y afina un criterio. Si un punto de arriba y este addendum
+difieren, rige el addendum.
+
+- **Punto 3, mecanismo provisional.** `scripts/check_docs.py` todavía no detecta copias sin cita ni lista citas por
+  dueño; esas reglas son trabajo de flujo en un bloque por definir en PLAN v2.0 §2b. Hasta entonces, la pasada de
+  citas del punto 6 la hace la sesión que cierra con `grep` por cita de cada dueño tocado. Para copias huérfanas
+  (sin cita) no hay mecanismo provisional bueno, porque no tienen marcador: una búsqueda manual de patrones de
+  hecho duro (fechas, años, `%`, `B-…`, `Versión`, `h/día`) sin cita al lado es posible pero ruidosa. Esa carencia
+  es la razón para priorizar el bloque de reglas sobre otra deuda de flujo.
+- **Punto 5, criterio y orden de resolución.** El criterio es "el documento que cambiaría **de fondo** si el hecho
+  cambiara, no el que solo tendría que actualizar una copia citada". Si la información huérfana parece afectar a
+  más de un documento, la sesión que la encuentra procede en este orden y llega a David con una propuesta, no con
+  una pregunta vacía: (1) **partir**: si la información tiene partes y cada parte afecta de fondo a un documento
+  distinto, son varios hechos, cada uno con su dueño, y se proponen las filas; (2) si no se parte, uno de los
+  documentos la **decide** (dueño) y el otro la **lleva** (copia citada): se propone esa asignación; (3) solo si dos
+  documentos parecen decidir de fondo sobre lo mismo, se consulta a David con las dos lecturas. En los tres casos
+  David valida antes de que la tabla de CONTEXT §0 crezca.
+- **Punto 5, escenarios de detección.** Donde dice "al leer (apertura de una sesión, revisiones de David)" léase "al
+  leer, de forma oportunista y sin que ningún ritual lo exija; en la práctica, en aperturas que contrastan los
+  documentos entre sí y en las revisiones de David". Ningún ritual de arranque instruye a buscar huérfanas.
+- **Punto 4, ayuda para decidir quién está más actualizado.** `git log -1 --format=%ad -- <archivo>` da la fecha del
+  último commit de cada archivo; `git blame -L <n>,<n> -- <archivo>` la última modificación de una línea. Una copia
+  commiteada después que su dueño es señal de alarma (el dueño puede estar sin esa información), no de corrección:
+  se anota en la bitácora y se pregunta a David. Límite: ninguna de las dos ve lo no commiteado del día; para eso la
+  sesión que cierra solo tiene lo que ella misma tocó.
