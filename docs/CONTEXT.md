@@ -5,9 +5,9 @@
 > Vive en `docs/CONTEXT.md`. Regla de oro: **el contexto vive en archivos versionados, no en la
 > memoria de un chat.** Cada sesión nueva arranca leyendo esto.
 >
-> **Versión 2.9 — 28 oct 2026.** Cambios de esta versión: bitácoras `2026-10-27` (§2 deadline, §4, §8; no subió
-> versión ese día) y `2026-10-28` (§0 versionado, §6 ADR-0007). Versionado según ADR-0007; la historia de versiones
-> anteriores vive en las bitácoras del 22 al 26 oct.
+> **Versión 2.10 — 29 oct 2026.** Cambios de esta versión: bitácora `2026-10-29` (§8). Versiones anteriores:
+> `2026-10-28` (2.9: §0 versionado, §6 ADR-0007), `2026-10-27` (§2 deadline, §4, §8; no subió versión ese día).
+> Versionado según ADR-0007; la historia anterior vive en las bitácoras del 22 al 26 oct.
 
 ---
 
@@ -190,35 +190,37 @@ la Web App la hala al reiniciar. Operación: 2 clics.
   por paquete completo, antelación mínima 1 día, 30 min para pagar una reserva pendiente,
   tarifa de temporada alta como trabajo futuro.
 
-## 8. Próximo paso (mié 28 oct, cierre)
+## 8. Próximo paso (jue 29 oct, cierre)
 
-Dónde estamos: `B-BE01` **mezclado** (PR #61, `c8853af`, 27 oct 21:29); contrato de capas 4 KEPT, 145 tests, 93 %;
-ADR-0006 aceptado; backlog BE-01/P1/A7 en `Hecho`. No hay ítem de deuda en curso (`docs/deuda/BE-01/progress.json`
-con `current_target: null`). **El 28 fue día de replanificación, no de deuda:** David traía inconsistencias
-detectadas en los `.md` mezclados y las contrastó con la sesión Mentor fresca (bitácora del 28). Resultado: ADR-0007
-(versionado de documentos vivos) aceptado y aplicado; tres fe de erratas sobre el cierre del 27 corregidas; el numeral 3
-(PLAN repetía el deadline cinco veces; el mapa de dueños vive en dos sitios en prosa y `check_docs.py` solo escanea
-"día N" en backlog y CONTEXT) quedó **diagnosticado con propuesta A–D y sin decidir**: David cerró el día cansado antes
-que decidir cambios a profundidad. **PLAN v2.0 no se escribió**; PLAN 1.7 sigue superado (deadline 11 ene 2027, §2).
-`B-FORMATO`, `B-CI`, `B-S1`, `B-TESTS` no se han hecho; compuerta global en rojo y ADR-0005 vigente.
+Dónde estamos: sin cambios técnicos desde el 27 (`B-BE01` mezclado, PR #61; contrato de capas 4 KEPT, 145 tests, 93 %;
+compuerta global en rojo, ADR-0005 vigente). No hay ítem de deuda en curso. **El 28 y el 29 fueron calibración documental,
+no deuda:** el 28 produjo ADR-0007 y el diagnóstico del numeral 3; el 29, la decisión A–D con cambios respecto a la
+propuesta del 28 (bitácora del 29): mapa hecho → dueño solo en §0 y creciendo por incidente (A); política de copias
+derivadas que distingue hecho duro de explicación, con cita de forma fija y verificación acotada al cierre (B, **ADR-0008
+propuesto**, cuyo texto está en la bitácora del 29 hasta que David lo lea); reglas mecánicas en `check_docs.py` como
+bloque propio de trabajo (se nombra y define en PLAN v2.0 §2b), ya, no cuando se rompa algo (C); PLAN v2.0 sin copias, con paso 0 (diff copia ↔ dueño antes
+de recortar) y columna `Cierre` en §3 (D). **PLAN v2.0 sigue sin escribirse**; PLAN 1.7 sigue superado (deadline 11 ene 2027,
+§2). Fe de erratas pendiente de aplicar: la sesión con el gerente del lun 2 nov (§6 D1, PLAN §3) nunca fue confirmada por
+él; queda aplazada y con fecha por concretar. `B-FORMATO`, `B-CI`, `B-S1`, `B-TESTS` no se han hecho.
 
-1. Apertura del 29 en sesión Mentor fresca: numerales restantes de la revisión de David; después **decidir A–D del
-   numeral 3** (bitácora del 28): (A) un solo mapa de dueños a grano de hecho en §0, (B) una copia derivada por
-   documento con el dueño entre paréntesis y nunca en títulos, (C) tres reglas mecánicas en `check_docs.py`, (D) PLAN
-   v2.0 sin copias de hechos ajenos. Lo decidido → ADR si cambia una regla; §0 si solo cambia el mapa.
-2. Luego **replan en ≤ 1 h → PLAN v2.0** (§1 D3 alcance, §2b bloques, §3 cronograma hasta el 11 ene, §7 usabilidad).
-   Entradas que solo David puede dar: capacidad real por semana hasta enero; si la sesión con el gerente del lun 2 nov
-   se mantiene como primera ronda de usabilidad; qué ítems de `B-FUTURO` vuelven a entrar. Regla que no cambia: el
-   alcance del MVP (D3) es el alcance; el tiempo extra va a calidad (compuerta en verde antes de reservas), a lo
-   prometido por la propuesta y al documento, no a features nuevas sin ADR.
-3. Con PLAN v2.0 aprobado: `B-FORMATO` (sin modelo) → `B-CI` → `B-S1` → `B-TESTS`, en ese orden, porque S1 es
-   prerrequisito de `Reservation` y `B-TESTS` hace caducar ADR-0005.
-4. Pendientes de flujo (no urgentes, con dueño): `check_docs.py` parsea los frontmatter de `.claude/agents/` con YAML
-   estricto; `rule_no_days` escanea también PLAN fuera de §3; la fecha de entrega que aparezca en PLAN coincide con §2;
-   `rule_version_header` (fecha del encabezado ≥ último commit del archivo, ADR-0007); `--estado` no distingue "mezclado"
-   (BE-01 sigue apareciendo "en ejecución"); `/pr` deja de mostrar `#N` como marcador; README: la compuerta se corre con el
-   venv activo; formalizar en `docs/sesiones/` las reglas del Mentor, asumidas desde el 28 (solo `git log`; nada fuera de
-   `docs/`; propuesta y permiso antes de escribir).
+1. Apertura del 30 en sesión Mentor fresca: David lee el ADR-0008 y la tabla de §0 (bitácora del 29); lo que no entienda
+   queda sin confirmar. Con su OK, la sesión escribe `docs/adr/0008-…md`, sustituye la tabla de §0, apunta el README paso 3 a
+   §0 y le añade el paso de listar citas por dueño tocado (README → versión 1.0, ADR-0007), y sube este archivo a **3.0**
+   (cambia una regla de §0).
+2. Replan en ≤ 1 h → **PLAN v2.0** según D. Entradas que solo David puede dar: capacidad real por semana hasta enero; fecha
+   nueva (o criterio) para la usabilidad con el gerente, que ya no es el 2 nov; qué ítems de `B-FUTURO` vuelven. María Paula
+   pasa a bloques en §2b y filas en §3. Regla que no cambia: el alcance del MVP (D3) es el alcance; el tiempo extra va a
+   calidad, a lo prometido por la propuesta y al documento.
+3. Bloque de reglas mecánicas de `check_docs.py` por Claude Code (ítem corto, PR propio; nombre en PLAN v2.0 §2b): reglas de C
+   listadas en la bitácora del 29. Luego `B-FORMATO`
+   (sin modelo) → `B-CI` → `B-S1` → `B-TESTS`, en ese orden (S1 es prerrequisito de `Reservation`; `B-TESTS` hace caducar
+   ADR-0005).
+4. Pendientes de flujo (no urgentes, con dueño): YAML estricto para los frontmatter de `.claude/agents/` en `check_docs.py`;
+   `--estado` no distingue "mezclado"; `/pr` deja de mostrar `#N` como marcador; README: la compuerta se corre con el venv
+   activo; formalizar en `docs/sesiones/` las reglas del Mentor (solo `git log`; nada fuera de `docs/`; propuesta y permiso
+   antes de escribir; la sesión del 29 violó la primera una vez, bitácora del 29); `mentor.md` o el ritual de apertura
+   indican que la carpeta del repo se conecta antes del primer mensaje. Las tres reglas mecánicas que antes vivían aquí
+   pasaron al bloque de reglas mecánicas (punto 3).
 
 ## 9. Sesiones de IA
 Cualquier sesión (ingeniería, documento, estudio, mentor) arranca con los prompts de `docs/sesiones/` y el ritual
