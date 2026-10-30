@@ -7,7 +7,7 @@
 >
 > **Versión 3.0 — 30 oct 2026.** Cambios de esta versión: bitácora `2026-10-30` (§0: tabla hecho → dueño y política
 > de copias, ADR-0008 —cambia una regla, por eso mayor—, regla de addendum y orden de resolución de huérfanas por el
-> addendum de ADR-0008; §6: fila del ADR-0008 y fe de erratas de D1; §8). Versiones
+> addendum de ADR-0008; §2: capacidad en tres regímenes hasta la entrega; §6: fila del ADR-0008 y fe de erratas de D1; §8). Versiones
 > anteriores: `2026-10-29` (2.10: §8), `2026-10-28` (2.9: §0 versionado, §6 ADR-0007), `2026-10-27` (§2, §4, §8; no
 > subió versión ese día). Versionado según ADR-0007; la historia anterior vive en las bitácoras del 22 al 26 oct.
 
@@ -95,7 +95,7 @@ deslizamiento del plan mueve bloques entre filas del cronograma y no toca ningú
 |---|---|
 | **Deadline** | **11 de enero de 2027** (prórroga aceptada, comunicada a David el 27 oct 2026). Hasta entonces el deadline era el 7 nov 2026; `PLAN.md` v1.x se construyó sobre esa fecha y queda superado: el nuevo cronograma (v2.0) se escribe el 28 oct. La entrega sigue siendo **en línea** (enlace de Drive). |
 | **Qué se entrega** | Solo el **documento final**. No hay demo en vivo ese día; la sustentación se define después si el documento se aprueba. |
-| **Capacidad** | 8 h/día, 7 días/semana: 08:00–12:00 y 14:00–18:00 (hora Colombia). Sueño 21:00–05:30, no negociable. Excepción conocida: dom 25 oct solo por la tarde. |
+| **Capacidad** | Tres regímenes hasta la entrega (David, 30 oct). **Bogotá, hasta el 6 nov:** L–V 8 h (08:00–12:00 y 14:00–18:00), sáb 7 h o menos, dom descanso → 47 h/semana. **Prado, 7–30 nov (90 % de probabilidad):** solo mañanas 08:00–12:00, seis días → 24 h/semana planificables; las tardes son de la práctica en ASOPRADO y no se planifican. Riesgos propios de Prado: señal de internet caída hasta 2 días sin aviso; cortes de luz de horas. **1 dic–11 ene:** termina la práctica; 8 h/día, seis días → 47 h/semana, menos 24, 25 y 31 dic y 1 ene; lugar (Prado o Bogotá) por confirmar: el plan asume los riesgos de Prado hasta que David confirme Bogotá. Sueño 21:00–05:30, no negociable. Hora Colombia. |
 | **Compañera de tesis** | María Paula Ramos Carrillo. Rol acordado: documento (plantilla, Marco Lógico, manual de usuario, formato, referencias). Pendiente que suba a un Drive lo que ya tiene. |
 | **Evaluadores** | Desconocidos. Supuesto de diseño: al menos uno sabe de ingeniería de software → código defendible, no perfecto. |
 | **Stakeholder** | Gerente de ASOPRADO: aliado total, valida y firma lo que sea **verdad**. Para él Ecotur es una idea que no presiona; para la universidad resuelve un problema real de diversificación. La propuesta compromete "dejar" el prototipo, no garantizar su adopción. Palabras del gerente (23 oct): "vaya implementándolo como usted piensa y lo pulimos sobre la marcha". |
@@ -228,37 +228,33 @@ la Web App la hala al reiniciar. Operación: 2 clics.
   por paquete completo, antelación mínima 1 día, 30 min para pagar una reserva pendiente,
   tarifa de temporada alta como trabajo futuro.
 
-## 8. Próximo paso (jue 29 oct, cierre)
+## 8. Próximo paso (vie 30 oct, cierre)
 
-Dónde estamos: sin cambios técnicos desde el 27 (`B-BE01` mezclado, PR #61; contrato de capas 4 KEPT, 145 tests, 93 %;
-compuerta global en rojo, ADR-0005 vigente). No hay ítem de deuda en curso. **El 28 y el 29 fueron calibración documental,
-no deuda:** el 28 produjo ADR-0007 y el diagnóstico del numeral 3; el 29, la decisión A–D con cambios respecto a la
-propuesta del 28 (bitácora del 29): mapa hecho → dueño solo en §0 y creciendo por incidente (A); política de copias
-derivadas que distingue hecho duro de explicación, con cita de forma fija y verificación acotada al cierre (B, **ADR-0008
-propuesto**, cuyo texto está en la bitácora del 29 hasta que David lo lea); reglas mecánicas en `check_docs.py` como
-bloque propio de trabajo (se nombra y define en PLAN v2.0 §2b), ya, no cuando se rompa algo (C); PLAN v2.0 sin copias, con paso 0 (diff copia ↔ dueño antes
-de recortar) y columna `Cierre` en §3 (D). **PLAN v2.0 sigue sin escribirse**; PLAN 1.7 sigue superado (deadline 11 ene 2027,
-§2). Fe de erratas pendiente de aplicar: la sesión con el gerente del lun 2 nov (§6 D1, PLAN §3) nunca fue confirmada por
-él; queda aplazada y con fecha por concretar. `B-FORMATO`, `B-CI`, `B-S1`, `B-TESTS` no se han hecho.
+Dónde estamos: sin cambios técnicos desde el 27 (`B-BE01` mezclado; compuerta global en rojo, ADR-0005 vigente; ningún
+ítem de deuda en curso). **El 28, 29 y 30 fueron calibración documental** (bitácoras): ADR-0007, ADR-0008 con addendum,
+mapa hecho → dueño en §0, README 1.0. **PLAN v2.0 sigue sin escribirse**, pero el replan quedó **decidido** el 30 a las
+18:00 (bitácora del 30, "Replan: decisiones"): capacidad en tres regímenes (§2); orden de bloques del 26 con el bloque
+de reglas de `check_docs.py` primero y `B-HIGIENE` de vuelta con tope de un día; `B-PAGOS` partido estructuralmente
+(puerto + `FakeAdapter` + `Settings` en noviembre; `WompiAdapter` + webhook como PR aparte, deslizable si falla la red de
+Prado); usabilidad por criterio (flujo de reserva de punta a punta en staging, Wompi sandbox si está o `FakeAdapter`
+declarándolo; una semana de aviso; tope 15 dic); lo que necesita red (Wompi, usabilidad remota, despliegues) se
+programa en mañanas con señal o en Bogotá; corte de código nuevo a mediados de diciembre; `B-TESIS` + `B-DOCS-TEC` +
+integración con María Paula ocupan al menos tres semanas; reunión con María Paula esta semana, sus bloques se escriben
+después. Fe de erratas aplicada en §6 (D1); PLAN §3 y §7 siguen diciendo "2 nov" hasta PLAN v2.0.
 
-1. Apertura del 30 en sesión Mentor fresca: David lee el ADR-0008 y la tabla de §0 (bitácora del 29); lo que no entienda
-   queda sin confirmar. Con su OK, la sesión escribe `docs/adr/0008-…md`, sustituye la tabla de §0, apunta el README paso 3 a
-   §0 y le añade el paso de listar citas por dueño tocado (README → versión 1.0, ADR-0007), y sube este archivo a **3.0**
-   (cambia una regla de §0).
-2. Replan en ≤ 1 h → **PLAN v2.0** según D. Entradas que solo David puede dar: capacidad real por semana hasta enero; fecha
-   nueva (o criterio) para la usabilidad con el gerente, que ya no es el 2 nov; qué ítems de `B-FUTURO` vuelven. María Paula
-   pasa a bloques en §2b y filas en §3. Regla que no cambia: el alcance del MVP (D3) es el alcance; el tiempo extra va a
-   calidad, a lo prometido por la propuesta y al documento.
-3. Bloque de reglas mecánicas de `check_docs.py` por Claude Code (ítem corto, PR propio; nombre en PLAN v2.0 §2b): reglas de C
-   listadas en la bitácora del 29. Luego `B-FORMATO`
-   (sin modelo) → `B-CI` → `B-S1` → `B-TESTS`, en ese orden (S1 es prerrequisito de `Reservation`; `B-TESTS` hace caducar
-   ADR-0005).
-4. Pendientes de flujo (no urgentes, con dueño): YAML estricto para los frontmatter de `.claude/agents/` en `check_docs.py`;
-   `--estado` no distingue "mezclado"; `/pr` deja de mostrar `#N` como marcador; README: la compuerta se corre con el venv
-   activo; formalizar en `docs/sesiones/` las reglas del Mentor (solo `git log`; nada fuera de `docs/`; propuesta y permiso
-   antes de escribir; la sesión del 29 violó la primera una vez, bitácora del 29); `mentor.md` o el ritual de apertura
-   indican que la carpeta del repo se conecta antes del primer mensaje. Las tres reglas mecánicas que antes vivían aquí
-   pasaron al bloque de reglas mecánicas (punto 3).
+1. Sáb 31 oct, 08:00, sesión Mentor fresca: **PLAN v2.0** en ≤ 1 h con las decisiones anteriores ya tomadas: paso 0 por
+   sección (diff copia ↔ dueño antes de recortar), título sin fecha, encabezado = versión + premisas citadas `(CONTEXT
+   §2)`, §1-D3 como criterio, §4 y §5 como punteros, §2b con el bloque de reglas (nombre nuevo), `B-PAGOS` partido y filas
+   para María Paula "por definir tras la reunión", §3 con columna `Cierre` y los tres regímenes, §6 con mediciones y hash,
+   §7 con el criterio de usabilidad, §8 por bloques. PLAN → 2.0.
+2. Especificación del bloque de reglas de `check_docs.py` (escrita por la sesión Mentor) → Claude Code en sesión fresca,
+   ítem corto, PR propio. Reglas: bitácora del 29 "Decisiones" (C) y addendum de ADR-0008.
+3. `B-FORMATO` → `B-CI` → `B-HIGIENE` (tope un día) → `B-S1` → `B-TESTS` → `B-RESERVAS`, en ese orden.
+4. Pendientes de flujo (no urgentes, con dueño): YAML estricto en `check_docs.py`; `--estado` no distingue "mezclado";
+   `/pr` con `#N`; README: compuerta con el venv activo; formalizar en `docs/sesiones/` las reglas del Mentor (solo
+   `git log`; nada fuera de `docs/`; propuesta y permiso antes de escribir); `mentor.md` o el ritual de apertura: conectar
+   la carpeta del repo antes del primer mensaje; la sesión verifica con `git log` que la rama de trabajo contiene el
+   último cierre antes de escribir.
 
 ## 9. Sesiones de IA
 Cualquier sesión (ingeniería, documento, estudio, mentor) arranca con los prompts de `docs/sesiones/` y el ritual
