@@ -1,5 +1,9 @@
 # Sesiones de IA: cómo arrancar cualquiera sin depender de ninguna conversación anterior
 
+> **Versión 1.0 — 30 oct 2026.** Primera versión numerada (ADR-0007: los artefactos de `docs/sesiones/` toman 1.0 en su
+> primer cambio). Cambios: bitácora `2026-10-30` (paso 3 del ritual de cierre: dueños → tabla de `CONTEXT.md` §0; pasada
+> de citas de ADR-0008).
+
 Las sesiones **no se sincronizan entre sí: se sincronizan a través del repositorio.** Cada una arranca
 leyendo los mismos archivos y cierra actualizándolos. Cuatro roles, cuatro prompts:
 
@@ -25,18 +29,17 @@ porque cada uno alimenta al siguiente:
    si alguna no se entiende, le pregunta a David. La bitácora las cuenta y enlaza; `preguntas.md` es el dueño.
 2. **ADR si hubo decisión** de diseño o de proceso. La bitácora la menciona; el ADR la posee.
 3. **Solo la sección afectada de cada documento dueño del hecho.** No se reescribe todo: se corrige lo que
-   cambió, en el sitio que lo posee:
-   - cambió el **estado del proyecto** o el **próximo paso** → `CONTEXT.md` §4 y §8;
-   - cambió el **alcance** o el **cronograma** → `PLAN.md` §1, §2b o §3 (los días, solo en §3);
-   - cambió un **ítem** → su fila en `backlog.md`;
-   - cambió el **flujo agéntico** (un archivo de `.claude/agents/`, `.claude/commands/`,
-     `.claude/settings.json`, `.claude/hooks/`, `scripts/check.py`, `AGENTS.md` o `CLAUDE.md`) → su fila en
-     la tabla de comandos de este README (si es un comando), la línea de estado de `CONTEXT.md` §5, y
-     `CLAUDE.md` si cambia lo que la sesión debe saber al arrancar. Si el cambio fue una decisión (criterio
-     nuevo, regla nueva), además su ADR (paso 2).
+   cambió, en el sitio que lo posee. **Quién posee qué lo dice la tabla hecho → dueño de `CONTEXT.md` §0**, única
+   copia; este README no la repite. Si el cambio fue una decisión (criterio nuevo, regla nueva), además su ADR
+   (paso 2). Si cambió un comando del flujo, también su fila en la tabla de comandos de este README, y `CLAUDE.md`
+   si cambia lo que Claude Code debe saber al arrancar.
 
-   Regla práctica: antes de cerrar, `git status` y `git log --since=<hoy>` dicen qué archivos cambiaron; cada
-   uno tiene su dueño en esta lista. Lo que `scripts/check_docs.py` pueda verificar, lo verifica; lo demás es
+   Regla práctica: antes de cerrar, `git status` y `git log --since=<hoy>` dicen qué archivos cambiaron. **Pasada de
+   citas (ADR-0008, punto 6):** por cada archivo dueño que cambió hoy, **la sesión que cierra** lista sus citas en los
+   demás documentos (`scripts/check_docs.py` cuando tenga la regla; mientras tanto, `grep -n "(CONTEXT §2)"
+   docs/*.md docs/sesiones/*.md`, una vez por dueño tocado) y revisa cada copia: si diverge, la corrige hacia el
+   dueño; si cree que la copia es la correcta o más reciente, no corrige, lo anota en la bitácora y pregunta a David.
+   Nada de esto recae en David salvo esa decisión. Lo que `check_docs.py` pueda verificar, lo verifica; lo demás es
    responsabilidad de la sesión que hizo el cambio.
 4. **Commit** (y PR). Un archivo sin commitear no existe para una sesión que arranca con `git pull` en
    otra máquina o en otra rama.

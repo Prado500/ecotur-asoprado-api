@@ -5,23 +5,54 @@
 > Vive en `docs/CONTEXT.md`. Regla de oro: **el contexto vive en archivos versionados, no en la
 > memoria de un chat.** Cada sesión nueva arranca leyendo esto.
 >
-> **Versión 2.10 — 29 oct 2026.** Cambios de esta versión: bitácora `2026-10-29` (§8). Versiones anteriores:
-> `2026-10-28` (2.9: §0 versionado, §6 ADR-0007), `2026-10-27` (§2 deadline, §4, §8; no subió versión ese día).
-> Versionado según ADR-0007; la historia anterior vive en las bitácoras del 22 al 26 oct.
+> **Versión 3.0 — 30 oct 2026.** Cambios de esta versión: bitácora `2026-10-30` (§0: tabla hecho → dueño y política
+> de copias, ADR-0008 —cambia una regla, por eso mayor—; §6: fila del ADR-0008 y fe de erratas de D1; §8). Versiones
+> anteriores: `2026-10-29` (2.10: §8), `2026-10-28` (2.9: §0 versionado, §6 ADR-0007), `2026-10-27` (§2, §4, §8; no
+> subió versión ese día). Versionado según ADR-0007; la historia anterior vive en las bitácoras del 22 al 26 oct.
 
 ---
 
 ## 0. Cómo se mantienen estos documentos (léelo antes de editar cualquiera)
 
-**Principio: un hecho tiene un solo dueño.** Los demás documentos lo enlazan, no lo repiten.
+**Principio: un hecho tiene un solo dueño.** Los demás documentos lo citan, no lo repiten. La política de
+copias es **ADR-0008**: un hecho duro (fecha, número, nombre de bloque, versión, estado, persona o rol) aparece a lo
+sumo una vez por documento, nunca en un título, siempre con cita de forma fija al dueño (`(CONTEXT §2)`, `(PLAN §2b)`,
+`(backlog ID)`, `(ADR-NNNN)`, `(AGENTS §N)`, `(README de sesiones)`, `(bitácora AAAA-MM-DD)`, `(docs/deuda/ID/)`); una
+explicación puede resumirse con cita donde el documento la necesite; un documento vivo conserva lo que depende de, no
+lo que explica. Si copia y dueño divergen, gana el dueño (para decisiones, el ADR más reciente).
 
-| Documento | Naturaleza | Dueño del hecho… |
+**Mapa hecho → dueño.** Cualquier documento puede citar cualquier hecho con la forma fija; la última columna anota
+solo las copias derivadas que un documento concreto lleva por diseño.
+
+| Hecho | Dueño | Copia permitida (ADR-0008) |
 |---|---|---|
-| `docs/adr/NNNN-*.md` | **Inmutable.** Un ADR aceptado no se edita: se *supersede* con otro ADR que lo enlaza. | …de cada decisión de diseño o de proceso (modelo de reservas, flujo agéntico, pagos…). |
-| `docs/CONTEXT.md` (este) | **Vivo.** Resumen del estado del mundo. | …del estado actual y de "dónde está cada cosa". Nunca re-explica una decisión: dice "ver ADR-000X". |
-| `docs/PLAN.md` | **Vivo.** Cronograma y alcance. | …de fechas, días y qué entra / sale. |
-| `docs/backlog.md` | **Vivo.** Inventario de trabajo. | …del estado de cada ítem (entra, sale, cerrado). |
-| `docs/bitacora/AAAA-MM-DD.md` | **Append-only.** Diario. | …de lo que pasó cada día. No se corrige: si algo cambió, se escribe en la entrada del día en que cambió. |
+| Deadline, forma de entrega, capacidad de trabajo (h/día, días/semana), roles del equipo, evaluadores, stakeholder | CONTEXT §2 | — |
+| Lo que la propuesta aprobada compromete | CONTEXT §3 | — |
+| Criterio de alcance del MVP (la regla con la que se decide qué entra) | PLAN §1-D3 | — |
+| Decisión por ítem (`Entra · B-x` / `Sale → B-FUTURO` / `Hecho`) y severidad | backlog, fila del ítem | — |
+| Composición de bloques (qué ítems van juntos, de quién) | PLAN §2b | los demás nombran el bloque, nunca listan sus ítems |
+| Qué bloque se hace qué día | PLAN §3 | ninguna: los demás nombran el bloque, nunca el día |
+| Hecho / no hecho de cada día, decisiones del día, lecciones, cuota | bitácora del día | PLAN §3, columna `Cierre`: `✔/◐/✘ DD` |
+| Línea base y mediciones de calidad | PLAN §6 | — |
+| Protocolo de usabilidad | PLAN §7 | — |
+| Riesgos y mitigación | PLAN §8 | — |
+| Decisiones de diseño y de proceso | ADR (inmutable; se supersede) | CONTEXT §6: una fila por ADR (fecha, decisión, efecto) |
+| Reglas de código, arquitectura, tests, git | AGENTS.md (`CLAUDE.md` lo importa) | — |
+| Qué se verifica con exit code | `scripts/check.py`, `scripts/check_docs.py` | — |
+| Flujo agéntico: inventario (agentes, comandos, hooks, skills) | `.claude/` | — |
+| Flujo agéntico: estado y diseño | CONTEXT §5 | — |
+| Rituales de apertura y cierre; guía humana del flujo | README de sesiones (`docs/sesiones/README.md`) | — |
+| Estado de saldado de un ítem (presente o ausente) | `docs/deuda/<ID>/` | — |
+| Estado actual del proyecto y próximo paso | CONTEXT §4 y §8 | — |
+| Dudas de estudio | `docs/aprendizaje/preguntas.md` | la bitácora del día: conteo y enlace |
+| Versión de un documento vivo | su encabezado (ADR-0007) | — |
+
+La tabla crece por incidente: cuando aparece una divergencia sobre información cuyo dueño no está registrado aquí, se
+determina el dueño (el documento que cambiaría si el hecho cambiara; si serían dos, se consulta a David) y se añade
+la fila ese día. Esas divergencias se detectan al leer (apertura de una sesión, revisiones de David), por la regla
+"hecho duro sin cita" de `check_docs.py`, o al ir a consignar un hecho y no encontrar su fila (ADR-0008, puntos 3 y 5).
+Naturaleza de cada archivo: los ADR son inmutables (se superseden); CONTEXT, PLAN, backlog y `docs/sesiones/` son
+vivos y versionados; las bitácoras son append-only (si algo cambió, se escribe en la entrada del día en que cambió).
 
 **Rituales de apertura y de cierre:** viven en un solo sitio, `docs/sesiones/README.md`. Toda sesión
 los sigue; este archivo no los repite para que no diverjan.
@@ -33,7 +64,7 @@ Mayor (X.0) cuando cambia una premisa (deadline, alcance, capacidad, reglas); me
 contenido. Se incrementa una vez por día de cambios (es decir, cuando el archivo y/o sus contenidos sufren de modificaciones), en el ritual de cierre.
 
 Así no hay que "releer todo": el único documento que resume estado es este, y se revisa por
-secciones. Cuando dos documentos digan cosas distintas, gana el ADR más reciente.
+secciones.
 
 **Los días viven solo en el cronograma de `PLAN.md` §3.** El backlog y este archivo referencian
 **bloques de trabajo** (`B-BE01`, `B-RESERVAS`…, definidos en `PLAN.md` §2b), nunca días. Un
@@ -167,7 +198,7 @@ la Web App la hala al reiniciar. Operación: 2 clics.
 
 | Fecha | Decisión | Dueño | Impacto en el documento de grado |
 |---|---|---|---|
-| 23 oct | D1 Pruebas de usabilidad reales y remotas (gerente como admin + 4–5 perfil turista; SUS). Sesión con el gerente: lunes 2 nov. | `PLAN.md` §1, §7 | Cap. de evaluación (obj. específico 4): protocolo, SUS, resultados |
+| 23 oct | D1 Pruebas de usabilidad reales y remotas (gerente como admin + 4–5 perfil turista; SUS). Sesión con el gerente: fecha por concretar (la propuesta del 2 nov no fue confirmada por él; aplazada, bitácora 2026-10-29). | `PLAN.md` §1, §7 | Cap. de evaluación (obj. específico 4): protocolo, SUS, resultados |
 | 23 oct | D2 Simplificar el flujo agéntico; determinismo por herramientas; runtime Claude Code compatible con OpenCode. | **ADR-0001** | Cap. de metodología (desarrollo asistido por IA) y lecciones aprendidas |
 | 23 oct | D3 Alcance del MVP (entra / sale). | `PLAN.md` §1, `backlog.md` | Alcance del prototipo y cap. de trabajo futuro |
 | 23 oct | Modelo de reservas: un paquete, una fecha, una reserva; `party_size` en el paquete; ventanas de disponibilidad; índice único parcial; precio congelado; expiración perezosa. Validado con gerencia. | **ADR-0002** | Cap. de diseño (MER, diagrama de clases, secuencia de reserva) y requisitos |
@@ -181,6 +212,7 @@ la Web App la hala al reiniciar. Operación: 2 clics.
 | 27 oct | Cronograma v1.6: segundo deslizamiento pagado con recortes explícitos; superado el mismo día por la prórroga (entrega 11 ene 2027). | `PLAN.md` (línea de estado), §2 | Cap. de metodología (gestión del plan con hechos) |
 | 27 oct | El adaptador de almacenamiento lanza excepciones de dominio (nunca `HTTPException`); lista blanca de URLs del CDN; copia síncrona antes de borrar; `InvalidImageUrlError` → 400 por contrato con el cliente (remapeo a 422 con P2). Supersede el residuo de `storage.py` de ADR-0003. | **ADR-0006** | Cap. de arquitectura (manejo de errores por capas) y resultados (contrato de capas 4 KEPT, cobertura) |
 | 28 oct | Versionado de los documentos vivos: la versión es del archivo, no de una sección; mayor cuando cambia una premisa, menor cuando cambia el contenido; encabezado con solo referencias a bitácoras; aplica a CONTEXT, PLAN, backlog y `docs/sesiones/`. | **ADR-0007** | Cap. de metodología (gestión documental del proyecto) |
+| 30 oct | Copias derivadas de un hecho: hecho duro a lo sumo una vez por documento, con cita de forma fija al dueño; explicaciones resumidas con cita; gana el dueño; mapa hecho → dueño solo en §0, crece por incidente; verificación acotada en el cierre por `check_docs.py`. | **ADR-0008**, `CONTEXT.md` §0, README de sesiones paso 3 | Cap. de metodología (evaluator-optimizer con revisión humana, bitácoras 28–30 oct) |
 | pendiente | Pagos: puerto `PaymentGateway`, `WompiAdapter`, `FakeAdapter`, webhook idempotente. | ADR de pagos (`B-PAGOS`, tomará el siguiente número libre) | Cap. de diseño (secuencia de pago) y arquitectura |
 
 ## 7. Preguntas abiertas
