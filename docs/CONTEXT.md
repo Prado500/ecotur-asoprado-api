@@ -5,10 +5,13 @@
 > Vive en `docs/CONTEXT.md`. Regla de oro: **el contexto vive en archivos versionados, no en la
 > memoria de un chat.** Cada sesión nueva arranca leyendo esto.
 >
-> **Versión 3.0 — 30 oct 2026.** Cambios de esta versión: bitácora `2026-10-30` (§0: tabla hecho → dueño y política
+> **Versión 3.1 — 31 oct 2026.** Cambios de esta versión: bitácora `2026-10-31` (§0: fila de composición ampliada con la
+> secuencia de medias jornadas; §2: fila de deadline al día, regla de los domingos comodín y del fechado semanal, roles
+> del equipo con el de David; §7: reparto propuesto a María Paula; §8). Versiones anteriores:
+> `2026-10-30` (3.0: §0: tabla hecho → dueño y política
 > de copias, ADR-0008 —cambia una regla, por eso mayor—, regla de addendum y orden de resolución de huérfanas por el
 > addendum de ADR-0008; §2: capacidad en tres regímenes hasta la entrega; §6: fila del ADR-0008 y fe de erratas de D1; §8). Versiones
-> anteriores: `2026-10-29` (2.10: §8), `2026-10-28` (2.9: §0 versionado, §6 ADR-0007), `2026-10-27` (§2, §4, §8; no
+> `2026-10-29` (2.10: §8), `2026-10-28` (2.9: §0 versionado, §6 ADR-0007), `2026-10-27` (§2, §4, §8; no
 > subió versión ese día). Versionado según ADR-0007; la historia anterior vive en las bitácoras del 22 al 26 oct.
 
 ---
@@ -31,7 +34,7 @@ solo las copias derivadas que un documento concreto lleva por diseño.
 | Lo que la propuesta aprobada compromete | CONTEXT §3 | — |
 | Criterio de alcance del MVP (la regla con la que se decide qué entra) | PLAN §1-D3 | — |
 | Decisión por ítem (`Entra · B-x` / `Sale → B-FUTURO` / `Hecho`) y severidad | backlog, fila del ítem | — |
-| Composición de bloques (qué ítems van juntos, de quién) | PLAN §2b | los demás nombran el bloque, nunca listan sus ítems |
+| Composición de bloques (qué ítems van juntos, de quién) y secuencia de medias jornadas numeradas dentro del bloque, sin fechas | PLAN §2b | los demás nombran el bloque, nunca listan sus ítems; PLAN §3 cita la secuencia por número (`B-RESERVAS m3`) y nunca la repite |
 | Qué bloque se hace qué día | PLAN §3 | ninguna: los demás nombran el bloque, nunca el día |
 | Hecho / no hecho de cada día, decisiones del día, lecciones, cuota | bitácora del día | PLAN §3, columna `Cierre`: `✔/◐/✘ DD` |
 | Línea base y mediciones de calidad | PLAN §6 | — |
@@ -93,10 +96,10 @@ deslizamiento del plan mueve bloques entre filas del cronograma y no toca ningú
 
 | Hecho | Detalle |
 |---|---|
-| **Deadline** | **11 de enero de 2027** (prórroga aceptada, comunicada a David el 27 oct 2026). Hasta entonces el deadline era el 7 nov 2026; `PLAN.md` v1.x se construyó sobre esa fecha y queda superado: el nuevo cronograma (v2.0) se escribe el 28 oct. La entrega sigue siendo **en línea** (enlace de Drive). |
+| **Deadline** | **11 de enero de 2027** (prórroga aceptada, comunicada a David el 27 oct 2026). Hasta entonces el deadline era el 7 nov 2026; `PLAN.md` v1.x se construyó sobre esa fecha; PLAN 2.0 (31 oct) se construye sobre la nueva. La entrega sigue siendo **en línea** (enlace de Drive). |
 | **Qué se entrega** | Solo el **documento final**. No hay demo en vivo ese día; la sustentación se define después si el documento se aprueba. |
-| **Capacidad** | Tres regímenes hasta la entrega (David, 30 oct). **Bogotá, hasta el 6 nov:** L–V 8 h (08:00–12:00 y 14:00–18:00), sáb 7 h o menos, dom descanso → 47 h/semana. **Prado, 7–30 nov (90 % de probabilidad):** solo mañanas 08:00–12:00, seis días → 24 h/semana planificables; las tardes son de la práctica en ASOPRADO y no se planifican. Riesgos propios de Prado: señal de internet caída hasta 2 días sin aviso; cortes de luz de horas. **1 dic–11 ene:** termina la práctica; 8 h/día, seis días → 47 h/semana, menos 24, 25 y 31 dic y 1 ene; lugar (Prado o Bogotá) por confirmar: el plan asume los riesgos de Prado hasta que David confirme Bogotá. Sueño 21:00–05:30, no negociable. Hora Colombia. |
-| **Compañera de tesis** | María Paula Ramos Carrillo. Rol acordado: documento (plantilla, Marco Lógico, manual de usuario, formato, referencias). Pendiente que suba a un Drive lo que ya tiene. |
+| **Capacidad** | Tres regímenes hasta la entrega (David, 30 oct). **Bogotá, hasta el 6 nov:** L–V 8 h (08:00–12:00 y 14:00–18:00), sáb 7 h o menos, dom descanso → 47 h/semana. **Domingos (David, 31 oct):** descanso por defecto; un domingo puede usarse como **comodín de recuperación**: nunca entra en el presupuesto del plan (disponibles − secuencia se calcula sin domingos), se decide al cierre del último día trabajado de la semana y solo si el colchón es cero o negativo (nunca para adelantar secuencia), y queda registrado como excepción (bitácora del domingo, marca en `Cierre`, versión de lo que toque). **Fechado semanal:** la semana siguiente se fecha al cierre del último día trabajado de la anterior (PLAN §3, acordeón). La unidad de planificación es la media jornada de 4 h (`m`). **Prado, 7–30 nov (90 % de probabilidad):** solo mañanas 08:00–12:00, seis días → 24 h/semana planificables; las tardes son de la práctica en ASOPRADO y no se planifican. Riesgos propios de Prado: señal de internet caída hasta 2 días sin aviso; cortes de luz de horas. **1 dic–11 ene:** termina la práctica; 8 h/día, seis días → 47 h/semana, menos 24, 25 y 31 dic y 1 ene; lugar (Prado o Bogotá) por confirmar: el plan asume los riesgos de Prado hasta que David confirme Bogotá. Sueño 21:00–05:30, no negociable. Hora Colombia. |
+| **Roles del equipo** | **David:** código, calidad, pruebas, artefactos técnicos (UML, MER, OpenAPI, manual de despliegue) y capítulos de arquitectura, metodología y resultados; responde por la bitácora diaria (README de sesiones). **María Paula Ramos Carrillo** (compañera de tesis): documento; rol acordado: plantilla, Marco Lógico, manual de usuario, formato, referencias. Pendiente que suba a un Drive lo que ya tiene; el reparto detallado se acuerda en la reunión (§7). |
 | **Evaluadores** | Desconocidos. Supuesto de diseño: al menos uno sabe de ingeniería de software → código defendible, no perfecto. |
 | **Stakeholder** | Gerente de ASOPRADO: aliado total, valida y firma lo que sea **verdad**. Para él Ecotur es una idea que no presiona; para la universidad resuelve un problema real de diversificación. La propuesta compromete "dejar" el prototipo, no garantizar su adopción. Palabras del gerente (23 oct): "vaya implementándolo como usted piensa y lo pulimos sobre la marcha". |
 
@@ -224,37 +227,38 @@ la Web App la hala al reiniciar. Operación: 2 clics.
 ## 7. Preguntas abiertas
 
 - Qué tiene ya María Paula del documento (Drive pendiente).
+- Reparto propuesto a María Paula, **a acordar en la reunión** (hito en PLAN §3; hasta entonces no está acordado y el plan
+  no cuenta con ello): plantilla institucional; Marco Lógico; requisitos funcionales y no funcionales; manual de
+  usuario; plantillas de casos de caja negra, consentimiento informado y cuestionario SUS; apoyo en las sesiones de
+  usabilidad (notas, SUS); formato y referencias. De la respuesta salen `B-MP-DOC` y sus filas (PLAN 2.1).
 - Para mencionar al gerente cuando convenga (no bloquean; están asumidas en ADR-0002): precio
   por paquete completo, antelación mínima 1 día, 30 min para pagar una reserva pendiente,
   tarifa de temporada alta como trabajo futuro.
 
-## 8. Próximo paso (vie 30 oct, cierre)
+## 8. Próximo paso (sáb 31 oct, cierre)
 
-Dónde estamos: sin cambios técnicos desde el 27 (`B-BE01` mezclado; compuerta global en rojo, ADR-0005 vigente; ningún
-ítem de deuda en curso). **El 28, 29 y 30 fueron calibración documental** (bitácoras): ADR-0007, ADR-0008 con addendum,
-mapa hecho → dueño en §0, README 1.0. **PLAN v2.0 sigue sin escribirse**, pero el replan quedó **decidido** el 30 a las
-18:00 (bitácora del 30, "Replan: decisiones"): capacidad en tres regímenes (§2); orden de bloques del 26 con el bloque
-de reglas de `check_docs.py` primero y `B-HIGIENE` de vuelta con tope de un día; `B-PAGOS` partido estructuralmente
-(puerto + `FakeAdapter` + `Settings` en noviembre; `WompiAdapter` + webhook como PR aparte, deslizable si falla la red de
-Prado); usabilidad por criterio (flujo de reserva de punta a punta en staging, Wompi sandbox si está o `FakeAdapter`
-declarándolo; una semana de aviso; tope 15 dic); lo que necesita red (Wompi, usabilidad remota, despliegues) se
-programa en mañanas con señal o en Bogotá; corte de código nuevo a mediados de diciembre; `B-TESIS` + `B-DOCS-TEC` +
-integración con María Paula ocupan al menos tres semanas; reunión con María Paula esta semana, sus bloques se escriben
-después. Fe de erratas aplicada en §6 (D1); PLAN §3 y §7 siguen diciendo "2 nov" hasta PLAN v2.0.
+Dónde estamos: **PLAN 2.0 escrito** (bitácora del 31: paso 0 copia ↔ dueño por sección; acordeón: secuencias en §2b,
+§3 fecha solo la semana en curso; presupuestos por régimen; hitos fijos; orden de sacrificio en §8). Backlog 1.9 (BE-16
+→ BE-16 + BE-27; BE-08 → BE-08 + BE-28; sección E con AF-01). README de sesiones 1.1. Sin cambios técnicos desde el 27:
+compuerta global en rojo, ADR-0005 vigente, ningún ítem de deuda en curso. Presupuesto de Bogotá al cierre del 31:
+10 m disponibles, secuencia 9 + 1 m de colchón; el domingo 1 nov es comodín (§2) para `B-CHECK-DOCS`; `B-HIGIENE`
+recortado a 1 m, devuelto el viernes si el colchón no se gastó.
 
-1. Sáb 31 oct, 08:00, sesión Mentor fresca: **PLAN v2.0** en ≤ 1 h con las decisiones anteriores ya tomadas: paso 0 por
-   sección (diff copia ↔ dueño antes de recortar), título sin fecha, encabezado = versión + premisas citadas `(CONTEXT
-   §2)`, §1-D3 como criterio, §4 y §5 como punteros, §2b con el bloque de reglas (nombre nuevo), `B-PAGOS` partido y filas
-   para María Paula "por definir tras la reunión", §3 con columna `Cierre` y los tres regímenes, §6 con mediciones y hash,
-   §7 con el criterio de usabilidad, §8 por bloques. PLAN → 2.0.
-2. Especificación del bloque de reglas de `check_docs.py` (escrita por la sesión Mentor) → Claude Code en sesión fresca,
-   ítem corto, PR propio. Reglas: bitácora del 29 "Decisiones" (C) y addendum de ADR-0008.
-3. `B-FORMATO` → `B-CI` → `B-HIGIENE` (tope un día) → `B-S1` → `B-TESTS` → `B-RESERVAS`, en ese orden.
+1. **Dom 1 nov (comodín):** `B-CHECK-DOCS m1`: especificación a dos manos (David + sesión Mentor, ~1 h) → Claude Code
+   en sesión fresca: `/deuda-verificar AF-01` → `/deuda-planear` → `/implementar` → `/auditar` → `/pr`. Entradas de la
+   especificación: `scripts/check_docs.py` actual, ADR-0008 con addendum, bitácora del 29 "Decisiones" (C), ADR-0007,
+   los pendientes del punto 4, y el hallazgo del 31: `DECISION_RE` deja pasar cualquier cola, así que la regla nueva es
+   "la columna Decisión nombra exactamente un bloque"; casos de prueba FE-05, BE-18, BE-14 (backlog AF-01). Por regla:
+   qué detecta, sobre qué archivos, con qué expresión, qué imprime, exit code, un caso que falla y uno que pasa.
+2. Lun 2 → vie 6: la semana fechada en PLAN §3 (`B-FORMATO`+`B-CI` → `B-HIGIENE` 1 m → `B-S1` → `B-TESTS` → cierre de
+   Bogotá con PR a `staging`, dump de staging para `B-RESERVAS m2` y mudanza). Lun 2 a primera hora: mensaje a María
+   Paula; reunión lun 17:00–18:00 (o mar 3). Vie 6 al cierre: fechar la semana de Prado (PLAN 2.1 o la versión que toque).
+3. Prado y régimen final: orden y presupuestos en PLAN §3; secuencias en §2b.
 4. Pendientes de flujo (no urgentes, con dueño): YAML estricto en `check_docs.py`; `--estado` no distingue "mezclado";
    `/pr` con `#N`; README: compuerta con el venv activo; formalizar en `docs/sesiones/` las reglas del Mentor (solo
    `git log`; nada fuera de `docs/`; propuesta y permiso antes de escribir); `mentor.md` o el ritual de apertura: conectar
-   la carpeta del repo antes del primer mensaje; la sesión verifica con `git log` que la rama de trabajo contiene el
-   último cierre antes de escribir.
+   la carpeta del repo antes del primer mensaje (hoy volvió a pasar); la sesión verifica con `git log` que la rama de
+   trabajo contiene el último cierre antes de escribir. Pasan a filas `AF-0x` del backlog cuando se decida atacarlos.
 
 ## 9. Sesiones de IA
 Cualquier sesión (ingeniería, documento, estudio, mentor) arranca con los prompts de `docs/sesiones/` y el ritual

@@ -1,7 +1,9 @@
 # Ecotur-ASOPRADO — Backlog consolidado
 
-> **Versión 1.8 — 28 oct 2026.** Cambios de esta versión: bitácora `2026-10-28` (BE-01, P1 y A7 → Hecho, PR #61);
-> `2026-10-27` (BE-24..26, sin subir versión ese día); `2026-10-26` (v1.7, vocabulario cerrado de decisiones).
+> **Versión 1.9 — 31 oct 2026.** Cambios de esta versión: bitácora `2026-10-31` (replan: BE-16 partido en BE-16 y
+> BE-27; BE-08 partido en BE-08 y BE-28; sección E con AF-01; sin días del cronograma en notas). Versiones anteriores:
+> `2026-10-28` (v1.8, BE-01, P1 y A7 → Hecho, PR #61); `2026-10-27` (BE-24..26, sin subir versión ese día);
+> `2026-10-26` (v1.7, vocabulario cerrado de decisiones).
 > Versionado según ADR-0007.
 > Fuentes: 19 notas `.txt` de "deuda funcional",
 > Word "deuda técnica adicional identificada", cards del Trello (según David), auditoría previa de
@@ -27,7 +29,7 @@
 | BE-05 | txt (duda) | ¿Dos handlers globales separados (paquete vs usuario)? | — | **Hecho (23 oct, duda respondida; sin cambios de código)** | No. Los handlers se organizan por **tipo de excepción** (NotFound, Conflict, Forbidden, Validation), no por entidad. Un handler por entidad duplica lógica y crece linealmente con el dominio. Ya documentado: ADR-0003. |
 | BE-06 | txt | Se pueden crear paquetes turísticos idénticos | — | **Hecho (23 oct, decisión de gerencia; sin cambios de código)** | Gerencia confirmó (23 oct) que el nombre **no** debe ser único. No hay trabajo. |
 | BE-07 | txt | Al actualizar un paquete, el schema permite superar las 10 imágenes | Media | **Entra · `B-TESTS`** | Mismo validador en el schema de update que en el de create (o un tipo compartido). Test. |
-| BE-08 | txt | Orden de paquetes en catálogo: al reactivar, el paquete cae al final | Media | **Entra · `B-ORDEN` (backend) y `B-FE-RESERVAS` (cliente)** | El gerente espera poder reordenar. Backend (`B-ORDEN`): columna `display_order` + `PATCH /packages/{id}/display-order` + `ORDER BY display_order NULLS LAST, created_at`. Frontend (`B-FE-RESERVAS`): campo numérico en la tarjeta del kanban. Nada de drag & drop. |
+| BE-08 | txt | Orden de paquetes en catálogo: al reactivar, el paquete cae al final (backend) | Media | **Entra · `B-ORDEN`** | El gerente espera poder reordenar. Columna `display_order` + `PATCH /packages/{id}/display-order` + `ORDER BY display_order NULLS LAST, created_at`. El lado cliente es BE-28 (partido el 31 oct: un ítem, un bloque). |
 | BE-09 | txt | Auditoría de cambios de paquetes (parcial / completa) | Media | **Decidir en `B-HIGIENE` (verificar lo que existe; luego `B-FUTURO`)** | Ya existe `test_audit.py`: hay algo de auditoría. Se documenta lo que hay; ampliar a dos modos es trabajo futuro. |
 | BE-10 | B1 (txt) | Autobaja de cuentas (turista / admin) | Media | **Sale → `B-FUTURO` (con nota legal)** | Decisión de producto y legal, no técnica. Dos datos a verificar antes de publicar en Android: la política de Google Play exige opción de borrado de cuenta para apps con registro, y la Ley 1581 de 2012 (habeas data, Colombia) reconoce el derecho de supresión. No soy abogado: confírmalo. Para el MVP: "solicitud de baja" documentada como trabajo futuro. |
 | BE-11 | B1 (txt) | Cuenta `jpa@gmail.com` no inicia sesión | — | **Hecho (resuelto por David antes del flujo)** | Resuelto por ti (contraseña olvidada). Derivado: **recuperación de contraseña** no existe → Sale (requiere envío de correo). |
@@ -35,7 +37,7 @@
 | BE-13 | Word adicional | Reservar/pagar un paquete ya eliminado o inactivo que seguía cargado en el cliente | **Alta** (con pagos) | **Entra · `B-RESERVAS`** | Guardia **en el servidor**: crear reserva/transacción sobre paquete inactivo o eliminado → 409 con motivo. El cliente re-consulta el paquete al abrir el detalle y maneja 404/409 con mensaje claro. "Ver cambios en caliente" (push/websocket) → Sale. |
 | BE-14 | Word adicional | Dos admins con el kanban abierto no ven los cambios del otro | Baja | **Sale → `B-FUTURO`** | Mitigación barata en FE: refrescar al volver a la vista + pull-to-refresh. Tiempo real es trabajo futuro. |
 | BE-15 | Auditoría CC | Suite de tests: mocks sin `spec`, setup duplicado, aserciones sobre texto en español, sesión de prueba ≠ `get_db`, sin cobertura ni linters, huecos B2/B3/B4 | Alta | **Entra · `B-TESTS`** | Línea base medida el 24 oct; se corrige en `B-TESTS`. |
-| BE-16 | Sprint planning | Pasarela **Wompi sandbox** | — | **Entra · `B-PAGOS`** | Puerto `PaymentGateway` + `WompiAdapter` + `FakeAdapter`; webhook idempotente; estados de reserva. Corte el jueves 29 a las 18:00 (ver PLAN). |
+| BE-16 | Sprint planning | Pasarela de pagos: puerto `PaymentGateway` de dos sentidos (iniciar pago; interpretar evento), `FakeAdapter`, ruta de webhook idempotente, transiciones de estado de la reserva | — | **Entra · `B-PAGOS`** | Diseñado contra el puerto y probado con el `FakeAdapter`, que también notifica: el camino "la confirmación llega después" se ejercita sin red. Idempotencia por id de transacción + estado. El adaptador real es BE-27 (partido el 31 oct). ADR de pagos en `B-PAGOS`. |
 | BE-17 | Trello | Historial de reservas del turista | — | **Entra · `B-RESERVAS`** | Endpoint paginado por usuario autenticado. |
 | BE-18 | Trello / propuesta | Dashboard y métricas del negocio | — | **Entra · `B-RESERVAS` (mínimo)** | Un endpoint de agregados (reservas por estado, ingresos por período). Dashboard completo → `B-FUTURO`. |
 | BE-19 | Trello | **Módulo de reservas completo (no existía)** | **Alta** | **Entra · `B-RESERVAS`** | Verificado contra la BD desplegada: no hay tabla de reservas y el botón "reservar" no hace nada. Modelo definido y validado con gerencia en **ADR-0002** (un paquete, una fecha, una reserva; `party_size` en el paquete; ventanas de disponibilidad; índice único parcial; precio congelado; expiración perezosa). Guardia BE-13 incluida. |
@@ -46,6 +48,8 @@
 | BE-24 | plan BE-01 (27 oct) | Dos formas de 422 en `/servicios/`: Pydantic responde `{"detalle": [...]}` y una excepción de dominio respondería `{"detail": str}`; por eso `InvalidImageUrlError` se mapeó a 400 (ADR-0006) | Baja | **Decidir en `B-HIGIENE`** | Junto a P2 (`detalle`→`detail`): unificar la forma del 422, actualizar el cliente Flutter y remapear `InvalidImageUrlError` a 422 en `_DOMAIN_ERROR_STATUS` (una línea). |
 | BE-25 | plan BE-01 (27 oct) | Blobs compartidos: `PUT /servicios/{id}` acepta una URL permanente que ya usa otro paquete; al quitarla después, `delete_image` borra el blob y rompe la imagen del otro paquete | Media | **Decidir en `B-HIGIENE`** | Rechazar en `PUT` las URLs permanentes que no pertenezcan ya al paquete, o no borrar blobs referenciados por otros paquetes. Crear ya solo acepta blobs temporales (ADR-0006). |
 | BE-26 | revisión humana del diff de BE-01 fase D (27 oct) | En `update_package_details` los blobs viejos se borran del CDN **antes** de promover los nuevos; si una promoción falla, el paquete queda sin unas ni otras. Comportamiento previo a BE-01 | Media | **Decidir en `B-HIGIENE`** | Promover primero, borrar después (o borrar fuera de la transacción, tras confirmar). Test: fallo de promoción en `PUT` deja las imágenes anteriores intactas. |
+| BE-27 | Replan 30 oct (partido de BE-16) | `WompiAdapter` sandbox: creación de la transacción/checkout, verificación de firma del evento, mapeo evento Wompi → evento del puerto | — | **Entra · `B-WOMPI`** | Solo adaptador, sin lógica de negocio; necesita red y URL pública; PR aparte, deslizable; primero en el orden de sacrificio (PLAN §8). Si no entra antes del corte de código, la usabilidad se declara con `FakeAdapter` (PLAN §7). |
+| BE-28 | txt (partido de BE-08) | Orden de paquetes en el kanban (cliente) | Media | **Entra · `B-FE-RESERVAS`** | Campo numérico en la tarjeta del kanban que llama al `PATCH` de BE-08. Nada de drag & drop. |
 
 ### A2. Auditoría técnica del backend (21 sep 2026, HEAD f0de961) — triage completo al 24 oct
 
@@ -125,3 +129,12 @@ Pregunta del modelo de reservas: **resuelta el 23 oct con el gerente** → ADR-0
   existían (23 oct, → `B-RESERVAS`); `import-linter` localizó BE-01 y P1 (24 oct, → `B-BE01`).
 - Nada de lo que sale compromete un entregable de la propuesta; `B-FUTURO` se redacta como capítulo de
   trabajo futuro con la justificación de cada ítem.
+
+## E. Flujo agéntico (AF)
+
+Ítems sobre el flujo mismo (`.claude/`, `scripts/check_docs.py`, rituales). Misma tabla y mismo vocabulario que A y B.
+Los pendientes de flujo de CONTEXT §8 pasan aquí cuando se decide atacarlos; mientras tanto no tienen fila.
+
+| ID | Origen | Qué | Sev. | Decisión | Nota técnica |
+|---|---|---|---|---|---|
+| AF-01 | ADR-0008 y addendum (29–30 oct); hallazgo del 31 oct | Reglas de ADR-0008 en `scripts/check_docs.py`: días fuera de PLAN §3 (también dentro de PLAN); fecha de entrega en PLAN igual a CONTEXT §2; bloque citado existe en §2b; encabezado de versión según ADR-0007; fila de PLAN §3 cerrada sin marca; `--copias` lista citas por dueño; copia de hecho duro sin cita como hallazgo; la columna Decisión nombra exactamente un bloque y nada más (hoy `DECISION_RE` deja pasar cualquier cola, por eso BE-08 estuvo en dos bloques) | Media | **Entra · `B-CHECK-DOCS`** | Casos de prueba para la regla de la Decisión: FE-05 (`parcial`), BE-18 (`mínimo`) y BE-14 (`Sale` con mitigación en otro bloque); se decide con el script delante si se admite un calificador cerrado entre paréntesis. Especificación a dos manos antes de Claude Code. |
