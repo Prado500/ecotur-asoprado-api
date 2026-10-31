@@ -1,8 +1,9 @@
 # Sesiones de IA: cómo arrancar cualquiera sin depender de ninguna conversación anterior
 
-> **Versión 1.0 — 30 oct 2026.** Primera versión numerada (ADR-0007: los artefactos de `docs/sesiones/` toman 1.0 en su
-> primer cambio). Cambios: bitácora `2026-10-30` (paso 3 del ritual de cierre: dueños → tabla de `CONTEXT.md` §0; pasada
-> de citas de ADR-0008; herramientas de git para saber cuál cambió último, addendum de ADR-0008).
+> **Versión 1.1 — 31 oct 2026.** Cambios de esta versión: bitácora `2026-10-31` (paso 1 del ritual de cierre: de quién
+> es la bitácora y qué hace la sesión con ella; regla decidida el 29 y llevada a su dueño el 31). Versiones anteriores:
+> `2026-10-30` (1.0, primera numerada según ADR-0007: paso 3 del ritual de cierre: dueños → tabla de `CONTEXT.md` §0;
+> pasada de citas de ADR-0008; herramientas de git para saber cuál cambió último, addendum de ADR-0008).
 
 Las sesiones **no se sincronizan entre sí: se sincronizan a través del repositorio.** Cada una arranca
 leyendo los mismos archivos y cierra actualizándolos. Cuatro roles, cuatro prompts:
@@ -23,7 +24,8 @@ lo que pasó en esta?* No por memoria (no la tiene), sino leyendo archivos. Cuat
 porque cada uno alimenta al siguiente:
 
 1. **Bitácora del día** (`docs/bitacora/AAAA-MM-DD.md`, append-only): hecho, no hecho, decisiones,
-   lecciones, documentos tocados. Para las dudas, la sesión **no confía en su memoria**: lee
+   lecciones, documentos tocados. **La bitácora es responsabilidad de David; la sesión la redacta y le señala lo que
+   falta** (decidido el 29 oct). Para las dudas, la sesión **no confía en su memoria**: lee
    `docs/aprendizaje/preguntas.md` y lo compara con la bitácora anterior (o con `git log -p` de ese
    archivo) para listar las dudas nuevas del día, incluidas las que entraron por `/duda` desde Claude Code;
    si alguna no se entiende, le pregunta a David. La bitácora las cuenta y enlaza; `preguntas.md` es el dueño.
