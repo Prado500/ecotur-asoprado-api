@@ -221,3 +221,26 @@ si al cierre del día no está auditada (→ `AF-02`). Los hallazgos que surjan 
 R2 y R4 atraparon cosas reales antes de existir: siete filas del backlog con decisiones en prosa (bloques dentro del
 calificador) y el CONTEXT §8 del 31 con días y con fecha en el título; detectadas con el `grep` equivalente durante la
 especificación, corregidas en el primer commit de `item/af-01` por David, y conservadas como fixtures que fallan.
+
+## 8. Adiciones tras la verificación (1 nov, aprobada por David a las 18:19)
+
+Entran en el plan como requisitos; no cambian el alcance de fases.
+
+1. **Flags desconocidos son error (Fase A, cambios transversales).** `verificacion.md` muestra que hoy
+   `python scripts/check_docs.py --copias` devuelve exit 0 con el mensaje de éxito de las reglas viejas: un ritual de
+   cierre que invoque un flag inexistente creería estar en verde. La CLI pasa a `argparse` (stdlib): argumento no
+   reconocido → mensaje de uso y exit 2. Test: `main(["--inexistente"])` ≠ 0.
+2. **Caso "debe pasar" de R5:** la fila AF-01 de `docs/backlog.md` (hoy línea 141) contiene el disparador `entrega` y las
+   fechas `30 oct` / `31 oct` a más de 100 caracteres de distancia. Con la ventana de ±40 no se evalúa; una ventana más
+   laxa pondría el repo en rojo. Fixture con esa línea, 0 errores. La semántica de ventana no se relaja.
+3. **Compuerta con el venv:** ejecutor y auditor miden con `venv/Scripts/python.exe scripts/check.py`, nunca con el
+   Python del sistema (`C:\Python314` no tiene mypy, import-linter ni pytest y produce rojos falsos).
+4. **`tests/conftest.py` tiene dos fixtures `autouse`** (`setup_database`, que crea y borra todas las tablas en cada
+   test, y `override_azure_storage_client`). Los tests de `check_docs` son puros y síncronos pero los heredan. No se
+   toca el `conftest` en AF-01 (es trabajo de `B-TESTS`); si los tests nuevos fallan por el engine de pruebas o tardan,
+   la causa es esa, no el script, y el handoff lo dice así.
+5. **`ruff` ignora `D` en `tests/**`** (per-file-ignores): el archivo de tests no necesita docstrings por función. El
+   script sí: convención Google, `D1xx` exentas. El archivo entra nuevo a `mypy.files`: 0 errores propios o el total
+   44 sube y el trinquete de ADR-0005 falla.
+6. **Para el cierre, no para el plan:** el verificador anotó que `lint-imports` no vuelca su texto dentro de la sección
+   de `check.py` al redirigir la salida a fichero. Fuera de alcance; la sesión que cierre lo lleva al backlog.
