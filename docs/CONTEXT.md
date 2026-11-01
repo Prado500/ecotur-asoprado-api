@@ -5,9 +5,11 @@
 > Vive en `docs/CONTEXT.md`. Regla de oro: **el contexto vive en archivos versionados, no en la
 > memoria de un chat.** Cada sesión nueva arranca leyendo esto.
 >
-> **Versión 3.1 — 31 oct 2026.** Cambios de esta versión: bitácora `2026-10-31` (§0: fila de composición ampliada con la
-> secuencia de medias jornadas; §2: fila de deadline al día, regla de los domingos comodín y del fechado semanal, roles
-> del equipo con el de David; §7: reparto propuesto a María Paula; §8). Versiones anteriores:
+> **Versión 3.2 — 1 nov 2026.** Cambios de esta versión: bitácora `2026-11-01` (§8: sin días de cronograma ni fecha en el
+> título, nombra bloques y cita a PLAN §3; primer commit de `item/af-01`). Versiones anteriores:
+> `2026-10-31` (3.1: §0: fila de composición ampliada con la secuencia de medias jornadas; §2: fila de deadline al día,
+> regla de los domingos comodín y del fechado semanal, roles del equipo con el de David; §7: reparto propuesto a María
+> Paula; §8);
 > `2026-10-30` (3.0: §0: tabla hecho → dueño y política
 > de copias, ADR-0008 —cambia una regla, por eso mayor—, regla de addendum y orden de resolución de huérfanas por el
 > addendum de ADR-0008; §2: capacidad en tres regímenes hasta la entrega; §6: fila del ADR-0008 y fe de erratas de D1; §8). Versiones
@@ -235,30 +237,33 @@ la Web App la hala al reiniciar. Operación: 2 clics.
   por paquete completo, antelación mínima 1 día, 30 min para pagar una reserva pendiente,
   tarifa de temporada alta como trabajo futuro.
 
-## 8. Próximo paso (sáb 31 oct, cierre)
+## 8. Próximo paso
 
-Dónde estamos: **PLAN 2.0 escrito** (bitácora del 31: paso 0 copia ↔ dueño por sección; acordeón: secuencias en §2b,
-§3 fecha solo la semana en curso; presupuestos por régimen; hitos fijos; orden de sacrificio en §8). Backlog 1.9 (BE-16
-→ BE-16 + BE-27; BE-08 → BE-08 + BE-28; sección E con AF-01). README de sesiones 1.1. Sin cambios técnicos desde el 27:
-compuerta global en rojo, ADR-0005 vigente, ningún ítem de deuda en curso. Presupuesto de Bogotá al cierre del 31:
-10 m disponibles, secuencia 9 + 1 m de colchón; el domingo 1 nov es comodín (§2) para `B-CHECK-DOCS`; `B-HIGIENE`
-recortado a 1 m, devuelto el viernes si el colchón no se gastó.
+Dónde estamos (estado al cierre de la bitácora `2026-10-31`): **PLAN 2.0 escrito** (paso 0 copia ↔ dueño por sección;
+acordeón: secuencias en §2b, §3 fecha solo la semana en curso; presupuestos por régimen; hitos fijos; orden de sacrificio
+en PLAN §8). Backlog 1.9 (BE-16 → BE-16 + BE-27; BE-08 → BE-08 + BE-28; sección E con AF-01). README de sesiones 1.1. Sin
+cambios técnicos desde el 27 oct: compuerta global en rojo, ADR-0005 vigente, ningún ítem de deuda en curso. Presupuesto de
+Bogotá al cierre de esa bitácora `(PLAN §3)`: 10 m disponibles, secuencia 9 + 1 m de colchón; el comodín del domingo (§2)
+cubre `B-CHECK-DOCS`; `B-HIGIENE` recortado a 1 m, devuelto al final de la semana si el colchón no se gastó.
 
-1. **Dom 1 nov (comodín):** `B-CHECK-DOCS m1`: especificación a dos manos (David + sesión Mentor, ~1 h) → Claude Code
-   en sesión fresca: `/deuda-verificar AF-01` → `/deuda-planear` → `/implementar` → `/auditar` → `/pr`. Entradas de la
-   especificación: `scripts/check_docs.py` actual, ADR-0008 con addendum, bitácora del 29 "Decisiones" (C), ADR-0007,
-   los pendientes del punto 4, y el hallazgo del 31: `DECISION_RE` deja pasar cualquier cola, así que la regla nueva es
-   "la columna Decisión nombra exactamente un bloque"; casos de prueba FE-05, BE-18, BE-14 (backlog AF-01). Por regla:
-   qué detecta, sobre qué archivos, con qué expresión, qué imprime, exit code, un caso que falla y uno que pasa.
-2. Lun 2 → vie 6: la semana fechada en PLAN §3 (`B-FORMATO`+`B-CI` → `B-HIGIENE` 1 m → `B-S1` → `B-TESTS` → cierre de
-   Bogotá con PR a `staging`, dump de staging para `B-RESERVAS m2` y mudanza). Lun 2 a primera hora: mensaje a María
-   Paula; reunión lun 17:00–18:00 (o mar 3). Vie 6 al cierre: fechar la semana de Prado (PLAN 2.1 o la versión que toque).
+1. **Comodín del domingo** `(PLAN §3)`: `B-CHECK-DOCS m1`: especificación a dos manos (David + sesión Mentor, ~1 h) →
+   Claude Code en sesión fresca: `/deuda-verificar AF-01` → `/deuda-planear` → `/implementar` → `/auditar` → `/pr`.
+   Entradas de la especificación: `scripts/check_docs.py` actual, ADR-0008 con addendum, bitácora `2026-10-29`
+   "Decisiones" (C), ADR-0007, los pendientes del punto 4, y el hallazgo de la bitácora `2026-10-31`: `DECISION_RE` deja
+   pasar cualquier cola, así que la regla nueva es "la columna Decisión nombra exactamente un bloque"; casos de prueba
+   FE-05, BE-18, BE-14 (backlog AF-01). Por regla: qué detecta, sobre qué archivos, con qué expresión, qué imprime, exit
+   code, un caso que falla y uno que pasa.
+2. **Semana de Bogotá** `(PLAN §3)`: `B-FORMATO`+`B-CI` → `B-HIGIENE` 1 m → `B-S1` → `B-TESTS` → cierre de Bogotá con PR a
+   `staging`, dump de staging para `B-RESERVAS m2` y mudanza. Al arrancar la semana, a primera hora: mensaje a María Paula;
+   la reunión con ella es el hito fechado en PLAN §3. Al cierre del último día trabajado de la semana: fechar la semana de
+   Prado (PLAN 2.1 o la versión que toque).
 3. Prado y régimen final: orden y presupuestos en PLAN §3; secuencias en §2b.
 4. Pendientes de flujo (no urgentes, con dueño): YAML estricto en `check_docs.py`; `--estado` no distingue "mezclado";
    `/pr` con `#N`; README: compuerta con el venv activo; formalizar en `docs/sesiones/` las reglas del Mentor (solo
    `git log`; nada fuera de `docs/`; propuesta y permiso antes de escribir); `mentor.md` o el ritual de apertura: conectar
-   la carpeta del repo antes del primer mensaje (hoy volvió a pasar); la sesión verifica con `git log` que la rama de
-   trabajo contiene el último cierre antes de escribir. Pasan a filas `AF-0x` del backlog cuando se decida atacarlos.
+   la carpeta del repo antes del primer mensaje (volvió a pasar el 31 oct y el 1 nov); la sesión verifica con `git log`
+   que la rama de trabajo contiene el último cierre antes de escribir. Pasan a filas `AF-0x` del backlog cuando se decida
+   atacarlos.
 
 ## 9. Sesiones de IA
 Cualquier sesión (ingeniería, documento, estudio, mentor) arranca con los prompts de `docs/sesiones/` y el ritual
