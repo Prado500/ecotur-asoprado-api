@@ -41,14 +41,14 @@ admin_router = APIRouter(dependencies=[Depends(get_current_admin_user)])
 # PUBLIC ENDPOINTS
 # -------------------------------------------------------------------
 
+
 @public_router.post("/registro", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def registrar_turista(
-        usuario: UserCreate,
-        background_tasks: BackgroundTasks,
-        user_service: UserService = Depends(get_user_service)
+    usuario: UserCreate,
+    background_tasks: BackgroundTasks,
+    user_service: UserService = Depends(get_user_service),
 ):
-    """
-    Public endpoint: Registers a new tourist account.
+    """Public endpoint: Registers a new tourist account.
 
     Delegates the registration pipeline to UserService, which returns the
     persisted account plus its verification token. The activation email is
@@ -79,12 +79,8 @@ async def registrar_turista(
 
 
 @public_router.get("/verificar-email", status_code=status.HTTP_200_OK)
-async def verificar_cuenta(
-        token: str,
-        user_service: UserService = Depends(get_user_service)
-):
-    """
-    Public endpoint: Activates a user account via the emailed verification token.
+async def verificar_cuenta(token: str, user_service: UserService = Depends(get_user_service)):
+    """Public endpoint: Activates a user account via the emailed verification token.
 
     Args:
         token (str): Single-use JWT issued during registration.
@@ -97,12 +93,8 @@ async def verificar_cuenta(
 
 
 @public_router.post("/login", response_model=TokenResponse)
-async def login(
-        credenciales: UserLogin,
-        user_service: UserService = Depends(get_user_service)
-):
-    """
-    Public endpoint: Authenticates credentials and issues an access JWT.
+async def login(credenciales: UserLogin, user_service: UserService = Depends(get_user_service)):
+    """Public endpoint: Authenticates credentials and issues an access JWT.
 
     Args:
         credenciales (UserLogin): Validated credentials payload (email + password).
@@ -118,10 +110,10 @@ async def login(
 # SELF-SERVICE ENDPOINTS (any authenticated user)
 # -------------------------------------------------------------------
 
+
 @self_service_router.get("/mi-perfil", response_model=UserResponse)
 async def ver_mi_perfil(usuario_actual: UserDep):
-    """
-    Protected endpoint: Returns the authenticated user's own profile.
+    """Protected endpoint: Returns the authenticated user's own profile.
 
     Args:
         usuario_actual (User): User extracted from the active JWT session.
@@ -134,12 +126,9 @@ async def ver_mi_perfil(usuario_actual: UserDep):
 
 @self_service_router.delete("/{cedula}", status_code=status.HTTP_200_OK)
 async def eliminar_usuario(
-        cedula: str,
-        usuario_actual: UserDep,
-        user_service: UserService = Depends(get_user_service)
+    cedula: str, usuario_actual: UserDep, user_service: UserService = Depends(get_user_service)
 ):
-    """
-    Protected endpoint: Performs a soft-delete on a target user account.
+    """Protected endpoint: Performs a soft-delete on a target user account.
 
     Hierarchical ABAC is delegated to UserService: the action is allowed only
     on self-deletion or when the actor's role strictly outranks the target's.
@@ -152,21 +141,17 @@ async def eliminar_usuario(
     Returns:
         dict: Standardized JSON confirmation payload.
     """
-    return await user_service.delete_user_account(
-        target_cedula=cedula,
-        current_user=usuario_actual
-    )
+    return await user_service.delete_user_account(target_cedula=cedula, current_user=usuario_actual)
 
 
 @self_service_router.patch("/{cedula}", response_model=UserResponse)
 async def actualizar_usuario(
-        cedula: str,
-        update_data: UserUpdate,
-        usuario_actual: UserDep,
-        user_service: UserService = Depends(get_user_service)
+    cedula: str,
+    update_data: UserUpdate,
+    usuario_actual: UserDep,
+    user_service: UserService = Depends(get_user_service),
 ):
-    """
-    Protected endpoint: Updates a specific user's profile information.
+    """Protected endpoint: Updates a specific user's profile information.
 
     Tourist users may self-update certain fields. Strict RBAC precedence and
     self-service rules are delegated to UserService.
@@ -181,9 +166,7 @@ async def actualizar_usuario(
         UserResponse: JSON representation of the refreshed user.
     """
     return await user_service.update_user_account(
-        target_cedula=cedula,
-        update_data=update_data,
-        current_user=usuario_actual
+        target_cedula=cedula, update_data=update_data, current_user=usuario_actual
     )
 
 
@@ -191,13 +174,12 @@ async def actualizar_usuario(
 # ADMIN ENDPOINTS (admin + superadmin)
 # -------------------------------------------------------------------
 
+
 @admin_router.get("/", response_model=list[UserResponse])
 async def listar_usuarios(
-        usuario_actual: AdminDep,
-        user_service: UserService = Depends(get_user_service)
+    usuario_actual: AdminDep, user_service: UserService = Depends(get_user_service)
 ):
-    """
-    Protected endpoint: Retrieves the user directory.
+    """Protected endpoint: Retrieves the user directory.
 
     Delegates hierarchical visibility rules to UserService so standard admins
     cannot retrieve superadmin entities.
@@ -214,11 +196,9 @@ async def listar_usuarios(
 
 @admin_router.get("/admin/eliminados", response_model=list[UserResponse])
 async def listar_usuarios_eliminados(
-        usuario_actual: AdminDep,
-        user_service: UserService = Depends(get_user_service)
+    usuario_actual: AdminDep, user_service: UserService = Depends(get_user_service)
 ):
-    """
-    Protected endpoint: Retrieves the collection of logically deleted users.
+    """Protected endpoint: Retrieves the collection of logically deleted users.
 
     Delegates hierarchical visibility rules to UserService so standard admins
     cannot retrieve soft-deleted superadmin entities.
@@ -235,12 +215,9 @@ async def listar_usuarios_eliminados(
 
 @admin_router.patch("/{cedula}/recuperar")
 async def recuperar_usuario(
-        cedula: str,
-        usuario_actual: AdminDep,
-        user_service: UserService = Depends(get_user_service)
+    cedula: str, usuario_actual: AdminDep, user_service: UserService = Depends(get_user_service)
 ):
-    """
-    Protected endpoint: Recovers a soft-deleted user account.
+    """Protected endpoint: Recovers a soft-deleted user account.
 
     Delegates RBAC precedence rules to UserService to prevent standard admins
     from recovering equal or higher-tier accounts.
@@ -254,19 +231,17 @@ async def recuperar_usuario(
         dict: Standardized JSON confirmation payload.
     """
     return await user_service.recover_user_account(
-        target_cedula=cedula,
-        current_user=usuario_actual
+        target_cedula=cedula, current_user=usuario_actual
     )
 
 
 @admin_router.post("/admin", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def crear_administrador(
-        usuario: UserCreateByAdmin,
-        usuario_actual: AdminDep,
-        user_service: UserService = Depends(get_user_service)
+    usuario: UserCreateByAdmin,
+    usuario_actual: AdminDep,
+    user_service: UserService = Depends(get_user_service),
 ):
-    """
-    Protected endpoint: Provisions a new administrative account.
+    """Protected endpoint: Provisions a new administrative account.
 
     The admin-tier dependency gates transport access, while UserService
     enforces the stricter superadmin-only hierarchical rule.
@@ -280,8 +255,7 @@ async def crear_administrador(
         UserResponse: JSON representation of the newly provisioned account.
     """
     return await user_service.create_administrative_account(
-        user_data=usuario,
-        current_user=usuario_actual
+        user_data=usuario, current_user=usuario_actual
     )
 
 

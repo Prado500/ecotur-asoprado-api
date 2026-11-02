@@ -4,11 +4,13 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.db.database import Base
 
+
 class ServiceCategory(str, enum.Enum):
     agroturismo = "agroturismo"
     recreacional = "recreacional"
     metalmecanico = "metalmecanico"
     otro = "otro"
+
 
 class TouristService(Base):
     __tablename__ = "tourist_services"
@@ -25,14 +27,16 @@ class TouristService(Base):
 
     images = relationship("ServiceImage", back_populates="service", cascade="all, delete-orphan")
 
+
 class ServiceImage(Base):
     __tablename__ = "service_images"
 
     id = Column(Integer, primary_key=True, index=True)
-    service_id = Column(Integer, ForeignKey("tourist_services.id", ondelete="CASCADE"), nullable=False)
+    service_id = Column(
+        Integer, ForeignKey("tourist_services.id", ondelete="CASCADE"), nullable=False
+    )
     image_url = Column(Text, nullable=False)
     is_primary = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-
 
     service = relationship("TouristService", back_populates="images")

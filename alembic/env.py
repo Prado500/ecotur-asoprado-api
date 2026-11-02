@@ -4,7 +4,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-
 import asyncio
 from logging.config import fileConfig
 
@@ -15,8 +14,8 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from alembic import context
 
 from app.db.database import Base
-from app.models.user import User
-from app.models.service import TouristService
+from app.models.user import User  # noqa: F401  # side-effect import: registers the table on Base.metadata for autogenerate; B-S1 replaces it
+from app.models.service import TouristService  # noqa: F401  # side-effect import: registers the table on Base.metadata for autogenerate; B-S1 replaces it
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -44,6 +43,7 @@ target_metadata = Base.metadata
 # can be acquired:
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
+
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.

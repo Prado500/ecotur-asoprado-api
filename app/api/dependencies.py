@@ -1,5 +1,3 @@
-from enum import Enum
-
 import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -26,11 +24,14 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="usuarios/login")
 
 # --- DEPENDENCY FACTORY (Inversion of Control) ---
 
+
 def get_user_repository(db: AsyncSession = Depends(get_db)) -> UserRepository:
     return UserRepository(db)
 
+
 def get_tourist_services_repository(db: AsyncSession = Depends(get_db)) -> ServiceRepository:
     return ServiceRepository(db)
+
 
 def get_audit_repository(db: AsyncSession = Depends(get_db)) -> AuditRepository:
     return AuditRepository(db)
@@ -39,38 +40,44 @@ def get_audit_repository(db: AsyncSession = Depends(get_db)) -> AuditRepository:
 def get_user_access_policy() -> UserAccessPolicy:
     return UserAccessPolicy()
 
+
 def get_audit_service(
-        audit_repo: AuditRepository = Depends(get_audit_repository),
-        user_access_policy: UserAccessPolicy = Depends(get_user_access_policy)
+    audit_repo: AuditRepository = Depends(get_audit_repository),
+    user_access_policy: UserAccessPolicy = Depends(get_user_access_policy),
 ) -> AuditService:
     return AuditService(audit_repo, user_access_policy)
 
+
 def get_user_service(
-        user_repo: UserRepository = Depends(get_user_repository),
-        audit_service: AuditService = Depends(get_audit_service),
-        user_access_policy: UserAccessPolicy = Depends(get_user_access_policy)
+    user_repo: UserRepository = Depends(get_user_repository),
+    audit_service: AuditService = Depends(get_audit_service),
+    user_access_policy: UserAccessPolicy = Depends(get_user_access_policy),
 ) -> UserService:
     return UserService(user_repo, audit_service, user_access_policy)
 
+
 # --- AZURE BLOB STORAGE DEPENDENCY HANDLING --- #
+
 
 def get_storage_client() -> AzureStorageClient:
     return AzureStorageClient()
+
+
 def get_service_service(
-        service_repo: ServiceRepository = Depends(get_tourist_services_repository),
-        audit_service: AuditService = Depends(get_audit_service),
-        storage_client: AzureStorageClient = Depends(get_storage_client)
+    service_repo: ServiceRepository = Depends(get_tourist_services_repository),
+    audit_service: AuditService = Depends(get_audit_service),
+    storage_client: AzureStorageClient = Depends(get_storage_client),
 ) -> TouristServicesService:
     return TouristServicesService(service_repo, audit_service, storage_client)
 
+
 # --- ENDPOINT ACCESS CONTROL ---
 
+
 async def get_current_user(
-        token: str = Depends(oauth2_scheme),
-        user_repo: UserRepository = Depends(get_user_repository)
+    token: str = Depends(oauth2_scheme), user_repo: UserRepository = Depends(get_user_repository)
 ) -> User:
-    """
-    Decodes the given JWT token, verifies payload consistency, lifespan status (unexpired or expired)
+    """Decodes the given JWT token, verifies payload consistency, lifespan status (unexpired or expired)
     and user enabling (only active users are allowed).
 
     It's injected with a UserRepository instance for user-state consulting against the persistence layer.
@@ -105,25 +112,21 @@ async def get_current_user(
 
     return usuario
 
+
 async def get_current_admin_user(current_user: User = Depends(get_current_user)) -> User:
-        """
-        Validates if the provided user possesses administrative privileges.
+    """Validates if the provided user possesses administrative privileges.
 
-        This method acts as a Role-Based Access Control (RBAC) gatekeeper
-        to prevent unauthorized access to resources that should only be available for admin or superadmin users.
+    This method acts as a Role-Based Access Control (RBAC) gatekeeper
+    to prevent unauthorized access to resources that should only be available for admin or superadmin users.
 
-        Args:
-        current_user (User): The user entity extracted from the current JWT session.
+    Args:
+    current_user (User): The user entity extracted from the current JWT session.
 
-        Raises:
-        HTTPException: 403 Forbidden if the user's role is not 'admin' or 'superadmin' .
-        """
-        if current_user.role not in [UserRole.admin, UserRole.superadmin]:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Privilegios insuficientes."
-            )
-        return current_user
-
-
-
+    Raises:
+    HTTPException: 403 Forbidden if the user's role is not 'admin' or 'superadmin' .
+    """
+    if current_user.role not in [UserRole.admin, UserRole.superadmin]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Privilegios insuficientes."
+        )
+    return current_user

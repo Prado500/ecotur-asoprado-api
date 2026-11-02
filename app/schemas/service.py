@@ -1,5 +1,4 @@
 from pydantic import BaseModel, Field, ConfigDict, HttpUrl, field_validator
-from typing import Optional, List
 from datetime import datetime
 from decimal import Decimal
 
@@ -20,9 +19,9 @@ class ServiceBase(BaseModel):
         ...,
         min_length=20,
         max_length=65,
-        description="Nombre del paquete (mínimo 20 caracteres, máximo 65)"
+        description="Nombre del paquete (mínimo 20 caracteres, máximo 65)",
     )
-    description: Optional[str] = Field(None, max_length=1000)
+    description: str | None = Field(None, max_length=1000)
     category: ServiceCategory = Field(default=ServiceCategory.otro)
 
     base_price: Decimal = Field(
@@ -30,18 +29,17 @@ class ServiceBase(BaseModel):
         ge=40000,
         max_digits=10,
         decimal_places=2,
-        description="Precio base en COP. No puede ser inferior a $40,000"
+        description="Precio base en COP. No puede ser inferior a $40,000",
     )
 
     max_capacity: int = Field(..., gt=0, le=30, description="Capacidad máxima de turistas")
     is_available: bool = Field(default=False)
 
     # === TITLE DATA HYGIENE ===
-    @field_validator('name')
+    @field_validator("name")
     @classmethod
     def format_service_name(cls, v: str) -> str:
-        """
-        Transforms inputs such as 'pAqUeTe tuRIsTiCo' into 'Paquete Turístico'
+        """Transforms inputs such as 'pAqUeTe tuRIsTiCo' into 'Paquete Turístico'
         It implements title case employing .title()
         """
         # Elimination of double whitespaces ("Tour   por el rio" -> "Tour por el rio")
@@ -52,43 +50,43 @@ class ServiceBase(BaseModel):
 
 class ServiceCreate(ServiceBase):
     # HttpUrl delegates the image url string domain and protocol verification to Rust.
-    image_urls: List[HttpUrl] = Field(
+    image_urls: list[HttpUrl] = Field(
         default=[],
         max_length=10,
-        description="Lista de URLs de imágenes. La primera será la principal. Asegúrese de haber pegado un link que empiece por http:// o https://"
+        description="Lista de URLs de imágenes. La primera será la principal. Asegúrese de haber pegado un link que empiece por http:// o https://",
     )
 
 
 class ServiceListResponse(ServiceBase):
     id: int
-    images: List[ServiceImageResponse] = []
+    images: list[ServiceImageResponse] = []
     model_config = ConfigDict(from_attributes=True)
 
 
 class ServiceDetailResponse(ServiceBase):
     id: int
     created_at: datetime
-    deleted_at: Optional[datetime] = None
-    images: List[ServiceImageResponse] = []
+    deleted_at: datetime | None = None
+    images: list[ServiceImageResponse] = []
     model_config = ConfigDict(from_attributes=True)
 
 
 class ServiceImageOutput(BaseModel):
-    image_urls: List[HttpUrl] = Field(default_factory=list, max_length=10)
+    image_urls: list[HttpUrl] = Field(default_factory=list, max_length=10)
 
 
 class ServiceUpdate(BaseModel):
-    name: Optional[str] = Field(None, min_length=20, max_length=65)
-    description: Optional[str] = Field(None, max_length=1000)
-    category: Optional[ServiceCategory] = None
-    base_price: Optional[Decimal] = Field(None, ge=40000, max_digits=10, decimal_places=2)
-    max_capacity: Optional[int] = Field(None, gt=0, le=30)
-    is_available: Optional[bool] = None
-    image_urls: Optional[List[HttpUrl]] = Field(None, max_length=10)
+    name: str | None = Field(None, min_length=20, max_length=65)
+    description: str | None = Field(None, max_length=1000)
+    category: ServiceCategory | None = None
+    base_price: Decimal | None = Field(None, ge=40000, max_digits=10, decimal_places=2)
+    max_capacity: int | None = Field(None, gt=0, le=30)
+    is_available: bool | None = None
+    image_urls: list[HttpUrl] | None = Field(None, max_length=10)
 
-    @field_validator('name')
+    @field_validator("name")
     @classmethod
-    def format_service_name(cls, v: Optional[str]) -> Optional[str]:
+    def format_service_name(cls, v: str | None) -> str | None:
         if v is None:
             return v
         clean = " ".join(v.split())
