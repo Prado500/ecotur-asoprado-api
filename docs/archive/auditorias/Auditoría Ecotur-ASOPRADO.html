@@ -1,0 +1,1143 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Auditoría Ecotur-ASOPRADO</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:ital,wght@0,400;0,600;1,400&display=swap">
+<style>
+  :root{
+    --ground:#F5F7F8; --surface:#FFFFFF; --surface-2:#EDF1F2; --surface-3:#E3E9EA;
+    --ink:#161C1E; --ink-2:#3B494C; --ink-3:#6B7A7D; --hair:#D3DBDD; --hair-2:#C2CCCE;
+    --accent:#006875; --accent-2:#00505A; --accent-soft:#E0EDEF;
+    --ok:#006C49; --ok-soft:#DDEEE6;
+    --sev-0:#A01B12; --sev-0-soft:#F8E2E0;
+    --sev-1:#9A4A06; --sev-1-soft:#FAE9DB;
+    --sev-2:#77600A; --sev-2-soft:#F6EFD7;
+    --sev-3:#4A5C60; --sev-3-soft:#E6ECED;
+    --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+    --sans:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,sans-serif;
+    --serif:"IBM Plex Serif",Georgia,serif;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --ground:#0E1214; --surface:#161C1F; --surface-2:#1D2529; --surface-3:#253034;
+      --ink:#E8EDEE; --ink-2:#B3C0C3; --ink-3:#849699; --hair:#2A3438; --hair-2:#384549;
+      --accent:#4FB3C0; --accent-2:#7FCDD7; --accent-soft:#12292D;
+      --ok:#4DB88C; --ok-soft:#12271F;
+      --sev-0:#F08379; --sev-0-soft:#2C1614;
+      --sev-1:#E0A165; --sev-1-soft:#2A1D11;
+      --sev-2:#CDB55E; --sev-2-soft:#262113;
+      --sev-3:#9AAAAE; --sev-3-soft:#1C2427;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0E1214; --surface:#161C1F; --surface-2:#1D2529; --surface-3:#253034;
+    --ink:#E8EDEE; --ink-2:#B3C0C3; --ink-3:#849699; --hair:#2A3438; --hair-2:#384549;
+    --accent:#4FB3C0; --accent-2:#7FCDD7; --accent-soft:#12292D;
+    --ok:#4DB88C; --ok-soft:#12271F;
+    --sev-0:#F08379; --sev-0-soft:#2C1614;
+    --sev-1:#E0A165; --sev-1-soft:#2A1D11;
+    --sev-2:#CDB55E; --sev-2-soft:#262113;
+    --sev-3:#9AAAAE; --sev-3-soft:#1C2427;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
+       font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1040px;margin:0 auto;padding-inline:20px;padding-block:0 72px}
+  code,.mono{font-family:var(--mono);font-size:.875em}
+  code{background:var(--surface-2);padding:.12em .38em;border-radius:3px;color:var(--ink)}
+  a{color:var(--accent)}
+  h1,h2,h3,h4{text-wrap:balance;line-height:1.22;margin:0}
+  p{margin:0}
+
+  /* ---- masthead ---- */
+  .mast{border-bottom:2px solid var(--ink);padding-block:34px 18px;margin-bottom:8px}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+           color:var(--accent);font-weight:600}
+  .mast h1{font-size:clamp(30px,5.2vw,46px);font-weight:600;letter-spacing:-.022em;margin-top:10px}
+  .mast .sub{color:var(--ink-2);margin-top:12px;max-width:66ch;font-size:16px}
+  .meta{display:flex;flex-wrap:wrap;gap:6px 26px;margin-top:20px;font-family:var(--mono);
+        font-size:11.5px;color:var(--ink-3)}
+  .meta b{color:var(--ink-2);font-weight:500}
+
+  /* ---- verdict ---- */
+  .verdict{background:var(--surface);border:1px solid var(--hair);border-left:4px solid var(--sev-0);
+           padding:24px 26px;margin-top:26px;border-radius:2px}
+  .verdict p{font-family:var(--serif);font-size:19px;line-height:1.5;color:var(--ink)}
+  .verdict .note{font-family:var(--sans);font-size:14px;color:var(--ink-2);margin-top:12px;line-height:1.6}
+
+  /* ---- scoreboard ---- */
+  .score{display:grid;grid-template-columns:repeat(auto-fit,minmax(138px,1fr));gap:1px;
+         background:var(--hair);border:1px solid var(--hair);margin-top:22px}
+  .score div{background:var(--surface);padding:15px 16px}
+  .score .n{font-family:var(--mono);font-size:26px;font-weight:600;letter-spacing:-.02em;
+            font-variant-numeric:tabular-nums;line-height:1.1}
+  .score .l{font-size:11.5px;color:var(--ink-3);margin-top:5px;line-height:1.35}
+  .n.bad{color:var(--sev-0)} .n.warn{color:var(--sev-1)} .n.mid{color:var(--sev-2)} .n.good{color:var(--ok)}
+
+  /* ---- sections ---- */
+  section{margin-top:56px;scroll-margin-top:20px}
+  .shead{display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--ink);
+         padding-bottom:9px;margin-bottom:22px}
+  .snum{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--accent);
+        letter-spacing:.06em;flex:none}
+  .shead h2{font-size:23px;font-weight:600;letter-spacing:-.012em}
+  .lede{color:var(--ink-2);max-width:72ch;margin-bottom:20px}
+  h3.sub{font-size:15.5px;font-weight:600;margin:30px 0 12px;color:var(--ink);
+         padding-left:11px;border-left:3px solid var(--accent)}
+  .body{max-width:74ch}
+  .body p+p{margin-top:12px}
+
+  /* ---- findings ---- */
+  .find{background:var(--surface);border:1px solid var(--hair);border-left-width:4px;
+        border-radius:2px;margin-bottom:12px;overflow:hidden}
+  .find.s0{border-left-color:var(--sev-0)} .find.s1{border-left-color:var(--sev-1)}
+  .find.s2{border-left-color:var(--sev-2)} .find.s3{border-left-color:var(--sev-3)}
+  .find.ok{border-left-color:var(--ok)}
+  .fhead{display:flex;align-items:flex-start;gap:11px;flex-wrap:wrap;padding:15px 18px 0}
+  .fid{font-family:var(--mono);font-size:11.5px;font-weight:600;padding:2.5px 7px;border-radius:3px;
+       flex:none;letter-spacing:.03em}
+  .s0 .fid{background:var(--sev-0-soft);color:var(--sev-0)}
+  .s1 .fid{background:var(--sev-1-soft);color:var(--sev-1)}
+  .s2 .fid{background:var(--sev-2-soft);color:var(--sev-2)}
+  .s3 .fid{background:var(--sev-3-soft);color:var(--sev-3)}
+  .ok .fid{background:var(--ok-soft);color:var(--ok)}
+  .fhead h4{font-size:15.5px;font-weight:600;flex:1 1 260px;letter-spacing:-.008em}
+  .fbody{padding:9px 18px 16px}
+  .fbody p{font-size:14.2px;color:var(--ink-2);max-width:78ch}
+  .fbody p+p{margin-top:10px}
+  .fbody strong{color:var(--ink);font-weight:600}
+  .loc{font-family:var(--mono);font-size:11.5px;color:var(--ink-3);padding:0 18px 13px;
+       display:flex;flex-wrap:wrap;gap:4px 16px}
+  .loc span::before{content:"› ";color:var(--hair-2)}
+
+  /* ---- proof block ---- */
+  .proof{background:var(--surface-2);border:1px solid var(--hair);border-radius:2px;
+         margin:12px 0 2px;padding:12px 15px;font-family:var(--mono);font-size:11.8px;
+         line-height:1.65;overflow-x:auto;white-space:pre;color:var(--ink-2)}
+  .proof .tag{color:var(--ink-3);text-transform:uppercase;letter-spacing:.09em;font-size:10.5px;
+              display:block;margin-bottom:7px;white-space:normal}
+  .proof b{color:var(--sev-0);font-weight:600}
+  .proof i{color:var(--ok);font-style:normal;font-weight:600}
+
+  /* ---- tables ---- */
+  .tw{overflow-x:auto;border:1px solid var(--hair);border-radius:2px;background:var(--surface)}
+  table{border-collapse:collapse;width:100%;font-size:13px;min-width:640px}
+  th{text-align:left;font-family:var(--mono);font-size:10.5px;letter-spacing:.09em;
+     text-transform:uppercase;color:var(--ink-3);font-weight:600;padding:10px 13px;
+     border-bottom:1px solid var(--hair-2);background:var(--surface-2);white-space:nowrap}
+  td{padding:9px 13px;border-bottom:1px solid var(--hair);vertical-align:top;color:var(--ink-2)}
+  tr:last-child td{border-bottom:none}
+  td.m,th.m{font-family:var(--mono);font-size:11.8px;white-space:nowrap}
+  td.ink{color:var(--ink)}
+  .pill{font-family:var(--mono);font-size:10.5px;font-weight:600;padding:2px 6px;border-radius:3px;
+        white-space:nowrap;display:inline-block}
+  .p-pub{background:var(--accent-soft);color:var(--accent)}
+  .p-adm{background:var(--sev-2-soft);color:var(--sev-2)}
+  .p-usr{background:var(--sev-3-soft);color:var(--sev-3)}
+  .p-no{background:var(--sev-0-soft);color:var(--sev-0)}
+  .p-ok{background:var(--ok-soft);color:var(--ok)}
+  .p-brk{background:var(--sev-0-soft);color:var(--sev-0)}
+
+  /* ---- flow diagram ---- */
+  .flow{background:var(--surface);border:1px solid var(--hair);border-radius:2px;padding:20px;
+        margin:18px 0;overflow-x:auto}
+  .flow svg{display:block;min-width:620px;width:100%;height:auto}
+
+  /* ---- two-col compare ---- */
+  .cmp{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--hair);
+       border:1px solid var(--hair);border-radius:2px;margin:10px 0 18px;overflow:hidden}
+  .cmp>div{background:var(--surface);padding:13px 15px;min-width:0}
+  .cmp .t{font-family:var(--mono);font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;
+          font-weight:600;margin-bottom:8px}
+  .cmp .old .t{color:var(--sev-1)} .cmp .new .t{color:var(--ok)}
+  .cmp pre{font-family:var(--mono);font-size:11.8px;line-height:1.6;margin:0;overflow-x:auto;
+           color:var(--ink-2);white-space:pre}
+  @media(max-width:660px){.cmp{grid-template-columns:1fr}}
+
+  /* ---- lists ---- */
+  ul.clean{list-style:none;padding:0;margin:12px 0 0}
+  ul.clean li{padding:8px 0 8px 20px;border-bottom:1px solid var(--hair);position:relative;
+              font-size:14.2px;color:var(--ink-2);max-width:78ch}
+  ul.clean li:last-child{border-bottom:none}
+  ul.clean li::before{content:"";position:absolute;left:3px;top:16px;width:5px;height:5px;
+                      background:var(--accent);border-radius:50%}
+  ul.clean li strong{color:var(--ink);font-weight:600}
+
+  .callout{background:var(--accent-soft);border:1px solid var(--hair);border-left:3px solid var(--accent);
+           padding:14px 17px;border-radius:2px;margin:16px 0;font-size:14.2px;color:var(--ink-2);max-width:78ch}
+  .callout strong{color:var(--ink)}
+
+  footer{margin-top:60px;padding-top:18px;border-top:1px solid var(--hair);
+         font-family:var(--mono);font-size:11px;color:var(--ink-3);line-height:1.8}
+  @media(max-width:560px){
+    .fhead{padding:13px 14px 0}.fbody,.loc{padding-inline:14px}
+    .wrap{padding-inline:16px}
+  }
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <div class="eyebrow">Auditoría técnica · Backend · Sprint 5</div>
+  <h1>Ecotur-ASOPRADO API</h1>
+  <p class="sub">Revisión de arquitectura, calidad de código y preparación comercial del backend FastAPI.
+  Evaluación contra PEP 8 / PEP 257, SOLID, KISS, YAGNI y separación de responsabilidades, con verificación
+  del flujo completo <span class="mono">endpoint → IoC → servicio → repositorio → engine</span>.</p>
+  <div class="meta">
+    <span><b>Rama</b> fix/verify-admin-to-dependencies</span>
+    <span><b>HEAD</b> f0de961</span>
+    <span><b>Versión</b> 0.2.0</span>
+    <span><b>Alcance</b> 3.165 LOC · 30 módulos · 22 endpoints</span>
+    <span><b>Fecha</b> 2026-09-21</span>
+  </div>
+</header>
+
+<div class="verdict">
+  <p>El código <strong>no está en condición de entrega</strong>. La rama actual tiene la suite de pruebas en
+  rojo y el módulo de servicios turísticos completamente caído por una refactorización incompleta en el último
+  commit. Por debajo de eso, la arquitectura por capas es real y bien intencionada, pero la capa de servicio
+  está acoplada al framework HTTP y la autorización está implementada tres veces de tres maneras distintas.</p>
+  <p class="note">El diagnóstico de fondo es favorable: los defectos son <em>localizados y corregibles</em>, no
+  estructurales. La separación en capas, el modelo de auditoría, el borrado lógico y la validación de entrada
+  están bien concebidos. Con el plan de la sección 10 —estimado en 5 a 8 días de trabajo— este código resiste
+  una revisión por pares sin objeciones de fondo.</p>
+</div>
+
+<div class="score">
+  <div><div class="n bad">7&thinsp;/&thinsp;26</div><div class="l">pruebas en rojo<br>en la rama actual</div></div>
+  <div><div class="n bad">5</div><div class="l">defectos bloqueantes<br>reproducidos</div></div>
+  <div><div class="n warn">1</div><div class="l">escalada de privilegios<br>confirmada</div></div>
+  <div><div class="n mid">483</div><div class="l">hallazgos estáticos<br>PEP 8 / PEP 257</div></div>
+  <div><div class="n mid">25</div><div class="l">imports<br>sin usar</div></div>
+  <div><div class="n good">22</div><div class="l">endpoints<br>trazados</div></div>
+</div>
+
+<!-- ══════════════════ 1 ══════════════════ -->
+<section id="s1">
+  <div class="shead"><span class="snum">01</span><h2>Estado verificado de la rama</h2></div>
+  <p class="lede">Antes de cualquier juicio cualitativo: el comportamiento observado al ejecutar el código.
+  Todo lo de esta sección es reproducible con los comandos indicados.</p>
+
+  <div class="proof"><span class="tag">$ pytest tests/ -q</span><b>7 failed</b>, <i>19 passed</i>, 1 warning in 5.43s
+
+FAILED tests/test_audit.py::test_audit_trail_creation_and_retrieval
+FAILED tests/test_auth.py::test_actualizacion_perfil_self_service_y_sanitizacion
+FAILED tests/test_services.py::test_deactivate_and_activate_package
+FAILED tests/test_services.py::test_soft_delete_and_recover
+FAILED tests/test_services.py::test_update_package_details
+FAILED tests/test_services.py::test_upload_images_staging_endpoint
+FAILED tests/test_services.py::test_update_package_concurrent_reconciliation</div>
+
+  <p class="lede" style="margin-top:18px">Seis de los siete fallos tienen una sola causa raíz, introducida por
+  el commit <code>f0de961</code>. El séptimo es una contradicción entre router y servicio introducida por el
+  mismo commit. La suite <em>hizo su trabajo</em>: detectó ambas regresiones. Lo que falló fue el proceso de
+  integración, no las pruebas.</p>
+</section>
+
+<!-- ══════════════════ 2 ══════════════════ -->
+<section id="s2">
+  <div class="shead"><span class="snum">02</span><h2>Defectos bloqueantes</h2></div>
+  <p class="lede">Cinco defectos que impiden la entrega. Cada uno fue reproducido de forma aislada contra la
+  aplicación real; no son inferencias de lectura.</p>
+
+  <div class="find s0">
+    <div class="fhead"><span class="fid">B1</span><h4>El módulo de servicios turísticos está caído: <code>_verify_admin</code> no existe</h4></div>
+    <div class="fbody">
+      <p>El commit <code>f0de961</code> eliminó la definición del método <code>_verify_admin</code> de
+      <code>TouristServicesService</code> y la trasladó a <code>dependencies.py</code> como
+      <code>get_current_admin_user</code>. <strong>Las ocho llamadas quedaron en el código.</strong> Siete
+      siguen invocando <code>self._verify_admin(...)</code> sobre un método inexistente; la octava fue
+      modificada por el commit de <code>self._verify_admin</code> a <code>_verify_admin</code>, convirtiéndola
+      en una llamada a una función global que tampoco existe.</p>
+      <p>Resultado: <strong>los diez endpoints de <code>/servicios</code> devuelven HTTP 500</strong>, más el
+      de auditoría que depende de crear un paquete. El intent del commit era correcto —centralizar la
+      verificación bajo IoC es exactamente lo que había que hacer—; la ejecución quedó a medias.</p>
+      <div class="proof"><span class="tag">$ grep -rn "_verify_admin" app/  ·  $ grep -rn "def _verify_admin" app/</span>app/services/tourist_services_service.py:33   <b>_verify_admin(current_user)</b>        → NameError
+app/services/tourist_services_service.py:79   self._verify_admin(current_user)   → AttributeError
+app/services/tourist_services_service.py:95   self._verify_admin(current_user)   → AttributeError
+app/services/tourist_services_service.py:115  self._verify_admin(current_user)   → AttributeError
+app/services/tourist_services_service.py:154  self._verify_admin(current_user)   → AttributeError
+app/services/tourist_services_service.py:191  self._verify_admin(current_user)   → AttributeError
+app/services/tourist_services_service.py:234  self._verify_admin(current_user)   → AttributeError
+app/services/tourist_services_service.py:276  self._verify_admin(current_user)   → AttributeError
+
+definiciones encontradas: <b>0</b></div>
+    </div>
+    <div class="loc"><span>app/services/tourist_services_service.py:33,79,95,115,154,191,234,276</span></div>
+  </div>
+
+  <div class="find s0">
+    <div class="fhead"><span class="fid">B2</span><h4>Escalada de privilegios: un admin puede auto-asignarse el rol superadmin</h4></div>
+    <div class="fbody">
+      <p>La sanitización del payload en <code>update_user_account</code> sólo elimina los campos
+      <code>role</code> e <code>is_active</code> cuando <em>además</em> de ser auto-modificación el actor es
+      turista. Un administrador que se modifica a sí mismo salta por completo el bloque de jerarquía —que está
+      dentro de <code>if not is_self_update</code>— y llega al <code>setattr</code> con su payload intacto.</p>
+      <p><strong>Un admin puede promoverse a superadmin con una sola petición PATCH sobre su propia cédula</strong>,
+      obteniendo acceso a la provisión de cuentas administrativas y a la visibilidad total del directorio.
+      Es el hallazgo más grave del informe en términos de riesgo.</p>
+      <div class="proof"><span class="tag">Prueba reproducida · PATCH /usuarios/{cedula} con token de admin</span>payload  : {"role": "superadmin"}
+esperado : el rol NO debe escalar
+obtenido : HTTP 200, rol resultante = <b>'superadmin'</b>
+veredicto: <b>*** ESCALADA DE PRIVILEGIOS CONFIRMADA ***</b></div>
+    </div>
+    <div class="loc"><span>app/services/user_service.py:222</span><span>:225-237</span><span>:243-246</span></div>
+  </div>
+
+  <div class="find s0">
+    <div class="fhead"><span class="fid">B3</span><h4>El superadmin no puede eliminar ninguna cuenta salvo la propia</h4></div>
+    <div class="fbody">
+      <p>El primer control de <code>delete_user_account</code> exige <code>role != UserRole.admin</code>. Un
+      superadmin no es <code>admin</code>, así que al eliminar la cuenta de un tercero cae en el 403. La
+      segunda verificación —escrita explícitamente para permitir que el superadmin elimine administradores—
+      <strong>es código inalcanzable</strong>: el flujo nunca llega.</p>
+      <p>El idioma correcto ya existe en el repositorio: <code>dependencies.py:113</code> usa
+      <code>not in [UserRole.admin, UserRole.superadmin]</code>. Es precisamente el costo de tener la misma
+      regla escrita en seis sitios (ver <span class="mono">D1</span>).</p>
+      <div class="proof"><span class="tag">Prueba reproducida · DELETE /usuarios/{cedula} con token de superadmin</span>esperado : HTTP 200 OK
+obtenido : <b>HTTP 403</b>  {'detail': 'Privilegios insuficientes. No tiene autorización…'}
+veredicto: <b>BUG CONFIRMADO</b></div>
+    </div>
+    <div class="loc"><span>app/services/user_service.py:127</span><span>vs. :135</span><span>vs. dependencies.py:113</span></div>
+  </div>
+
+  <div class="find s0">
+    <div class="fhead"><span class="fid">B4</span><h4>Eliminar una cédula inexistente produce 500 en lugar de 404</h4></div>
+    <div class="fbody">
+      <p>Las verificaciones de <code>delete_user_account</code> están en el orden equivocado. La consulta puede
+      devolver <code>None</code>, pero la línea 135 desreferencia <code>soft_deleted_user.role</code> antes de
+      que el control de existencia —comentado en el propio código como <em>"3. Handle specific 404"</em>—
+      llegue a ejecutarse en la línea 142. El 404 es, otra vez, código muerto.</p>
+      <div class="proof"><span class="tag">Prueba reproducida · DELETE /usuarios/999999999 con token de admin</span>esperado : HTTP 404 Not Found
+obtenido : <b>AttributeError: 'NoneType' object has no attribute 'role'</b>
+veredicto: <b>500 Internal Server Error, no 404</b></div>
+    </div>
+    <div class="loc"><span>app/services/user_service.py:124</span><span>:135</span><span>:142</span></div>
+  </div>
+
+  <div class="find s0">
+    <div class="fhead"><span class="fid">B5</span><h4>El auto-servicio de perfil es inalcanzable: el router contradice al servicio</h4></div>
+    <div class="fbody">
+      <p><code>PATCH /usuarios/{cedula}</code> quedó protegido con <code>get_current_admin_user</code>, pero su
+      propio docstring promete <em>"self-service rules"</em> y el servicio contiene toda la lógica de
+      <code>is_self_update</code> para que un turista edite su propio perfil. <strong>Un turista recibe 403 en
+      la puerta de entrada</strong> y esa lógica nunca se ejecuta.</p>
+      <p>Esto deja el producto sin edición de perfil para el 100% de los usuarios finales. El test
+      <code>test_actualizacion_perfil_self_service_y_sanitizacion</code> documenta el comportamiento correcto y
+      está en rojo: <strong>la prueba tiene razón, el código regresó.</strong></p>
+      <div class="proof"><span class="tag">Prueba reproducida · PATCH /usuarios/{cedula} con token de turista (perfil propio)</span>esperado : HTTP 200  (docstring de app/api/routers/user.py:97)
+obtenido : <b>HTTP 403</b>
+veredicto: <b>la lógica de auto-servicio del servicio es INALCANZABLE</b></div>
+    </div>
+    <div class="loc"><span>app/api/routers/user.py:92</span><span>vs. user_service.py:222-246</span><span>tests/test_auth.py:204</span></div>
+  </div>
+
+  <div class="callout"><strong>Patrón común.</strong> B1, B3, B4 y B5 son todos el mismo defecto de proceso:
+  una regla de autorización duplicada en varios lugares que se editó en uno solo. No son cuatro errores
+  independientes — son cuatro síntomas de <span class="mono">D1</span>. Corregir la duplicación previene la
+  recurrencia; corregir sólo los síntomas, no.</div>
+</section>
+
+<!-- ══════════════════ 3 ══════════════════ -->
+<section id="s3">
+  <div class="shead"><span class="snum">03</span><h2>Flujo endpoint → base de datos</h2></div>
+  <p class="lede">La cadena implementada es correcta en su forma y se respeta en los 22 endpoints. El problema
+  no es la forma, sino qué responsabilidad vive en cada eslabón.</p>
+
+  <div class="flow">
+  <svg viewBox="0 0 680 190" role="img" aria-label="Diagrama del flujo por capas desde el router hasta el motor de base de datos">
+    <defs>
+      <marker id="ar" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+        <path d="M0,0 L7,3.5 L0,7 Z" fill="currentColor"/>
+      </marker>
+    </defs>
+    <g font-family="IBM Plex Mono, monospace" font-size="10.5" color="currentColor">
+      <g fill="none" stroke="currentColor" stroke-width="1.1" opacity=".45" marker-end="url(#ar)">
+        <path d="M118,44 L142,44"/><path d="M238,44 L262,44"/>
+        <path d="M358,44 L382,44"/><path d="M478,44 L502,44"/>
+      </g>
+      <g>
+        <rect x="8" y="24" width="110" height="40" rx="2" fill="var(--surface-2)" stroke="var(--hair-2)"/>
+        <text x="63" y="41" text-anchor="middle" fill="var(--ink)" font-weight="600">Router</text>
+        <text x="63" y="55" text-anchor="middle" fill="var(--ink-3)" font-size="9">22 endpoints</text>
+
+        <rect x="142" y="24" width="120" height="40" rx="2" fill="var(--accent-soft)" stroke="var(--accent)"/>
+        <text x="202" y="41" text-anchor="middle" fill="var(--accent)" font-weight="600">IoC</text>
+        <text x="202" y="55" text-anchor="middle" fill="var(--accent)" font-size="9">dependencies.py</text>
+
+        <rect x="262" y="24" width="120" height="40" rx="2" fill="var(--surface-2)" stroke="var(--hair-2)"/>
+        <text x="322" y="41" text-anchor="middle" fill="var(--ink)" font-weight="600">Servicio</text>
+        <text x="322" y="55" text-anchor="middle" fill="var(--ink-3)" font-size="9">3 clases</text>
+
+        <rect x="382" y="24" width="120" height="40" rx="2" fill="var(--surface-2)" stroke="var(--hair-2)"/>
+        <text x="442" y="41" text-anchor="middle" fill="var(--ink)" font-weight="600">Repositorio</text>
+        <text x="442" y="55" text-anchor="middle" fill="var(--ink-3)" font-size="9">3 clases</text>
+
+        <rect x="502" y="24" width="120" height="40" rx="2" fill="var(--surface-2)" stroke="var(--hair-2)"/>
+        <text x="562" y="41" text-anchor="middle" fill="var(--ink)" font-weight="600">Engine</text>
+        <text x="562" y="55" text-anchor="middle" fill="var(--ink-3)" font-size="9">database.py</text>
+      </g>
+      <g font-size="9.5">
+        <path d="M322,70 L322,96" fill="none" stroke="var(--sev-0)" stroke-width="1.1" opacity=".75" marker-end="url(#ar)" color="var(--sev-0)"/>
+        <rect x="196" y="100" width="252" height="30" rx="2" fill="var(--sev-0-soft)" stroke="var(--sev-0)" stroke-dasharray="2 2"/>
+        <text x="322" y="119" text-anchor="middle" fill="var(--sev-0)" font-weight="600">import fastapi.HTTPException  ✗ A1</text>
+
+        <path d="M442,70 L442,150" fill="none" stroke="var(--sev-1)" stroke-width="1.1" opacity=".75" marker-end="url(#ar)" color="var(--sev-1)"/>
+        <rect x="316" y="154" width="252" height="30" rx="2" fill="var(--sev-1-soft)" stroke="var(--sev-1)" stroke-dasharray="2 2"/>
+        <text x="442" y="173" text-anchor="middle" fill="var(--sev-1)" font-weight="600">db.commit() por método  ✗ A3</text>
+      </g>
+    </g>
+  </svg>
+  </div>
+
+  <h3 class="sub">Inventario completo de endpoints</h3>
+  <div class="tw"><table>
+    <thead><tr><th class="m">Método</th><th class="m">Ruta</th><th>Servicio → Repositorio</th><th>Guardia IoC</th><th>Contrato</th><th>Estado</th></tr></thead>
+    <tbody>
+      <tr><td class="m">POST</td><td class="m ink">/usuarios/registro</td><td class="m">register_tourist → create_user</td><td><span class="pill p-pub">público</span></td><td class="m">UserResponse</td><td><span class="pill p-ok">ok</span></td></tr>
+      <tr><td class="m">GET</td><td class="m ink">/usuarios/verificar-email</td><td class="m">verify_email_account → activate_user</td><td><span class="pill p-pub">público</span></td><td><span class="pill p-no">sin modelo</span></td><td><span class="pill p-ok">ok</span></td></tr>
+      <tr><td class="m">POST</td><td class="m ink">/usuarios/login</td><td class="m">authenticate_user → get_non_deleted…</td><td><span class="pill p-pub">público</span></td><td class="m">TokenResponse</td><td><span class="pill p-ok">ok</span></td></tr>
+      <tr><td class="m">GET</td><td class="m ink">/usuarios/mi-perfil</td><td class="m">— (retorna la entidad del guard)</td><td><span class="pill p-usr">user</span></td><td class="m">UserResponse</td><td><span class="pill p-ok">ok</span></td></tr>
+      <tr><td class="m">DELETE</td><td class="m ink">/usuarios/{cedula}</td><td class="m">delete_user_account → soft_delete_user</td><td><span class="pill p-usr">user</span></td><td><span class="pill p-no">sin modelo</span></td><td><span class="pill p-brk">B3 B4</span></td></tr>
+      <tr><td class="m">GET</td><td class="m ink">/usuarios/</td><td class="m">get_all_registered_users → get_all_users</td><td><span class="pill p-usr">user</span></td><td class="m">list[UserResponse]</td><td><span class="pill p-ok">ok</span></td></tr>
+      <tr><td class="m">PATCH</td><td class="m ink">/usuarios/{cedula}</td><td class="m">update_user_account → save_user</td><td><span class="pill p-adm">admin</span></td><td class="m">UserResponse</td><td><span class="pill p-brk">B2 B5</span></td></tr>
+      <tr><td class="m">GET</td><td class="m ink">/usuarios/admin/eliminados</td><td class="m">get_deleted_users → get_all_users</td><td><span class="pill p-adm">admin</span></td><td class="m">list[UserResponse]</td><td><span class="pill p-brk">A7</span></td></tr>
+      <tr><td class="m">PATCH</td><td class="m ink">/usuarios/{cedula}/recuperar</td><td class="m">recover_user_account → save_user</td><td><span class="pill p-adm">admin</span></td><td><span class="pill p-no">sin modelo</span></td><td><span class="pill p-ok">ok</span></td></tr>
+      <tr><td class="m">POST</td><td class="m ink">/usuarios/admin</td><td class="m">create_administrative_account → create_user</td><td><span class="pill p-adm">admin</span></td><td class="m">UserResponse</td><td><span class="pill p-brk">A3</span></td></tr>
+      <tr><td class="m">POST</td><td class="m ink">/servicios/upload-images/</td><td class="m">image_uploader → (Azure, sin BD)</td><td><span class="pill p-adm">admin</span></td><td class="m">ServiceImageOutput</td><td><span class="pill p-brk">B1</span></td></tr>
+      <tr><td class="m">POST</td><td class="m ink">/servicios/</td><td class="m">create_tourist_package → create_service</td><td><span class="pill p-adm">admin</span></td><td class="m">ServiceDetailResponse</td><td><span class="pill p-brk">B1</span></td></tr>
+      <tr><td class="m">GET</td><td class="m ink">/servicios/</td><td class="m">list_active_packages → get_all_active…</td><td><span class="pill p-pub">público</span></td><td class="m">List[ServiceList…]</td><td><span class="pill p-ok">ok</span></td></tr>
+      <tr><td class="m">GET</td><td class="m ink">/servicios/admin/inactivos</td><td class="m">list_inactive_packages → get_inactive…</td><td><span class="pill p-adm">admin</span></td><td class="m">List[ServiceList…]</td><td><span class="pill p-brk">B1</span></td></tr>
+      <tr><td class="m">GET</td><td class="m ink">/servicios/admin/eliminados</td><td class="m">list_deleted_packages → get_deleted…</td><td><span class="pill p-adm">admin</span></td><td class="m">List[ServiceDetail…]</td><td><span class="pill p-brk">B1</span></td></tr>
+      <tr><td class="m">PUT</td><td class="m ink">/servicios/{service_id}</td><td class="m">update_package_details → save_service</td><td><span class="pill p-adm">admin</span></td><td class="m">ServiceDetailResponse</td><td><span class="pill p-brk">B1 S6</span></td></tr>
+      <tr><td class="m">PATCH</td><td class="m ink">/servicios/{id}/activar</td><td class="m">toggle_package_status → save_service</td><td><span class="pill p-adm">admin</span></td><td><span class="pill p-no">sin modelo</span></td><td><span class="pill p-brk">B1</span></td></tr>
+      <tr><td class="m">PATCH</td><td class="m ink">/servicios/{id}/desactivar</td><td class="m">toggle_package_status → save_service</td><td><span class="pill p-adm">admin</span></td><td><span class="pill p-no">sin modelo</span></td><td><span class="pill p-brk">B1</span></td></tr>
+      <tr><td class="m">DELETE</td><td class="m ink">/servicios/{service_id}</td><td class="m">soft_delete_package → save_service</td><td><span class="pill p-adm">admin</span></td><td><span class="pill p-no">sin modelo</span></td><td><span class="pill p-brk">B1</span></td></tr>
+      <tr><td class="m">PATCH</td><td class="m ink">/servicios/{id}/recuperar</td><td class="m">recover_package → save_service</td><td><span class="pill p-adm">admin</span></td><td><span class="pill p-no">sin modelo</span></td><td><span class="pill p-brk">B1</span></td></tr>
+      <tr><td class="m">GET</td><td class="m ink">/auditoria/</td><td class="m">retrieve_audit_history → get_all_audit…</td><td><span class="pill p-usr">user</span></td><td class="m">List[AuditLogResponse]</td><td><span class="pill p-ok">ok</span></td></tr>
+      <tr><td class="m">GET</td><td class="m ink">/</td><td class="m">— (health check en main.py)</td><td><span class="pill p-pub">público</span></td><td><span class="pill p-no">sin modelo</span></td><td><span class="pill p-ok">ok</span></td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="callout"><strong>8 de 22 endpoints no declaran <code>response_model</code>.</strong> Devuelven
+  diccionarios construidos a mano en la capa de servicio, por lo que no aparecen tipados en el OpenAPI. Para un
+  backend que se vende, el contrato OpenAPI <em>es</em> buena parte del producto: un cliente que genera su SDK
+  desde el schema recibe <code>any</code> en ocho operaciones.</div>
+</section>
+
+<!-- ══════════════════ 4 ══════════════════ -->
+<section id="s4">
+  <div class="shead"><span class="snum">04</span><h2>Acoplamiento y responsabilidad única</h2></div>
+  <p class="lede">Hallazgos arquitectónicos ordenados por impacto sobre la capacidad de escalar y mantener el
+  sistema.</p>
+
+  <div class="find s1">
+    <div class="fhead"><span class="fid">A1</span><h4>La capa de servicio depende de FastAPI</h4></div>
+    <div class="fbody">
+      <p>Los tres servicios y <code>core/storage.py</code> importan y lanzan <code>HTTPException</code>. La capa
+      que debería contener reglas de negocio puras conoce códigos de estado HTTP y cabeceras
+      <code>WWW-Authenticate</code>. Es una <strong>inversión de dependencias al revés</strong>: el anillo
+      interno depende del framework del anillo externo.</p>
+      <p>Consecuencias concretas y no teóricas: la lógica de negocio no es reutilizable desde un worker, un
+      comando CLI o un consumidor de cola; las pruebas unitarias de servicio requieren el stack HTTP; y migrar
+      a gRPC o a otra versión de FastAPI toca las reglas de negocio.</p>
+      <p><strong>Por qué lo califico de injustificable y no de atajo pragmático:</strong> el proyecto
+      <em>ya demuestra</em> que sabe hacerlo bien. <code>main.py:80</code> traduce <code>IntegrityError</code>
+      a un 409 mediante un manejador global. Ese mismo mecanismo —excepciones de dominio
+      (<code>UserNotFoundError</code>, <code>InsufficientPrivilegesError</code>) con manejadores registrados en
+      <code>main.py</code>— resuelve el caso completo. La pieza existe; sólo no se aplicó de forma consistente.</p>
+    </div>
+    <div class="loc"><span>user_service.py:2</span><span>tourist_services_service.py:3</span><span>audit_service.py:1</span><span>core/storage.py:3</span></div>
+  </div>
+
+  <div class="find s1">
+    <div class="fhead"><span class="fid">A2</span><h4>La autorización está implementada con tres estrategias incompatibles</h4></div>
+    <div class="fbody">
+      <p>No hay una frontera de autorización definida. Conviven tres modelos, y el resultado es que ningún
+      desarrollador puede saber, al leer un endpoint, dónde está la regla que lo protege.</p>
+      <div class="tw" style="margin:12px 0"><table>
+        <thead><tr><th>Estrategia</th><th>Endpoints</th><th>Diagnóstico</th></tr></thead>
+        <tbody>
+          <tr><td class="m">guard admin + re-chequeo en servicio</td><td class="m">13</td><td>Doble verificación redundante. En <code>/servicios</code> el re-chequeo es además el que está roto (B1).</td></tr>
+          <tr><td class="m">guard user + RBAC completo en servicio</td><td class="m">3</td><td><code>/auditoria</code>, <code>GET /usuarios/</code>, <code>DELETE /usuarios/{cedula}</code>. El guard no protege nada.</td></tr>
+          <tr><td class="m">sin guard</td><td class="m">6</td><td>Correcto para los públicos.</td></tr>
+        </tbody>
+      </table></div>
+      <p>La decisión pendiente es de arquitectura, no de estilo: <strong>elegir una sola frontera</strong>. La
+      recomendación es el guard IoC para la autorización gruesa por rol, y en el servicio sólo las reglas que
+      dependen del <em>dato</em> (precedencia jerárquica, propiedad del recurso), que el guard no puede conocer.</p>
+    </div>
+    <div class="loc"><span>app/api/dependencies.py:100</span><span>routers/*.py</span><span>user_service.py:127,179,233,276,322</span><span>audit_service.py:64</span></div>
+  </div>
+
+  <div class="find s1">
+    <div class="fhead"><span class="fid">A3</span><h4>Sin fronteras transaccionales: los repositorios hacen <code>commit()</code></h4></div>
+    <div class="fbody">
+      <p>Cada método de repositorio abre y cierra su propia transacción. Un caso de uso que muta una entidad y
+      registra auditoría ejecuta <strong>dos transacciones independientes</strong>, sin atomicidad. Si la
+      segunda falla, la primera ya está confirmada.</p>
+      <p>El caso más claro está en <code>create_administrative_account</code>: <strong>escribe el registro de
+      auditoría antes de crear el usuario</strong>. Si la creación falla —por ejemplo por la condición de
+      carrera sobre el índice único que el propio <code>main.py:80</code> contempla— queda un asiento de
+      auditoría de un usuario que no existe. Dado que la auditoría aquí soporta obligaciones de la Ley 1581,
+      la integridad de ese registro no es un detalle.</p>
+      <p>La corrección profesional es mover el <code>commit()</code> al límite de la petición —un patrón
+      Unit of Work sobre la dependencia <code>get_db</code>— y dejar a los repositorios sólo
+      <code>add()</code> y <code>flush()</code>.</p>
+    </div>
+    <div class="loc"><span>user_repository.py:38,54,77,110</span><span>service_repository.py:18,68</span><span>audit_repository.py:19</span><span>user_service.py:388 antes de :393</span></div>
+  </div>
+
+  <div class="find s1">
+    <div class="fhead"><span class="fid">A4</span><h4>Configuración dispersa: <code>pydantic-settings</code> está declarado pero no se usa</h4></div>
+    <div class="fbody">
+      <p>Hay <strong>15 llamadas a <code>os.getenv</code> repartidas en 6 módulos</strong> y
+      <code>load_dotenv()</code> se invoca 3 veces. La dependencia <code>pydantic-settings</code> está
+      declarada en <code>pyproject.toml</code>, instalada en el entorno y <strong>usada en cero archivos</strong>.</p>
+      <p>El costo real no es estético. No hay validación de arranque: <code>SECRET_KEY</code> queda en
+      <code>None</code> si falta la variable y el fallo aparece mucho después, como error críptico de PyJWT en
+      la primera petición de login. El repositorio ya sabe hacerlo bien en dos sitios
+      —<code>alembic/env.py:26</code> y <code>storage.py:17</code> validan y fallan rápido— pero no en el
+      módulo más sensible. Además <code>email.py:15</code> arrastra un valor por defecto
+      <code>"tu_correo@gmail.com"</code> a producción.</p>
+      <div class="proof"><span class="tag">Dispersión verificada</span>os.getenv        : 15 ocurrencias · routers/user.py, core/email.py, core/security.py,
+                   core/storage.py, db/database.py, alembic/env.py
+load_dotenv()    : 3 ocurrencias
+pydantic-settings: declarado <i>sí</i> · instalado <i>2.13.1</i> · usado en app/  <b>0 archivos</b></div>
+    </div>
+    <div class="loc"><span>core/security.py:12</span><span>db/database.py:7</span><span>core/email.py:13-17</span><span>routers/user.py:20</span></div>
+  </div>
+
+  <div class="find s1">
+    <div class="fhead"><span class="fid">A5</span><h4><code>echo=True</code> fijo en el engine y sin gestión de ciclo de vida</h4></div>
+    <div class="fbody">
+      <p>El engine se crea con <code>echo=True</code> codificado, con un comentario que confirma que fue para
+      depuración local. En producción esto <strong>vuelca cada sentencia SQL con sus parámetros al log</strong>:
+      impacto de rendimiento y, más serio, correos, cédulas y hashes en los registros —dato personal bajo la
+      Ley 1581 que la propia aplicación pide consentir.</p>
+      <p>Relacionado: la aplicación no define <code>lifespan</code>. No se cierra el engine al apagar, y
+      <code>AzureStorageClient</code> se instancia <strong>una vez por petición</strong> sin cerrarse nunca
+      —el cliente <code>aio</code> mantiene su pool de conexiones— con fuga de sockets bajo carga. Es el único
+      colaborador que debería ser singleton de aplicación y es el único que se construye por petición.</p>
+    </div>
+    <div class="loc"><span>app/db/database.py:11</span><span>app/api/dependencies.py:49</span><span>app/main.py (sin lifespan)</span></div>
+  </div>
+
+  <div class="find s1">
+    <div class="fhead"><span class="fid">A6</span><h4>Sin logging estructurado: dos <code>print()</code> como registro de errores</h4></div>
+    <div class="fbody">
+      <p>No existe una sola llamada al módulo <code>logging</code> en toda la aplicación. Los únicos registros
+      de error son dos <code>print()</code> en <code>storage.py</code>. El manejador global de
+      <code>IntegrityError</code> descarta la excepción sin registrarla.</p>
+      <p>En operación esto significa que un fallo de borrado en el CDN —que deja blobs huérfanos facturables—
+      es invisible, y que un 500 llega al cliente sin traza correlacionable. Para software que se entrega a un
+      tercero, la ausencia de observabilidad es un hallazgo de aceptación, no un detalle de estilo.</p>
+    </div>
+    <div class="loc"><span>core/storage.py:76</span><span>:106</span><span>main.py:81</span></div>
+  </div>
+
+  <div class="find s1">
+    <div class="fhead"><span class="fid">A7</span><h4><code>promote_to_permanent</code> borra el origen sin esperar la copia</h4></div>
+    <div class="fbody">
+      <p><code>start_copy_from_url</code> es asíncrono del lado de Azure: retorna cuando la copia queda
+      <em>encolada</em>, no completada. El código <strong>elimina el blob de origen en la línea siguiente</strong>,
+      sin consultar <code>copy.status</code>. Para archivos pequeños la copia suele resolverse síncrona y el
+      error no se manifiesta; con imágenes grandes o latencia alta, se pierde la imagen.</p>
+      <p>Es el tipo de defecto que no aparece en pruebas —el mock de <code>conftest.py:90</code> simula la
+      promoción como instantánea— y que se manifiesta en producción de forma intermitente.</p>
+    </div>
+    <div class="loc"><span>core/storage.py:97</span><span>:100</span></div>
+  </div>
+
+  <div class="find s2">
+    <div class="fhead"><span class="fid">A8</span><h4>Filtrado en memoria donde ya existe el patrón correcto en SQL</h4></div>
+    <div class="fbody">
+      <p><code>get_deleted_users</code> trae <strong>todos</strong> los usuarios, incluidos los borrados, y los
+      filtra en Python con dos comprensiones de lista. <code>ServiceRepository</code> resuelve el caso
+      equivalente con <code>get_deleted_services()</code>, una consulta que filtra en SQL. El patrón correcto
+      ya está en el repositorio; sólo no se replicó para usuarios.</p>
+      <p>Con el volumen actual es irrelevante; con una base de usuarios real es una degradación lineal y una
+      transferencia innecesaria de datos personales desde la base.</p>
+    </div>
+    <div class="loc"><span>user_service.py:283-290</span><span>vs. service_repository.py:45</span></div>
+  </div>
+
+  <div class="find s2">
+    <div class="fhead"><span class="fid">A9</span><h4><code>UserResponse</code> hereda las validaciones de entrada de <code>UserBase</code></h4></div>
+    <div class="fbody">
+      <p>Reutilizar el DTO de entrada como DTO de salida hace que las respuestas se validen contra las reglas
+      del <em>formulario</em>. Todo registro almacenado que no satisfaga el patrón de nombres o la longitud
+      mínima provoca <strong>un 500 <code>ResponseValidationError</code> al leerlo</strong>, no el recurso.</p>
+      <p>El riesgo es concreto: el patrón <code>^[A-Za-zÁÉÍÓÚáéíóúÜüÑñ]+…$</code> rechaza apellidos con guion o
+      apóstrofo —"Jean-Luc", "O'Brien", "D'Angelo"— perfectamente válidos. Cualquier registro creado por
+      migración, carga inicial o cambio futuro del patrón se vuelve ilegible por la API. Detectado al tropezar
+      con él durante las pruebas de esta auditoría.</p>
+    </div>
+    <div class="loc"><span>schemas/user.py:107</span><span>:37</span><span>:44</span></div>
+  </div>
+</section>
+
+<!-- ══════════════════ 5 ══════════════════ -->
+<section id="s5">
+  <div class="shead"><span class="snum">05</span><h2>Duplicación centralizable bajo IoC</h2></div>
+  <p class="lede">Repeticiones con costo demostrado. <span class="mono">D1</span> es la causa raíz de cuatro de
+  los cinco defectos bloqueantes.</p>
+
+  <div class="find s0">
+    <div class="fhead"><span class="fid">D1</span><h4>La regla "es administrador" está escrita seis veces, y ya divergió</h4></div>
+    <div class="fbody">
+      <p>La misma decisión de autorización aparece con tres formulaciones distintas y cuatro mensajes de error
+      distintos:</p>
+      <div class="proof"><span class="tag">Seis implementaciones de la misma regla</span>dependencies.py:113   role not in [admin, superadmin]      "Privilegios insuficientes."
+audit_service.py:64   role not in [admin, superadmin]      "…para visualizar la auditoría…"
+user_service.py:127   role != admin  ← <b>excluye al superadmin (B3)</b>   "No tiene autorización…"
+user_service.py:135   role in [superadmin, admin] and …    "Violación de jerarquía: …"
+user_service.py:233   role == admin and target in [...]    "Violación de jerarquía: …"
+user_service.py:322   role == admin and target in [...]    "Violación de jerarquía: …"</div>
+      <p>Las líneas 233 y 322 son <strong>idénticas carácter por carácter salvo el mensaje</strong>. La 127
+      divergió y produjo B3. A esto se suma el filtro de visibilidad
+      <code>[u for u in users if u.role != superadmin]</code> duplicado en <code>:189</code> y <code>:290</code>.</p>
+      <p><strong>Centralización recomendada:</strong> un objeto de política —<code>UserAccessPolicy</code> con
+      <code>assert_can_modify(actor, target)</code> y <code>assert_can_delete(actor, target)</code>— inyectado
+      por IoC igual que los repositorios. Una regla, un sitio, un juego de pruebas. Es exactamente el
+      movimiento que intentaba el commit <code>f0de961</code>, llevado hasta el final.</p>
+    </div>
+  </div>
+
+  <div class="find s1">
+    <div class="fhead"><span class="fid">D2</span><h4><code>UserRole</code> está definido dos veces</h4></div>
+    <div class="fbody">
+      <p>Existe en <code>models/user.py:6</code> y de nuevo en <code>schemas/user.py:6</code>. Ambos se usan:
+      el de modelos en toda la lógica de negocio, el de schemas en tres campos de DTO. Funcionan hoy sólo
+      porque ambos heredan de <code>str</code> y la comparación por valor coincide.</p>
+      <p>Añadir un rol exige editar dos archivos; olvidar uno no rompe ninguna prueba y produce un fallo de
+      validación en el borde de la API. <strong>El patrón correcto ya está en el repositorio:</strong>
+      <code>schemas/service.py:6</code> importa <code>ServiceCategory</code> desde el modelo. La misma solución,
+      aplicada de forma inconsistente.</p>
+    </div>
+  </div>
+
+  <div class="find s1">
+    <div class="fhead"><span class="fid">D3</span><h4>La decodificación de JWT está duplicada fuera de <code>core/security.py</code></h4></div>
+    <div class="fbody">
+      <p><code>core/security.py</code> centraliza la <em>creación</em> de tokens pero no ofrece ninguna función
+      de decodificación. El resultado es que <code>jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])</code>
+      aparece en <code>dependencies.py:77</code> y otra vez en <code>user_service.py:75</code>, y que la capa de
+      servicio <strong>importa directamente <code>SECRET_KEY</code> y <code>ALGORITHM</code></strong>.</p>
+      <p>Un módulo criptográfico asimétrico —que firma pero no verifica— obliga a que el conocimiento del
+      secreto se filtre a dos capas más. La corrección es añadir <code>decode_access_token()</code> y
+      <code>decode_verification_token()</code> al módulo que ya posee las claves.</p>
+    </div>
+  </div>
+
+  <div class="find s2">
+    <div class="fhead"><span class="fid">D4</span><h4>El límite de 10 imágenes está triplicado y dos copias son inalcanzables</h4></div>
+    <div class="fbody">
+      <p>La comprobación <code>if len(...) &gt; 10</code> con idéntico mensaje aparece en las líneas 35, 236 y
+      294. Las de 35 y 294 operan sobre campos que <strong>Pydantic ya rechazó</strong> con
+      <code>max_length=10</code> en el schema: nunca pueden ser verdaderas, y si lo fueran el cliente ya habría
+      recibido un 422. Son código muerto que aparenta proteger algo.</p>
+      <p>La de la línea 236 <em>sí</em> es necesaria y debe conservarse: opera sobre una lista de
+      <code>UploadFile</code> de un formulario multipart, donde no hay schema que valide. Distinguirlas importa:
+      borrar las tres sería introducir una vulnerabilidad.</p>
+    </div>
+    <div class="loc"><span>tourist_services_service.py:35 (muerto)</span><span>:294 (muerto)</span><span>:236 (necesario)</span></div>
+  </div>
+
+  <div class="find s2">
+    <div class="fhead"><span class="fid">D5</span><h4>Validadores duplicados con comportamiento divergente</h4></div>
+    <div class="fbody">
+      <p><code>format_title_case</code> está escrito dos veces en <code>schemas/user.py</code> y
+      <strong>las dos versiones no hacen lo mismo</strong>. La de <code>UserBase:53</code> aplica
+      <code>.title()</code> directo; la de <code>UserUpdate:139</code> además colapsa espacios múltiples.</p>
+      <p>Efecto observable: registrarse como <code>"Jose&nbsp;&nbsp;&nbsp;Manuel"</code> conserva los espacios;
+      actualizar el mismo campo los normaliza. Dos rutas hacia el mismo dato con dos resultados. Lo mismo
+      ocurre con <code>format_service_name</code> en <code>schemas/service.py:40</code> y <code>:89</code>,
+      allí sí idénticos.</p>
+      <p>Adicionalmente, el patrón de nombres se repite literal <strong>cuatro veces</strong> y el de teléfono
+      dos. Son candidatos directos a tipos anotados reutilizables
+      (<code>PersonName = Annotated[str, Field(...)]</code>).</p>
+    </div>
+    <div class="loc"><span>schemas/user.py:37,44,127,133 (patrón nombres)</span><span>:49,135 (teléfono)</span><span>:53 vs :139</span></div>
+  </div>
+
+  <div class="find s2">
+    <div class="fhead"><span class="fid">D6</span><h4>La firma de inyección se repite en los 22 endpoints</h4></div>
+    <div class="fbody">
+      <p><code>service_service: TouristServicesService = Depends(get_service_service)</code> y sus análogos se
+      reescriben completos en cada handler. La documentación oficial de FastAPI señala exactamente este caso y
+      recomienda el alias de tipo:</p>
+      <div class="cmp">
+        <div class="old"><div class="t">Actual · repetido 22 veces</div><pre>async def crear_paquete(
+    paquete: ServiceCreate,
+    usuario_actual: User = Depends(
+        get_current_admin_user),
+    service_service: TouristServicesService
+        = Depends(get_service_service)
+):</pre></div>
+        <div class="new"><div class="t">Alias declarado una vez</div><pre>ServiceDep = Annotated[
+    TouristServicesService,
+    Depends(get_service_service)]
+AdminDep = Annotated[
+    User, Depends(get_current_admin_user)]
+
+async def crear_paquete(
+    paquete: ServiceCreate,
+    usuario_actual: AdminDep,
+    service_service: ServiceDep,
+):</pre></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════ 6 ══════════════════ -->
+<section id="s6">
+  <div class="shead"><span class="snum">06</span><h2>SOLID: ruptura injustificable frente a omisión deliberada</h2></div>
+  <p class="lede">La distinción que se pidió explícitamente. Un revisor externo juzgará ambas listas; la
+  diferencia está en si la omisión tiene una razón defendible ante un par ingenieril.</p>
+
+  <h3 class="sub">Rupturas que no se sostienen ante una revisión por pares</h3>
+  <div class="tw"><table>
+    <thead><tr><th>Principio</th><th>Dónde</th><th>Por qué no es defendible</th></tr></thead>
+    <tbody>
+      <tr><td class="ink">Inversión de dependencias</td><td class="m">servicios → <code>HTTPException</code></td><td>El manejador global de <code>main.py:80</code> demuestra que el mecanismo correcto ya se conoce y se usa en otro punto del mismo proyecto.</td></tr>
+      <tr><td class="ink">Responsabilidad única</td><td class="m">user_service.py</td><td>Un mismo método orquesta autorización, validación, mutación, auditoría y formato de respuesta. La autorización es una responsabilidad separable y repetida seis veces.</td></tr>
+      <tr><td class="ink">Responsabilidad única</td><td class="m">update_package_details<br>(87 líneas)</td><td>Actualiza escalares, difunde borrados contra Azure, promueve URLs, reconstruye la relación y audita. Al menos tres responsabilidades extraíbles.</td></tr>
+      <tr><td class="ink">Abierto/cerrado</td><td class="m">main.py:52-67</td><td>Cadena <code>if/elif</code> sobre tipos de error de Pydantic: cada tipo nuevo obliga a editar la función. Un diccionario de despacho lo resuelve sin tocarla.</td></tr>
+      <tr><td class="ink">Responsabilidad única</td><td class="m">repositorios</td><td>Un repositorio que decide cuándo confirmar la transacción asume una responsabilidad del caso de uso (A3).</td></tr>
+      <tr><td class="ink">DRY</td><td class="m">D1 – D6</td><td>Sin excepción: duplicación con divergencia ya materializada en defectos de producción.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3 class="sub">Omisiones legítimas — defendibles por YAGNI y KISS</h3>
+  <p class="body" style="margin-bottom:12px">Estas <em>parecen</em> incumplimientos de SOLID en una lectura
+  dogmática y conviene que el informe las declare como decisiones, no como deudas, para que nadie las
+  "corrija" innecesariamente:</p>
+  <ul class="clean">
+    <li><strong>Sin interfaces abstractas para los repositorios.</strong> No hay <code>IUserRepository</code>
+    ni <code>Protocol</code>. Con una sola implementación de persistencia, una abstracción extra sería
+    ceremonia sin beneficio; FastAPI permite sustituir la implementación en pruebas vía
+    <code>dependency_overrides</code>, que es la costura real. <em>Decisión correcta.</em> Revisar sólo si
+    aparece una segunda fuente de datos.</li>
+    <li><strong>Sin entidades de dominio separadas de los modelos ORM.</strong> Un MVP que usa el modelo
+    SQLAlchemy como entidad evita una capa de mapeo completa. Es el compromiso estándar en Python y está bien
+    elegido. <em>Decisión correcta</em>, con la salvedad de que refuerza A1: sin capa de dominio propia, la
+    tentación de meter HTTP en el servicio es mayor.</li>
+    <li><strong>Sin CQRS ni separación lectura/escritura.</strong> Para la carga prevista sería
+    sobreingeniería evidente.</li>
+    <li><strong>Sin capa de casos de uso independiente del servicio.</strong> Colapsar caso de uso y servicio
+    de aplicación es razonable a esta escala; fragmentarlo ahora multiplicaría archivos sin reducir
+    complejidad.</li>
+    <li><strong>Repositorios concretos inyectados directamente.</strong> Coherente con la ausencia de
+    interfaces; el contenedor IoC de <code>dependencies.py</code> mantiene el punto único de composición, que
+    es lo que realmente importa.</li>
+  </ul>
+
+  <h3 class="sub">Generalidad especulativa — lo contrario de YAGNI</h3>
+  <p class="body" style="margin-bottom:8px">Abstracciones construidas para un futuro que no llegó. Deben
+  eliminarse, no conservarse:</p>
+  <ul class="clean">
+    <li><code>AuditLogCreate</code> en <code>schemas/audit.py:16</code> — hereda de <code>AuditLogBase</code>,
+    no añade nada y <strong>tiene cero referencias</strong> en todo el proyecto.</li>
+    <li><code>TokenData.role</code> en <code>schemas/token.py:20</code> — el campo nunca se asigna; la única
+    construcción del objeto pasa sólo <code>email</code>.</li>
+    <li>El bloque de comentarios de <code>routers/service.py:20-24</code> documenta un
+    <em>"DEPENDENCY INJECTION ADAPTER"</em> que ya no existe, junto con los seis imports huérfanos que dejó.</li>
+  </ul>
+</section>
+
+<!-- ══════════════════ 7 ══════════════════ -->
+<section id="s7">
+  <div class="shead"><span class="snum">07</span><h2>Sintaxis desactualizada y su forma moderna</h2></div>
+  <p class="lede">Verificado contra la documentación oficial vigente y contra las versiones realmente
+  instaladas en el entorno del proyecto. El código funciona; lo que sigue es la diferencia entre
+  <em>compila</em> y <em>está escrito como se escribe hoy</em>.</p>
+
+  <div class="proof" style="margin-bottom:22px"><span class="tag">Entorno verificado</span>SQLAlchemy 2.0.48   ·   Pydantic 2.12.5   ·   FastAPI 0.135.1   ·   Starlette 1.3.1   ·   Python 3.11</div>
+
+  <div class="find s1">
+    <div class="fhead"><span class="fid">S1</span><h4>Modelos en estilo SQLAlchemy 1.x sobre una base 2.0</h4></div>
+    <div class="fbody">
+      <p>Los tres modelos usan <code>Column(...)</code> mientras <code>Base</code> ya hereda de
+      <code>DeclarativeBase</code>, que es la construcción 2.0. La documentación oficial es explícita:
+      <em>«<code>mapped_column()</code> supersedes the use of <code>Column()</code>»</em>, aportando tipado
+      real y mejor soporte de herramientas. El estilo antiguo sigue soportado, así que <strong>esto es
+      modernización, no corrección de un defecto</strong> — pero es lo primero que un revisor externo nota.</p>
+      <p>El beneficio concreto no es cosmético: con <code>Mapped[]</code>, <code>user.role</code> tiene tipo
+      conocido y un error como el de B3 —comparar contra el rol equivocado— se vuelve detectable por el
+      verificador estático.</p>
+      <div class="cmp">
+        <div class="old"><div class="t">Actual · estilo 1.x</div><pre>class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer,
+        primary_key=True, index=True)
+    email = Column(String(150),
+        unique=True, nullable=False)
+    role = Column(Enum(UserRole),
+        nullable=False,
+        default=UserRole.tourist)</pre></div>
+        <div class="new"><div class="t">SQLAlchemy 2.0</div><pre>class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(
+        primary_key=True, index=True)
+    email: Mapped[str] = mapped_column(
+        String(150),
+        unique=True)
+    role: Mapped[UserRole] = mapped_column(
+        default=UserRole.tourist)</pre></div>
+      </div>
+    </div>
+    <div class="loc"><span>models/user.py</span><span>models/service.py</span><span>models/audit.py</span></div>
+  </div>
+
+  <div class="find s1">
+    <div class="fhead"><span class="fid">S2</span><h4><code>sqlalchemy.future</code> es un espacio de nombres legado</h4></div>
+    <div class="fbody">
+      <p>Los tres repositorios importan <code>from sqlalchemy.future import select</code>. En 2.0 ese módulo
+      existe sólo por compatibilidad. No hay que deducirlo: <strong>el propio módulo lo declara</strong> y el
+      objeto es idéntico al del espacio de nombres principal.</p>
+      <div class="proof"><span class="tag">Comprobación en el entorno del proyecto</span>>>> sqlalchemy.select is sqlalchemy.future.select
+<i>True</i>
+>>> sqlalchemy.future.__doc__
+'2.0 API features.\n\n<b>this module is legacy as 2.0 APIs are now standard.</b>'</div>
+      <p>Cambio de una línea por archivo: <code>from sqlalchemy import select</code>.</p>
+    </div>
+    <div class="loc"><span>user_repository.py:3</span><span>service_repository.py:2</span><span>audit_repository.py:2</span></div>
+  </div>
+
+  <div class="find s1">
+    <div class="fhead"><span class="fid">S3</span><h4>Inyección por valor por defecto en vez de <code>Annotated</code></h4></div>
+    <div class="fbody">
+      <p>Todo el proyecto usa <code>param: Tipo = Depends(...)</code>. La documentación de FastAPI recomienda
+      de forma directa —<em>«Prefer to use the <code>Annotated</code> version if possible»</em>— el estilo
+      <code>Annotated[Tipo, Depends(...)]</code>, soportado desde 0.95 y con ventaja explícita citada por la
+      propia documentación para <em>«large code bases where you use the same dependencies over and over»</em>.
+      Es literalmente el caso de este proyecto y resuelve <span class="mono">D6</span>. Ver el ejemplo
+      comparado en la sección 5.</p>
+    </div>
+    <div class="loc"><span>routers/user.py</span><span>routers/service.py</span><span>routers/audit.py</span><span>dependencies.py</span></div>
+  </div>
+
+  <div class="find s2">
+    <div class="fhead"><span class="fid">S4</span><h4>Genéricos de <code>typing</code> mezclados con genéricos nativos</h4></div>
+    <div class="fbody">
+      <p>El proyecto exige Python ≥ 3.11, donde <code>list[X]</code> y <code>X | None</code> son la forma
+      estándar (PEP 585 y PEP 604). Conviven ambos estilos, a veces <strong>en el mismo archivo</strong>:
+      <code>audit_service.py</code> usa <code>List[AuditLog]</code> en la línea 45 y <code>dict[str, Any]</code>
+      en la 21. Los routers también divergen entre sí: <code>user.py:73</code> usa
+      <code>list[UserResponse]</code>, <code>service.py:54</code> usa <code>List[ServiceListResponse]</code>.</p>
+      <p>No es un defecto funcional, pero la inconsistencia dentro de un mismo módulo es exactamente el tipo de
+      señal que un comprador técnico lee como falta de convención acordada.</p>
+    </div>
+    <div class="loc"><span>audit_service.py:2,21,45</span><span>routers/audit.py:2</span><span>schemas/user.py:2</span><span>repositories/*.py</span></div>
+  </div>
+
+  <div class="find s2">
+    <div class="fhead"><span class="fid">S5</span><h4>Constante de estado HTTP deprecada</h4></div>
+    <div class="fbody">
+      <p><code>main.py:75</code> usa <code>HTTP_422_UNPROCESSABLE_ENTITY</code>. Starlette ya emite aviso de
+      deprecación —aparece en la salida de la suite actual— en favor de
+      <code>HTTP_422_UNPROCESSABLE_CONTENT</code>. Corrección trivial que además limpia la única advertencia
+      de las pruebas.</p>
+      <div class="proof"><span class="tag">Advertencia observada durante pytest</span>StarletteDeprecationWarning: 'HTTP_422_UNPROCESSABLE_ENTITY' is deprecated.
+Use 'HTTP_422_UNPROCESSABLE_CONTENT' instead.</div>
+    </div>
+  </div>
+
+  <div class="find s2">
+    <div class="fhead"><span class="fid">S6</span><h4>Verbos HTTP y configuración Pydantic inconsistentes</h4></div>
+    <div class="fbody">
+      <p><code>PUT /servicios/{service_id}</code> ejecuta una actualización <em>parcial</em>
+      (<code>exclude_unset=True</code>, schema con todos los campos opcionales). Eso es semántica de PATCH;
+      PUT significa reemplazo completo. El router de usuarios usa PATCH correctamente para el caso
+      equivalente — la incoherencia es entre los dos routers.</p>
+      <p>En la misma línea, <code>UserResponse</code> declara <code>model_config = {"from_attributes": True}</code>
+      como diccionario, mientras todos los demás schemas usan <code>ConfigDict(...)</code>, que es la forma
+      tipada recomendada en Pydantic v2.</p>
+    </div>
+    <div class="loc"><span>routers/service.py:87</span><span>schemas/user.py:112</span></div>
+  </div>
+
+  <div class="find s3">
+    <div class="fhead"><span class="fid">S7</span><h4><code>Field(default=[])</code> — inconsistente, pero verificado como seguro</h4></div>
+    <div class="fbody">
+      <p>Tres campos usan <code>default=[]</code> donde el propio archivo usa <code>default_factory=list</code>
+      en otro. Es el clásico patrón de argumento mutable por defecto, y todo revisor lo señalará.</p>
+      <p><strong>Sin embargo, no es un defecto:</strong> lo comprobé y Pydantic v2 copia en profundidad los
+      valores por defecto, de modo que las instancias no comparten la lista. Lo reporto como inconsistencia de
+      estilo —conviene unificar en <code>default_factory</code> para no obligar a cada revisor a re-verificarlo—
+      y no como error funcional.</p>
+      <div class="proof"><span class="tag">Comprobación</span>a, b = M(), M();  a.xs.append(1);  print(b.xs)
+→ <i>[]</i>   (Pydantic v2 copia el default; no hay estado compartido)</div>
+    </div>
+    <div class="loc"><span>schemas/service.py:56</span><span>:64</span><span>:72</span><span>vs. :77</span></div>
+  </div>
+
+  <div class="callout"><strong>Lo que ya está en la forma moderna</strong>, y conviene decirlo: el proyecto usa
+  <code>datetime.now(timezone.utc)</code> en lugar del deprecado <code>utcnow()</code>; adopta
+  <code>field_validator</code> y <code>ConfigDict</code> de Pydantic v2 en la mayoría de schemas;
+  <code>async_sessionmaker</code> es la construcción 2.0 correcta; y <code>selectinload</code> está bien
+  aplicado en todas las consultas de servicios, evitando el problema N+1. Son decisiones actuales y correctas.</div>
+</section>
+
+<!-- ══════════════════ 8 ══════════════════ -->
+<section id="s8">
+  <div class="shead"><span class="snum">08</span><h2>PEP 8, documentación y nomenclatura</h2></div>
+  <p class="lede">483 hallazgos de análisis estático. Presentados por categoría y con el matiz de cuáles
+  importan de verdad.</p>
+
+  <div class="tw"><table>
+    <thead><tr><th>Categoría</th><th class="m">N.º</th><th>Concentración y lectura</th></tr></thead>
+    <tbody>
+      <tr><td class="ink">Longitud de línea</td><td class="m">383</td><td>Ver matiz abajo. <strong>45 líneas superan 120 caracteres</strong> y son ilegibles bajo cualquier convención.</td></tr>
+      <tr><td class="ink">Funciones/clases sin docstring</td><td class="m">35</td><td><code>schemas/service.py</code> (8), <code>dependencies.py</code> (7), <code>schemas/user.py</code> (5). Contrasta con servicios densamente documentados: la cobertura es <em>desigual</em>, no baja.</td></tr>
+      <tr><td class="ink">Módulos sin docstring</td><td class="m">26</td><td>Ningún módulo del proyecto tiene docstring de módulo. Es sistemático, luego es una convención no adoptada más que un olvido.</td></tr>
+      <tr><td class="ink">Imports sin usar</td><td class="m">25</td><td><code>routers/service.py</code> (6), <code>core/security.py</code> (4). Ver nota sobre <code>core/security.py</code> abajo.</td></tr>
+      <tr><td class="ink">Líneas en blanco excesivas</td><td class="m">5</td><td><code>routers/service.py:20</code> acumula 5 seguidas.</td></tr>
+      <tr><td class="ink">Cadena suelta como falso docstring</td><td class="m">3</td><td><code>security.py:17,51</code> y <code>database.py:12</code>: expresiones sin efecto que aparentan documentación pero no lo son.</td></tr>
+      <tr><td class="ink">Espaciado y espacios finales</td><td class="m">6</td><td><code>service.py:90</code> (<code>update_payload : ServiceUpdate</code>), <code>tourist_services_service.py:312</code> (<code>resolve_url (url)</code>).</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="callout" style="margin-top:18px"><strong>Sobre las 383 líneas largas.</strong> El límite estricto
+  de 79 de PEP 8 no es lo que se aplica hoy en la práctica profesional; con el umbral de 88 (Black) son 233 y
+  con 100 son 122. <strong>La recomendación pragmática es adoptar 100 y formatear</strong>, no perseguir 79. Lo
+  que sí es indefendible son las 45 líneas de más de 120 caracteres, encabezadas por
+  <code>user_service.py:338</code> con 227 —un <code>return</code> de diccionario de una sola línea— y
+  <code>schemas/user.py:45</code> con 208.</div>
+
+  <div class="find s1" style="margin-top:22px">
+    <div class="fhead"><span class="fid">P1</span><h4>Los imports muertos de <code>core/security.py</code> arrastran una dependencia de capa</h4></div>
+    <div class="fbody">
+      <p>Cuatro de los 25 imports sin usar merecen atención aparte. <code>core/security.py</code> importa
+      <code>User</code> y <code>UserRole</code> sin usarlos, lo que crea una dependencia
+      <strong>del anillo más interno hacia la capa de modelos</strong>. Como <code>models/__init__.py</code>
+      importa todos los modelos y éstos importan <code>db.database</code>, <strong>importar el módulo
+      criptográfico construye el engine de base de datos</strong> como efecto colateral. Los otros dos
+      (<code>HTTPException</code>, <code>status</code>) son restos de una versión anterior.</p>
+    </div>
+    <div class="loc"><span>core/security.py:6,7,9,10</span></div>
+  </div>
+
+  <div class="find s1">
+    <div class="fhead"><span class="fid">P2</span><h4>Spanglish sistemático en código, contrato público y pruebas</h4></div>
+    <div class="fbody">
+      <p>La mezcla no es ocasional: atraviesa las tres capas y llega al contrato que ve el cliente.</p>
+      <div class="tw" style="margin:10px 0"><table>
+        <thead><tr><th>Superficie</th><th>Evidencia</th></tr></thead>
+        <tbody>
+          <tr><td class="ink">Handlers de router</td><td class="m">registrar_turista, verificar_cuenta, eliminar_usuario, listar_usuarios, actualizar_usuario, crear_administrador, obtener_historial_auditoria — junto a <code>login</code> en inglés</td></tr>
+          <tr><td class="ink">Parámetros</td><td class="m">usuario, credenciales, usuario_actual — junto a update_data, user_service, background_tasks</td></tr>
+          <tr><td class="ink">Variables en servicios</td><td class="m">nueva_imagen (×2), estado, usuario — en clases íntegramente en inglés</td></tr>
+          <tr><td class="ink">Claves de respuesta JSON</td><td class="m">{"success", "cc", "correo", "nombre", "apellido", "message"} en una sola respuesta · <code>"UID"</code> en mayúsculas</td></tr>
+          <tr><td class="ink">Contrato de errores</td><td class="m"><strong><code>{"detalle": …}</code> en el handler de validación frente a <code>{"detail": …}</code> en todo lo demás</strong></td></tr>
+          <tr><td class="ink">Rutas</td><td class="m">/servicios/admin/eliminados mezcla ambos idiomas · /upload-images/ es la única ruta en inglés y la única con barra final</td></tr>
+          <tr><td class="ink">Nombres de prueba</td><td class="m">test_registro_usuario_exitoso con docstring en inglés</td></tr>
+        </tbody>
+      </table></div>
+      <p>De todo lo anterior, <strong>una cosa es un defecto funcional y no sólo de estilo</strong>: la
+      divergencia <code>detalle</code>/<code>detail</code>. Un frontend que lee <code>response.detail</code>
+      recibe <code>undefined</code> en todos los errores de validación. Las pruebas no lo detectan porque sólo
+      verifican el camino de <code>detail</code>.</p>
+      <p><strong>Recomendación:</strong> identificadores de código y claves JSON en inglés; términos de dominio
+      con valor legal —<code>cedula</code>— conservados como vocabulario ubicuo y documentados como tal; textos
+      de cara al usuario en español. Es una convención defendible; la mezcla actual no lo es.</p>
+    </div>
+    <div class="loc"><span>main.py:76 vs :89</span><span>routers/user.py</span><span>tourist_services_service.py:46,133,172,328</span><span>user_service.py:338</span></div>
+  </div>
+
+  <div class="find s2">
+    <div class="fhead"><span class="fid">P3</span><h4>Documentación que contradice al código</h4></div>
+    <div class="fbody">
+      <p>Un docstring incorrecto es peor que ausente: induce a error a quien confía en él. Los casos
+      encontrados:</p>
+      <ul class="clean" style="margin-top:6px">
+        <li><code>schemas/user.py:114-121</code> — afirma que los campos sensibles «están excluidos para
+        prevenir mutaciones no autorizadas», pero <code>role</code> e <code>is_active</code> <strong>sí están
+        en el DTO</strong>. Es la puerta de B2.</li>
+        <li><code>routers/user.py:97</code> — promete reglas de auto-servicio que el guard impide alcanzar (B5).</li>
+        <li><code>tourist_services_service.py:308</code> — «Clearing triggers <strong>Alembic's</strong> cascade
+        deletion». Es la cascada <code>delete-orphan</code> de SQLAlchemy; Alembic sólo gestiona migraciones.</li>
+        <li><code>core/security.py:78</code> — describe un token «de un solo uso», pero no hay revocación ni
+        nonce: el enlace de verificación es reutilizable hasta expirar.</li>
+        <li><code>core/email.py:66</code> — el correo afirma «expirará en 15 minutos» con el valor fijo en el
+        HTML, mientras el tiempo real lo controla <code>VERIFICATION_TOKEN_EXPIRE_MINUTES</code>.</li>
+        <li><code>tourist_services_service.py:225</code> — documenta el parámetro <code>image_files</code>; el
+        parámetro real se llama <code>images_files</code>.</li>
+        <li><code>schemas/service.py:44</code> — asegura convertir <code>'pAqUeTe tuRIsTiCo'</code> en
+        <code>'Paquete Turístico'</code>; <code>.title()</code> no puede añadir la tilde.</li>
+        <li><code>routers/service.py:20-24</code> — describe un adaptador de inyección que ya no existe.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════ 9 ══════════════════ -->
+<section id="s9">
+  <div class="shead"><span class="snum">09</span><h2>Seguridad y resiliencia de la suite</h2></div>
+
+  <h3 class="sub">Seguridad</h3>
+
+  <div class="find s0">
+    <div class="fhead"><span class="fid">SEC1</span><h4>CORS abierto a cualquier origen con credenciales habilitadas</h4></div>
+    <div class="fbody">
+      <p><code>allow_origins=["*"]</code> junto a <code>allow_credentials=True</code>. Starlette resuelve esa
+      combinación <strong>reflejando el origen del solicitante</strong>, de modo que cualquier sitio web recibe
+      permiso para hacer peticiones con credenciales y leer las respuestas.</p>
+      <p>El impacto práctico hoy está acotado porque la autenticación va por cabecera <code>Bearer</code> y no
+      por cookie; deja de estarlo en cuanto se añadan cookies de sesión. En cualquier caso, es un hallazgo
+      automático en cualquier revisión de seguridad previa a una compra. Los orígenes deben venir de
+      configuración y enumerarse explícitamente.</p>
+      <div class="proof"><span class="tag">Comprobado · GET / con Origin: https://sitio-atacante.example</span>access-control-allow-origin      : <b>'https://sitio-atacante.example'</b>
+access-control-allow-credentials : <b>'true'</b></div>
+    </div>
+    <div class="loc"><span>app/main.py:93-99</span></div>
+  </div>
+
+  <div class="find s1">
+    <div class="fhead"><span class="fid">SEC2</span><h4>Carga de imágenes: sin límite de tamaño, tipo confiado al cliente</h4></div>
+    <div class="fbody">
+      <p>Tres debilidades en el mismo flujo: <strong>(a)</strong> <code>await file.read()</code> carga el
+      archivo completo en memoria sin límite de tamaño — diez archivos grandes por petición agotan la RAM del
+      proceso; <strong>(b)</strong> la validación de tipo confía en la cabecera <code>content_type</code> que
+      envía el cliente, sin verificar los bytes mágicos; <strong>(c)</strong> <code>image/svg+xml</code> pasa el
+      filtro <code>startswith("image/")</code> y se almacena con ese <code>content_type</code>, de modo que el
+      CDN lo sirve como SVG — <strong>un SVG puede contener JavaScript</strong>, con XSS almacenado en el
+      dominio del CDN.</p>
+      <p>Adicionalmente <code>file.content_type</code> y <code>file.filename</code> pueden ser <code>None</code>,
+      lo que produce <code>AttributeError</code> y un 500 en lugar del 415 previsto.</p>
+    </div>
+    <div class="loc"><span>core/storage.py:27</span><span>:34</span><span>:43</span><span>:47</span></div>
+  </div>
+
+  <div class="find s2">
+    <div class="fhead"><span class="fid">SEC3</span><h4>Fuga de detalle interno en mensajes de error</h4></div>
+    <div class="fbody">
+      <p>Tres bloques <code>except Exception</code> interpolan la excepción original en el
+      <code>detail</code> que recibe el cliente. Un fallo del SDK de Azure puede exponer nombre de cuenta,
+      contenedor o detalles de conexión. <code>tourist_services_service.py:282</code> va más lejos y revela el
+      esquema: <em>«Está deshabilitado (deleted_at != None)»</em> —además con «exíste» mal escrito.</p>
+      <p>Relacionado: <code>authenticate_user</code> no ejecuta el hash cuando el usuario no existe, lo que
+      deja una diferencia de tiempo medible que permite <strong>enumerar cuentas registradas</strong>.</p>
+    </div>
+    <div class="loc"><span>storage.py:56</span><span>:109</span><span>tourist_services_service.py:248</span><span>:282</span><span>user_service.py:98</span></div>
+  </div>
+
+  <div class="find ok">
+    <div class="fhead"><span class="fid">SEC✓</span><h4>Verificado correcto</h4></div>
+    <div class="fbody">
+      <p><code>.env</code> está correctamente en <code>.gitignore</code> y <strong>nunca fue versionado</strong>
+      —comprobado sobre el historial completo, cero commits lo tocan—. El hashing con bcrypt está bien
+      implementado, con sal generada por operación. Las contraseñas no aparecen en respuestas ni en los
+      registros de auditoría. La paginación de auditoría es explícita y previene el agotamiento de memoria.</p>
+    </div>
+  </div>
+
+  <h3 class="sub">Resiliencia de la suite de pruebas</h3>
+  <p class="body">La suite detectó ambas regresiones de la rama, lo cual es la prueba de que aporta valor real.
+  Los puntos que limitan su resistencia a cambios futuros:</p>
+  <ul class="clean">
+    <li><strong>Los mocks no están acotados al contrato.</strong> <code>conftest.py:76</code> usa
+    <code>MagicMock()</code> sin <code>spec=AzureStorageClient</code>. Un <code>MagicMock</code> sin spec acepta
+    cualquier atributo, así que <strong>si se renombra un método del cliente real, las pruebas siguen en
+    verde</strong>. Es exactamente la clase de fallo silencioso que permitió que B1 llegara a la rama.
+    <code>spec=</code> o <code>autospec</code> lo cierra.</li>
+    <li><strong>Duplicación masiva de preparación en <code>test_auth.py</code>.</strong> Diez construcciones
+    manuales de usuario y token, repetidas en cada prueba. <code>test_services.py</code> y
+    <code>test_audit.py</code> <em>sí</em> usan fixtures — pero definidas localmente en cada archivo, de nuevo
+    duplicadas. Deberían vivir en <code>conftest.py</code> como fábricas
+    (<code>make_user(role=...)</code>, <code>auth_headers(user)</code>).</li>
+    <li><strong>Aserciones sobre textos en español.</strong> Varias pruebas comparan el mensaje literal de UX
+    completo. Cambiar una coma en un mensaje rompe pruebas sin que haya cambiado ninguna lógica.</li>
+    <li><strong>Divergencia entre sesión de prueba y de producción.</strong> El fixture reutiliza una única
+    sesión para el test y para la aplicación, mientras <code>get_db</code> crea una por petición. Oculta
+    problemas de aislamiento transaccional y de instancias desacopladas que sí aparecerán en producción.</li>
+    <li><strong>Sin medición de cobertura ni herramientas de calidad.</strong> No hay
+    <code>pytest-cov</code>, ni <code>ruff</code>, ni <code>black</code>, ni <code>mypy</code> instalados o
+    configurados. No existe configuración de linter en <code>pyproject.toml</code>.</li>
+    <li><strong>Huecos de cobertura alineados con los defectos.</strong> No hay prueba del borrado por
+    superadmin (B3), ni de la auto-escalada de un admin (B2), ni del 404 de cédula inexistente (B4). Los tres
+    defectos viven precisamente donde la suite no mira.</li>
+  </ul>
+
+  <div class="callout"><strong>Nota sobre Alembic.</strong> <code>env.py</code> importa explícitamente sólo
+  <code>User</code> y <code>TouristService</code>, no <code>AuditLog</code>. Comprobé si eso haría que
+  <code>--autogenerate</code> propusiera borrar <code>audit_logs</code>: <strong>no ocurre</strong>, porque
+  <code>models/__init__.py</code> importa todos los modelos y el registro sucede al cargar el paquete. Queda
+  como fragilidad —el comportamiento correcto depende de un efecto colateral de importación, no de una
+  declaración explícita— y se resuelve importando <code>app.models</code> completo en <code>env.py</code>.</div>
+</section>
+
+<!-- ══════════════════ 10 ══════════════════ -->
+<section id="s10">
+  <div class="shead"><span class="snum">10</span><h2>Plan de remediación</h2></div>
+  <p class="lede">Ordenado por dependencia técnica, no sólo por severidad: cada fase habilita la siguiente.
+  Ninguna línea de código fue modificada durante esta auditoría.</p>
+
+  <div class="tw"><table>
+    <thead><tr><th class="m">Fase</th><th>Alcance</th><th>Hallazgos</th><th class="m">Est.</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="m ink">0 · Parar</td>
+        <td><strong>No fusionar esta rama.</strong> Restaurar el verde: completar la centralización que dejó a medias <code>f0de961</code> eliminando las 8 llamadas a <code>_verify_admin</code>, y decidir el guard correcto de <code>PATCH /usuarios/{cedula}</code>.</td>
+        <td class="m">B1 B5</td><td class="m">0,5 d</td>
+      </tr>
+      <tr>
+        <td class="m ink">1 · Seguridad</td>
+        <td>Corregir la escalada de privilegios, el bloqueo del superadmin y el orden de verificaciones. Cerrar CORS por configuración. Añadir límite de tamaño y lista blanca de tipos de imagen, excluyendo SVG.</td>
+        <td class="m">B2 B3 B4<br>SEC1 SEC2</td><td class="m">1 d</td>
+      </tr>
+      <tr>
+        <td class="m ink">2 · Centralizar</td>
+        <td>Extraer <code>UserAccessPolicy</code> e inyectarla por IoC — elimina las seis copias de la regla y previene la reaparición de B2–B5. Unificar <code>UserRole</code>. Añadir las funciones de decodificación a <code>core/security.py</code>.</td>
+        <td class="m">D1 D2 D3<br>A2</td><td class="m">1 d</td>
+      </tr>
+      <tr>
+        <td class="m ink">3 · Fronteras</td>
+        <td>Excepciones de dominio con manejadores en <code>main.py</code>, desacoplando los servicios de FastAPI. Unit of Work: mover el <code>commit()</code> al límite de la petición. Corregir el orden auditar/crear.</td>
+        <td class="m">A1 A3</td><td class="m">1,5 d</td>
+      </tr>
+      <tr>
+        <td class="m ink">4 · Operación</td>
+        <td><code>Settings</code> con pydantic-settings y validación de arranque. <code>echo</code> por entorno. <code>lifespan</code> con cliente Azure singleton. Logging estructurado. Esperar la copia antes de borrar el blob origen.</td>
+        <td class="m">A4 A5 A6<br>A7</td><td class="m">1 d</td>
+      </tr>
+      <tr>
+        <td class="m ink">5 · Higiene</td>
+        <td>Adoptar <code>ruff</code> + <code>black</code> a 100 columnas en CI. Eliminar los 25 imports muertos y el código muerto. Corregir los 8 docstrings que contradicen al código. Unificar el contrato <code>detalle</code>/<code>detail</code>. Añadir <code>response_model</code> a los 8 endpoints sin contrato.</td>
+        <td class="m">P1 P2 P3<br>S4 S5 S6</td><td class="m">1 d</td>
+      </tr>
+      <tr>
+        <td class="m ink">6 · Pruebas</td>
+        <td><code>spec=</code> en los mocks, fábricas en <code>conftest.py</code>, pruebas para los tres huecos de RBAC detectados, y <code>pytest-cov</code> con umbral en CI.</td>
+        <td class="m">§9</td><td class="m">1 d</td>
+      </tr>
+      <tr>
+        <td class="m ink">7 · Opcional</td>
+        <td>Modernización de sintaxis: <code>mapped_column</code>, <code>Annotated</code>, <code>sqlalchemy.select</code>. No urgente, pero es lo primero que evalúa un revisor externo.</td>
+        <td class="m">S1 S2 S3</td><td class="m">1–2 d</td>
+      </tr>
+    </tbody>
+  </table></div>
+
+  <div class="callout" style="margin-top:20px"><strong>Lectura final.</strong> Las fases 0 a 2 —dos días y
+  medio— convierten un backend caído y con una escalada de privilegios en un backend correcto y defendible.
+  Las fases 3 y 4 son las que separan «funciona» de «es software profesional a medida», y son las que un
+  comprador técnico va a mirar. La fase 7 es cosmética en función pero decisiva en percepción. La base sobre
+  la que se trabaja es sólida: la arquitectura en capas es real, el modelo de auditoría está bien concebido y
+  la validación de entrada es de calidad notable. Lo que falta es consistencia en la aplicación de decisiones
+  que el propio equipo ya tomó correctamente en otros puntos del mismo código.</div>
+</section>
+
+<footer>
+  Auditoría de código · Ecotur-ASOPRADO API v0.2.0 · rama fix/verify-admin-to-dependencies · HEAD f0de961<br>
+  Alcance: 30 módulos · 3.165 LOC · 22 endpoints · 26 pruebas. Hallazgos B1–B5, SEC1 y la comprobación de
+  Alembic reproducidos por ejecución contra la aplicación real.<br>
+  Verificación de sintaxis contra documentación oficial de SQLAlchemy 2.0, FastAPI y Pydantic v2, y contra las
+  versiones instaladas en el entorno del proyecto. Ninguna línea de código fue modificada.
+</footer>
+
+</div>
+
+</body></html>

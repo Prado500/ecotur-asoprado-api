@@ -50,7 +50,7 @@ La arquitectura `v0.2.0` impone estrictamente la **Separación de Responsabilida
  ┃ ┣ 📂 services/        # Capa de Lógica de Negocio y reglas transaccionales
  ┃ ┗ 📜 main.py          # Punto de entrada de FastAPI con manejadores de excepciones globales
  ┣ 📂 tests/             # Batería de pruebas Pytest (Mocks Asíncronos, SQLite en memoria)
- ┣ 📜 .python-version    # Declaración estricta del runtime del proyecto (3.11)
+ ┣ 📜 .python-version    # Declaración estricta del runtime del proyecto (3.14, ADR-0004)
  ┣ 📜 alembic.ini        # Configuración nativa del motor de migraciones
  ┣ 📜 docker-compose.yml # Orquestación de servicios locales (API + DB)
  ┣ 📜 Dockerfile         # Receta de construcción de la imagen del contenedor
@@ -73,7 +73,7 @@ La arquitectura `v0.2.0` impone estrictamente la **Separación de Responsabilida
 
 ## Stack Tecnológico
 
-* **Lenguaje:** Python 3.11+
+* **Lenguaje:** Python 3.14 — una sola versión en local, CI y producción (`docs/adr/0004`)
 
 
 * **Framework:** FastAPI (Asíncrono)
@@ -93,6 +93,7 @@ La arquitectura `v0.2.0` impone estrictamente la **Separación de Responsabilida
 
 * **Almacenamiento Cloud:** Azure Blob Storage SDK (`azure-storage-blob`)
 * **Testing/QA:** Pytest, pytest-asyncio, httpx, aiosqlite
+* **Compuerta de calidad:** `python scripts/check.py` ejecuta ruff, mypy, import-linter y pytest-cov desde un solo punto (`pip install -e ".[dev]"`). Las reglas del proyecto para humanos y agentes viven en `AGENTS.md`; estado, plan, backlog y decisiones en `docs/`.
 * **Contenedores:** Docker & Docker Compose
 
 

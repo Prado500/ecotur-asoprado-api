@@ -51,7 +51,7 @@ The `v0.2.0` architecture strictly enforces the **Separation of Concerns (SoC)**
  ┃ ┣ 📂 services/        # Business Logic Layer and transactional rules
  ┃ ┗ 📜 main.py          # FastAPI application entry point with global exception handlers
  ┣ 📂 tests/             # Automated Pytest suite (Async Mocks, SQLite In-Memory)
- ┣ 📜 .python-version    # Strict project runtime declaration (3.11)
+ ┣ 📜 .python-version    # Strict project runtime declaration (3.14, ADR-0004)
  ┣ 📜 alembic.ini        # Native migration engine config
  ┣ 📜 docker-compose.yml # Local services orchestration (API + DB)
  ┣ 📜 Dockerfile         # Container image build recipe
@@ -74,7 +74,7 @@ The `v0.2.0` architecture strictly enforces the **Separation of Concerns (SoC)**
 
 ##  Tech Stack
 
-* **Language:** Python 3.11+
+* **Language:** Python 3.14 — a single version across local, CI and production (`docs/adr/0004`)
 
 
 * **Framework:** FastAPI (Asynchronous)
@@ -94,6 +94,7 @@ The `v0.2.0` architecture strictly enforces the **Separation of Concerns (SoC)**
 
 * **Cloud Storage:** Azure Blob Storage SDK (`azure-storage-blob`)
 * **Testing:** Pytest, pytest-asyncio, httpx, aiosqlite
+* **Quality gate:** `python scripts/check.py` runs ruff, mypy, import-linter and pytest-cov from one entry point (`pip install -e ".[dev]"`). Project rules for humans and agents live in `AGENTS.md`; state, plan, backlog and decisions in `docs/`.
 * **Containers:** Docker & Docker Compose
 
 
@@ -126,6 +127,9 @@ Once up and running, initialize the database by executing the migrations:
 docker-compose exec web alembic upgrade head
 
 ```
+
+**4. Ignore the formatting commits in `git blame` (optional)**
+Run `git config blame.ignoreRevsFile .git-blame-ignore-revs` once per clone, so `git blame` skips the mass-formatting commits listed in that file (PR #70) and points at the real author of each line.
 
 ---
 

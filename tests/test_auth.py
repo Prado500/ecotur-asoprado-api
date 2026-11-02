@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from unittest.mock import patch
 
 import pytest
@@ -14,18 +14,20 @@ USER_PAYLOAD = {
     "last_name": "Perez",
     "phone": "3001234567",
     "password": "passwordSegura123",
-    "data_consent": True
+    "data_consent": True,
 }
+
 
 # === PREVENT ACTUAL EMAIL DISPATCH DURING TESTS ===
 @pytest.fixture(autouse=True)
 def mock_send_email():
     """
-    Intercepts the email dispatch function within UserService to avoid
+    Intercepts the email dispatch function within the user router to avoid
     SMTP connection exceptions and accelerate test execution.
     """
-    with patch("app.services.user_service.send_verification_email") as mock:
+    with patch("app.api.routers.user.send_verification_email") as mock:
         yield mock
+
 
 async def test_registro_usuario_exitoso(client, mock_send_email):
     """Test that a new user can successfully register and triggers the email task."""
@@ -42,6 +44,7 @@ async def test_registro_usuario_exitoso(client, mock_send_email):
 
     # Verify that the email BackgroundTask was successfully called
     mock_send_email.assert_called_once()
+
 
 async def test_registro_usuario_duplicado(client):
     """Test that the system rejects any registration attempts with already-registered email addresses (HTTP 400)."""
@@ -74,11 +77,13 @@ async def test_verificacion_email_exitosa(client, db_session):
     user = result.scalars().first()
     assert user.is_active is True
 
+
 async def test_verificacion_email_token_invalido(client):
     """Test that invalid or corrupted tokens are rejected (HTTP 400)."""
     response = await client.get("/usuarios/verificar-email?token=tokenFalso123")
     assert response.status_code == 400
     assert "inválido" in response.json()["detail"].lower()
+
 
 async def test_login_exitoso(client, db_session):
     """Test that a registered and active user can log in."""
@@ -96,10 +101,7 @@ async def test_login_exitoso(client, db_session):
     await db_session.commit()
 
     # 3. ACT: Afterward, the verified user logs in.
-    login_data = {
-        "email": USER_PAYLOAD["email"],
-        "password": USER_PAYLOAD["password"]
-    }
+    login_data = {"email": USER_PAYLOAD["email"], "password": USER_PAYLOAD["password"]}
     response = await client.post("/usuarios/login", json=login_data)
 
     # 4. ASSERT: After a successful login, response code should be 200 OK.
@@ -108,29 +110,26 @@ async def test_login_exitoso(client, db_session):
     assert "access_token" in data
     assert data["token_type"] == "bearer"
 
+
 async def test_login_usuario_inactivo(client):
     """Test that registered but inactive users cannot log in (HTTP 403)."""
     await client.post("/usuarios/registro", json=USER_PAYLOAD)
 
-    login_data = {
-        "email": USER_PAYLOAD["email"],
-        "password": USER_PAYLOAD["password"]
-    }
+    login_data = {"email": USER_PAYLOAD["email"], "password": USER_PAYLOAD["password"]}
     response = await client.post("/usuarios/login", json=login_data)
 
     assert response.status_code == 403
     assert "verificar su cuenta" in response.json()["detail"]
 
+
 async def test_login_credenciales_invalidas(client):
     """Test that invalid credentials trigger an HTTP 401 response."""
-    login_data = {
-        "email": "noexiste@example.com",
-        "password": "claveIncorrecta"
-    }
+    login_data = {"email": "noexiste@example.com", "password": "claveIncorrecta"}
     response = await client.post("/usuarios/login", json=login_data)
 
     assert response.status_code == 401
     assert response.json()["detail"] == "Revise su correo y contraseña"
+
 
 async def test_borrado_logico_usuario(client, db_session):
     """Test that a soft-deleted user retains their DB row but cannot log in (HTTP 403)."""
@@ -158,7 +157,10 @@ async def test_borrado_logico_usuario(client, db_session):
     assert delete_response.status_code == 200
     response_data = delete_response.json()
     assert response_data["success"] is True
-    assert response_data["message"] == f"La cuenta vinculada a {target_email}, con C.C. {target_cedula} ha sido eliminada exitosamente."
+    assert (
+        response_data["message"]
+        == f"La cuenta vinculada a {target_email}, con C.C. {target_cedula} ha sido eliminada exitosamente."
+    )
 
     # 5. ASSERT: Verify the row still exists but is structurally deactivated
     result = await db_session.execute(stmt)
@@ -171,15 +173,15 @@ async def test_borrado_logico_usuario(client, db_session):
     failed_login = await client.post("/usuarios/login", json=login_data)
     assert failed_login.status_code == 401
 
+
 # ==========================================
 # RBAC AND USER MANAGEMENT (U+D) TESTS
 # ==========================================
 
-async def test_actualizacion_perfil_self_service_y_sanitizacion(client, db_session):
+
+async def test_actualizacion_perfil_self_service_exitoso(client, db_session):
     """
     Validates that a standard tourist can securely update their own basic profile data.
-    Strictly verifies that malicious attempts to escalate privileges (mutating 'role' or 'is_active')
-    are sanitized and ignored by the Service Layer.
     """
     # 1. ARRANGE: Create and activate a Tourist
     await client.post("/usuarios/registro", json=USER_PAYLOAD)
@@ -192,20 +194,82 @@ async def test_actualizacion_perfil_self_service_y_sanitizacion(client, db_sessi
     token = create_access_token(data={"sub": tourist.email, "role": tourist.role.value})
     headers = {"Authorization": f"Bearer {token}"}
 
-    # 2. ACT: Send PATCH request with valid and malicious fields
-    update_payload = {
-        "first_name": "Nombre Modificado", # Valid scalar update
-        "role": "superadmin",              # Malicious escalation attempt
-        "is_active": False                 # Malicious status mutation
-    }
-    response = await client.patch(f"/usuarios/{tourist.cedula}", json=update_payload, headers=headers)
+    # 2. ACT: Send PATCH request with valid scalar fields
+    update_payload = {"first_name": "Nombre Modificado"}
+    response = await client.patch(
+        f"/usuarios/{tourist.cedula}", json=update_payload, headers=headers
+    )
 
-    # 3. ASSERT: Response is successful and sanitization worked
+    # 3. ASSERT: Response is successful and the mutation was persisted
     assert response.status_code == 200
     data = response.json()
     assert data["first_name"] == "Nombre Modificado"
-    assert data["role"] == "tourist"  # Must remain tourist
-    assert data["is_active"] is True  # Must remain active
+    assert data["role"] == "tourist"
+    assert data["is_active"] is True
+
+    await db_session.refresh(tourist)
+    assert tourist.first_name == "Nombre Modificado"
+    assert tourist.role == UserRole.tourist
+    assert tourist.is_active is True
+
+
+async def test_actualizacion_perfil_escalacion_rol_rechazada(client, db_session):
+    """
+    Validates the fail-safe invariant: a tourist attempting to mutate 'role'
+    is rejected with HTTP 403 and the role remains unchanged in the database.
+    """
+    # 1. ARRANGE: Create and activate a Tourist
+    await client.post("/usuarios/registro", json=USER_PAYLOAD)
+    stmt = select(User).where(User.email == USER_PAYLOAD["email"])
+    tourist = (await db_session.execute(stmt)).scalars().first()
+    tourist.is_active = True
+    await db_session.commit()
+
+    token = create_access_token(data={"sub": tourist.email, "role": tourist.role.value})
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # 2. ACT: Malicious escalation attempt
+    update_payload = {"role": "superadmin"}
+    response = await client.patch(
+        f"/usuarios/{tourist.cedula}", json=update_payload, headers=headers
+    )
+
+    # 3. ASSERT: Loud rejection without any state mutation
+    assert response.status_code == 403
+    assert "detail" in response.json()
+
+    await db_session.refresh(tourist)
+    assert tourist.role == UserRole.tourist
+
+
+async def test_actualizacion_perfil_mutacion_estado_rechazada(client, db_session):
+    """
+    Validates the fail-safe invariant: a tourist attempting to mutate 'is_active'
+    is rejected with HTTP 403 and the active state remains unchanged.
+    """
+    # 1. ARRANGE: Create and activate a Tourist
+    await client.post("/usuarios/registro", json=USER_PAYLOAD)
+    stmt = select(User).where(User.email == USER_PAYLOAD["email"])
+    tourist = (await db_session.execute(stmt)).scalars().first()
+    tourist.is_active = True
+    await db_session.commit()
+
+    token = create_access_token(data={"sub": tourist.email, "role": tourist.role.value})
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # 2. ACT: Malicious status mutation attempt
+    update_payload = {"is_active": False}
+    response = await client.patch(
+        f"/usuarios/{tourist.cedula}", json=update_payload, headers=headers
+    )
+
+    # 3. ASSERT: Loud rejection without any state mutation
+    assert response.status_code == 403
+    assert "detail" in response.json()
+
+    await db_session.refresh(tourist)
+    assert tourist.is_active is True
+
 
 async def test_actualizacion_usuario_helpdesk_exitoso(client, db_session):
     """
@@ -213,15 +277,27 @@ async def test_actualizacion_usuario_helpdesk_exitoso(client, db_session):
     """
     # 1. ARRANGE: Create Admin
     admin = User(
-        cedula="999999999", email="admin@asoprado.com", first_name="Admin", last_name="Test",
-        password_hash=get_password_hash("pass"), role=UserRole.admin, is_active=True, data_consent=True
+        cedula="999999999",
+        email="admin@asoprado.com",
+        first_name="Admin",
+        last_name="Test",
+        password_hash=get_password_hash("pass"),
+        role=UserRole.admin,
+        is_active=True,
+        data_consent=True,
     )
     db_session.add(admin)
 
     # ARRANGE: Create Tourist
     tourist = User(
-        cedula="111111111", email="turista2@asoprado.com", first_name="Juan", last_name="Test",
-        password_hash=get_password_hash("pass"), role=UserRole.tourist, is_active=True, data_consent=True
+        cedula="111111111",
+        email="turista2@asoprado.com",
+        first_name="Juan",
+        last_name="Test",
+        password_hash=get_password_hash("pass"),
+        role=UserRole.tourist,
+        is_active=True,
+        data_consent=True,
     )
     db_session.add(tourist)
     await db_session.commit()
@@ -233,12 +309,13 @@ async def test_actualizacion_usuario_helpdesk_exitoso(client, db_session):
     response = await client.patch(
         f"/usuarios/{tourist.cedula}",
         json=update_payload,
-        headers={"Authorization": f"Bearer {admin_token}"}
+        headers={"Authorization": f"Bearer {admin_token}"},
     )
 
     # 3. ASSERT
     assert response.status_code == 200
     assert response.json()["email"] == "correo_corregido@asoprado.com"
+
 
 async def test_actualizacion_usuario_violacion_jerarquia(client, db_session):
     """
@@ -247,12 +324,24 @@ async def test_actualizacion_usuario_violacion_jerarquia(client, db_session):
     """
     # 1. ARRANGE: Create Admin and Superadmin
     admin = User(
-        cedula="888888888", email="admin2@asoprado.com", first_name="Admin", last_name="Test",
-        password_hash=get_password_hash("pass"), role=UserRole.admin, is_active=True, data_consent=True
+        cedula="888888888",
+        email="admin2@asoprado.com",
+        first_name="Admin",
+        last_name="Test",
+        password_hash=get_password_hash("pass"),
+        role=UserRole.admin,
+        is_active=True,
+        data_consent=True,
     )
     superadmin = User(
-        cedula="000000000", email="super@asoprado.com", first_name="Super", last_name="Test",
-        password_hash=get_password_hash("pass"), role=UserRole.superadmin, is_active=True, data_consent=True
+        cedula="000000000",
+        email="super@asoprado.com",
+        first_name="Super",
+        last_name="Test",
+        password_hash=get_password_hash("pass"),
+        role=UserRole.superadmin,
+        is_active=True,
+        data_consent=True,
     )
     db_session.add_all([admin, superadmin])
     await db_session.commit()
@@ -263,12 +352,13 @@ async def test_actualizacion_usuario_violacion_jerarquia(client, db_session):
     response = await client.patch(
         f"/usuarios/{superadmin.cedula}",
         json={"first_name": "Hacked"},
-        headers={"Authorization": f"Bearer {admin_token}"}
+        headers={"Authorization": f"Bearer {admin_token}"},
     )
 
     # 3. ASSERT
     assert response.status_code == 403
     assert "Violación de jerarquía" in response.json()["detail"]
+
 
 async def test_listar_usuarios_visibilidad_jerarquica(client, db_session):
     """
@@ -276,9 +366,36 @@ async def test_listar_usuarios_visibilidad_jerarquica(client, db_session):
     list should receive Tourists and Admins, but Superadmins must be completely obscured.
     """
     # 1. ARRANGE: Create 1 of each role
-    u1 = User(cedula="111111", email="t@t.com", first_name="Tania", last_name="Torres", password_hash="x", role=UserRole.tourist, is_active=True, data_consent=True)
-    u2 = User(cedula="222222", email="a@a.com", first_name="Anastasia", last_name="Andrade", password_hash="x", role=UserRole.admin, is_active=True, data_consent=True)
-    u3 = User(cedula="333333", email="s@s.com", first_name="Sofia", last_name="Sanchez", password_hash="x", role=UserRole.superadmin, is_active=True, data_consent=True)
+    u1 = User(
+        cedula="111111",
+        email="t@t.com",
+        first_name="Tania",
+        last_name="Torres",
+        password_hash="x",
+        role=UserRole.tourist,
+        is_active=True,
+        data_consent=True,
+    )
+    u2 = User(
+        cedula="222222",
+        email="a@a.com",
+        first_name="Anastasia",
+        last_name="Andrade",
+        password_hash="x",
+        role=UserRole.admin,
+        is_active=True,
+        data_consent=True,
+    )
+    u3 = User(
+        cedula="333333",
+        email="s@s.com",
+        first_name="Sofia",
+        last_name="Sanchez",
+        password_hash="x",
+        role=UserRole.superadmin,
+        is_active=True,
+        data_consent=True,
+    )
 
     db_session.add_all([u1, u2, u3])
     await db_session.commit()
@@ -295,7 +412,8 @@ async def test_listar_usuarios_visibilidad_jerarquica(client, db_session):
 
     assert "tourist" in roles_returned
     assert "admin" in roles_returned
-    assert "superadmin" not in roles_returned # Obscured successfully
+    assert "superadmin" not in roles_returned  # Obscured successfully
+
 
 async def test_listar_usuarios_eliminados_visibilidad(client, db_session):
     """
@@ -304,9 +422,38 @@ async def test_listar_usuarios_eliminados_visibilidad(client, db_session):
     Tourists, but deleted Superadmins must be completely obscured.
     """
     # 1. ARRANGE: Create users and soft-delete some of them
-    admin = User(cedula="999999", email="admin101@test.com", first_name="Marisol", last_name="Gutierrez", password_hash="x", role=UserRole.admin, is_active=True, data_consent=True)
-    deleted_tourist = User(cedula="888888", email="tourist102@test.com", first_name="Antonio", last_name="Delgado", password_hash="x", role=UserRole.tourist, is_active=False, data_consent=True, deleted_at=datetime.now(timezone.utc))
-    deleted_super = User(cedula="777777", email="super103@test.com", first_name="Jose", last_name="Flores", password_hash="x", role=UserRole.superadmin, is_active=False, data_consent=True, deleted_at=datetime.now(timezone.utc))
+    admin = User(
+        cedula="999999",
+        email="admin101@test.com",
+        first_name="Marisol",
+        last_name="Gutierrez",
+        password_hash="x",
+        role=UserRole.admin,
+        is_active=True,
+        data_consent=True,
+    )
+    deleted_tourist = User(
+        cedula="888888",
+        email="tourist102@test.com",
+        first_name="Antonio",
+        last_name="Delgado",
+        password_hash="x",
+        role=UserRole.tourist,
+        is_active=False,
+        data_consent=True,
+        deleted_at=datetime.now(UTC),
+    )
+    deleted_super = User(
+        cedula="777777",
+        email="super103@test.com",
+        first_name="Jose",
+        last_name="Flores",
+        password_hash="x",
+        role=UserRole.superadmin,
+        is_active=False,
+        data_consent=True,
+        deleted_at=datetime.now(UTC),
+    )
 
     db_session.add_all([admin, deleted_tourist, deleted_super])
     await db_session.commit()
@@ -314,15 +461,18 @@ async def test_listar_usuarios_eliminados_visibilidad(client, db_session):
     admin_token = create_access_token(data={"sub": admin.email, "role": admin.role.value})
 
     # 2. ACT: Admin fetches deleted user directory
-    response = await client.get("/usuarios/admin/eliminados", headers={"Authorization": f"Bearer {admin_token}"})
+    response = await client.get(
+        "/usuarios/admin/eliminados", headers={"Authorization": f"Bearer {admin_token}"}
+    )
 
     # 3. ASSERT
     assert response.status_code == 200
     data = response.json()
     cedulas_returned = [user["cedula"] for user in data]
 
-    assert "888888" in cedulas_returned # Tourist is visible
-    assert "777777" not in cedulas_returned # Superadmin is mathematically obscured
+    assert "888888" in cedulas_returned  # Tourist is visible
+    assert "777777" not in cedulas_returned  # Superadmin is mathematically obscured
+
 
 async def test_recuperar_usuario_exitoso(client, db_session):
     """
@@ -330,8 +480,27 @@ async def test_recuperar_usuario_exitoso(client, db_session):
     Asserts that the recovered account transitions to an inactive state by default.
     """
     # 1. ARRANGE: Create Admin and a soft-deleted Tourist
-    admin = User(cedula="111111", email="admin201@test.com", first_name="Andres", last_name="Angarita", password_hash="x", role=UserRole.admin, is_active=True, data_consent=True)
-    tourist = User(cedula="222222", email="tourist202@test.com", first_name="Tulio", last_name="Torres", password_hash="x", role=UserRole.tourist, is_active=False, data_consent=True, deleted_at=datetime.now(timezone.utc))
+    admin = User(
+        cedula="111111",
+        email="admin201@test.com",
+        first_name="Andres",
+        last_name="Angarita",
+        password_hash="x",
+        role=UserRole.admin,
+        is_active=True,
+        data_consent=True,
+    )
+    tourist = User(
+        cedula="222222",
+        email="tourist202@test.com",
+        first_name="Tulio",
+        last_name="Torres",
+        password_hash="x",
+        role=UserRole.tourist,
+        is_active=False,
+        data_consent=True,
+        deleted_at=datetime.now(UTC),
+    )
 
     db_session.add_all([admin, tourist])
     await db_session.commit()
@@ -339,7 +508,9 @@ async def test_recuperar_usuario_exitoso(client, db_session):
     admin_token = create_access_token(data={"sub": admin.email, "role": admin.role.value})
 
     # 2. ACT: Admin recovers Tourist
-    response = await client.patch(f"/usuarios/{tourist.cedula}/recuperar", headers={"Authorization": f"Bearer {admin_token}"})
+    response = await client.patch(
+        f"/usuarios/{tourist.cedula}/recuperar", headers={"Authorization": f"Bearer {admin_token}"}
+    )
 
     # 3. ASSERT
     assert response.status_code == 200
@@ -347,7 +518,8 @@ async def test_recuperar_usuario_exitoso(client, db_session):
 
     await db_session.refresh(tourist)
     assert tourist.deleted_at is None
-    assert tourist.is_active is False # Strict security rule enforced
+    assert tourist.is_active is False  # Strict security rule enforced
+
 
 async def test_recuperar_usuario_violacion_jerarquia(client, db_session):
     """
@@ -355,8 +527,27 @@ async def test_recuperar_usuario_violacion_jerarquia(client, db_session):
     be able to recover the account of a soft-deleted Superadmin (403 Forbidden).
     """
     # 1. ARRANGE: Create Admin and a soft-deleted Superadmin
-    admin = User(cedula="111111", email="admin301@test.com", first_name="Arnulfo", last_name="Anzoátegui", password_hash="x", role=UserRole.admin, is_active=True, data_consent=True)
-    superadmin = User(cedula="222222", email="super302@test.com", first_name="Sandra", last_name="Sanchez", password_hash="x", role=UserRole.superadmin, is_active=False, data_consent=True, deleted_at=datetime.now(timezone.utc))
+    admin = User(
+        cedula="111111",
+        email="admin301@test.com",
+        first_name="Arnulfo",
+        last_name="Anzoátegui",
+        password_hash="x",
+        role=UserRole.admin,
+        is_active=True,
+        data_consent=True,
+    )
+    superadmin = User(
+        cedula="222222",
+        email="super302@test.com",
+        first_name="Sandra",
+        last_name="Sanchez",
+        password_hash="x",
+        role=UserRole.superadmin,
+        is_active=False,
+        data_consent=True,
+        deleted_at=datetime.now(UTC),
+    )
 
     db_session.add_all([admin, superadmin])
     await db_session.commit()
@@ -364,55 +555,98 @@ async def test_recuperar_usuario_violacion_jerarquia(client, db_session):
     admin_token = create_access_token(data={"sub": admin.email, "role": admin.role.value})
 
     # 2. ACT: Admin attempts to recover Superadmin
-    response = await client.patch(f"/usuarios/{superadmin.cedula}/recuperar", headers={"Authorization": f"Bearer {admin_token}"})
+    response = await client.patch(
+        f"/usuarios/{superadmin.cedula}/recuperar",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
 
     # 3. ASSERT
     assert response.status_code == 403
     assert "jerarquía" in response.json()["detail"].lower()
+
 
 async def test_crear_administrador_violacion_jerarquia(client, db_session):
     """
     Validates that standard Admins cannot provision new administrative accounts (403 Forbidden).
     """
     # 1. ARRANGE: Create standard Admin
-    admin = User(cedula="111111", email="admin401@test.com", first_name="Amelio", last_name="Ardiles", password_hash="x", role=UserRole.admin, is_active=True, data_consent=True)
+    admin = User(
+        cedula="111111",
+        email="admin401@test.com",
+        first_name="Amelio",
+        last_name="Ardiles",
+        password_hash="x",
+        role=UserRole.admin,
+        is_active=True,
+        data_consent=True,
+    )
     db_session.add(admin)
     await db_session.commit()
 
     admin_token = create_access_token(data={"sub": admin.email, "role": admin.role.value})
 
     new_admin_payload = {
-        "cedula": "222222", "email": "newadmin@test.com", "first_name": "Federico",
-        "last_name": "Murcia", "phone": "3000000000", "password": "Password123",
-        "role": "admin", "data_consent": True, "is_active": True
+        "cedula": "222222",
+        "email": "newadmin@test.com",
+        "first_name": "Federico",
+        "last_name": "Murcia",
+        "phone": "3000000000",
+        "password": "Password123",
+        "role": "admin",
+        "data_consent": True,
+        "is_active": True,
     }
 
     # 2. ACT: Standard Admin tries to create another Admin
-    response = await client.post("/usuarios/admin", json=new_admin_payload, headers={"Authorization": f"Bearer {admin_token}"})
+    response = await client.post(
+        "/usuarios/admin",
+        json=new_admin_payload,
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
 
     # 3. ASSERT
     assert response.status_code == 403
     assert "superusuario" in response.json()["detail"].lower()
+
 
 async def test_crear_administrador_exitoso(client, db_session):
     """
     Validates that a Superadmin can successfully provision new administrative accounts.
     """
     # 1. ARRANGE: Create Superadmin
-    superadmin = User(cedula="666666", email="super501@test.com", first_name="Federico", last_name="Perez", password_hash="x", role=UserRole.superadmin, is_active=True, data_consent=True)
+    superadmin = User(
+        cedula="666666",
+        email="super501@test.com",
+        first_name="Federico",
+        last_name="Perez",
+        password_hash="x",
+        role=UserRole.superadmin,
+        is_active=True,
+        data_consent=True,
+    )
     db_session.add(superadmin)
     await db_session.commit()
 
     super_token = create_access_token(data={"sub": superadmin.email, "role": superadmin.role.value})
 
     new_admin_payload = {
-        "cedula": "555555", "email": "newadmin502@test.com", "first_name": "New",
-        "last_name": "Admin", "phone": "3000000000", "password": "Password123",
-        "role": "admin", "data_consent": True, "is_active": True
+        "cedula": "555555",
+        "email": "newadmin502@test.com",
+        "first_name": "New",
+        "last_name": "Admin",
+        "phone": "3000000000",
+        "password": "Password123",
+        "role": "admin",
+        "data_consent": True,
+        "is_active": True,
     }
 
     # 2. ACT: Superadmin creates an Admin
-    response = await client.post("/usuarios/admin", json=new_admin_payload, headers={"Authorization": f"Bearer {super_token}"})
+    response = await client.post(
+        "/usuarios/admin",
+        json=new_admin_payload,
+        headers={"Authorization": f"Bearer {super_token}"},
+    )
 
     # 3. ASSERT
     assert response.status_code == 201

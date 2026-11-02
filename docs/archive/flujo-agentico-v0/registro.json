@@ -1,0 +1,18 @@
+{
+  "informe": "docs/Auditoría Ecotur-ASOPRADO.html",
+  "nota": "Informe canónico de la auditoría de deuda técnica. Los tags siguen el prefijo exacto del informe (d, D, A, S, b, ...).",
+  "estados_permitidos": ["pending", "verificada", "desmentida", "plan_aprobado", "en_ejecucion", "completed", "completed-verificado"],
+  "tags": {
+    "b1": { "estado": "completed", "carpeta": "docs/deuda/b1", "nota": "Bloqueo corregido antes de este flujo. Pendiente de /verificar-deuda." },
+    "b2": { "estado": "completed", "carpeta": "docs/deuda/b2", "nota": "Bloqueo corregido antes de este flujo. Pendiente de /verificar-deuda." },
+    "b3": { "estado": "completed", "carpeta": "docs/deuda/b3", "nota": "Bloqueo corregido antes de este flujo. Pendiente de /verificar-deuda." },
+    "b4": { "estado": "completed", "carpeta": "docs/deuda/b4", "nota": "Bloqueo corregido antes de este flujo. Pendiente de /verificar-deuda." },
+    "b5": { "estado": "completed", "carpeta": "docs/deuda/b5", "nota": "Bloqueo corregido antes de este flujo. Pendiente de /verificar-deuda." },
+    "d1": {
+      "estado": "completed",
+      "carpeta": "docs/deuda/d1",
+      "nota": "Inversión de dependencias en la capa de servicios. Ejecutado con el plan A-B-C-D: commits e581c6a (A), cf115a0 (B), 9cd96c0 (C), aab1d3a (D). Evidencia histórica en docs/plan-consolidado-servicios.md, docs/ADR_NOTE.md. Pendiente de /verificar-deuda."
+    }
+  },
+  "edit_rules": "Solo modifica el tag sobre el que trabajas (estado, carpeta, nota, commits, gaps). Puedes agregar tags nuevos del informe. Prohibido borrar tags o editar los ajenos."
+}

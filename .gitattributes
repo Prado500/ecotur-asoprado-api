@@ -1,0 +1,12 @@
+# Normaliza finales de línea: git guarda LF siempre; cada editor puede mostrar lo que quiera.
+* text=auto eol=lf
+
+# Binarios: nunca normalizar
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.tgz binary

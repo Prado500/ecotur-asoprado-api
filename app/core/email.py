@@ -1,5 +1,4 @@
 import os
-from pathlib import Path
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
 from pydantic import EmailStr
 from dotenv import load_dotenv
@@ -19,15 +18,14 @@ conf = ConnectionConfig(
     MAIL_STARTTLS=False,
     MAIL_SSL_TLS=True,
     USE_CREDENTIALS=True,
-    VALIDATE_CERTS=True
+    VALIDATE_CERTS=True,
 )
 
 fast_mail = FastMail(conf)
 
+
 async def send_verification_email(email_to: EmailStr, first_name: str, token: str, base_url: str):
-    """
-    Construye y envía el correo electrónico con un diseño HTML corporativo responsivo.
-    """
+    """Construye y envía el correo electrónico con un diseño HTML corporativo responsivo."""
     verification_link = f"{base_url}/usuarios/verificar-email?token={token}"
 
     html_content = f"""
@@ -78,7 +76,7 @@ async def send_verification_email(email_to: EmailStr, first_name: str, token: st
         subject="Verifica tu cuenta de Ecotur Asoprado",
         recipients=[email_to],
         body=html_content,
-        subtype=MessageType.html
+        subtype=MessageType.html,
     )
 
     await fast_mail.send_message(message)

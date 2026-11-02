@@ -4,10 +4,10 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
 from app.db.database import Base
 
+
 class AuditAction(str, enum.Enum):
-    """
-    Standardized actions for the Audit Trail.
-    """
+    """Standardized actions for the Audit Trail."""
+
     CREATE = "CREATE"
     UPDATE = "UPDATE"
     SOFT_DELETE = "SOFT_DELETE"
@@ -15,13 +15,14 @@ class AuditAction(str, enum.Enum):
     ACTIVATE = "ACTIVATE"
     DEACTIVATE = "DEACTIVATE"
 
+
 class AuditLog(Base):
-    """
-    SQLAlchemy domain model for the Audit Trail ecosystem.
+    """SQLAlchemy domain model for the Audit Trail ecosystem.
 
     Utilizes PostgreSQL's native JSONB data type to store structural
     snapshots of domain entities regardless of their rigid schema.
     """
+
     __tablename__ = "audit_logs"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -35,7 +36,7 @@ class AuditLog(Base):
     action = Column(Enum(AuditAction, name="audit_action_enum"), nullable=False)
 
     # Dictionary snapshot containing 'old_values' and 'new_values'
-    changes = Column(JSON().with_variant(JSONB, 'postgresql'), nullable=True)
+    changes = Column(JSON().with_variant(JSONB, "postgresql"), nullable=True)
 
     # The 'cedula' of the administrator who triggered the transaction
     performed_by = Column(String(50), nullable=False, index=True)
