@@ -1,6 +1,6 @@
 {
   "plan_file": "docs/deuda/AF-01/plan.md",
-  "current_target": "Fase_D",
+  "current_target": null,
   "phases": {
     "Fase_A": {
       "status": "completed",
@@ -18,8 +18,8 @@
       "description": "--copias [dueño], --huerfanas y --estado con caso current_target null + todas completed"
     },
     "Fase_D": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "f6f73a9",
       "description": "--cierre: R6 encabezado de versión (ADR-0007) y R7 filas de PLAN §3 cerradas sin marca, con git y reloj inyectados"
     }
   },
@@ -28,6 +28,6 @@
     "partial",
     "completed"
   ],
-  "last_handoff": "Fase C completada (968dc25): --copias [dueño], --huerfanas, --estado con JSON (null + todas completed = ejecutado), flags excluyentes; ajustes de B aplicados; 30 tests nuevos (249 passed); compuerta igual a la linea base.",
+  "last_handoff": "Fase D completada (f6f73a9): --cierre con R6 (versión >= último commit, ADR-0007) y R7 (filas de PLAN §3 pasadas con marca), git y reloj inyectados; ajustes de C aplicados (STATE_*, ValueError, docstring de estado); 45 tests nuevos (294 passed); compuerta igual a la linea base; --cierre exit 0 sobre el repo.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
