@@ -1,7 +1,9 @@
 # Ecotur-ASOPRADO — Backlog consolidado
 
-> **Versión 1.9 — 31 oct 2026.** Cambios de esta versión: bitácora `2026-10-31` (replan: BE-16 partido en BE-16 y
-> BE-27; BE-08 partido en BE-08 y BE-28; sección E con AF-01; sin días del cronograma en notas). Versiones anteriores:
+> **Versión 1.10 — 1 nov 2026.** Cambios de esta versión: bitácora `2026-11-01` (siete filas sin bloques dentro del
+> calificador de la Decisión: BE-09, B1–B5, D1, D4, D6/S3, P2, P3; primer commit de `item/af-01`; al cierre, AF-01 →
+> Hecho y AF-02 nueva). Versiones anteriores:
+> `2026-10-31` (v1.9, replan: BE-16 partido en BE-16 y BE-27; BE-08 partido en BE-08 y BE-28; sección E con AF-01);
 > `2026-10-28` (v1.8, BE-01, P1 y A7 → Hecho, PR #61); `2026-10-27` (BE-24..26, sin subir versión ese día);
 > `2026-10-26` (v1.7, vocabulario cerrado de decisiones).
 > Versionado según ADR-0007.
@@ -30,7 +32,7 @@
 | BE-06 | txt | Se pueden crear paquetes turísticos idénticos | — | **Hecho (23 oct, decisión de gerencia; sin cambios de código)** | Gerencia confirmó (23 oct) que el nombre **no** debe ser único. No hay trabajo. |
 | BE-07 | txt | Al actualizar un paquete, el schema permite superar las 10 imágenes | Media | **Entra · `B-TESTS`** | Mismo validador en el schema de update que en el de create (o un tipo compartido). Test. |
 | BE-08 | txt | Orden de paquetes en catálogo: al reactivar, el paquete cae al final (backend) | Media | **Entra · `B-ORDEN`** | El gerente espera poder reordenar. Columna `display_order` + `PATCH /packages/{id}/display-order` + `ORDER BY display_order NULLS LAST, created_at`. El lado cliente es BE-28 (partido el 31 oct: un ítem, un bloque). |
-| BE-09 | txt | Auditoría de cambios de paquetes (parcial / completa) | Media | **Decidir en `B-HIGIENE` (verificar lo que existe; luego `B-FUTURO`)** | Ya existe `test_audit.py`: hay algo de auditoría. Se documenta lo que hay; ampliar a dos modos es trabajo futuro. |
+| BE-09 | txt | Auditoría de cambios de paquetes (parcial / completa) | Media | **Decidir en `B-HIGIENE`** | Verificar lo que existe: ya hay `test_audit.py`, hay algo de auditoría. Se documenta lo que hay; ampliar a dos modos es trabajo futuro. Si no entra en el tope del bloque, recibe decisión nueva ese día (regla de `B-HIGIENE` en PLAN §2b). |
 | BE-10 | B1 (txt) | Autobaja de cuentas (turista / admin) | Media | **Sale → `B-FUTURO` (con nota legal)** | Decisión de producto y legal, no técnica. Dos datos a verificar antes de publicar en Android: la política de Google Play exige opción de borrado de cuenta para apps con registro, y la Ley 1581 de 2012 (habeas data, Colombia) reconoce el derecho de supresión. No soy abogado: confírmalo. Para el MVP: "solicitud de baja" documentada como trabajo futuro. |
 | BE-11 | B1 (txt) | Cuenta `jpa@gmail.com` no inicia sesión | — | **Hecho (resuelto por David antes del flujo)** | Resuelto por ti (contraseña olvidada). Derivado: **recuperación de contraseña** no existe → Sale (requiere envío de correo). |
 | BE-12 | txt | Sesiones concurrentes; token "con amnesia" | Media | **Entra · `B-PAGOS` (solo ADR; código si cabe)** | JWT sin estado = múltiples sesiones **por diseño**. Opciones: (1) access token corto + refresh token con rotación; (2) `session_version` por usuario comparada en `get_current_user` (ya hay lectura de BD por petición, así que el coste es nulo). Se escribe el ADR; se implementa (2) si sobra tiempo en `B-PAGOS`. |
@@ -59,7 +61,7 @@ contra el informe: la auditoría tiene un mes y mucho ya cambió. Esfuerzo: XS �
 
 | Tag | Hallazgo (resumen) | Verificación 24 oct | Sev. | Esf. | Decisión |
 |---|---|---|---|---|---|
-| B1–B5 | Bloqueos: módulo caído, escalada de privilegios, superadmin bloqueado, 404, guard de PATCH | Corregidos (DeepSeek + David); 110 tests hoy vs. 26 entonces | — | — | **Hecho (antes del flujo; re-verificación en `B-TESTS`)** |
+| B1–B5 | Bloqueos: módulo caído, escalada de privilegios, superadmin bloqueado, 404, guard de PATCH | Corregidos (DeepSeek + David); 110 tests hoy vs. 26 entonces; re-verificación en `B-TESTS` | — | — | **Hecho (antes del flujo)** |
 | A1 | Servicios acoplados a FastAPI (`HTTPException`) | **0** en `app/services`; 5 en `core/storage.py` (residuo declarado) | — | — | **Hecho (ADR-0003, PR #45)** |
 | A2 | Tres estrategias de autorización incompatibles | `UserAccessPolicy` existe; commit `e581c6a` centralizó audit | Media | S | **Decidir en `B-TESTS` (revisar guard + política por endpoint)** |
 | A3 | Repositorios hacen `commit()` (sin Unit of Work; auditoría antes que creación) | **7** `commit()` en repositorios, 0 en servicios | Alta | M | **Entra · `B-RESERVAS` (código nuevo con UoW; repos existentes si cabe)** |
@@ -69,12 +71,12 @@ contra el informe: la auditoría tiene un mes y mucho ya cambió. Esfuerzo: XS �
 | A7 | `promote_to_permanent` borra el origen sin esperar la copia (pérdida de imágenes) | `start_copy_from_url` **1**, sin espera de `copy_status` | Alta | S | **Hecho (PR #61, 27 oct)**
 | A8 | `get_deleted_users` filtra en memoria | **1** comprensión sobre `deleted_at` | Baja | XS | **Entra · `B-HIGIENE`**
 | A9 | `UserResponse` hereda validaciones de entrada → 500 al leer nombres válidos | **1** `class UserResponse(UserBase` | Alta | S | **Entra · `B-HIGIENE`**
-| D1 | Regla "es administrador" escrita 6 veces | `UserAccessPolicy` + commit `e581c6a` | — | — | **Hecho (ADR-0003, PR #45; re-verificación en `B-TESTS`)** |
+| D1 | Regla "es administrador" escrita 6 veces | `UserAccessPolicy` + commit `e581c6a`; re-verificación en `B-TESTS` | — | — | **Hecho (ADR-0003, PR #45)** |
 | D2 | `UserRole` definido dos veces | **2** definiciones | Media | XS | **Entra · `B-HIGIENE`**
 | D3 | `jwt.decode` duplicado fuera de `core/security` | **2** fuera | Media | XS | **Entra · `B-HIGIENE`**
-| D4 | Límite de 10 imágenes triplicado (2 copias muertas) | **3** `> 10` | Baja | XS | **Entra · `B-HIGIENE` (con BE-07 en `B-TESTS`)**
+| D4 | Límite de 10 imágenes triplicado (2 copias muertas); su pareja BE-07 (validador de update) vive en `B-TESTS` | **3** `> 10` | Baja | XS | **Entra · `B-HIGIENE`**
 | D5 | `format_title_case` duplicado y divergente; patrones repetidos | **2** definiciones | Media | S | **Entra · `B-HIGIENE`**
-| D6 / S3 | Firma de inyección repetida en 22 endpoints; `Depends` por defecto en vez de `Annotated` | **42** `= Depends(`, **2** `Annotated[` | Baja | S–M | **Decidir en `B-HIGIENE` (si no cabe → `B-FUTURO`)** |
+| D6 / S3 | Firma de inyección repetida en 22 endpoints; `Depends` por defecto en vez de `Annotated` | **42** `= Depends(`, **2** `Annotated[` | Baja | S–M | **Decidir en `B-HIGIENE`** |
 | S1 | Modelos en estilo SQLAlchemy 1.x (`Column`) sobre base 2.0 | **33** `Column(`, **0** `mapped_column` | Media | M | **Entra · `B-S1`**
 | S2 | `sqlalchemy.future` legado | **3** | Baja | XS | **Entra · `B-HIGIENE`**
 | S4 | `typing.List/Optional` mezclados con nativos | **10** imports | Baja | XS | **Entra · `B-FORMATO` (`ruff --fix`, regla UP)**
@@ -82,8 +84,8 @@ contra el informe: la auditoría tiene un mes y mucho ya cambió. Esfuerzo: XS �
 | S6 | `PUT` con semántica `PATCH`; `model_config` como dict | `@router.put` **0** (ya corregido); dict **1** | Baja | XS | **Entra · `B-HIGIENE` (solo el dict)**
 | S7 | `Field(default=[])` | **1** | Baja | XS | **Entra · `B-HIGIENE`**
 | P1 | `core/security` importa `User`, `UserRole`, `HTTPException` y `status` sin usarlos (arrastra el engine y rompe el contrato de capas por transitividad) | **4** imports muertos (l.6–10) | Media | XS | **Hecho (PR #61, 27 oct)**
-| P2 | Spanglish: 12 handlers en español; clave `"detalle"` vs `"detail"` | **12** handlers, **1** `"detalle"` | Media (el `detalle` es bug funcional) | XS + S | **Entra · `B-HIGIENE` (`detalle`→`detail`; renombrar handlers solo si sobra, si no → `B-FUTURO`)**
-| P3 | 8 docstrings que contradicen al código | No verificado por grep | Baja | S | **Entra · `B-HIGIENE` (al tocar cada archivo; lo que quede → `B-FUTURO`)**
+| P2 | Spanglish: 12 handlers en español; clave `"detalle"` vs `"detail"`. Renombrar los handlers solo si sobra tiempo en el bloque | **12** handlers, **1** `"detalle"` | Media (el `detalle` es bug funcional) | XS + S | **Entra · `B-HIGIENE` (`detalle`→`detail`)**
+| P3 | 8 docstrings que contradicen al código; lo que quede al cerrar el bloque recibe decisión nueva ese día (PLAN §2b) | No verificado por grep | Baja | S | **Entra · `B-HIGIENE` (al tocar cada archivo)**
 | SEC1 | CORS `*` con credenciales | **1** `allow_origins=["*"]` | Alta | XS | **Entra · `B-HIGIENE`**
 | SEC2 | Subida de imágenes: sin límite de tamaño, tipo confiado al cliente, SVG permitido | `.read()` **0** (cambió); `svg` **0** (no excluido) | Alta | S | **Decidir en `B-HIGIENE` (verificar; mínimo lista blanca sin SVG + límite de tamaño)** |
 | SEC3 | Detalle interno en errores (`str(e)`); enumeración de cuentas por tiempo en login | **4** `str(e)`; `verify_password` **2** | Media | S | **Entra · `B-HIGIENE`**
@@ -137,4 +139,5 @@ Los pendientes de flujo de CONTEXT §8 pasan aquí cuando se decide atacarlos; m
 
 | ID | Origen | Qué | Sev. | Decisión | Nota técnica |
 |---|---|---|---|---|---|
-| AF-01 | ADR-0008 y addendum (29–30 oct); hallazgo del 31 oct | Reglas de ADR-0008 en `scripts/check_docs.py`: días fuera de PLAN §3 (también dentro de PLAN); fecha de entrega en PLAN igual a CONTEXT §2; bloque citado existe en §2b; encabezado de versión según ADR-0007; fila de PLAN §3 cerrada sin marca; `--copias` lista citas por dueño; copia de hecho duro sin cita como hallazgo; la columna Decisión nombra exactamente un bloque y nada más (hoy `DECISION_RE` deja pasar cualquier cola, por eso BE-08 estuvo en dos bloques) | Media | **Entra · `B-CHECK-DOCS`** | Casos de prueba para la regla de la Decisión: FE-05 (`parcial`), BE-18 (`mínimo`) y BE-14 (`Sale` con mitigación en otro bloque); se decide con el script delante si se admite un calificador cerrado entre paréntesis. Especificación a dos manos antes de Claude Code. |
+| AF-01 | ADR-0008 y addendum (29–30 oct); hallazgo del 31 oct | Reglas de ADR-0008 en `scripts/check_docs.py`: días fuera de PLAN §3 (también dentro de PLAN); fecha de entrega en PLAN igual a CONTEXT §2; bloque citado existe en §2b; encabezado de versión según ADR-0007; fila de PLAN §3 cerrada sin marca; `--copias` lista citas por dueño; copia de hecho duro sin cita como hallazgo; la columna Decisión nombra exactamente un bloque y a lo sumo un calificador entre paréntesis sin bloques ni vocabulario dentro | Media | **Hecho (PR #69, 1 nov)** | Especificación en `docs/deuda/AF-01/especificacion.md`; cuatro fases (`8d51302`, `da106b0`, `968dc25`, `f6f73a9`), 149 tests nuevos, mutación en las cuatro auditorías; R6 y R7 solo con `--cierre` (ADR-0008, addendum 1 nov). Calificador: admitido, uno, sin bloques (decidido con el script delante). |
+| AF-02 | Gaps de AF-01 (1 nov) y hallazgos de la sesión Mentor del mismo día | (1) Coherencia PLAN §2b ↔ backlog: ningún check verifica que los ítems que la celda de un bloque lista coincidan con las filas `Entra · ese bloque` (R3 solo mira que el bloque exista). (2) R7: el año inicial de cada tabla sale de la línea de versión de PLAN; cuando PLAN suba a 2027 con una tabla que empieza en diciembre, esas filas se fechan en 2027 y no se evalúan (salida: mes de la primera fila > mes de la versión → año − 1); además R7 usa la fecha local de la máquina (una máquina en UTC ve "mañana" desde las 19:00 de Bogotá). (3) `--estado`: "última auditoría" lee `PASS` en la última línea de `gaps.md`; BE-01 sale "con gaps" con auditoría limpia. (4) `lint-imports` no vuelca su texto en `check.py` al redirigir la salida. (5) Opcional de R7: exigir `docs/bitacora/AAAA-MM-DD.md` por cada marca | Media (la 2 muerde en la primera edición de PLAN de enero) | **Decidir en `B-HIGIENE`** | Fecha límite de la 2: antes de la primera edición de PLAN en enero. La 1 es la única que no salió de las fases: la celda de `B-CHECK-DOCS` y la fila AF-01 cambiaron hoy y nadie más que la sesión lo comprobó. Stdlib; mismo esquema de tests que AF-01. |

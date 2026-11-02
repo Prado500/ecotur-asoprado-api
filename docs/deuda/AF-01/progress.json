@@ -1,0 +1,33 @@
+{
+  "plan_file": "docs/deuda/AF-01/plan.md",
+  "current_target": null,
+  "phases": {
+    "Fase_A": {
+      "status": "completed",
+      "commit": "8d51302",
+      "description": "Raíz inyectable (--root), CLI con argparse (flags desconocidos exit 2), helpers sections/strip_citations, tests base, script en mypy.files"
+    },
+    "Fase_B": {
+      "status": "completed",
+      "commit": "da106b0",
+      "description": "Reglas bloqueantes R2 (fechas de cronograma), R3 (bloques en sesiones), R4 (Decisión estricta), R5 (deadline = CONTEXT §2)"
+    },
+    "Fase_C": {
+      "status": "completed",
+      "commit": "968dc25",
+      "description": "--copias [dueño], --huerfanas y --estado con caso current_target null + todas completed"
+    },
+    "Fase_D": {
+      "status": "completed",
+      "commit": "f6f73a9",
+      "description": "--cierre: R6 encabezado de versión (ADR-0007) y R7 filas de PLAN §3 cerradas sin marca, con git y reloj inyectados"
+    }
+  },
+  "allowed_statuses": [
+    "pending",
+    "partial",
+    "completed"
+  ],
+  "last_handoff": "Fase D completada (f6f73a9): --cierre con R6 (versión >= último commit, ADR-0007) y R7 (filas de PLAN §3 pasadas con marca), git y reloj inyectados; ajustes de C aplicados (STATE_*, ValueError, docstring de estado); 45 tests nuevos (294 passed); compuerta igual a la linea base; --cierre exit 0 sobre el repo.",
+  "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
+}

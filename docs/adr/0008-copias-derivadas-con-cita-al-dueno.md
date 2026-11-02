@@ -123,3 +123,21 @@ difieren, rige el addendum.
   commiteada después que su dueño es señal de alarma (el dueño puede estar sin esa información), no de corrección:
   se anota en la bitácora y se pregunta a David. Límite: ninguna de las dos ve lo no commiteado del día; para eso la
   sesión que cierra solo tiene lo que ella misma tocó.
+
+## Addendum — 1 nov 2026 (David)
+
+Dice cómo se cumple el punto 6 tras AF-01 (bitácora 2026-11-01, PR #69). No altera el texto anterior ni cambia la
+decisión; es el segundo addendum de este ADR y por eso existe ADR-0009, que fija lo que un addendum puede y no puede
+hacer. Si un punto de arriba o el addendum del 30 oct y este difieren, rige este.
+
+- **Punto 6, las reglas existen.** `scripts/check_docs.py` verifica en la compuerta por defecto: fechas de cronograma
+  fuera de PLAN §3 (R2, con días de la semana y en todo el alcance del punto 7), bloque citado definido en §2b (R3),
+  columna Decisión con exactamente un bloque y a lo sumo un calificador sin bloques (R4) y fecha de entrega igual a
+  CONTEXT §2 con su cita (R5). Dos reglas más —encabezado de versión no anterior al último commit (R6, ADR-0007) y
+  fila de PLAN §3 pasada sin marca de cierre (R7)— dependen de `git` y de la fecha del día, así que **corren solo con
+  `--cierre`, en el ritual de cierre (README de sesiones, paso 3), nunca en la compuerta por defecto**, que sigue siendo
+  determinista (ADR-0001): el mismo árbol da siempre el mismo resultado.
+- **Punto 3 del addendum anterior, mecanismo provisional: sustituido.** La pasada de citas se hace con
+  `python scripts/check_docs.py --copias "<dueño>"` (lista `archivo:línea: cita` en los documentos del alcance). Para
+  copias huérfanas, `--huerfanas` lista **candidatos** (fechas, porcentajes, `N tests`, `N h`, `N m` sin cita en la
+  línea, fuera de las secciones dueñas); es ruidoso a propósito y no bloquea, porque sigue sin haber mecanismo bueno.

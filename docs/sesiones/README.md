@@ -1,7 +1,9 @@
 # Sesiones de IA: cómo arrancar cualquiera sin depender de ninguna conversación anterior
 
-> **Versión 1.1 — 31 oct 2026.** Cambios de esta versión: bitácora `2026-10-31` (paso 1 del ritual de cierre: de quién
-> es la bitácora y qué hace la sesión con ella; regla decidida el 29 y llevada a su dueño el 31). Versiones anteriores:
+> **Versión 1.2 — 1 nov 2026.** Cambios de esta versión: bitácora `2026-11-01` (paso 3: pasada de citas con `--copias`,
+> candidatos con `--huerfanas` y `--cierre` antes del commit de cierre; AF-01). Versiones anteriores: `2026-10-31` (1.1,
+> paso 1 del ritual de cierre: de quién es la bitácora y qué hace la sesión con ella; regla decidida el 29 y llevada a
+> su dueño el 31);
 > `2026-10-30` (1.0, primera numerada según ADR-0007: paso 3 del ritual de cierre: dueños → tabla de `CONTEXT.md` §0;
 > pasada de citas de ADR-0008; herramientas de git para saber cuál cambió último, addendum de ADR-0008).
 
@@ -38,13 +40,15 @@ porque cada uno alimenta al siguiente:
 
    Regla práctica: antes de cerrar, `git status` y `git log --since=<hoy>` dicen qué archivos cambiaron. **Pasada de
    citas (ADR-0008, punto 6):** por cada archivo dueño que cambió hoy, **la sesión que cierra** lista sus citas en los
-   demás documentos (`scripts/check_docs.py` cuando tenga la regla; mientras tanto, `grep -n "(CONTEXT §2)"
-   docs/*.md docs/sesiones/*.md`, una vez por dueño tocado) y revisa cada copia: si diverge, la corrige hacia el
+   demás documentos (`python scripts/check_docs.py --copias "<dueño>"`, una vez por dueño tocado; `--huerfanas` lista
+   candidatos a hecho duro sin cita, ruidoso a propósito) y revisa cada copia: si diverge, la corrige hacia el
    dueño; si cree que la copia es la correcta o más reciente, no corrige, lo anota en la bitácora y pregunta a David.
    Para saber cuál cambió último: `git log -1 --format=%ad -- <archivo>` (archivo) y `git blame -L <n>,<n> -- <archivo>`
    (línea); copia commiteada después que el dueño = alarma, no corrección (ADR-0008, addendum).
    Nada de esto recae en David salvo esa decisión. Lo que `check_docs.py` pueda verificar, lo verifica; lo demás es
-   responsabilidad de la sesión que hizo el cambio.
+   responsabilidad de la sesión que hizo el cambio. **Antes del commit de cierre: `python scripts/check_docs.py --cierre`**
+   (encabezados de versión no anteriores al último commit, ADR-0007; filas pasadas de PLAN §3 con marca). Son las dos
+   reglas que dependen de `git` y del día, y por eso no corren en la compuerta (ADR-0008, addendum del 1 nov).
 4. **Commit** (y PR). Un archivo sin commitear no existe para una sesión que arranca con `git pull` en
    otra máquina o en otra rama.
 
