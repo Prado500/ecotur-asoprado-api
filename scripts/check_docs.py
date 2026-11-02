@@ -24,8 +24,17 @@ Comandos informativos (exit 0 siempre; excluyentes entre sí y con la pasada blo
       las líneas de versión. Ruidoso por diseño: lo revisa la sesión que cierra.
   `--estado`: vista derivada de cada ítem de `docs/deuda/`; `progress.json` se lee como JSON.
 
+Reglas de cierre (solo con `--cierre`: dependen de git y de la fecha de hoy, así que la compuerta
+por defecto no las corre y sigue siendo determinista, ADR-0001):
+  R6. La línea de versión (ADR-0007) de cada archivo del alcance no es anterior a su último commit;
+      un archivo sin línea de versión es error solo si su último commit es posterior al 28 oct
+      2026. Cambios sin commitear o git no disponible son avisos, nunca error.
+  R7. Toda fila de PLAN §3 con fecha anterior a hoy lleva en `Cierre` la marca `[✔◐✘] N`. El mes
+      se hereda dentro de cada tabla y el año sube cuando el mes retrocede.
+
 Uso:
   python scripts/check_docs.py                  reglas bloqueantes (exit 1 si hay errores)
+  python scripts/check_docs.py --cierre         además R6 y R7 (ritual de cierre)
   python scripts/check_docs.py --estado         vista derivada del estado de cada ítem
   python scripts/check_docs.py --copias [DUEÑO] citas de forma fija por dueño
   python scripts/check_docs.py --huerfanas      candidatos a hecho duro sin cita
@@ -39,7 +48,10 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import subprocess
 import sys
+from collections.abc import Callable
+from datetime import date
 from pathlib import Path
 from typing import Literal, NamedTuple
 
@@ -450,7 +462,7 @@ def read_progress(path: Path) -> Progress:
     """
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
+    except ValueError:  # JSONDecodeError and UnicodeDecodeError (a file that is not UTF-8)
         return Progress("unreadable", None)
     if not isinstance(data, dict):
         return Progress("unreadable", None)
@@ -466,8 +478,24 @@ def read_progress(path: Path) -> Progress:
     return Progress("running", raw_target if isinstance(raw_target, str) else None)
 
 
+STATE_DONE = "ejecutado (todas las fases); pendiente de PR o mezclado"
+STATE_RUNNING = "en ejecución (objetivo: {target})"
+STATE_UNREADABLE = "progress.json ilegible"
+"""What ``--estado`` prints for each ``Progress.state``; ``{target}`` is ``?`` when unknown."""
+
+
 def estado(root: Path) -> int:
-    """Derived (never stored) view of each in-progress item, according to its folder."""
+    """Print the derived (never stored) state of each item of ``docs/deuda/``.
+
+    The state comes from the files the item's folder has (verification, plan, progress, handoffs,
+    audit), so it cannot drift from them.
+
+    Args:
+        root: Repository root.
+
+    Returns:
+        Always 0: the view is informative.
+    """
     base = root / "docs/deuda"
     if not base.exists():
         print("docs/deuda/ no existe: ningún ítem en curso.")
@@ -482,11 +510,11 @@ def estado(root: Path) -> int:
         if prog.exists():
             progress = read_progress(prog)
             if progress.state == "done":
-                parts.append("ejecutado (todas las fases); pendiente de PR o mezclado")
+                parts.append(STATE_DONE)
             elif progress.state == "unreadable":
-                parts.append("progress.json ilegible")
+                parts.append(STATE_UNREADABLE)
             else:
-                parts.append(f"en ejecución (objetivo: {progress.target or '?'})")
+                parts.append(STATE_RUNNING.format(target=progress.target or "?"))
         handoffs = sorted(p.stem.split("-", 1)[1] for p in d.glob("handoff-*.md"))
         if handoffs:
             parts.append("handoffs: " + ", ".join(handoffs))
@@ -500,10 +528,222 @@ def estado(root: Path) -> int:
     return 0
 
 
+def git_last_commit_date(root: Path, rel: str) -> date | None:
+    """Return the date of the last commit that touched a file (``git log -1 --format=%cs``).
+
+    Args:
+        root: Repository root; git runs there.
+        rel: Path relative to ``root``.
+
+    Returns:
+        The committer date, or ``None`` if git is missing, fails (not a repository) or the file
+        has no history (untracked, shallow clone).
+    """
+    try:
+        result = subprocess.run(
+            ["git", "log", "-1", "--format=%cs", "--", rel],
+            cwd=root,
+            capture_output=True,
+            text=True,
+        )
+    except FileNotFoundError:
+        return None
+    out = result.stdout.strip()
+    if result.returncode != 0 or not out:
+        return None
+    return date.fromisoformat(out)
+
+
+def git_is_dirty(root: Path, rel: str) -> bool | None:
+    """Tell whether a file has uncommitted changes (``git status --porcelain``).
+
+    Args:
+        root: Repository root; git runs there.
+        rel: Path relative to ``root``.
+
+    Returns:
+        ``True`` with changes, ``False`` without them, ``None`` if git is missing or fails.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "status", "--porcelain", "--", rel],
+            cwd=root,
+            capture_output=True,
+            text=True,
+        )
+    except FileNotFoundError:
+        return None
+    if result.returncode != 0:
+        return None
+    return bool(result.stdout.strip())
+
+
+VERSION_RE = re.compile(
+    r"^> \*\*Versión (\d+)\.(\d+) — (\d{1,2}) (ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic)"
+    r" (\d{4})\.\*\*"
+)
+"""Version line of a living document (ADR-0007 point 3): ``> **Versión X.Y — D mmm AAAA.**``."""
+
+ADR_0007_START = date(2026, 10, 28)
+"""ADR-0007 point 5: a file last committed on or before this day may lack a version line."""
+
+WARN_DIRTY = "cambios sin commitear: la versión se sube en el cierre"
+WARN_UNVERIFIABLE = "no verificable (git no disponible o archivo sin historia)"
+"""R6 warnings: printed under ``Avisos:``, they never change the exit code."""
+
+
+class VersionLine(NamedTuple):
+    """The version line of a file: its date, its 1-based line number and its text."""
+
+    when: date
+    n: int
+    line: str
+
+
+def read_version(root: Path, rel: str) -> VersionLine | None:
+    """Find the version line of a file (ADR-0007 point 3).
+
+    Args:
+        root: Repository root.
+        rel: Path relative to ``root``.
+
+    Returns:
+        The first line matching ``VERSION_RE``, or ``None`` if there is none or its date does not
+        exist (``31 nov``): an impossible date is not a valid version line.
+    """
+    for n, line in numbered_lines(root, rel):
+        m = VERSION_RE.match(line)
+        if m:
+            try:
+                when = date(int(m.group(5)), _MONTHS.index(m.group(4)) + 1, int(m.group(3)))
+            except ValueError:
+                return None
+            return VersionLine(when, n, line)
+    return None
+
+
+def rule_version_header(
+    root: Path,
+    errors: list[str],
+    warnings: list[str],
+    *,
+    last_commit_date: Callable[[Path, str], date | None] = git_last_commit_date,
+    is_dirty: Callable[[Path, str], bool | None] = git_is_dirty,
+) -> None:
+    """R6 (``--cierre``): no version line of the scope files predates its file's last commit.
+
+    A file without a version line is an error only if its last commit is after
+    ``ADR_0007_START`` (ADR-0007 point 5). Uncommitted changes and an unavailable git are
+    warnings, never errors: the version goes up once a day, at closing time, and a shallow clone
+    must not turn red.
+
+    Args:
+        root: Repository root.
+        errors: Accumulator for blocking findings.
+        warnings: Accumulator for findings that never change the exit code.
+        last_commit_date: Injected git query (tests pass a fake; nothing spawns a process).
+        is_dirty: Injected git query for uncommitted changes.
+    """
+    for rel in scope_files(root):
+        last = last_commit_date(root, rel)
+        if is_dirty(root, rel):
+            warnings.append(f"{rel}: R6: {WARN_DIRTY}")
+        if last is None:
+            warnings.append(f"{rel}: R6: {WARN_UNVERIFIABLE}")
+            continue
+        version = read_version(root, rel)
+        if version is None:
+            if last > ADR_0007_START:
+                errors.append(f"{rel}: R6: sin línea de versión (ADR-0007)")
+        elif version.when < last:
+            message = f"encabezado de versión ({version.when}) anterior al último commit ({last})"
+            errors.append(_error(rel, version.n, "R6", message, version.line))
+
+
+DAY_CELL_RE = re.compile(
+    r"^(Lun|Mar|Mié|Jue|Vie|Sáb|Dom) (\d{1,2})"
+    r"(?: (ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic))?"
+)
+"""First cell of a PLAN §3 row: weekday, day and, when the row names it, the month."""
+
+CLOSE_MARK_RE = re.compile(r"^[✔◐✘] \d{1,2}$")
+"""``Cierre`` cell of a closed day: done, partial or nothing done, plus its log's day number."""
+
+
+def _cells(line: str) -> list[str]:
+    return [c.strip() for c in line.strip().strip("|").split("|")]
+
+
+def _dated_rows(lines: list[tuple[int, str]], start_year: int) -> list[tuple[int, str, date, str]]:
+    """Rows of the tables that have a ``Cierre`` column, with their date and ``Cierre`` cell.
+
+    The first line of each table is its header and resets month and year: the month is inherited
+    from the last row that names it, and the year starts at ``start_year`` and goes up when the
+    month goes back. Rows without a date (``(se fecha …)``, separator) or before any month is
+    named are skipped, and so is an impossible date.
+    """
+    rows: list[tuple[int, str, date, str]] = []
+    close_idx: int | None = None
+    month: int | None = None
+    year = start_year
+    in_table = False
+    for n, line in lines:
+        if not line.startswith("|"):
+            in_table = False
+            continue
+        cells = _cells(line)
+        if not in_table:
+            in_table = True
+            close_idx = cells.index("Cierre") if "Cierre" in cells else None
+            month, year = None, start_year
+            continue
+        m = DAY_CELL_RE.match(cells[0])
+        if close_idx is None or m is None:
+            continue
+        if m.group(3):
+            named = _MONTHS.index(m.group(3)) + 1
+            if month is not None and named < month:
+                year += 1
+            month = named
+        if month is None:
+            continue
+        try:
+            day = date(year, month, int(m.group(2)))
+        except ValueError:
+            continue
+        rows.append((n, line, day, cells[close_idx] if close_idx < len(cells) else ""))
+    return rows
+
+
+def rule_closed_days_marked(
+    root: Path, errors: list[str], *, today: Callable[[], date] = date.today
+) -> None:
+    """R7 (``--cierre``): every PLAN §3 row dated before today carries its closing mark.
+
+    The mark is ``[✔◐✘] N`` in the ``Cierre`` column (ADR-0008 point 6); today's row needs none
+    yet. The year of the first row is the year of PLAN's version line.
+
+    Args:
+        root: Repository root.
+        errors: Accumulator; a PLAN without a version line is a single error and stops the rule.
+        today: Injected clock (tests pass a fixed date).
+    """
+    rel = "docs/PLAN.md"
+    version = read_version(root, rel)
+    if version is None:
+        errors.append(f"{rel}: R7: sin línea de versión: el año de PLAN §3 no se puede inferir")
+        return
+    now = today()
+    for n, line, day, close in _dated_rows(lines_inside(root, rel, {"3"}), version.when.year):
+        if day < now and not CLOSE_MARK_RE.match(close):
+            errors.append(_error(rel, n, "R7", "fila de PLAN §3 cerrada sin marca en Cierre", line))
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the CLI parser.
 
-    Unknown flags, and more than one informative command at once, make argparse exit with code 2.
+    Unknown flags, and more than one mode at once (``--cierre`` or an informative command), make
+    argparse exit with code 2.
 
     Returns:
         The parser.
@@ -512,9 +752,15 @@ def build_parser() -> argparse.ArgumentParser:
         prog="check_docs.py", description="Compuerta de coherencia de la documentación."
     )
     parser.add_argument("--root", type=Path, default=REPO_ROOT, help="raíz del repositorio")
-    informative = parser.add_mutually_exclusive_group()
-    informative.add_argument("--estado", action="store_true", help="estado derivado de cada ítem")
-    informative.add_argument(
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument(
+        "--cierre",
+        action="store_true",
+        dest="closing",
+        help="además R6 versión y R7 cierres (usa git y la fecha de hoy)",
+    )
+    mode.add_argument("--estado", action="store_true", help="estado derivado de cada ítem")
+    mode.add_argument(
         "--copias",
         nargs="?",
         const="",
@@ -523,7 +769,7 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="DUEÑO",
         help="citas de forma fija, opcionalmente solo las de un dueño",
     )
-    informative.add_argument(
+    mode.add_argument(
         "--huerfanas",
         action="store_true",
         dest="orphans",
@@ -533,7 +779,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Run the blocking rules R1-R5, or one informative command (``--estado``, R8, R9).
+    """Run the blocking rules R1-R5 (plus R6-R7 with ``--cierre``) or one informative command.
 
     Args:
         argv: Arguments without the program name; ``None`` reads ``sys.argv``.
@@ -555,6 +801,7 @@ def main(argv: list[str] | None = None) -> int:
             print(entry)
         return 0
     errors: list[str] = []
+    warnings: list[str] = []
     for rule in (
         rule_commands,
         rule_no_schedule_days,
@@ -563,15 +810,22 @@ def main(argv: list[str] | None = None) -> int:
         rule_deadline,
     ):
         rule(root, errors)
+    if args.closing:
+        rule_version_header(root, errors, warnings)
+        rule_closed_days_marked(root, errors)
+    if warnings:
+        print("Avisos:")
+        for w in warnings:
+            print(f"  - {w}")
     if errors:
         print("Documentación desincronizada:")
         for e in errors:
             print(f"  - {e}")
         return 1
-    print(
-        "Documentación coherente (reglas: R1 comandos, R2 fechas de cronograma, R3 bloques, "
-        "R4 decisiones, R5 deadline)."
-    )
+    rules = "R1 comandos, R2 fechas de cronograma, R3 bloques, R4 decisiones, R5 deadline"
+    if args.closing:
+        rules += " + cierre: R6 versión, R7 cierres"
+    print(f"Documentación coherente (reglas: {rules}).")
     return 0
 
 

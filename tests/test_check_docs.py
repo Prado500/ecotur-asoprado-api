@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import importlib
 import json
+import subprocess
 import sys
 from collections.abc import Callable
+from datetime import date
 from pathlib import Path
+from unittest.mock import call, create_autospec
 
 import pytest
 
@@ -357,7 +360,13 @@ def test_main_fails_on_each_new_rule(
 
 @pytest.mark.parametrize(
     "argv",
-    [["--estado", "--huerfanas"], ["--copias", "--estado"], ["--huerfanas", "--copias", "X"]],
+    [
+        ["--estado", "--huerfanas"],
+        ["--copias", "--estado"],
+        ["--huerfanas", "--copias", "X"],
+        ["--cierre", "--estado"],
+        ["--huerfanas", "--cierre"],
+    ],
 )
 def test_informative_flags_are_mutually_exclusive(argv: list[str]) -> None:
     with pytest.raises(SystemExit) as exc:
@@ -505,14 +514,32 @@ def test_estado_all_completed_and_null_target(
     rel = "docs/deuda/X/progress.json"
     root = make_repo(tmp_path, {rel: _progress(None, ["completed", "completed"])})
     assert check_docs.read_progress(root / rel) == check_docs.Progress("done", None)
-    assert "?" not in _estado_line(root, "X", capsys)
+    line = _estado_line(root, "X", capsys)
+    assert "?" not in line
+    assert check_docs.STATE_DONE in line
+    assert check_docs.STATE_UNREADABLE not in line
 
 
 def test_estado_in_progress(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     rel = "docs/deuda/X/progress.json"
     root = make_repo(tmp_path, {rel: _progress("Fase_B", ["completed", "pending"])})
     assert check_docs.read_progress(root / rel) == check_docs.Progress("running", "Fase_B")
-    assert "Fase_B" in _estado_line(root, "X", capsys)
+    line = _estado_line(root, "X", capsys)
+    assert "Fase_B" in line
+    assert check_docs.STATE_RUNNING.format(target="Fase_B") in line
+
+
+def test_estado_non_utf8_progress_is_unreadable(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root = make_repo(tmp_path)
+    path = root / "docs/deuda/X/progress.json"
+    path.parent.mkdir(parents=True)
+    path.write_bytes(b'{"current_target": "\xff"}')
+    assert check_docs.read_progress(path) == check_docs.Progress("unreadable", None)
+    line = _estado_line(root, "X", capsys)
+    assert check_docs.STATE_UNREADABLE in line
+    assert check_docs.STATE_DONE not in line
 
 
 @pytest.mark.parametrize(
@@ -537,4 +564,399 @@ def test_read_progress_edges(
 def test_estado_on_real_repo_be01(capsys: pytest.CaptureFixture[str]) -> None:
     progress = ROOT / "docs/deuda/BE-01/progress.json"
     assert check_docs.read_progress(progress) == check_docs.Progress("done", None)
-    assert "?" not in _estado_line(ROOT, "BE-01", capsys)
+    line = _estado_line(ROOT, "BE-01", capsys)
+    assert "?" not in line
+    assert check_docs.STATE_DONE in line
+    assert check_docs.STATE_UNREADABLE not in line
+
+
+# --- git helpers: real functions over a mocked process boundary (no process is spawned) ---
+
+
+def _completed(returncode: int, stdout: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.CompletedProcess(args=[], returncode=returncode, stdout=stdout, stderr="")
+
+
+@pytest.mark.parametrize(
+    ("outcome", "expected"),
+    [
+        (_completed(0, "2026-11-01\n"), date(2026, 11, 1)),
+        (_completed(128, ""), None),
+        (_completed(0, ""), None),
+        (FileNotFoundError(), None),
+    ],
+    ids=["committed", "not-a-repo", "no-history", "git-missing"],
+)
+def test_git_last_commit_date(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    outcome: subprocess.CompletedProcess[str] | Exception,
+    expected: date | None,
+) -> None:
+    run = create_autospec(subprocess.run, return_value=outcome)
+    if isinstance(outcome, Exception):
+        run.side_effect = outcome
+    monkeypatch.setattr(subprocess, "run", run)
+    assert check_docs.git_last_commit_date(tmp_path, "docs/PLAN.md") == expected
+    run.assert_called_once_with(
+        ["git", "log", "-1", "--format=%cs", "--", "docs/PLAN.md"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+    )
+
+
+@pytest.mark.parametrize(
+    ("outcome", "expected"),
+    [
+        (_completed(0, " M docs/PLAN.md\n"), True),
+        (_completed(0, ""), False),
+        (_completed(128, ""), None),
+        (FileNotFoundError(), None),
+    ],
+    ids=["modified", "clean", "not-a-repo", "git-missing"],
+)
+def test_git_is_dirty(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    outcome: subprocess.CompletedProcess[str] | Exception,
+    expected: bool | None,
+) -> None:
+    run = create_autospec(subprocess.run, return_value=outcome)
+    if isinstance(outcome, Exception):
+        run.side_effect = outcome
+    monkeypatch.setattr(subprocess, "run", run)
+    assert check_docs.git_is_dirty(tmp_path, "docs/PLAN.md") is expected
+    run.assert_called_once_with(
+        ["git", "status", "--porcelain", "--", "docs/PLAN.md"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+    )
+
+
+# --- R6 (--cierre): version line never older than the file's last commit (ADR-0007) -------
+
+_BEFORE_ADR_0007 = date(2026, 10, 27)  # last commit of every file a test does not target
+
+
+def _version_line(day_month_year: str) -> str:
+    return f"> **Versión 2.0 — {day_month_year}.** Cambios de esta versión: x."
+
+
+def _plan_with_version(day_month_year: str) -> str:
+    return _DEFAULT_FILES["docs/PLAN.md"].replace(
+        "# Plan\n\n", f"# Plan\n\n{_version_line(day_month_year)}\n\n", 1
+    )
+
+
+def _run_r6(
+    root: Path, target: str, last: date | None, dirty: bool | None
+) -> tuple[list[str], list[str]]:
+    def last_commit_date(_root: Path, rel: str) -> date | None:
+        return last if rel == target else _BEFORE_ADR_0007
+
+    def is_dirty(_root: Path, rel: str) -> bool | None:
+        return dirty if rel == target else False
+
+    errors: list[str] = []
+    warnings: list[str] = []
+    check_docs.rule_version_header(
+        root, errors, warnings, last_commit_date=last_commit_date, is_dirty=is_dirty
+    )
+    return errors, warnings
+
+
+@pytest.mark.parametrize("dirty", [False, True])
+def test_r6_flags_header_older_than_last_commit(tmp_path: Path, dirty: bool) -> None:
+    root = make_repo(tmp_path, {"docs/PLAN.md": _plan_with_version("31 oct 2026")})
+    errors, warnings = _run_r6(root, "docs/PLAN.md", date(2026, 11, 1), dirty)
+    assert len(errors) == 1
+    assert errors[0].startswith("docs/PLAN.md:3: R6: ")
+    assert "2026-10-31" in errors[0]
+    assert "2026-11-01" in errors[0]
+    assert len(warnings) == int(dirty)
+    for warning in warnings:
+        assert warning.startswith("docs/PLAN.md: R6: ")
+        assert check_docs.WARN_DIRTY in warning
+
+
+@pytest.mark.parametrize(
+    ("version", "last"),
+    [(None, date(2026, 10, 31)), ("31 nov 2026", date(2026, 11, 1))],
+    ids=["unversioned-after-adr-0007", "impossible-header-date"],
+)
+def test_r6_flags_file_without_valid_version_line(
+    tmp_path: Path, version: str | None, last: date
+) -> None:
+    rel = "docs/sesiones/mentor.md"
+    header = f"{_version_line(version)}\n\n" if version else ""
+    root = make_repo(tmp_path, {rel: f"# Mentor\n\n{header}Prompt.\n"})
+    errors, warnings = _run_r6(root, rel, last, False)
+    assert len(errors) == 1
+    assert errors[0].startswith(f"{rel}: R6: ")
+    assert warnings == []
+
+
+@pytest.mark.parametrize(
+    ("version", "last", "dirty", "warning"),
+    [
+        ("1 nov 2026", date(2026, 11, 1), False, None),
+        ("1 nov 2026", date(2026, 11, 1), True, "WARN_DIRTY"),
+        ("1 nov 2026", date(2026, 10, 31), False, None),
+        (None, date(2026, 10, 27), False, None),
+        (None, date(2026, 10, 28), False, None),
+        ("31 oct 2026", None, None, "WARN_UNVERIFIABLE"),
+    ],
+    ids=[
+        "same-day",
+        "same-day-dirty",
+        "header-newer",
+        "unversioned-before-adr-0007",
+        "unversioned-on-adr-0007-day",
+        "git-unavailable",
+    ],
+)
+def test_r6_accepts_current_header_and_warns_without_failing(
+    tmp_path: Path, version: str | None, last: date | None, dirty: bool | None, warning: str | None
+) -> None:
+    rel = "docs/sesiones/mentor.md"
+    header = f"{_version_line(version)}\n\n" if version else ""
+    root = make_repo(tmp_path, {rel: f"# Mentor\n\n{header}Prompt.\n"})
+    errors, warnings = _run_r6(root, rel, last, dirty)
+    assert errors == []
+    if warning is None:
+        assert warnings == []
+    else:
+        assert len(warnings) == 1
+        assert warnings[0].startswith(f"{rel}: R6: ")
+        assert getattr(check_docs, warning) in warnings[0]
+
+
+def test_r6_asks_git_about_every_scope_file(tmp_path: Path) -> None:
+    root = make_repo(tmp_path, {"docs/sesiones/mentor.md": "# Mentor\n"})
+    last_commit_date = create_autospec(
+        check_docs.git_last_commit_date, return_value=_BEFORE_ADR_0007
+    )
+    is_dirty = create_autospec(check_docs.git_is_dirty, return_value=False)
+    errors: list[str] = []
+    warnings: list[str] = []
+    check_docs.rule_version_header(
+        root, errors, warnings, last_commit_date=last_commit_date, is_dirty=is_dirty
+    )
+    expected = [call(root, rel) for rel in check_docs.scope_files(root)]
+    assert len(expected) == 5  # CONTEXT, PLAN, backlog, sesiones/README and sesiones/mentor
+    assert last_commit_date.call_args_list == expected
+    assert is_dirty.call_args_list == expected
+    assert errors == []
+    assert warnings == []
+
+
+# --- R7 (--cierre): rows of PLAN §3 dated before today carry a closing mark ---------------
+
+# PLAN §3 tables of 1 nov, copied verbatim (`docs/PLAN.md`, lines 94-104 and 117-124).
+_PLAN_CLOSED_DAYS_TABLE = (
+    "| Día | Bloques planeados | Cierre |\n"
+    "|---|---|---|\n"
+    "| Vie 23 oct | Aprobación del plan, backlog, CONTEXT/PLAN; tooling y línea base "
+    "| ✔ 23 |\n"
+    "| Sáb 24 | Flujo agéntico v1; `B-BE01` | ◐ 24 |\n"
+    "| Dom 25 | (media jornada) PR docs+tooling, ADR-0004, `/deuda-verificar BE-01` |"
+    " ◐ 25 |\n"
+    "| Lun 26 | `B-BE01`, `B-FORMATO`, `B-CI`, `B-HIGIENE` | ✘ 26 |\n"
+    "| Mar 27 | `B-BE01`; `B-FORMATO`, `B-CI`, `B-S1` | ◐ 27 |\n"
+    "| Mié 28 | `B-S1`, `B-TESTS`, `B-RESERVAS` (esquema) | ✘ 28 |\n"
+    "| Jue 29 | `B-RESERVAS`, `B-PAGOS` | ✘ 29 |\n"
+    "| Vie 30 | `B-PAGOS`, `B-ORDEN` | ✘ 30 |\n"
+    "| Sáb 31 | PLAN 2.0; `B-CHECK-DOCS` | ◐ 31 |\n"
+)
+
+_PLAN_BOGOTA_TABLE = (
+    "| Día | Mañana | Tarde | Cierre |\n"
+    "|---|---|---|---|\n"
+    "| Dom 1 nov | **Comodín (fuera del presupuesto):** `B-CHECK-DOCS m1`: especifica"
+    "ción a dos manos, implementación por Claude Code, `/pr` | — | |\n"
+    "| Lun 2 | `B-FORMATO`+`B-CI` m1 (dos PR propios). A primera hora: mensaje a Marí"
+    "a Paula para fijar la reunión | `B-HIGIENE m1` (tope: 1 m; lo que no quepa → dec"
+    "isión nueva en backlog hoy). **Hito: reunión con María Paula, 17:00–18:00, dentr"
+    "o de esta media jornada**; si ella no puede, mar 3 a la misma hora (come una hor"
+    "a de `B-S1 m2`); sus filas se escriben al cierre de ese día (PLAN 2.1) | |\n"
+    "| Mar 3 | `B-S1 m1` | `B-S1 m2` | |\n"
+    "| Mié 4 | `B-TESTS m1` | `B-TESTS m2` | |\n"
+    "| Jue 5 | `B-TESTS m3` | `B-TESTS m4`: cierre; compuerta medida (verde → ADR-000"
+    "5 superado). Si no cierra, el cierre de hoy lo declara deslizado y mueve la fila"
+    "; no se arrastra en silencio | |\n"
+    "| Vie 6 | **Colchón (1 m):** si no se gastó, `B-HIGIENE m2` devuelto | Cierre de"
+    " Bogotá: PR `develop` → `staging` `[señal]`; dump de la base de staging para `B-"
+    "RESERVAS m2`; preparar mudanza. **Fechar la semana siguiente (Prado)** | |\n"
+)
+
+_TABLE_HEAD = "| Día | Mañana | Cierre |\n|---|---|---|\n"
+
+
+def _plan_section_3(tables: str, year: int = 2026) -> str:
+    return (
+        f"# Plan\n\n{_version_line(f'31 oct {year}')}\n\n## 2b. Bloques\n\n"
+        "| Bloque | Qué |\n|---|---|\n| `B-FUTURO` | Lo que sale |\n| `B-HIGIENE` | Limpieza |\n\n"
+        f"## 3. Cronograma\n\n{tables}\n## 4. Después\n\nnada\n"
+    )
+
+
+def _run_r7(root: Path, today: date) -> list[str]:
+    errors: list[str] = []
+    check_docs.rule_closed_days_marked(root, errors, today=lambda: today)
+    return errors
+
+
+@pytest.mark.parametrize(
+    ("tables", "today", "row"),
+    [
+        (
+            _TABLE_HEAD + "| Dom 1 nov | comodín | ✔ 1 |\n| Lun 2 | algo | |\n| Mar 3 | hoy | |\n",
+            date(2026, 11, 3),
+            "| Lun 2 | algo | |",
+        ),
+        (
+            _TABLE_HEAD + "| Jue 31 dic | x | ✔ 31 |\n| Sáb 2 ene | y | |\n",
+            date(2027, 1, 5),
+            "| Sáb 2 ene | y | |",
+        ),
+        (
+            _TABLE_HEAD
+            + "| Jue 31 dic | x | ✔ 31 |\n| Vie 1 ene | y | ✔ 1 |\n\n### Otra\n\n"
+            + _TABLE_HEAD
+            + "| Lun 2 nov | z | |\n",
+            date(2026, 11, 3),
+            "| Lun 2 nov | z | |",
+        ),
+        (_TABLE_HEAD + "| Lun 2 nov | z |\n", date(2026, 11, 3), "| Lun 2 nov | z |"),
+    ],
+    ids=["past-row-unmarked", "year-by-monotony", "year-resets-per-table", "missing-cierre-cell"],
+)
+def test_r7_flags_closed_row_without_mark(
+    tmp_path: Path, tables: str, today: date, row: str
+) -> None:
+    content = _plan_section_3(tables)
+    root = make_repo(tmp_path, {"docs/PLAN.md": content})
+    errors = _run_r7(root, today)
+    assert len(errors) == 1
+    assert errors[0].startswith(f"docs/PLAN.md:{content.splitlines().index(row) + 1}: R7: ")
+
+
+@pytest.mark.parametrize(
+    ("mark", "flagged"),
+    [
+        ("✔ 2", False),
+        ("◐ 2", False),
+        ("✘ 2", False),
+        ("", True),
+        ("—", True),
+        ("✔", True),
+        ("✔ 2 (bitácora)", True),
+    ],
+)
+def test_r7_closing_mark_shape(tmp_path: Path, mark: str, flagged: bool) -> None:
+    tables = _TABLE_HEAD + f"| Lun 2 nov | algo | {mark} |\n"
+    root = make_repo(tmp_path, {"docs/PLAN.md": _plan_section_3(tables)})
+    assert len(_run_r7(root, date(2026, 11, 3))) == int(flagged)
+
+
+@pytest.mark.parametrize(
+    ("tables", "today"),
+    [
+        (_PLAN_BOGOTA_TABLE, date(2026, 11, 1)),
+        (_PLAN_CLOSED_DAYS_TABLE, date(2026, 11, 1)),
+        (_TABLE_HEAD + "| Jue 31 dic | x | ✔ 31 |\n| Sáb 2 ene | y | ✔ 2 |\n", date(2026, 12, 31)),
+        (_TABLE_HEAD + "| Jue 31 dic | x | ✔ 31 |\n| Sáb 2 ene | y | |\n", date(2026, 12, 31)),
+        (_TABLE_HEAD + "| (se fecha el vie 6) | | |\n", date(2027, 6, 1)),
+        (
+            _TABLE_HEAD
+            + "| Vie 30 oct | x | ✔ 30 |\n\n### Otra\n\n"
+            + _TABLE_HEAD
+            + "| Lun 2 | y | |\n",
+            date(2026, 11, 3),
+        ),
+        ("| Día | Qué |\n|---|---|\n| Lun 2 nov | algo |\n", date(2027, 6, 1)),
+    ],
+    ids=[
+        "bogota-table-today",
+        "closed-days-table-today",
+        "year-jump-marked",
+        "year-jump-future-row",
+        "unscheduled-row",
+        "month-resets-per-table",
+        "no-cierre-column",
+    ],
+)
+def test_r7_accepts_marked_future_or_undated_rows(tmp_path: Path, tables: str, today: date) -> None:
+    root = make_repo(tmp_path, {"docs/PLAN.md": _plan_section_3(tables)})
+    assert _run_r7(root, today) == []
+
+
+def test_r7_ignores_tables_outside_section_3(tmp_path: Path) -> None:
+    content = _plan_section_3("nada\n").replace(
+        "## 4. Después\n\nnada\n", "## 4. Después\n\n" + _TABLE_HEAD + "| Lun 2 nov | x | |\n"
+    )
+    root = make_repo(tmp_path, {"docs/PLAN.md": content})
+    assert _run_r7(root, date(2027, 6, 1)) == []
+
+
+def test_r7_without_plan_version_reports_once(tmp_path: Path) -> None:
+    content = _plan_section_3(_TABLE_HEAD + "| Lun 2 nov | x | |\n| Mar 3 | y | |\n")
+    content = content.replace(_version_line("31 oct 2026"), "Sin versión.")
+    root = make_repo(tmp_path, {"docs/PLAN.md": content})
+    errors = _run_r7(root, date(2027, 6, 1))
+    assert len(errors) == 1
+    assert errors[0].startswith("docs/PLAN.md: R7: ")
+
+
+# --- --cierre wires R6-R7; the default pass never runs git nor reads the clock -------------
+
+
+def test_default_pass_runs_no_git_and_no_closing_rules(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    run = create_autospec(subprocess.run)
+    monkeypatch.setattr(subprocess, "run", run)
+    tables = _TABLE_HEAD + "| Lun 2 nov | algo | |\n"
+    root = make_repo(tmp_path, {"docs/PLAN.md": _plan_section_3(tables, year=2025)})
+    assert check_docs.main(["--root", str(root)]) == 0
+    run.assert_not_called()
+    out = capsys.readouterr().out
+    assert ": R6: " not in out
+    assert ": R7: " not in out
+
+
+def test_cierre_flag_fails_on_unmarked_closed_day_and_keeps_warnings(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    run = create_autospec(subprocess.run, side_effect=FileNotFoundError)
+    monkeypatch.setattr(subprocess, "run", run)
+    tables = _TABLE_HEAD + "| Lun 2 nov | algo | |\n"
+    root = make_repo(tmp_path, {"docs/PLAN.md": _plan_section_3(tables, year=2025)})
+    assert check_docs.main(["--cierre", "--root", str(root)]) == 1
+    out = capsys.readouterr().out
+    scope = check_docs.scope_files(root)
+    assert out.count(": R7: ") == 1
+    assert out.count(f": R6: {check_docs.WARN_UNVERIFIABLE}") == len(scope)
+    assert run.call_count == 2 * len(scope)
+    run.assert_any_call(
+        ["git", "log", "-1", "--format=%cs", "--", "docs/PLAN.md"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+    )
+
+
+def test_cierre_flag_runs_r6_r7(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # Real git on a directory that is not a repository; the ceiling keeps git from finding a
+    # repository above tmp_path. Never run against the real repo: it would depend on the tree.
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path.parent))
+    root = make_repo(tmp_path, {"docs/PLAN.md": _plan_with_version("31 oct 2026")})
+    assert check_docs.main(["--cierre", "--root", str(root)]) == 0
+    out = capsys.readouterr().out
+    unverifiable = [ln for ln in out.splitlines() if check_docs.WARN_UNVERIFIABLE in ln]
+    assert len(unverifiable) == len(check_docs.scope_files(root))
+    assert ": R7: " not in out
