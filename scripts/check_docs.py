@@ -16,10 +16,20 @@ Reglas bloqueantes (todas deterministas, todas con exit code):
   R5. La fecha de entrega más cercana (±40 caracteres) a "entrega", "deadline" o "fecha límite"
       en PLAN, backlog y sesiones es la de CONTEXT §2 y la línea lleva la cita `(CONTEXT §2)`.
 
+Comandos informativos (exit 0 siempre; excluyentes entre sí y con la pasada bloqueante):
+  R8. `--copias [DUEÑO]`: cada cita de forma fija del alcance, por archivo y línea; con DUEÑO, solo
+      las citas cuyo interior empieza por ese texto (`CONTEXT §2`, `ADR-0008`, `backlog`).
+  R9. `--huerfanas`: candidatos a hecho duro (fecha, `N %`, `N tests`, `N h`, `N m`) en líneas sin
+      ninguna cita, fuera de las secciones dueñas (CONTEXT §0, §2, §4, §6; PLAN §3, §6, §7) y de
+      las líneas de versión. Ruidoso por diseño: lo revisa la sesión que cierra.
+  `--estado`: vista derivada de cada ítem de `docs/deuda/`; `progress.json` se lee como JSON.
+
 Uso:
-  python scripts/check_docs.py              reglas bloqueantes (exit 1 si hay errores)
-  python scripts/check_docs.py --estado     vista derivada del estado de cada ítem
-  python scripts/check_docs.py --root RUTA  raíz del repo (por defecto, la de este script)
+  python scripts/check_docs.py                  reglas bloqueantes (exit 1 si hay errores)
+  python scripts/check_docs.py --estado         vista derivada del estado de cada ítem
+  python scripts/check_docs.py --copias [DUEÑO] citas de forma fija por dueño
+  python scripts/check_docs.py --huerfanas      candidatos a hecho duro sin cita
+  python scripts/check_docs.py --root RUTA      raíz del repo (por defecto, la de este script)
 
 Lo invoca también scripts/check.py como paso "docs". Un flag desconocido termina con exit 2.
 """
@@ -27,10 +37,11 @@ Lo invoca también scripts/check.py como paso "docs". Un flag desconocido termin
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import sys
 from pathlib import Path
-from typing import NamedTuple
+from typing import Literal, NamedTuple
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -135,12 +146,22 @@ def scope_files(root: Path) -> list[str]:
     Returns:
         Repo-relative POSIX paths: CONTEXT, PLAN, backlog, then ``docs/sesiones/*.md`` sorted.
     """
-    sesiones = sorted(p.relative_to(root).as_posix() for p in (root / "docs/sesiones").glob("*.md"))
-    return ["docs/CONTEXT.md", "docs/PLAN.md", "docs/backlog.md", *sesiones]
+    session_prompts = sorted(
+        p.relative_to(root).as_posix() for p in (root / "docs/sesiones").glob("*.md")
+    )
+    return ["docs/CONTEXT.md", "docs/PLAN.md", "docs/backlog.md", *session_prompts]
 
 
 def numbered_lines(root: Path, rel: str) -> list[tuple[int, str]]:
-    """Return every ``(line number, line)`` pair of a file, 1-based."""
+    """Return every line of a file with its number.
+
+    Args:
+        root: Repository root.
+        rel: Path relative to ``root``.
+
+    Returns:
+        ``(line number, line)`` pairs in file order, numbered from 1.
+    """
     return list(enumerate(read(root, rel).splitlines(), 1))
 
 
@@ -342,6 +363,109 @@ def rule_deadline(root: Path, errors: list[str]) -> None:
                     errors.append(_error(rel, n, "R5", message, line))
 
 
+def list_citations(root: Path, prefix: str) -> list[str]:
+    """R8: list every fixed-form citation of the scope files, optionally filtered by owner.
+
+    This is the mechanism of the closing ritual (ADR-0008 point 6): when an owner changes, every
+    line that cites it is reviewed.
+
+    Args:
+        root: Repository root.
+        prefix: Owner filter matched against the citation interior (no backticks or
+            parentheses); ``""`` lists everything.
+
+    Returns:
+        ``file:line: (citation): "text"`` entries ordered by file, line and position.
+    """
+    entries: list[str] = []
+    for rel in scope_files(root):
+        for n, line in numbered_lines(root, rel):
+            for m in CITATION_RE.finditer(line):
+                citation = m.group(0).strip("`")
+                if citation[1:-1].startswith(prefix):
+                    entries.append(f'{rel}:{n}: {citation}: "{line[:80]}"')
+    return entries
+
+
+_ORPHAN_RES = (
+    DATE_RE,
+    re.compile(r"\b\d{1,3} %"),
+    re.compile(r"\b\d+ tests\b"),
+    re.compile(r"\b\d+ h\b"),
+    re.compile(r"\b\d+ m\b"),
+)
+"""Shapes of a hard fact: a date, a percentage, a test count, hours, half-days."""
+
+_OWNER_SECTIONS = {"docs/CONTEXT.md": {"0", "2", "4", "6"}, "docs/PLAN.md": {"3", "6", "7"}}
+"""Sections that own hard facts (CONTEXT §0 is the fact-to-owner map): never orphans."""
+
+
+def list_orphans(root: Path) -> list[str]:
+    """R9: list candidate hard facts written on a line without any citation.
+
+    Informative and noisy by design (ADR-0008 addendum, point 3): it never fails the gate.
+
+    Args:
+        root: Repository root.
+
+    Returns:
+        One ``file:line: … "fragment" — "line"`` entry per offending line, with the first
+        fragment of the line, ordered by file and line.
+    """
+    entries: list[str] = []
+    for rel in scope_files(root):
+        owned = _OWNER_SECTIONS.get(rel)
+        lines = lines_outside(root, rel, owned) if owned else numbered_lines(root, rel)
+        for n, line in lines:
+            if "**Versión " in line or CITATION_RE.search(line):
+                continue
+            clean = strip_citations(line)
+            found = [m for pattern in _ORPHAN_RES if (m := pattern.search(clean))]
+            if found:
+                first = min(found, key=lambda m: m.start()).group(0)
+                entries.append(
+                    f'{rel}:{n}: candidato a hecho duro sin cita: "{first}" — "{line[:80]}"'
+                )
+    return entries
+
+
+class Progress(NamedTuple):
+    """What ``--estado`` derives from a ``progress.json``."""
+
+    state: Literal["done", "running", "unreadable"]
+    target: str | None
+
+
+def read_progress(path: Path) -> Progress:
+    """Parse a ``progress.json`` into its derived state.
+
+    An item is ``done`` when ``current_target`` is null and it has phases, all ``completed``
+    (executed, pending PR or merged); any other readable object is ``running``.
+
+    Args:
+        path: Path of the ``progress.json`` file.
+
+    Returns:
+        The state and, when it is a string, the current target.
+    """
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return Progress("unreadable", None)
+    if not isinstance(data, dict):
+        return Progress("unreadable", None)
+    raw_target = data.get("current_target")
+    phases = data.get("phases")
+    if (
+        raw_target is None
+        and isinstance(phases, dict)
+        and phases
+        and all(isinstance(p, dict) and p.get("status") == "completed" for p in phases.values())
+    ):
+        return Progress("done", None)
+    return Progress("running", raw_target if isinstance(raw_target, str) else None)
+
+
 def estado(root: Path) -> int:
     """Derived (never stored) view of each in-progress item, according to its folder."""
     base = root / "docs/deuda"
@@ -356,8 +480,13 @@ def estado(root: Path) -> int:
             parts.append("planeado")
         prog = d / "progress.json"
         if prog.exists():
-            m = re.search(r'"current_target"\s*:\s*"([^"]+)"', prog.read_text(encoding="utf-8"))
-            parts.append(f"en ejecución (objetivo: {m.group(1) if m else '?'})")
+            progress = read_progress(prog)
+            if progress.state == "done":
+                parts.append("ejecutado (todas las fases); pendiente de PR o mezclado")
+            elif progress.state == "unreadable":
+                parts.append("progress.json ilegible")
+            else:
+                parts.append(f"en ejecución (objetivo: {progress.target or '?'})")
         handoffs = sorted(p.stem.split("-", 1)[1] for p in d.glob("handoff-*.md"))
         if handoffs:
             parts.append("handoffs: " + ", ".join(handoffs))
@@ -372,28 +501,59 @@ def estado(root: Path) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    """Build the CLI parser; unknown flags make argparse exit with code 2."""
+    """Build the CLI parser.
+
+    Unknown flags, and more than one informative command at once, make argparse exit with code 2.
+
+    Returns:
+        The parser.
+    """
     parser = argparse.ArgumentParser(
         prog="check_docs.py", description="Compuerta de coherencia de la documentación."
     )
     parser.add_argument("--root", type=Path, default=REPO_ROOT, help="raíz del repositorio")
-    parser.add_argument("--estado", action="store_true", help="estado derivado de cada ítem")
+    informative = parser.add_mutually_exclusive_group()
+    informative.add_argument("--estado", action="store_true", help="estado derivado de cada ítem")
+    informative.add_argument(
+        "--copias",
+        nargs="?",
+        const="",
+        default=None,
+        dest="citation_owner",
+        metavar="DUEÑO",
+        help="citas de forma fija, opcionalmente solo las de un dueño",
+    )
+    informative.add_argument(
+        "--huerfanas",
+        action="store_true",
+        dest="orphans",
+        help="candidatos a hecho duro sin cita",
+    )
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Run the blocking rules R1-R5, or ``--estado``.
+    """Run the blocking rules R1-R5, or one informative command (``--estado``, R8, R9).
 
     Args:
         argv: Arguments without the program name; ``None`` reads ``sys.argv``.
 
     Returns:
-        Exit code: 0 coherent, 1 desynchronized. Invalid arguments exit 2 (argparse).
+        Exit code: 0 coherent or informative command, 1 desynchronized. Invalid arguments exit
+        2 (argparse).
     """
     args = build_parser().parse_args(argv)
     root: Path = args.root
     if args.estado:
         return estado(root)
+    if args.citation_owner is not None:
+        for entry in list_citations(root, args.citation_owner):
+            print(entry)
+        return 0
+    if args.orphans:
+        for entry in list_orphans(root):
+            print(entry)
+        return 0
     errors: list[str] = []
     for rule in (
         rule_commands,

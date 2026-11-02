@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+import json
 import sys
 from collections.abc import Callable
 from pathlib import Path
@@ -47,9 +48,6 @@ def make_repo(tmp_path: Path, files: dict[str, str] | None = None) -> Path:
 def test_unknown_flag_exits_2() -> None:
     with pytest.raises(SystemExit) as exc:
         check_docs.main(["--inexistente"])
-    assert exc.value.code == 2
-    with pytest.raises(SystemExit) as exc:
-        check_docs.main(["--copias"])
     assert exc.value.code == 2
 
 
@@ -179,7 +177,8 @@ def test_r2_flags_schedule_dates(
         "reunión lun 17:00–18:00",
         "(bitácora 2026-10-29)",
         "`(bitácora 2026-10-29)` y nada más",
-        "4 m, 90 %, 7 horas",
+        "dom 90 % de avance",
+        "sáb 7 horas o menos",
         "Dom 4 m de trabajo",
     ],
 )
@@ -351,3 +350,191 @@ def test_main_fails_on_each_new_rule(
     assert out.count(f": {rule_id}: ") == 1
     others = {"R1", "R2", "R3", "R4", "R5"} - {rule_id}
     assert not any(f": {r}: " in out for r in others)
+
+
+# --- informative commands: mutually exclusive, never part of the blocking pass ------------
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [["--estado", "--huerfanas"], ["--copias", "--estado"], ["--huerfanas", "--copias", "X"]],
+)
+def test_informative_flags_are_mutually_exclusive(argv: list[str]) -> None:
+    with pytest.raises(SystemExit) as exc:
+        check_docs.main(argv)
+    assert exc.value.code == 2
+
+
+# --- R8: --copias lists fixed-form citations per owner ------------------------------------
+
+_CITATIONS_REPO = {
+    "docs/backlog.md": "# Backlog\n\nHito (CONTEXT §2).\n",
+    "docs/sesiones/x.md": "# X\nVer `(PLAN §3)`.\nY (ADR-0008).\n",
+}
+
+
+def _location_and_citation(entry: str) -> str:
+    return entry.split(' "', 1)[0]
+
+
+def test_copias_lists_all_and_filters(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    root = make_repo(tmp_path, _CITATIONS_REPO)
+    everything = check_docs.list_citations(root, "")
+    assert [_location_and_citation(e) for e in everything] == [
+        "docs/backlog.md:3: (CONTEXT §2):",
+        "docs/sesiones/x.md:2: (PLAN §3):",
+        "docs/sesiones/x.md:3: (ADR-0008):",
+    ]
+    filtered = check_docs.list_citations(root, "CONTEXT §2")
+    assert [_location_and_citation(e) for e in filtered] == ["docs/backlog.md:3: (CONTEXT §2):"]
+
+    assert check_docs.main(["--copias", "--root", str(root)]) == 0
+    assert capsys.readouterr().out.splitlines() == everything
+    assert check_docs.main(["--copias", "CONTEXT §2", "--root", str(root)]) == 0
+    assert capsys.readouterr().out.splitlines() == filtered
+
+
+def test_copias_lists_every_citation_of_a_line_in_order(tmp_path: Path) -> None:
+    root = make_repo(tmp_path, {"docs/sesiones/x.md": "a (ADR-0008) b `(backlog BE-01)` c\n"})
+    entries = check_docs.list_citations(root, "")
+    assert [_location_and_citation(e) for e in entries] == [
+        "docs/sesiones/x.md:1: (ADR-0008):",
+        "docs/sesiones/x.md:1: (backlog BE-01):",
+    ]
+
+
+def test_copias_ignores_out_of_scope(tmp_path: Path) -> None:
+    root = make_repo(tmp_path, {**_CITATIONS_REPO, "docs/adr/x.md": "Dato (CONTEXT §2).\n"})
+    entries = check_docs.list_citations(root, "")
+    assert len(entries) == 3
+    assert not any(e.startswith("docs/adr/") for e in entries)
+
+
+def test_copias_with_unknown_owner_lists_nothing(tmp_path: Path) -> None:
+    root = make_repo(tmp_path, _CITATIONS_REPO)
+    assert check_docs.list_citations(root, "AGENTS") == []
+
+
+# --- R9: --huerfanas lists candidate hard facts without a citation ------------------------
+
+
+def test_huerfanas_reports_uncited_fact_only(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root = make_repo(
+        tmp_path,
+        {
+            "docs/sesiones/x.md": (
+                "# X\ncobertura 93 %\n93 % (PLAN §6)\n**Versión 1.0 — 1 nov 2026.**\n"
+            ),
+            "docs/PLAN.md": _DEFAULT_FILES["docs/PLAN.md"] + "\n## 6. Métricas\n\n93 %\n",
+            "docs/adr/x.md": "cobertura 93 %\n",
+        },
+    )
+    orphans = check_docs.list_orphans(root)
+    assert len(orphans) == 1
+    assert orphans[0].startswith("docs/sesiones/x.md:2: ")
+    assert '"93 %"' in orphans[0]
+
+    assert check_docs.main(["--huerfanas", "--root", str(root)]) == 0
+    assert capsys.readouterr().out.splitlines() == orphans
+
+
+@pytest.mark.parametrize(
+    ("line", "fragment"),
+    [
+        ("Medido el 24 oct.", "24 oct"),
+        ("Suite de 219 tests.", "219 tests"),
+        ("Capacidad de 7 h.", "7 h"),
+        ("Bloque de 1 m.", "1 m"),
+        ("Avance 90 %, luego 4 m.", "90 %"),
+    ],
+)
+def test_huerfanas_patterns_report_first_fragment(tmp_path: Path, line: str, fragment: str) -> None:
+    root = make_repo(tmp_path, {"docs/backlog.md": f"# Backlog\n\n{line}\n"})
+    orphans = check_docs.list_orphans(root)
+    assert len(orphans) == 1
+    assert orphans[0].startswith("docs/backlog.md:3: ")
+    assert f'"{fragment}"' in orphans[0]
+
+
+@pytest.mark.parametrize(
+    ("rel", "num"),
+    [
+        ("docs/CONTEXT.md", "0"),
+        ("docs/CONTEXT.md", "2"),
+        ("docs/CONTEXT.md", "4"),
+        ("docs/CONTEXT.md", "6"),
+        ("docs/PLAN.md", "3"),
+        ("docs/PLAN.md", "6"),
+        ("docs/PLAN.md", "7"),
+    ],
+)
+def test_huerfanas_skips_owner_sections(tmp_path: Path, rel: str, num: str) -> None:
+    content = f"# Doc\n\n## {num}. Dueño\n\ncobertura 93 %\n\n## 9. Otra\n\nnada\n"
+    root = make_repo(tmp_path, {rel: content})
+    assert check_docs.list_orphans(root) == []
+
+
+def test_huerfanas_reports_non_owner_section(tmp_path: Path) -> None:
+    content = "# Doc\n\n## 2. Dueño\n\n93 %\n\n## 8. Próximo paso\n\ncobertura 93 %\n"
+    root = make_repo(tmp_path, {"docs/CONTEXT.md": content})
+    orphans = check_docs.list_orphans(root)
+    assert len(orphans) == 1
+    assert orphans[0].startswith("docs/CONTEXT.md:9: ")
+
+
+# --- --estado: progress.json parsed as JSON ------------------------------------------------
+
+
+def _progress(target: str | None, statuses: list[str]) -> str:
+    phases = {f"Fase_{chr(65 + i)}": {"status": s, "commit": None} for i, s in enumerate(statuses)}
+    return json.dumps({"current_target": target, "phases": phases})
+
+
+def _estado_line(root: Path, item: str, capsys: pytest.CaptureFixture[str]) -> str:
+    assert check_docs.main(["--estado", "--root", str(root)]) == 0
+    lines = [ln for ln in capsys.readouterr().out.splitlines() if ln.startswith(f"{item}:")]
+    assert len(lines) == 1
+    return lines[0]
+
+
+def test_estado_all_completed_and_null_target(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    rel = "docs/deuda/X/progress.json"
+    root = make_repo(tmp_path, {rel: _progress(None, ["completed", "completed"])})
+    assert check_docs.read_progress(root / rel) == check_docs.Progress("done", None)
+    assert "?" not in _estado_line(root, "X", capsys)
+
+
+def test_estado_in_progress(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    rel = "docs/deuda/X/progress.json"
+    root = make_repo(tmp_path, {rel: _progress("Fase_B", ["completed", "pending"])})
+    assert check_docs.read_progress(root / rel) == check_docs.Progress("running", "Fase_B")
+    assert "Fase_B" in _estado_line(root, "X", capsys)
+
+
+@pytest.mark.parametrize(
+    ("content", "expected"),
+    [
+        (_progress(None, ["completed", "pending"]), ("running", None)),
+        (_progress(None, []), ("running", None)),
+        (_progress("Fase_A", ["completed"]), ("running", "Fase_A")),
+        ("{not json", ("unreadable", None)),
+        ("[1, 2]", ("unreadable", None)),
+    ],
+    ids=["null-target-unfinished", "null-target-no-phases", "target-set", "invalid", "not-object"],
+)
+def test_read_progress_edges(
+    tmp_path: Path, content: str, expected: tuple[str, str | None]
+) -> None:
+    path = tmp_path / "progress.json"
+    path.write_text(content, encoding="utf-8")
+    assert check_docs.read_progress(path) == check_docs.Progress(*expected)
+
+
+def test_estado_on_real_repo_be01(capsys: pytest.CaptureFixture[str]) -> None:
+    progress = ROOT / "docs/deuda/BE-01/progress.json"
+    assert check_docs.read_progress(progress) == check_docs.Progress("done", None)
+    assert "?" not in _estado_line(ROOT, "BE-01", capsys)
