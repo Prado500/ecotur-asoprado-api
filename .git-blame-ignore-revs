@@ -1,0 +1,8 @@
+# Commits that only reformatted or autofixed the codebase (PR #70, B-FORMATO).
+# Used by `git blame` once enabled: git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# style(lint): apply ruff safe autofixes
+7f99c7fe32d37bc2a995b5ce57e32046e258d464
+
+# style(format): run ruff format over the repository
+e73fd25f6d689537c299ba67973f22662acc48e3
