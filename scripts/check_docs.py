@@ -1,15 +1,20 @@
 """Compuerta de documentación: el flujo y el plan no pueden desincronizarse en silencio.
 
-Reglas (todas deterministas, todas con exit code):
-  1. Cada comando de `.claude/commands/*.md` aparece en la tabla de comandos de
-     `docs/sesiones/README.md`, y cada comando de esa tabla existe como archivo.
-  2. `docs/backlog.md` y `docs/CONTEXT.md` no mencionan días del cronograma ("día N"): los días
-     viven solo en `docs/PLAN.md` §3 (CONTEXT §0).
-  3. Todo bloque `B-XXX` referenciado en backlog, CONTEXT o PLAN existe en la tabla de bloques de
-     PLAN §2b.
-  4. La columna "Decisión" del backlog usa solo el vocabulario cerrado: Entra · B-x /
-     Sale → B-FUTURO / Decidir en B-x / Hecho (…). El estado intermedio no se escribe: se deriva
-     con `--estado`.
+Alcance (ADR-0008 punto 7): `docs/CONTEXT.md`, `docs/PLAN.md`, `docs/backlog.md` y
+`docs/sesiones/*.md`. Las citas de forma fija (ADR-0008 punto 3) se quitan de la línea antes de
+evaluar R2 y R5.
+
+Reglas bloqueantes (todas deterministas, todas con exit code):
+  R1. Cada comando de `.claude/commands/*.md` aparece en la tabla de comandos de
+      `docs/sesiones/README.md`, y cada comando de esa tabla existe como archivo.
+  R2. Ninguna fecha de cronograma ("día N" o día de la semana + número) fuera de PLAN §3: los días
+      viven solo ahí (CONTEXT §0). PLAN se evalúa fuera de su sección 3; el resto, entero.
+  R3. Todo bloque `B-XXX` citado en el alcance existe en la tabla de bloques de PLAN §2b.
+  R4. La columna "Decisión" del backlog usa solo el vocabulario cerrado: Entra · B-x /
+      Sale → B-FUTURO / Decidir en B-x, con un calificador opcional entre paréntesis sin bloques
+      ni vocabulario dentro, o Hecho (referencia). El estado intermedio se deriva con `--estado`.
+  R5. La fecha de entrega más cercana (±40 caracteres) a "entrega", "deadline" o "fecha límite"
+      en PLAN, backlog y sesiones es la de CONTEXT §2 y la línea lleva la cita `(CONTEXT §2)`.
 
 Uso:
   python scripts/check_docs.py              reglas bloqueantes (exit 1 si hay errores)
@@ -119,6 +124,30 @@ def strip_citations(line: str) -> str:
     return CITATION_RE.sub("", line)
 
 
+def scope_files(root: Path) -> list[str]:
+    """Return the living documents every content rule reads (ADR-0008 point 7).
+
+    ``docs/bitacora``, ``docs/adr`` and ``docs/deuda`` are dated, immutable records and stay out.
+
+    Args:
+        root: Repository root.
+
+    Returns:
+        Repo-relative POSIX paths: CONTEXT, PLAN, backlog, then ``docs/sesiones/*.md`` sorted.
+    """
+    sesiones = sorted(p.relative_to(root).as_posix() for p in (root / "docs/sesiones").glob("*.md"))
+    return ["docs/CONTEXT.md", "docs/PLAN.md", "docs/backlog.md", *sesiones]
+
+
+def numbered_lines(root: Path, rel: str) -> list[tuple[int, str]]:
+    """Return every ``(line number, line)`` pair of a file, 1-based."""
+    return list(enumerate(read(root, rel).splitlines(), 1))
+
+
+def _error(rel: str, n: int, rule: str, message: str, line: str) -> str:
+    return f'{rel}:{n}: {rule}: {message} — "{line[:80]}"'
+
+
 def rule_commands(root: Path, errors: list[str]) -> None:
     """R1: commands on disk and in the README table must match in both directions."""
     readme = read(root, "docs/sesiones/README.md")
@@ -136,39 +165,64 @@ def rule_commands(root: Path, errors: list[str]) -> None:
         )
 
 
-def rule_no_days(root: Path, errors: list[str]) -> None:
-    """R2: backlog and CONTEXT do not mention schedule days ("día N")."""
-    for p in ("docs/backlog.md", "docs/CONTEXT.md"):
-        for n, line in enumerate(read(root, p).splitlines(), 1):
-            if re.search(r"\bdías? [0-9]", line):
-                errors.append(
-                    f'{p}:{n}: R2: día del cronograma fuera de docs/PLAN.md §3 — "{line[:80]}"'
-                )
+SCHEDULE_DAY_RE = re.compile(
+    r"\b(?:d[ií]a|lun(?:es)?|mar(?:tes)?|mi[eé](?:rcoles)?|jue(?:ves)?|vie(?:rnes)?"
+    r"|s[aá]b(?:ado)?|dom(?:ingo)?)\.?\s+\d{1,2}\b(?![:\d])(?!\s*(?:h(?:oras?)?|m|%)(?!\w))",
+    re.IGNORECASE,
+)
+"""Schedule date: "día N" or a weekday plus a number; clock times and units are not dates."""
+
+
+def rule_no_schedule_days(root: Path, errors: list[str]) -> None:
+    """R2: no schedule date outside PLAN §3 (CONTEXT §0: days live only there).
+
+    Headings are included (ADR-0008 point 1: a hard fact never goes in a title). Citations are
+    stripped first, so ``(bitácora 2026-10-29)`` is not a date.
+
+    Args:
+        root: Repository root.
+        errors: Accumulator; one entry per offending line.
+    """
+    for rel in scope_files(root):
+        lines = (
+            lines_outside(root, rel, {"3"}) if rel == "docs/PLAN.md" else numbered_lines(root, rel)
+        )
+        for n, line in lines:
+            if SCHEDULE_DAY_RE.search(strip_citations(line)):
+                errors.append(_error(rel, n, "R2", "fecha de cronograma fuera de PLAN §3", line))
 
 
 def rule_blocks(root: Path, errors: list[str]) -> None:
-    """R3: every ``B-X`` block mentioned is defined in the PLAN §2b table."""
+    """R3: every ``B-X`` block mentioned in the scope files is defined in PLAN §2b."""
     plan = read(root, "docs/PLAN.md")
     defined = set(re.findall(r"^\| `(B-[A-Z0-9-]+)` \|", plan, flags=re.M))
-    for p in ("docs/backlog.md", "docs/CONTEXT.md", "docs/PLAN.md"):
-        for n, line in enumerate(read(root, p).splitlines(), 1):
-            for b in set(re.findall(r"B-[A-Z0-9-]+", line)):
+    for rel in scope_files(root):
+        for n, line in numbered_lines(root, rel):
+            for b in sorted(set(re.findall(r"B-[A-Z0-9-]+", line))):
                 if b not in defined:
-                    errors.append(
-                        f"{p}:{n}: R3: bloque `{b}` no está definido en docs/PLAN.md §2b "
-                        f'— "{line[:80]}"'
-                    )
+                    message = f"bloque `{b}` no está definido en docs/PLAN.md §2b"
+                    errors.append(_error(rel, n, "R3", message, line))
 
+
+_QUAL = r"\((?:(?!B-[A-Z0-9-]+)(?!\b(?:Entra|Sale|Decidir|Hecho)\b)[^()])*\)"
+"""One parenthesized qualifier: no block, no vocabulary word, no nested parentheses."""
 
 DECISION_RE = re.compile(
-    r"^\*\*(Entra · `B-[A-Z0-9-]+`|Sale → `B-FUTURO`|Decidir en `B-[A-Z0-9-]+`|Hecho \().*\*\*$"
+    r"^\*\*(?:(?:Entra · `B-[A-Z0-9-]+`|Sale → `B-FUTURO`|Decidir en `B-[A-Z0-9-]+`)"
+    r"(?: " + _QUAL + r")?|Hecho " + _QUAL + r")\*\*$"
 )
+"""Closed vocabulary of the backlog "Decisión" cell: exactly one block, nothing else."""
 
 
 def rule_decisions(root: Path, errors: list[str]) -> None:
     """R4: validate the backlog "Decisión" column against the closed vocabulary.
 
-    Rows are split with `" | "`: no cell is assumed to contain an inner ` | `.
+    Exactly one block and at most one qualifier without blocks inside (``DECISION_RE``). Rows
+    are split with `" | "`: no cell is assumed to contain an inner ` | `.
+
+    Args:
+        root: Repository root.
+        errors: Accumulator; one entry per offending cell.
     """
     dec_idx = None
     for n, line in enumerate(read(root, "docs/backlog.md").splitlines(), 1):
@@ -187,9 +241,105 @@ def rule_decisions(root: Path, errors: list[str]) -> None:
         if len(cells) <= dec_idx:
             continue
         if not DECISION_RE.match(cells[dec_idx]):
-            errors.append(
-                f'docs/backlog.md:{n}: R4: decisión fuera del vocabulario — "{cells[dec_idx][:80]}"'
-            )
+            message = "decisión fuera del vocabulario (un bloque, un calificador sin bloques)"
+            errors.append(_error("docs/backlog.md", n, "R4", message, cells[dec_idx]))
+
+
+DATE_RE = re.compile(
+    r"\b(\d{1,2})(?: de)? (ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic)[a-z]*\b"
+    r"(?:(?: de)? (\d{4}))?|\b(\d{4})-(\d{2})-(\d{2})\b"
+)
+"""A written date ("11 de enero de 2027", "11 ene") or an ISO date."""
+
+TRIGGER_RE = re.compile(r"\b(?:entrega|deadline|fecha l[ií]mite)\b", re.IGNORECASE)
+_MONTHS = ("ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic")
+_WINDOW = 40
+
+
+class DayMonth(NamedTuple):
+    """A date reduced to what R5 compares: day, three-letter month and optional year."""
+
+    day: int
+    month: str
+    year: int | None
+
+
+def _day_month(m: re.Match[str]) -> DayMonth:
+    if m.group(4):
+        month = int(m.group(5))
+        name = _MONTHS[month - 1] if 1 <= month <= 12 else ""
+        return DayMonth(int(m.group(6)), name, int(m.group(4)))
+    year = m.group(3)
+    return DayMonth(int(m.group(1)), m.group(2), int(year) if year else None)
+
+
+def _same_date(found: DayMonth, deadline: DayMonth) -> bool:
+    if (found.day, found.month) != (deadline.day, deadline.month):
+        return False
+    return found.year is None or deadline.year is None or found.year == deadline.year
+
+
+def _nearest_date(dates: list[re.Match[str]], trigger: re.Match[str]) -> re.Match[str] | None:
+    """Date whose start is closest to the trigger span, within ±40 characters of it."""
+
+    def distance(d: re.Match[str]) -> int:
+        return max(trigger.start() - d.start(), d.start() - trigger.end(), 0)
+
+    near = [d for d in dates if distance(d) <= _WINDOW]
+    return min(near, key=distance) if near else None
+
+
+def read_deadline(root: Path) -> tuple[DayMonth | None, int | None]:
+    """Read the deadline from its owner, the ``| **Deadline** |`` row of CONTEXT §2.
+
+    Args:
+        root: Repository root.
+
+    Returns:
+        ``(deadline, line number)``; the deadline is ``None`` if the row or its date is missing,
+        and the line number is ``None`` if the row is missing.
+    """
+    for n, line in numbered_lines(root, "docs/CONTEXT.md"):
+        if line.startswith("| **Deadline** |"):
+            m = DATE_RE.search(strip_citations(line))
+            return (_day_month(m) if m else None), n
+    return None, None
+
+
+def rule_deadline(root: Path, errors: list[str]) -> None:
+    """R5: a delivery date outside CONTEXT equals the CONTEXT §2 deadline and cites it.
+
+    For each trigger ("entrega", "deadline", "fecha límite") the evaluated date is the one whose
+    start is nearest to the trigger, within ±40 characters on either side; with no date in that
+    window the trigger is not evaluated. A wrong date takes precedence over a missing citation.
+
+    Args:
+        root: Repository root.
+        errors: Accumulator; an unreadable deadline is a single error and stops the rule.
+    """
+    deadline, row = read_deadline(root)
+    if deadline is None:
+        where = "docs/CONTEXT.md" if row is None else f"docs/CONTEXT.md:{row}"
+        errors.append(f"{where}: R5: deadline no legible en CONTEXT §2")
+        return
+    for rel in scope_files(root):
+        if rel == "docs/CONTEXT.md":
+            continue
+        for n, line in numbered_lines(root, rel):
+            clean = strip_citations(line)
+            dates = list(DATE_RE.finditer(clean))
+            if not dates:
+                continue
+            for trigger in TRIGGER_RE.finditer(clean):
+                date_match = _nearest_date(dates, trigger)
+                if date_match is None:
+                    continue
+                if not _same_date(_day_month(date_match), deadline):
+                    message = f'fecha de entrega "{date_match.group(0)}" ≠ deadline de CONTEXT §2'
+                    errors.append(_error(rel, n, "R5", message, line))
+                elif "(CONTEXT §2)" not in line:
+                    message = "fecha de entrega sin cita (CONTEXT §2)"
+                    errors.append(_error(rel, n, "R5", message, line))
 
 
 def estado(root: Path) -> int:
@@ -232,7 +382,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Run the blocking rules, or ``--estado``.
+    """Run the blocking rules R1-R5, or ``--estado``.
 
     Args:
         argv: Arguments without the program name; ``None`` reads ``sys.argv``.
@@ -245,14 +395,23 @@ def main(argv: list[str] | None = None) -> int:
     if args.estado:
         return estado(root)
     errors: list[str] = []
-    for rule in (rule_commands, rule_no_days, rule_blocks, rule_decisions):
+    for rule in (
+        rule_commands,
+        rule_no_schedule_days,
+        rule_blocks,
+        rule_decisions,
+        rule_deadline,
+    ):
         rule(root, errors)
     if errors:
         print("Documentación desincronizada:")
         for e in errors:
             print(f"  - {e}")
         return 1
-    print("Documentación coherente (reglas: R1 comandos, R2 días, R3 bloques, R4 decisiones).")
+    print(
+        "Documentación coherente (reglas: R1 comandos, R2 fechas de cronograma, R3 bloques, "
+        "R4 decisiones, R5 deadline)."
+    )
     return 0
 
 
