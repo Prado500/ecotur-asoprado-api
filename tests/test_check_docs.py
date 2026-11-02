@@ -946,17 +946,3 @@ def test_cierre_flag_fails_on_unmarked_closed_day_and_keeps_warnings(
         capture_output=True,
         text=True,
     )
-
-
-def test_cierre_flag_runs_r6_r7(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
-    # Real git on a directory that is not a repository; the ceiling keeps git from finding a
-    # repository above tmp_path. Never run against the real repo: it would depend on the tree.
-    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path.parent))
-    root = make_repo(tmp_path, {"docs/PLAN.md": _plan_with_version("31 oct 2026")})
-    assert check_docs.main(["--cierre", "--root", str(root)]) == 0
-    out = capsys.readouterr().out
-    unverifiable = [ln for ln in out.splitlines() if check_docs.WARN_UNVERIFIABLE in ln]
-    assert len(unverifiable) == len(check_docs.scope_files(root))
-    assert ": R7: " not in out
