@@ -155,7 +155,7 @@ CONTEXT/PLAN/backlog/sesiones, `.azure-pipelines/`. Los documentos que registran
   - **R2** `rule_no_schedule_days` sustituye a `rule_no_days`: regex de §2 R2 con `re.IGNORECASE`; CONTEXT, backlog y
     `docs/sesiones/*.md` enteros; PLAN con `lines_outside(root, "docs/PLAN.md", {"3"})`; línea con `strip_citations`.
     Mensaje `R2: fecha de cronograma fuera de PLAN §3`.
-  - **R3** `rule_blocks`: alcance = `SCOPE_FILES`; regex sin cambios; mensaje `R3: bloque `B-X` no está definido en
+  - **R3** `rule_blocks`: alcance = `scope_files`; regex sin cambios; mensaje `R3: bloque `B-X` no está definido en
     docs/PLAN.md §2b`.
   - **R4** `DECISION_RE` con `QUAL` tal como en §2 R4; `rule_decisions` conserva la partición por ` | ` y la
     localización por encabezado; mensaje `R4: decisión fuera del vocabulario (un bloque, un calificador sin bloques)`.
@@ -218,11 +218,11 @@ CONTEXT/PLAN/backlog/sesiones, `.azure-pipelines/`. Los documentos que registran
 - **Archivos:** `scripts/check_docs.py`, `tests/test_check_docs.py`.
 - **Cambios exactos:**
   - `--copias [DUEÑO]` (`nargs="?"`, `const=""`): `list_citations(root, prefix: str) -> list[str]` recorre
-    `SCOPE_FILES`, imprime `archivo:línea: <cita>: "<texto[:80]>"` por cada `CITATION_RE` cuyo interior (sin backticks ni
+    `scope_files`, imprime `archivo:línea: <cita>: "<texto[:80]>"` por cada `CITATION_RE` cuyo interior (sin backticks ni
     paréntesis) empiece por `prefix`; orden archivo, línea. Exit 0 siempre.
   - `--huerfanas`: `list_orphans(root) -> list[str]`; patrones `DATE_RE`, `\b\d{1,3} %`, `\b\d+ tests\b`, `\b\d+ h\b`,
     `\b\d+ m\b` sobre la línea sin citas y solo si la original no contiene ninguna cita; excluye con `lines_outside`
-    CONTEXT §0, §2, §4, §6 y PLAN §3, §6, §7, las líneas que contienen `**Versión ` y los archivos fuera de `SCOPE_FILES`.
+    CONTEXT §0, §2, §4, §6 y PLAN §3, §6, §7, las líneas que contienen `**Versión ` y los archivos fuera de `scope_files`.
     Imprime `archivo:línea: candidato a hecho duro sin cita: "<fragmento>" — "<línea[:80]>"`. Exit 0 siempre.
     (La especificación §3 R9 nombra CONTEXT §2, §4, §6; §0 se añade porque es el mapa hecho → dueño y lista hechos por
     diseño; si David prefiere la lista literal, se quita `"0"` y nada más cambia.)
@@ -246,6 +246,12 @@ CONTEXT/PLAN/backlog/sesiones, `.azure-pipelines/`. Los documentos que registran
 - **Fuera de alcance de esta fase:** R6, R7, `--cierre`; convertir huérfanas en error; editar `docs/sesiones/README.md:41`.
 - **Ajuste de tests de la Fase A:** `test_unknown_flag_exits_2` pierde la mitad `main(["--copias"])` (ahora válido) y
   conserva `--inexistente`.
+- **Ajustes de la Fase B (gaps de su auditoría, 1 nov):** (1) en `test_r2_accepts_non_schedule_lines` el caso
+  `"4 m, 90 %, 7 horas"` no lleva día delante y pasaría sin el lookahead (mutación del auditor); se sustituye por dos
+  casos con día: `"dom 90 % de avance"` y `"sáb 7 horas o menos"`. (2) AGENTS §4: la variable local `sesiones` de
+  `scope_files` pasa a `session_prompts`; la docstring de `numbered_lines` gana su sección `Returns`. (3) La función de
+  alcance se llama `scope_files` (ruff `N802` impide `SCOPE_FILES`); esta fase la reutiliza, no crea otra. Los tres van
+  en el commit de C con un párrafo propio en el cuerpo.
 - **Commit:**
   ```
   feat(flow): add --copias and --huerfanas to check_docs.py and fix --estado for finished items
@@ -275,7 +281,7 @@ CONTEXT/PLAN/backlog/sesiones, `.azure-pipelines/`. Los documentos que registran
     "--", rel], cwd=root, capture_output=True, text=True)`; `None` si `returncode != 0`, salida vacía o
     `FileNotFoundError`) y `git_is_dirty(root, rel) -> bool | None` (`git status --porcelain -- rel`).
   - **R6** `rule_version_header(root, errors, warnings, *, last_commit_date=git_last_commit_date, is_dirty=git_is_dirty)`
-    sobre `SCOPE_FILES`; `VERSION_RE` de §3; fecha del encabezado → `date`; `last is None` → aviso `no verificable`;
+    sobre `scope_files`; `VERSION_RE` de §3; fecha del encabezado → `date`; `last is None` → aviso `no verificable`;
     encabezado < último commit → error `R6: encabezado de versión (<fecha>) anterior al último commit (<fecha>)`; sin
     encabezado y último commit > `date(2026, 10, 28)` → error `R6: sin línea de versión (ADR-0007)`; `is_dirty` → aviso
     `cambios sin commitear: la versión se sube en el cierre` (nunca error, nunca suspende la comparación).
@@ -302,6 +308,12 @@ CONTEXT/PLAN/backlog/sesiones, `.azure-pipelines/`. Los documentos que registran
 - **Criterio de aceptación:** tests en verde; `venv/Scripts/python.exe scripts/check_docs.py` (sin `--cierre`) no
   ejecuta `git` (verificable con `grep -n "subprocess" scripts/check_docs.py` solo dentro de las dos funciones `git_*`);
   `… --cierre` sobre el repo real exit 0 hoy (contrastado en el análisis); trinquete igual que B y C.
+- **Ajustes de la Fase C (gaps de su auditoría, 1 nov):** (1) los textos de estado de `estado()` pasan a constantes de
+  módulo (`STATE_DONE`, `STATE_RUNNING`, `STATE_UNREADABLE`…) y `test_estado_on_real_repo_be01` /
+  `test_estado_all_completed_and_null_target` afirman que la línea contiene `STATE_DONE` y no `STATE_UNREADABLE` (hoy un
+  mutante que cambia el texto `done` deja 104 tests en verde); (2) `read_progress` captura `ValueError` (superclase de
+  `JSONDecodeError` y `UnicodeDecodeError`), con un test de archivo no UTF-8 → `STATE_UNREADABLE`; (3) docstring de
+  `estado()` con `Args`/`Returns` (AGENTS §4). Van en el commit de D con un párrafo propio en el cuerpo.
 - **Fuera de alcance de esta fase:** comprobar que exista `docs/bitacora/AAAA-MM-DD.md` por cada marca (opcional en
   la especificación; se deja para `AF-02` si David lo quiere); meter `--cierre` en `scripts/check.py`.
 - **Commit:**
