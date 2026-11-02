@@ -11,62 +11,153 @@ Reglas (todas deterministas, todas con exit code):
      Sale → B-FUTURO / Decidir en B-x / Hecho (…). El estado intermedio no se escribe: se deriva
      con `--estado`.
 
-Uso: python scripts/check_docs.py   (lo invoca también scripts/check.py como paso "docs")
+Uso:
+  python scripts/check_docs.py              reglas bloqueantes (exit 1 si hay errores)
+  python scripts/check_docs.py --estado     vista derivada del estado de cada ítem
+  python scripts/check_docs.py --root RUTA  raíz del repo (por defecto, la de este script)
+
+Lo invoca también scripts/check.py como paso "docs". Un flag desconocido termina con exit 2.
 """
 
 from __future__ import annotations
 
-import os
+import argparse
 import re
 import sys
 from pathlib import Path
+from typing import NamedTuple
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-os.chdir(REPO_ROOT)
 
 for _stream in (sys.stdout, sys.stderr):
     if hasattr(_stream, "reconfigure"):
         _stream.reconfigure(encoding="utf-8", errors="replace")
 
 
-def read(p: str) -> str:
-    return Path(p).read_text(encoding="utf-8")
+def read(root: Path, rel: str) -> str:
+    """Read a repo-relative text file as UTF-8.
+
+    Args:
+        root: Repository root (injected so rules can run against fixtures).
+        rel: Path relative to ``root``.
+
+    Returns:
+        The file content.
+    """
+    return (root / rel).read_text(encoding="utf-8")
 
 
-def rule_commands(errors: list[str]) -> None:
-    readme = read("docs/sesiones/README.md")
-    on_disk = {p.stem for p in Path(".claude/commands").glob("*.md")}
+class Section(NamedTuple):
+    """A level-2 heading of a markdown file and its 1-based inclusive line bounds."""
+
+    num: str
+    title: str
+    start: int
+    end: int
+
+
+_SECTION_RE = re.compile(r"^## (\d+[a-z]?)\. (.*)$")
+
+
+def sections(text: str) -> list[Section]:
+    """Split a document into its ``## N.`` sections.
+
+    ``###`` headings belong to the preceding ``##``. ``end`` is the line before the next ``##``
+    heading, or the last line of the document.
+
+    Args:
+        text: Markdown content.
+
+    Returns:
+        Sections in document order.
+    """
+    lines = text.splitlines()
+    found: list[tuple[str, str, int]] = []
+    for n, line in enumerate(lines, 1):
+        m = _SECTION_RE.match(line)
+        if m:
+            found.append((m.group(1), m.group(2), n))
+    result: list[Section] = []
+    for i, (num, title, start) in enumerate(found):
+        end = found[i + 1][2] - 1 if i + 1 < len(found) else len(lines)
+        result.append(Section(num, title, start, end))
+    return result
+
+
+def _split_by_sections(
+    root: Path, rel: str, nums: set[str]
+) -> tuple[list[tuple[int, str]], list[tuple[int, str]]]:
+    text = read(root, rel)
+    chosen = [s for s in sections(text) if s.num in nums]
+    inside: list[tuple[int, str]] = []
+    outside: list[tuple[int, str]] = []
+    for n, line in enumerate(text.splitlines(), 1):
+        target = inside if any(s.start <= n <= s.end for s in chosen) else outside
+        target.append((n, line))
+    return inside, outside
+
+
+def lines_inside(root: Path, rel: str, nums: set[str]) -> list[tuple[int, str]]:
+    """Return ``(line number, line)`` pairs that fall inside the given sections."""
+    return _split_by_sections(root, rel, nums)[0]
+
+
+def lines_outside(root: Path, rel: str, nums: set[str]) -> list[tuple[int, str]]:
+    """Return ``(line number, line)`` pairs that fall outside the given sections."""
+    return _split_by_sections(root, rel, nums)[1]
+
+
+CITATION_RE = re.compile(
+    r"`?\((?:CONTEXT §\d+[a-z]?|PLAN §\d+[a-z]?|backlog (?:[A-Z]+-\d+|[A-Z]\d+)|ADR-\d{4}"
+    r"|AGENTS §\d+[a-z]?|README de sesiones|bitácora \d{4}-\d{2}-\d{2}"
+    r"|docs/deuda/(?:[A-Z]+-\d+|[A-Z]\d+)/)\)`?"
+)
+
+
+def strip_citations(line: str) -> str:
+    """Remove fixed-form citations (ADR-0008 point 3), with or without backticks."""
+    return CITATION_RE.sub("", line)
+
+
+def rule_commands(root: Path, errors: list[str]) -> None:
+    """R1: commands on disk and in the README table must match in both directions."""
+    readme = read(root, "docs/sesiones/README.md")
+    on_disk = {p.stem for p in (root / ".claude/commands").glob("*.md")}
     in_readme = set(re.findall(r"^\| `/([a-z-]+)", readme, flags=re.M))
     for c in sorted(on_disk - in_readme):
         errors.append(
-            f"comando `/{c}` existe en .claude/commands/ pero no está en la tabla de "
+            f"R1: comando `/{c}` existe en .claude/commands/ pero no está en la tabla de "
             "docs/sesiones/README.md"
         )
     for c in sorted(in_readme - on_disk):
         errors.append(
-            f"la tabla de docs/sesiones/README.md menciona `/{c}` pero no existe "
+            f"R1: la tabla de docs/sesiones/README.md menciona `/{c}` pero no existe "
             f".claude/commands/{c}.md"
         )
 
 
-def rule_no_days(errors: list[str]) -> None:
+def rule_no_days(root: Path, errors: list[str]) -> None:
+    """R2: backlog and CONTEXT do not mention schedule days ("día N")."""
     for p in ("docs/backlog.md", "docs/CONTEXT.md"):
-        for n, line in enumerate(read(p).splitlines(), 1):
+        for n, line in enumerate(read(root, p).splitlines(), 1):
             if re.search(r"\bdías? [0-9]", line):
                 errors.append(
-                    f"{p}:{n}: menciona un día del cronograma; los días viven solo en "
-                    "docs/PLAN.md §3"
+                    f'{p}:{n}: R2: día del cronograma fuera de docs/PLAN.md §3 — "{line[:80]}"'
                 )
 
 
-def rule_blocks(errors: list[str]) -> None:
-    plan = read("docs/PLAN.md")
+def rule_blocks(root: Path, errors: list[str]) -> None:
+    """R3: every ``B-X`` block mentioned is defined in the PLAN §2b table."""
+    plan = read(root, "docs/PLAN.md")
     defined = set(re.findall(r"^\| `(B-[A-Z0-9-]+)` \|", plan, flags=re.M))
     for p in ("docs/backlog.md", "docs/CONTEXT.md", "docs/PLAN.md"):
-        for n, line in enumerate(read(p).splitlines(), 1):
+        for n, line in enumerate(read(root, p).splitlines(), 1):
             for b in set(re.findall(r"B-[A-Z0-9-]+", line)):
                 if b not in defined:
-                    errors.append(f"{p}:{n}: bloque `{b}` no está definido en docs/PLAN.md §2b")
+                    errors.append(
+                        f"{p}:{n}: R3: bloque `{b}` no está definido en docs/PLAN.md §2b "
+                        f'— "{line[:80]}"'
+                    )
 
 
 DECISION_RE = re.compile(
@@ -74,13 +165,13 @@ DECISION_RE = re.compile(
 )
 
 
-def rule_decisions(errors: list[str]) -> None:
-    """Valida la columna "Decisión" del backlog contra el vocabulario cerrado.
+def rule_decisions(root: Path, errors: list[str]) -> None:
+    """R4: validate the backlog "Decisión" column against the closed vocabulary.
 
-    Las filas se parten con `split(" | ")`: se asume que ninguna celda contiene ` | ` interno.
+    Rows are split with `" | "`: no cell is assumed to contain an inner ` | `.
     """
     dec_idx = None
-    for n, line in enumerate(read("docs/backlog.md").splitlines(), 1):
+    for n, line in enumerate(read(root, "docs/backlog.md").splitlines(), 1):
         if line.startswith("| ") and "Decisión" in [
             c.strip() for c in line.strip().strip("|").split("|")
         ]:
@@ -97,13 +188,13 @@ def rule_decisions(errors: list[str]) -> None:
             continue
         if not DECISION_RE.match(cells[dec_idx]):
             errors.append(
-                f"docs/backlog.md:{n}: decisión fuera del vocabulario: {cells[dec_idx][:70]}"
+                f'docs/backlog.md:{n}: R4: decisión fuera del vocabulario — "{cells[dec_idx][:80]}"'
             )
 
 
-def estado() -> int:
-    """Vista derivada (nunca almacenada) del estado de cada ítem en curso, según su carpeta."""
-    base = Path("docs/deuda")
+def estado(root: Path) -> int:
+    """Derived (never stored) view of each in-progress item, according to its folder."""
+    base = root / "docs/deuda"
     if not base.exists():
         print("docs/deuda/ no existe: ningún ítem en curso.")
         return 0
@@ -130,23 +221,40 @@ def estado() -> int:
     return 0
 
 
-def main() -> int:
-    if "--estado" in sys.argv:
-        return estado()
+def build_parser() -> argparse.ArgumentParser:
+    """Build the CLI parser; unknown flags make argparse exit with code 2."""
+    parser = argparse.ArgumentParser(
+        prog="check_docs.py", description="Compuerta de coherencia de la documentación."
+    )
+    parser.add_argument("--root", type=Path, default=REPO_ROOT, help="raíz del repositorio")
+    parser.add_argument("--estado", action="store_true", help="estado derivado de cada ítem")
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Run the blocking rules, or ``--estado``.
+
+    Args:
+        argv: Arguments without the program name; ``None`` reads ``sys.argv``.
+
+    Returns:
+        Exit code: 0 coherent, 1 desynchronized. Invalid arguments exit 2 (argparse).
+    """
+    args = build_parser().parse_args(argv)
+    root: Path = args.root
+    if args.estado:
+        return estado(root)
     errors: list[str] = []
     for rule in (rule_commands, rule_no_days, rule_blocks, rule_decisions):
-        rule(errors)
+        rule(root, errors)
     if errors:
         print("Documentación desincronizada:")
         for e in errors:
             print(f"  - {e}")
         return 1
-    print(
-        "Documentación coherente: comandos ↔ README, sin días fuera del cronograma, "
-        "bloques definidos, decisiones en vocabulario."
-    )
+    print("Documentación coherente (reglas: R1 comandos, R2 días, R3 bloques, R4 decisiones).")
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(sys.argv[1:]))
