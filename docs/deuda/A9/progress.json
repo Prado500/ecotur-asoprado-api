@@ -1,10 +1,10 @@
 {
   "plan_file": "docs/deuda/A9/plan.md",
-  "current_target": "Fase_A",
+  "current_target": "Fase_B",
   "phases": {
     "Fase_A": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "4f70b0e c369e3f",
       "description": "UserResponse sobre BaseModel sin reglas ni title-case (mismos campos, orden, defaults y from_attributes); commit style previo que deja app/schemas/user.py en 0 de ruff; 7 tests (14 casos) en tests/test_user_response.py. El campo commit guarda los dos hashes: '<style> <fix>'."
     },
     "Fase_B": {
@@ -14,6 +14,6 @@
     }
   },
   "allowed_statuses": ["pending", "partial", "completed"],
-  "last_handoff": "Estado inicial. Plan pendiente de aprobación humana.",
+  "last_handoff": "Fase_A completada (4f70b0e style + c369e3f fix): UserResponse sobre BaseModel; 347 passed, cobertura 93.05 %, ruff 86, mypy 44, 4 KEPT; OpenAPI 0-1 vacío y 1-2 solo UserResponse. Ver handoff-Fase_A.md.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
