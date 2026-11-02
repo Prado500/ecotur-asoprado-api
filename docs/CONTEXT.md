@@ -5,9 +5,11 @@
 > Vive en `docs/CONTEXT.md`. Regla de oro: **el contexto vive en archivos versionados, no en la
 > memoria de un chat.** Cada sesión nueva arranca leyendo esto.
 >
-> **Versión 3.2 — 1 nov 2026.** Cambios de esta versión: bitácora `2026-11-01` (§8: sin días de cronograma ni fecha en el
+> **Versión 3.3 — 2 nov 2026.** Cambios de esta versión: bitácora `2026-11-02` (§8: `B-FORMATO` y `B-CI` hechos, modo
+> de ejecución de `B-HIGIENE` por decidir, cierre documental del día, pendientes de flujo nuevos; §4: medición tras
+> `B-CI`). Versiones anteriores: `2026-11-01` (3.2: bitácora `2026-11-01` (§8: sin días de cronograma ni fecha en el
 > título, nombra bloques y cita a PLAN §3; al cierre, §8 tras AF-01 y §8.4 sin `--estado`; §0: regla de addenda en
-> ADR-0009; §6: fila de ADR-0009). Versiones anteriores:
+> ADR-0009; §6: fila de ADR-0009);
 > `2026-10-31` (3.1: §0: fila de composición ampliada con la secuencia de medias jornadas; §2: fila de deadline al día,
 > regla de los domingos comodín y del fechado semanal, roles del equipo con el de David; §7: reparto propuesto a María
 > Paula; §8);
@@ -157,10 +159,12 @@ por el equipo humano"**. → El flujo agéntico es parte de la metodología decl
   el transporte HTTP, ni directa ni transitivamente.
 - **No existe:** módulo de reservas (ver ADR-0002), pagos, paginación, recuperación de
   contraseña, `display_order` de paquetes.
-- **Tests y calidad:** pytest + mocks; 293 tests (1 nov: 145 de `app` + 148 de `scripts/check_docs.py`, estos
-  fuera de la cobertura), cobertura 93 % de `app` (27 oct; línea base del 24 oct: 116 y 89 %, PLAN §6). Tooling desde el 24 oct: `ruff`, `mypy`, `import-linter`, `pytest-cov`, unidos
-  en `scripts/check.py` (AGENTS §6); la compuerta global sigue en rojo por deuda heredada (ruff 362,
-  mypy 44) y rige el trinquete de ADR-0005 hasta `B-TESTS`. El diagnóstico de la suite (mocks sin
+- **Tests y calidad:** pytest + mocks; 317 tests y cobertura 92,68 % de `app` `(PLAN §6)`. Tooling desde el 24 oct:
+  `ruff`, `mypy`, `import-linter`, `pytest-cov`, unidos en `scripts/check.py` (AGENTS §6); el repositorio está
+  formateado con `ruff format` y los fixes seguros de `ruff` aplicados salvo I001 `(backlog A4)`; la compuerta
+  global sigue en rojo por deuda heredada (ruff y mypy, cifras en `(PLAN §6)`) y rige el trinquete de ADR-0005 hasta
+  `B-TESTS`. El CI ejecuta `check.py` completo con ruff y mypy tolerados (`--soft`) hasta entonces; el piso de
+  cobertura (`fail_under = 92`) sí bloquea. El diagnóstico de la suite (mocks sin
   `spec`, setup duplicado, aserciones sobre texto, sesión ≠ `get_db`, huecos B2/B3/B4) es la fila
   §9/BE-15 del backlog y se corrige en `B-TESTS`.
 - **Deuda y features:** inventario completo con decisión por ítem en `docs/backlog.md`.
@@ -168,7 +172,7 @@ por el equipo humano"**. → El flujo agéntico es parte de la metodología decl
 ### CI/CD e infraestructura (operativa)
 GitHub → Azure DevOps → Azure (Web App for Containers + BD administrada) → Docker Hub.
 Tres entornos (`develop`, `staging`, `main`) con resource group propio. PR → webhook → CI
-(quality gate, hoy solo tests) → merge → CD construye y publica imagen con tag del entorno →
+(`scripts/check.py` completo con `--soft format,ruff,mypy`, desde `B-CI`) → merge → CD construye y publica imagen con tag del entorno →
 la Web App la hala al reiniciar. Operación: 2 clics.
 
 ### Frontend (Flutter, MVVM; web + Android)
@@ -241,25 +245,47 @@ la Web App la hala al reiniciar. Operación: 2 clics.
 
 ## 8. Próximo paso
 
-Dónde estamos (estado al cierre de la bitácora `2026-11-01`): **AF-01 hecho** `(backlog AF-01)`: `scripts/check_docs.py`
-tiene las reglas de ADR-0008 (R1–R5 en la compuerta; R6–R7 con `--cierre`; `--copias`, `--huerfanas`, `--estado`), con
-tests sobre fixtures y dentro de mypy; cuatro fases auditadas con mutación, PR #69 mezclado el 1 nov. ADR-0009 (addenda)
-y segundo addendum de ADR-0008. PLAN 2.1, backlog 1.10, README 1.2. Residuales en la fila AF-02 `(backlog AF-02)`.
-Compuerta global sigue en rojo (ADR-0005 vigente); ningún ítem de deuda en curso. Presupuesto de Bogotá `(PLAN §3)`:
-el comodín del domingo repagó el colchón; la semana arranca con secuencia 9 + 1 m de colchón intacto.
+Dónde estamos (estado a mitad de la bitácora `2026-11-02`, tras los dos primeros bloques de la semana): **`B-FORMATO` y
+`B-CI` hechos** `(PLAN §2b)`: PR #70 (`ruff check --fix` sin I001 + `ruff format`, en dos commits; S4 hecho) y PR #71
+(`check.py --soft`, piso de cobertura `fail_under = 92` con `precision = 2`, CI ejecuta la compuerta completa con
+ruff/mypy tolerados hasta `B-TESTS m4`, `.git-blame-ignore-revs`). La compuerta global sigue en rojo (ADR-0005 vigente;
+cifras en `(PLAN §6)`); el CI del PR sale verde con `(soft)` en el log. Ningún ítem de deuda en curso. Dos hallazgos
+del día con dueño: I001 se aplica al cerrar A4 `(backlog A4)`; el agente rodeó una prohibición de AGENTS §9 con
+plumbing de git (bitácora `2026-11-02`, candidata a fila AF). La revisión línea a línea del `--soft` quedó como 8
+preguntas en `docs/aprendizaje/preguntas.md`.
 
-1. **Ritual de cierre, desde hoy:** paso 3 con `python scripts/check_docs.py --copias "<dueño>"` por dueño tocado y
-   `--cierre` antes del commit de cierre (README de sesiones, paso 3).
-2. **Semana de Bogotá** `(PLAN §3)`: `B-FORMATO`+`B-CI` → `B-HIGIENE` 1 m → `B-S1` → `B-TESTS` → cierre de Bogotá con PR a
-   `staging`, dump de staging para `B-RESERVAS m2` y mudanza. Al arrancar la semana, a primera hora: mensaje a María Paula;
-   la reunión con ella es el hito fechado en PLAN §3. Al cierre del último día trabajado de la semana: fechar la semana de
-   Prado (PLAN 2.1 o la versión que toque).
-3. Prado y régimen final: orden y presupuestos en PLAN §3; secuencias en §2b.
-4. Pendientes de flujo (no urgentes, con dueño): YAML estricto en `check_docs.py`; `/pr` con `#N`; README: compuerta con el venv activo; formalizar en `docs/sesiones/` las reglas del Mentor (solo
-   `git log`; nada fuera de `docs/`; propuesta y permiso antes de escribir); `mentor.md` o el ritual de apertura: conectar
-   la carpeta del repo antes del primer mensaje (volvió a pasar el 31 oct y el 1 nov); la sesión verifica con `git log`
-   que la rama de trabajo contiene el último cierre antes de escribir. Pasan a filas `AF-0x` del backlog cuando se decida
-   atacarlos.
+1. **`B-HIGIENE m1` (media jornada siguiente, `(PLAN §3)`): tope 1 m menos la reunión con María Paula (hito en PLAN §3),
+   ≈ 3 h.** Lo primero, antes de abrir Claude Code, es **decidir el modo de ejecución**, que ningún documento fija:
+   el flujo por ID (`/deuda-verificar` → `/deuda-planear` → `/implementar` → `/auditar`) cuesta ≈ 40 min por ítem
+   (calibrado con AF-01), es decir 3–4 ítems de los ≈ 20 del bloque. Opciones: (a) flujo completo solo para los de
+   severidad Alta (SEC1, A9, SEC2 —verificar primero—, SEC3 si cabe) y el resto recibe decisión nueva al cierre;
+   (b) un ítem Alta por el flujo y los XS "de una línea" (S2, S5, S6, S7, D2, D3, D4, A8) como commits directos con la
+   compuerta como evidencia, al estilo de `B-FORMATO`, aceptando que cambian lógica sin plan ni auditoría; (c) agrupar
+   varios XS en un solo plan por fases, si `plan-redactor` lo admite con un ID (no probado). Recomendación de la sesión
+   Mentor: **(a)**, porque el criterio a-b-c de `(PLAN §1)` pone primero lo indefendible ante jurado y porque (b)
+   convierte ADR-0005 en opcional para lo pequeño. Orden dentro del bloque: el de severidad de `(backlog)`. Al final
+   de la media jornada, **lo no hecho recibe decisión nueva en el backlog ese mismo día** (regla de la celda de
+   `B-HIGIENE`, `(PLAN §2b)`): `Sale → B-FUTURO` o `Decidir en B-QA`. AF-02 `(backlog AF-02)` se decide también ahí.
+   Papel de la sesión Mentor: juzgar artefactos antes de aprobar, aplicar el tope sin negociarlo, escribir las decisiones.
+2. **Cierre documental del día (guion fijado en la bitácora `2026-11-02`):** PLAN 2.2 (§2b: celda `B-FORMATO` en dos
+   commits y `B-TESTS` retira `--soft`; §3: marca del día y, si hubo reunión, filas de María Paula; §6: columna
+   medida tras `B-CI` y nota al pie del cambio de precisión; §8: riesgo del flag si `B-TESTS` se desliza); backlog (S4
+   `Hecho`; A4 con la nota de I001; AF-02 y lo no hecho de `B-HIGIENE` con decisión; filas AF nuevas si se deciden);
+   este archivo (§4 ya medido; §8); `--copias` para `PLAN §6`, `PLAN §2b` y `backlog S4`; `--huerfanas`; `--cierre` antes
+   del commit de cierre. Los hashes del día se toman al cierre de `git log` sobre `develop`, nunca de los reportes del
+   agente (lección 12 de la bitácora).
+3. **Resto de la semana de Bogotá** `(PLAN §3)`: `B-S1` → `B-TESTS` → cierre de Bogotá con PR a `staging`, dump de staging
+   para `B-RESERVAS m2` y mudanza; al cierre del último día trabajado, fechar la semana de Prado (PLAN 2.x).
+4. Prado y régimen final: orden y presupuestos en PLAN §3; secuencias en §2b.
+5. Pendientes de flujo (no urgentes, con dueño; pasan a filas `AF-0x` cuando se decida atacarlos): deny list de git con
+   `commit-tree`, `update-ref`, `replace`, `filter-branch`, `reset`, y AGENTS §9 "reescribir historia por cualquier
+   medio" (PR revisado como código); `.github/pull_request_template.md` (español, emojis) diverge de la skill
+   `pr-author`; README: compuerta con el venv **por ruta** (`venv\Scripts\python.exe scripts/check.py`), ya con solución
+   escrita en la bitácora `2026-11-02`; `reconfigure` a nivel de módulo en `check_docs.py` (sumar a AF-02); YAML
+   estricto en `check_docs.py`; `/pr` con `#N`; formalizar en `docs/sesiones/` las reglas del Mentor (solo `git log`;
+   nada fuera de `docs/`; propuesta y permiso antes de escribir); `mentor.md` o el ritual de apertura: conectar la
+   carpeta del repo antes del primer mensaje (quinta vez en la bitácora `2026-11-02`); la sesión verifica con
+   `git log` que la rama de trabajo contiene el último cierre antes de escribir.
 
 ## 9. Sesiones de IA
 Cualquier sesión (ingeniería, documento, estudio, mentor) arranca con los prompts de `docs/sesiones/` y el ritual
