@@ -116,7 +116,9 @@ Igual que hoy. Test de regresión: comando en disco sin fila y fila sin archivo.
   La fecha evaluada es la **más cercana al disparador** dentro de una ventana de ±40 caracteres, a cualquier lado (el
   hito de PLAN §3 la lleva antes: `Lun 11 ene — entrega`). Si no hay fecha en la ventana, la línea no se evalúa; otras
   fechas de la línea no son asunto de R5. La línea es válida si esa fecha es igual al deadline (día y mes; año si lo
-  trae) **y** la línea contiene `(CONTEXT §2)` (con o sin backticks).
+  trae) **y** la línea contiene `(CONTEXT §2)` (con o sin backticks). Precedencia (fijada en la Fase B): un solo error
+  por disparador; si la fecha difiere, el error es `≠` y no se añade el de cita. La distancia se mide del inicio de la
+  fecha al tramo del disparador.
 - **Imprime:** `… R5: fecha de entrega "7 de noviembre" ≠ deadline de CONTEXT §2 — "…"` o `… R5: fecha de entrega sin
   cita (CONTEXT §2) — "…"`.
 - **Debe fallar:** PLAN 1.7 `entrega del 7 de noviembre`; `entrega el 11 ene` sin cita; `**Lun 11 nov — entrega en
@@ -138,7 +140,7 @@ Igual que hoy. Test de regresión: comando en disco sin fila y fila sin archivo.
 - Lista **candidatos** a hecho duro sin cita en la misma línea. Patrones: `DATE` de R5; `\b\d{1,3} %`;
   `\b\d+ tests\b`; `\b\d+ h\b`; `\b\d+ m\b` (medias jornadas). Se evalúa sobre la línea con citas quitadas y solo si
   la línea original **no** contiene ninguna cita de forma fija. **Excluye** las secciones dueñas de esos hechos
-  (CONTEXT §2, §4, §6; PLAN §3, §6, §7), las líneas de versión (`**Versión `) y los archivos fuera del alcance.
+  (CONTEXT §0 —mapa hecho → dueño, añadido en el plan—, §2, §4, §6; PLAN §3, §6, §7), las líneas de versión (`**Versión `) y los archivos fuera del alcance.
 - **Imprime:** `… candidato a hecho duro sin cita: "<fragmento>" — "<línea>"`. Nunca exit 1: el addendum de ADR-0008
   reconoce que no hay mecanismo bueno para huérfanas; esto es la ayuda ruidosa de la sesión que cierra.
 - **Test:** fixture con una línea `cobertura 93 %` sin cita (sale) y otra `93 % (PLAN §6)` (no sale).

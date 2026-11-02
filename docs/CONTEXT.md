@@ -6,7 +6,8 @@
 > memoria de un chat.** Cada sesión nueva arranca leyendo esto.
 >
 > **Versión 3.2 — 1 nov 2026.** Cambios de esta versión: bitácora `2026-11-01` (§8: sin días de cronograma ni fecha en el
-> título, nombra bloques y cita a PLAN §3; primer commit de `item/af-01`). Versiones anteriores:
+> título, nombra bloques y cita a PLAN §3; al cierre, §8 tras AF-01 y §8.4 sin `--estado`; §0: regla de addenda en
+> ADR-0009; §6: fila de ADR-0009). Versiones anteriores:
 > `2026-10-31` (3.1: §0: fila de composición ampliada con la secuencia de medias jornadas; §2: fila de deadline al día,
 > regla de los domingos comodín y del fechado semanal, roles del equipo con el de David; §7: reparto propuesto a María
 > Paula; §8);
@@ -62,7 +63,7 @@ oportunista: aperturas que contrastan, revisiones de David), por la regla "hecho
 cuando exista, o al ir a consignar un hecho y no encontrar su fila (ADR-0008, puntos 3 y 5 y addendum).
 Naturaleza de cada archivo: los ADR son inmutables: un ADR aceptado no se edita, se supersede, o recibe un **addendum
 fechado** que aclara o corrige una omisión sin alterar el texto original ni cambiar la decisión (si la decisión cambia,
-es un ADR nuevo; primer uso: ADR-0008, 30 oct); CONTEXT, PLAN, backlog y `docs/sesiones/` son
+es un ADR nuevo; regla en **ADR-0009**, tras los dos addenda de ADR-0008); CONTEXT, PLAN, backlog y `docs/sesiones/` son
 vivos y versionados; las bitácoras son append-only (si algo cambió, se escribe en la entrada del día en que cambió).
 
 **Rituales de apertura y de cierre:** viven en un solo sitio, `docs/sesiones/README.md`. Toda sesión
@@ -224,6 +225,7 @@ la Web App la hala al reiniciar. Operación: 2 clics.
 | 27 oct | El adaptador de almacenamiento lanza excepciones de dominio (nunca `HTTPException`); lista blanca de URLs del CDN; copia síncrona antes de borrar; `InvalidImageUrlError` → 400 por contrato con el cliente (remapeo a 422 con P2). Supersede el residuo de `storage.py` de ADR-0003. | **ADR-0006** | Cap. de arquitectura (manejo de errores por capas) y resultados (contrato de capas 4 KEPT, cobertura) |
 | 28 oct | Versionado de los documentos vivos: la versión es del archivo, no de una sección; mayor cuando cambia una premisa, menor cuando cambia el contenido; encabezado con solo referencias a bitácoras; aplica a CONTEXT, PLAN, backlog y `docs/sesiones/`. | **ADR-0007** | Cap. de metodología (gestión documental del proyecto) |
 | 30 oct | Copias derivadas de un hecho: hecho duro a lo sumo una vez por documento, con cita de forma fija al dueño; explicaciones resumidas con cita; gana el dueño; mapa hecho → dueño solo en §0, crece por incidente; verificación acotada en el cierre por `check_docs.py`. | **ADR-0008**, `CONTEXT.md` §0, README de sesiones paso 3 | Cap. de metodología (evaluator-optimizer con revisión humana, bitácoras 28–30 oct) |
+| 1 nov | Addenda a ADR aceptados: sección fechada y firmada al final; puede aclarar, corregir una omisión, afinar un criterio o decir cómo se cumple un punto; no puede cambiar la decisión ni el alcance (eso es ADR nuevo); tres addenda son señal de superseder. Segundo addendum de ADR-0008 el mismo día: R6 y R7 de `check_docs.py` corren solo con `--cierre`. | **ADR-0009**, ADR-0008 (addendum 1 nov), `CONTEXT.md` §0 | Cap. de metodología (cómo evolucionan las decisiones registradas) |
 | pendiente | Pagos: puerto `PaymentGateway`, `WompiAdapter`, `FakeAdapter`, webhook idempotente. | ADR de pagos (`B-PAGOS`, tomará el siguiente número libre) | Cap. de diseño (secuencia de pago) y arquitectura |
 
 ## 7. Preguntas abiertas
@@ -239,27 +241,21 @@ la Web App la hala al reiniciar. Operación: 2 clics.
 
 ## 8. Próximo paso
 
-Dónde estamos (estado al cierre de la bitácora `2026-10-31`): **PLAN 2.0 escrito** (paso 0 copia ↔ dueño por sección;
-acordeón: secuencias en §2b, §3 fecha solo la semana en curso; presupuestos por régimen; hitos fijos; orden de sacrificio
-en PLAN §8). Backlog 1.9 (BE-16 → BE-16 + BE-27; BE-08 → BE-08 + BE-28; sección E con AF-01). README de sesiones 1.1. Sin
-cambios técnicos desde el 27 oct: compuerta global en rojo, ADR-0005 vigente, ningún ítem de deuda en curso. Presupuesto de
-Bogotá al cierre de esa bitácora `(PLAN §3)`: 10 m disponibles, secuencia 9 + 1 m de colchón; el comodín del domingo (§2)
-cubre `B-CHECK-DOCS`; `B-HIGIENE` recortado a 1 m, devuelto al final de la semana si el colchón no se gastó.
+Dónde estamos (estado al cierre de la bitácora `2026-11-01`): **AF-01 hecho** `(backlog AF-01)`: `scripts/check_docs.py`
+tiene las reglas de ADR-0008 (R1–R5 en la compuerta; R6–R7 con `--cierre`; `--copias`, `--huerfanas`, `--estado`), con
+tests sobre fixtures y dentro de mypy; cuatro fases auditadas con mutación, PR #69 mezclado el 1 nov. ADR-0009 (addenda)
+y segundo addendum de ADR-0008. PLAN 2.1, backlog 1.10, README 1.2. Residuales en la fila AF-02 `(backlog AF-02)`.
+Compuerta global sigue en rojo (ADR-0005 vigente); ningún ítem de deuda en curso. Presupuesto de Bogotá `(PLAN §3)`:
+el comodín del domingo repagó el colchón; la semana arranca con secuencia 9 + 1 m de colchón intacto.
 
-1. **Comodín del domingo** `(PLAN §3)`: `B-CHECK-DOCS m1`: especificación a dos manos (David + sesión Mentor, ~1 h) →
-   Claude Code en sesión fresca: `/deuda-verificar AF-01` → `/deuda-planear` → `/implementar` → `/auditar` → `/pr`.
-   Entradas de la especificación: `scripts/check_docs.py` actual, ADR-0008 con addendum, bitácora `2026-10-29`
-   "Decisiones" (C), ADR-0007, los pendientes del punto 4, y el hallazgo de la bitácora `2026-10-31`: `DECISION_RE` deja
-   pasar cualquier cola, así que la regla nueva es "la columna Decisión nombra exactamente un bloque"; casos de prueba
-   FE-05, BE-18, BE-14 (backlog AF-01). Por regla: qué detecta, sobre qué archivos, con qué expresión, qué imprime, exit
-   code, un caso que falla y uno que pasa.
+1. **Ritual de cierre, desde hoy:** paso 3 con `python scripts/check_docs.py --copias "<dueño>"` por dueño tocado y
+   `--cierre` antes del commit de cierre (README de sesiones, paso 3).
 2. **Semana de Bogotá** `(PLAN §3)`: `B-FORMATO`+`B-CI` → `B-HIGIENE` 1 m → `B-S1` → `B-TESTS` → cierre de Bogotá con PR a
    `staging`, dump de staging para `B-RESERVAS m2` y mudanza. Al arrancar la semana, a primera hora: mensaje a María Paula;
    la reunión con ella es el hito fechado en PLAN §3. Al cierre del último día trabajado de la semana: fechar la semana de
    Prado (PLAN 2.1 o la versión que toque).
 3. Prado y régimen final: orden y presupuestos en PLAN §3; secuencias en §2b.
-4. Pendientes de flujo (no urgentes, con dueño): YAML estricto en `check_docs.py`; `--estado` no distingue "mezclado";
-   `/pr` con `#N`; README: compuerta con el venv activo; formalizar en `docs/sesiones/` las reglas del Mentor (solo
+4. Pendientes de flujo (no urgentes, con dueño): YAML estricto en `check_docs.py`; `/pr` con `#N`; README: compuerta con el venv activo; formalizar en `docs/sesiones/` las reglas del Mentor (solo
    `git log`; nada fuera de `docs/`; propuesta y permiso antes de escribir); `mentor.md` o el ritual de apertura: conectar
    la carpeta del repo antes del primer mensaje (volvió a pasar el 31 oct y el 1 nov); la sesión verifica con `git log`
    que la rama de trabajo contiene el último cierre antes de escribir. Pasan a filas `AF-0x` del backlog cuando se decida

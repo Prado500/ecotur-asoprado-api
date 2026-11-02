@@ -1,6 +1,7 @@
 # Ecotur-ASOPRADO — Plan de trabajo hasta la entrega
 
-> **Versión 2.0 — 31 oct 2026.** Cambios de esta versión: bitácoras `2026-10-30` (decisiones del replan: capacidad en
+> **Versión 2.1 — 1 nov 2026.** Cambios de esta versión: bitácora `2026-11-01` (§3: marca del domingo comodín; §2b:
+> `B-CHECK-DOCS` hecho). Versión anterior: 2.0 — 31 oct 2026, bitácoras `2026-10-30` (decisiones del replan: capacidad en
 > tres regímenes, orden de bloques, `B-PAGOS` partido, usabilidad por criterio, corte de código nuevo) y `2026-10-31`
 > (escritura; paso 0 copia ↔ dueño por sección; acordeón; domingos comodín; orden de sacrificio). Versiones anteriores:
 > `2026-10-28` (v1.7), `2026-10-27` (v1.6), `2026-10-26` (v1.5), `2026-10-25` (v1.4). Versionado según ADR-0007.
@@ -45,7 +46,7 @@ toca. `[señal]` marca una media jornada que necesita red.
 | Bloque | Ítems del backlog | Qué es | Secuencia (m = media jornada de 4 h) |
 |---|---|---|---|
 | `B-BE01` | BE-01, P1, A7 | Primera deuda por el flujo: `storage.py` sin HTTP, imports muertos de `security.py`, copia síncrona; contrato de capas 4 KEPT | Hecho (PR #61) |
-| `B-CHECK-DOCS` | AF-01 | Reglas de ADR-0008 y su addendum en `scripts/check_docs.py`: días fuera de §3 (también dentro de PLAN), fecha de entrega en PLAN = CONTEXT §2, bloque citado existe en §2b, encabezado de versión (ADR-0007), fila de §3 cerrada sin marca, listado de citas por dueño (`--copias`), copia de hecho duro sin cita como hallazgo, columna Decisión con exactamente un bloque | m1 especificación a dos manos (David + Mentor, ~1 h) → Claude Code: verificar → planear → implementar → auditar → `/pr` |
+| `B-CHECK-DOCS` | AF-01 | Reglas de ADR-0008 y su addendum en `scripts/check_docs.py`: días fuera de §3 (también dentro de PLAN), fecha de entrega en PLAN = CONTEXT §2, bloque citado existe en §2b, encabezado de versión (ADR-0007), fila de §3 cerrada sin marca, listado de citas por dueño (`--copias`), copia de hecho duro sin cita como hallazgo, columna Decisión con exactamente un bloque | m1 especificación a dos manos (David + Mentor, ~1 h) → Claude Code: verificar → planear → implementar → auditar → `/pr`. **Hecho** `(backlog AF-01)`; residuales en `(backlog AF-02)` |
 | `B-FORMATO` | `ruff format` + `ruff check --fix` sobre todo el repo | Un solo commit mecánico, sin cambios de lógica | m1 (compartida con `B-CI`): commit mecánico, PR propio |
 | `B-CI` | `scripts/check.py` en `.azure-pipelines/ci-pipeline.yml` | El CI ejecuta la compuerta, no solo pytest | m1 (compartida con `B-FORMATO`): pipeline, PR propio |
 | `B-HIGIENE` | S2, S4, S5, S6, S7, D2, D3, D4, D5, A6, A8, A9, SEC1, SEC3, P2 (`detalle`→`detail`), SEC2 (verificar; mínimo lista blanca sin SVG + tamaño), BE-23, BE-24, BE-25, BE-26 (decidir), P3 (al tocar) | Ítems XS/S de la auditoría; cada uno un commit pequeño. Es el bloque con tope y la palanca de la semana | m1–m2 ítems en orden de severidad; al final de la última `m` fechada, lo no hecho recibe decisión nueva en el backlog ese mismo día (`Sale → B-FUTURO` o `Decidir en B-QA`) |
@@ -116,7 +117,7 @@ al principio y se deshace al final si sobró, nunca al revés: si el viernes el 
 
 | Día | Mañana | Tarde | Cierre |
 |---|---|---|---|
-| Dom 1 nov | **Comodín (fuera del presupuesto):** `B-CHECK-DOCS m1`: especificación a dos manos, implementación por Claude Code, `/pr` | — | |
+| Dom 1 nov | **Comodín (fuera del presupuesto):** `B-CHECK-DOCS m1`: especificación a dos manos, implementación por Claude Code, `/pr` | — | ✔ 1 |
 | Lun 2 | `B-FORMATO`+`B-CI` m1 (dos PR propios). A primera hora: mensaje a María Paula para fijar la reunión | `B-HIGIENE m1` (tope: 1 m; lo que no quepa → decisión nueva en backlog hoy). **Hito: reunión con María Paula, 17:00–18:00, dentro de esta media jornada**; si ella no puede, mar 3 a la misma hora (come una hora de `B-S1 m2`); sus filas se escriben al cierre de ese día (PLAN 2.1) | |
 | Mar 3 | `B-S1 m1` | `B-S1 m2` | |
 | Mié 4 | `B-TESTS m1` | `B-TESTS m2` | |
