@@ -17,7 +17,13 @@ from app.core.exceptions import (
 from app.core.security import ALGORITHM, SECRET_KEY, create_verification_token, get_password_hash
 from app.models.user import UserRole
 from app.repositories.user_repository import UserRepository
-from app.schemas.user import UserCreate, UserCreateByAdmin, UserLogin, UserRole as SchemaUserRole, UserUpdate
+from app.schemas.user import (
+    UserCreate,
+    UserCreateByAdmin,
+    UserLogin,
+    UserRole as SchemaUserRole,
+    UserUpdate,
+)
 from app.services.audit_service import AuditService
 from app.services.user_access_policy import UserAccessPolicy
 from app.services.user_service import RegistrationResult, UserService
@@ -121,7 +127,9 @@ async def test_register_tourist_duplicate_raises_already_exists(user_repo, user_
 # ==========================================
 
 
-async def test_delete_missing_target_raises_not_found_before_authorization(user_repo, user_service, make_user):
+async def test_delete_missing_target_raises_not_found_before_authorization(
+    user_repo, user_service, make_user
+):
     """Order invariant: existence (404) dominates hierarchy (403) on deletion."""
     user_repo.get_user_by_cedula.return_value = None
     actor = make_user(role=UserRole.tourist)
@@ -132,7 +140,9 @@ async def test_delete_missing_target_raises_not_found_before_authorization(user_
     user_repo.soft_delete_user.assert_not_awaited()
 
 
-async def test_update_missing_target_raises_not_found_before_authorization(user_repo, user_service, make_user):
+async def test_update_missing_target_raises_not_found_before_authorization(
+    user_repo, user_service, make_user
+):
     """Order invariant: existence (404) dominates hierarchy (403) on updates."""
     user_repo.get_user_by_cedula.return_value = None
     actor = make_user(role=UserRole.tourist)
@@ -199,18 +209,20 @@ async def test_authenticate_unknown_email_raises_invalid_credentials(user_repo, 
         )
 
 
-async def test_authenticate_wrong_password_raises_invalid_credentials(user_repo, user_service, make_user):
+async def test_authenticate_wrong_password_raises_invalid_credentials(
+    user_repo, user_service, make_user
+):
     """Unhappy path: an existing user with a mismatched password maps to the same error."""
     user = make_user(password_hash=get_password_hash("correctPassword1"), is_active=True)
     user_repo.get_non_deleted_user_by_email.return_value = user
 
     with pytest.raises(InvalidCredentialsError):
-        await user_service.authenticate_user(
-            UserLogin(email=user.email, password="wrongPassword1")
-        )
+        await user_service.authenticate_user(UserLogin(email=user.email, password="wrongPassword1"))
 
 
-async def test_authenticate_inactive_account_raises_account_not_active(user_repo, user_service, make_user):
+async def test_authenticate_inactive_account_raises_account_not_active(
+    user_repo, user_service, make_user
+):
     """Unhappy path: correct credentials on a pending-verification account yield 403 semantics."""
     user = make_user(password_hash=get_password_hash("correctPassword1"), is_active=False)
     user_repo.get_non_deleted_user_by_email.return_value = user
@@ -230,14 +242,18 @@ async def test_verify_email_activates_account(user_repo, user_service):
     """Happy path: a valid token activates the account and returns success."""
     user_repo.activate_user.return_value = True
 
-    result = await user_service.verify_email_account(create_verification_token("turista@example.com"))
+    result = await user_service.verify_email_account(
+        create_verification_token("turista@example.com")
+    )
 
     assert result["success"] is True
     assert "message" in result
     user_repo.activate_user.assert_awaited_once_with("turista@example.com")
 
 
-async def test_verify_email_corrupt_token_raises_invalid_verification_token(user_repo, user_service):
+async def test_verify_email_corrupt_token_raises_invalid_verification_token(
+    user_repo, user_service
+):
     """Unhappy path: a corrupt token is rejected before any activation attempt."""
     with pytest.raises(InvalidVerificationTokenError):
         await user_service.verify_email_account("not-a-jwt")
@@ -245,7 +261,9 @@ async def test_verify_email_corrupt_token_raises_invalid_verification_token(user
     user_repo.activate_user.assert_not_awaited()
 
 
-async def test_verify_email_expired_token_raises_invalid_verification_token(user_repo, user_service):
+async def test_verify_email_expired_token_raises_invalid_verification_token(
+    user_repo, user_service
+):
     """Unhappy path: an expired token is rejected before any activation attempt."""
     expired_token = jwt.encode(
         {
@@ -294,7 +312,9 @@ async def test_verify_email_missing_user_raises_not_found(user_repo, user_servic
 # ==========================================
 
 
-async def test_create_administrative_account_provisions_admin(user_repo, audit_service, user_service, make_user):
+async def test_create_administrative_account_provisions_admin(
+    user_repo, audit_service, user_service, make_user
+):
     """Happy path: a superadmin provisions an admin account in a single persistence call."""
     user_repo.get_user_by_email_or_cedula.return_value = None
     actor = make_user(role=UserRole.superadmin)
@@ -309,7 +329,9 @@ async def test_create_administrative_account_provisions_admin(user_repo, audit_s
     audit_service.log_transaction.assert_awaited_once()
 
 
-async def test_create_administrative_account_duplicate_raises_already_exists(user_repo, user_service, make_user):
+async def test_create_administrative_account_duplicate_raises_already_exists(
+    user_repo, user_service, make_user
+):
     """Unhappy path: an existing email/cedula aborts provisioning before persistence."""
     user_repo.get_user_by_email_or_cedula.return_value = make_user()
 
@@ -321,7 +343,9 @@ async def test_create_administrative_account_duplicate_raises_already_exists(use
     user_repo.create_user.assert_not_awaited()
 
 
-async def test_create_administrative_account_rejects_non_superadmin(user_repo, user_service, make_user):
+async def test_create_administrative_account_rejects_non_superadmin(
+    user_repo, user_service, make_user
+):
     """Edge case: provisioning governance is checked before any repository access."""
     with pytest.raises(AuthorizationError):
         await user_service.create_administrative_account(

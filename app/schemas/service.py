@@ -19,7 +19,7 @@ class ServiceBase(BaseModel):
         ...,
         min_length=20,
         max_length=65,
-        description="Nombre del paquete (mínimo 20 caracteres, máximo 65)"
+        description="Nombre del paquete (mínimo 20 caracteres, máximo 65)",
     )
     description: str | None = Field(None, max_length=1000)
     category: ServiceCategory = Field(default=ServiceCategory.otro)
@@ -29,14 +29,14 @@ class ServiceBase(BaseModel):
         ge=40000,
         max_digits=10,
         decimal_places=2,
-        description="Precio base en COP. No puede ser inferior a $40,000"
+        description="Precio base en COP. No puede ser inferior a $40,000",
     )
 
     max_capacity: int = Field(..., gt=0, le=30, description="Capacidad máxima de turistas")
     is_available: bool = Field(default=False)
 
     # === TITLE DATA HYGIENE ===
-    @field_validator('name')
+    @field_validator("name")
     @classmethod
     def format_service_name(cls, v: str) -> str:
         """Transforms inputs such as 'pAqUeTe tuRIsTiCo' into 'Paquete Turístico'
@@ -53,7 +53,7 @@ class ServiceCreate(ServiceBase):
     image_urls: list[HttpUrl] = Field(
         default=[],
         max_length=10,
-        description="Lista de URLs de imágenes. La primera será la principal. Asegúrese de haber pegado un link que empiece por http:// o https://"
+        description="Lista de URLs de imágenes. La primera será la principal. Asegúrese de haber pegado un link que empiece por http:// o https://",
     )
 
 
@@ -84,7 +84,7 @@ class ServiceUpdate(BaseModel):
     is_available: bool | None = None
     image_urls: list[HttpUrl] | None = Field(None, max_length=10)
 
-    @field_validator('name')
+    @field_validator("name")
     @classmethod
     def format_service_name(cls, v: str | None) -> str | None:
         if v is None:

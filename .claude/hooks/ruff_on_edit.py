@@ -28,7 +28,9 @@ def main() -> int:
     fix = subprocess.run([py, "-m", "ruff", "check", "--fix", path], capture_output=True, text=True)
     if fix.returncode == 0:
         return 0
-    sys.stderr.write(f"ruff sigue reportando errores en {path} tras el autofix:\n{fix.stdout}{fix.stderr}")
+    sys.stderr.write(
+        f"ruff sigue reportando errores en {path} tras el autofix:\n{fix.stdout}{fix.stderr}"
+    )
     return 2
 
 

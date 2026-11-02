@@ -3,26 +3,26 @@ from sqlalchemy.future import select
 
 from app.models.audit import AuditLog
 
+
 class AuditRepository:
-    """Handles data access (SQL transactions) regarding the AuditLog entity.
-    """
+    """Handles data access (SQL transactions) regarding the AuditLog entity."""
+
     def __init__(self, db: AsyncSession):
         self.db = db
 
     async def create_audit_log(self, audit_log: AuditLog) -> AuditLog:
-        """Persists a new audit trail record into the database.
-        """
+        """Persists a new audit trail record into the database."""
         self.db.add(audit_log)
         await self.db.commit()
         await self.db.refresh(audit_log)
         return audit_log
 
     async def get_all_audit_logs(
-            self,
-            limit: int = 20,
-            offset: int = 0,
-            entity_name: str | None = None,
-            entity_id: str | None = None
+        self,
+        limit: int = 20,
+        offset: int = 0,
+        entity_name: str | None = None,
+        entity_id: str | None = None,
     ) -> list[AuditLog]:
         """Retrieves the audit logs utilizing explicit pagination (limit/offset)
         and optional dynamic equality filters to prevent Over-fetching.

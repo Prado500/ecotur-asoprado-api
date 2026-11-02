@@ -3,6 +3,7 @@ from sqlalchemy import Column, Integer, String, Boolean, DateTime, Enum
 from sqlalchemy.sql import func
 from app.db.database import Base
 
+
 class UserRole(str, enum.Enum):
     """Enumeration of system user roles.
 
@@ -14,9 +15,11 @@ class UserRole(str, enum.Enum):
         admin: Mid privilege level. Can manage tourist accounts.
         tourist: Base privilege level. Standard consumer of the platform.
     """
+
     superadmin = "superadmin"
     admin = "admin"
     tourist = "tourist"
+
 
 class User(Base):
     """SQLAlchemy domain model for the User entity.
@@ -24,6 +27,7 @@ class User(Base):
     Represents the 'users' table in the database, handling authentication
     credentials, personal identification, and Role-Based Access Control (RBAC).
     """
+
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)

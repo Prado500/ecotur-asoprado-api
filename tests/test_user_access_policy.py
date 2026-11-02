@@ -271,7 +271,9 @@ class TestCanSee:
 # ==========================================
 
 
-async def test_patch_hierarchy_violation_returns_403_detail(client, db_session, persist_user, make_auth_headers):
+async def test_patch_hierarchy_violation_returns_403_detail(
+    client, db_session, persist_user, make_auth_headers
+):
     """Admin patching a superadmin yields 403 with the detail key and zero state mutation."""
     admin = await persist_user(role=UserRole.admin)
     superadmin = await persist_user(role=UserRole.superadmin)
@@ -289,7 +291,9 @@ async def test_patch_hierarchy_violation_returns_403_detail(client, db_session, 
     assert superadmin.first_name == "John"
 
 
-async def test_delete_hierarchy_violation_returns_403_detail(client, db_session, persist_user, make_auth_headers):
+async def test_delete_hierarchy_violation_returns_403_detail(
+    client, db_session, persist_user, make_auth_headers
+):
     """Admin deleting a superadmin yields 403 with the detail key; target stays active."""
     admin = await persist_user(role=UserRole.admin)
     superadmin = await persist_user(role=UserRole.superadmin)
@@ -306,7 +310,9 @@ async def test_delete_hierarchy_violation_returns_403_detail(client, db_session,
     assert superadmin.deleted_at is None
 
 
-async def test_patch_nonexistent_cedula_returns_404_before_403(client, persist_user, make_auth_headers):
+async def test_patch_nonexistent_cedula_returns_404_before_403(
+    client, persist_user, make_auth_headers
+):
     """Order invariant: 404 (existence) precedes 403 (permissions) on PATCH."""
     tourist = await persist_user(role=UserRole.tourist)
 
@@ -320,7 +326,9 @@ async def test_patch_nonexistent_cedula_returns_404_before_403(client, persist_u
     assert "detail" in response.json()
 
 
-async def test_delete_nonexistent_cedula_returns_404_before_403(client, persist_user, make_auth_headers):
+async def test_delete_nonexistent_cedula_returns_404_before_403(
+    client, persist_user, make_auth_headers
+):
     """Order invariant: 404 (existence) precedes 403 (permissions) on DELETE."""
     tourist = await persist_user(role=UserRole.tourist)
 
@@ -333,7 +341,9 @@ async def test_delete_nonexistent_cedula_returns_404_before_403(client, persist_
     assert "detail" in response.json()
 
 
-async def test_admin_cannot_provision_admin_account_403_and_no_db_mutation(client, db_session, persist_user, make_auth_headers):
+async def test_admin_cannot_provision_admin_account_403_and_no_db_mutation(
+    client, db_session, persist_user, make_auth_headers
+):
     """Proxy-person escalation: admin provisioning an admin account yields 403 and persists nothing."""
     admin = await persist_user(role=UserRole.admin)
 
@@ -359,7 +369,9 @@ async def test_admin_cannot_provision_admin_account_403_and_no_db_mutation(clien
     assert users[0].cedula == admin.cedula
 
 
-async def test_admin_update_tourist_persists_mutation(client, db_session, persist_user, make_auth_headers):
+async def test_admin_update_tourist_persists_mutation(
+    client, db_session, persist_user, make_auth_headers
+):
     """Successful helpdesk PATCH persists the scalar mutation in the database."""
     admin = await persist_user(role=UserRole.admin)
     tourist = await persist_user(role=UserRole.tourist)
@@ -377,7 +389,9 @@ async def test_admin_update_tourist_persists_mutation(client, db_session, persis
     assert tourist.email == "corrected@test.com"
 
 
-async def test_admin_cannot_escalate_tourist_to_superadmin_via_patch(client, db_session, persist_user, make_auth_headers):
+async def test_admin_cannot_escalate_tourist_to_superadmin_via_patch(
+    client, db_session, persist_user, make_auth_headers
+):
     """Two-step proxy escalation: admin promoting a tourist to superadmin yields 403 with no mutation."""
     admin = await persist_user(role=UserRole.admin)
     tourist = await persist_user(role=UserRole.tourist)
@@ -395,7 +409,9 @@ async def test_admin_cannot_escalate_tourist_to_superadmin_via_patch(client, db_
     assert tourist.role == UserRole.tourist
 
 
-async def test_admin_cannot_escalate_tourist_to_admin_via_patch(client, db_session, persist_user, make_auth_headers):
+async def test_admin_cannot_escalate_tourist_to_admin_via_patch(
+    client, db_session, persist_user, make_auth_headers
+):
     """Two-step proxy escalation: admin promoting a tourist to admin yields 403 with no mutation."""
     admin = await persist_user(role=UserRole.admin)
     tourist = await persist_user(role=UserRole.tourist)
@@ -446,7 +462,9 @@ async def test_authorization_error_maps_to_403_with_detail_key():
     assert isinstance(body["detail"], str)
 
 
-async def test_service_authorization_error_propagates_to_403_through_global_handler(client, persist_user, make_auth_headers):
+async def test_service_authorization_error_propagates_to_403_through_global_handler(
+    client, persist_user, make_auth_headers
+):
     """An AuthorizationError raised by the service layer surfaces as 403 with a detail key."""
     actor = await persist_user(role=UserRole.tourist)
 
