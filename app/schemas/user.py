@@ -129,7 +129,19 @@ class UserLogin(BaseModel):
     password: str
 
 
-class UserResponse(UserBase):
+class UserResponse(BaseModel):
+    """Serialized view of a stored user account.
+
+    Declared on BaseModel on purpose: an output DTO describes what is stored and never
+    re-applies the input rules of UserBase (patterns, lengths, EmailStr, title-case),
+    so a row that predates or bypasses them is still readable (backlog A9).
+    """
+
+    cedula: str
+    email: str
+    first_name: str
+    last_name: str
+    phone: str | None = None
     id: int
     role: UserRole
     is_active: bool
