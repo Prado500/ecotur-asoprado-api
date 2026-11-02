@@ -1,0 +1,14 @@
+{
+  "plan_file": "docs/deuda/SEC1/plan.md",
+  "current_target": "cierre",
+  "phases": {
+    "Fase_A": {
+      "status": "completed",
+      "commit": "9ce0379",
+      "description": "CORS: lista blanca CORS_ORIGINS (parser puro parse_cors_origins en app/main.py, default http://localhost:3000, comodín -> ValueError), allow_credentials=False, .env.example y 11 funciones de test (16 casos) en tests/test_main.py"
+    }
+  },
+  "allowed_statuses": ["pending", "partial", "completed"],
+  "last_handoff": "Fase A completada en 9ce0379: 333 passed, cobertura 92.76 %, ruff 97, mypy 44, 0 errores en archivos tocados; ruff format --check falla solo por docs/deuda/SEC1/plan.md (sin trackear, no es de la fase).",
+  "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
+}
