@@ -157,8 +157,8 @@ por el equipo humano"**. → El flujo agéntico es parte de la metodología decl
   el transporte HTTP, ni directa ni transitivamente.
 - **No existe:** módulo de reservas (ver ADR-0002), pagos, paginación, recuperación de
   contraseña, `display_order` de paquetes.
-- **Tests y calidad:** pytest + mocks; 145 tests, cobertura 93 % (27 oct; línea base del 24 oct:
-  116 y 89 %, PLAN §6). Tooling desde el 24 oct: `ruff`, `mypy`, `import-linter`, `pytest-cov`, unidos
+- **Tests y calidad:** pytest + mocks; 293 tests (1 nov: 145 de `app` + 148 de `scripts/check_docs.py`, estos
+  fuera de la cobertura), cobertura 93 % de `app` (27 oct; línea base del 24 oct: 116 y 89 %, PLAN §6). Tooling desde el 24 oct: `ruff`, `mypy`, `import-linter`, `pytest-cov`, unidos
   en `scripts/check.py` (AGENTS §6); la compuerta global sigue en rojo por deuda heredada (ruff 362,
   mypy 44) y rige el trinquete de ADR-0005 hasta `B-TESTS`. El diagnóstico de la suite (mocks sin
   `spec`, setup duplicado, aserciones sobre texto, sesión ≠ `get_db`, huecos B2/B3/B4) es la fila

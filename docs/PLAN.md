@@ -179,6 +179,10 @@ ciclo del flujo (`B-BE01`), y la medición al corte de código nuevo (hito de §
 | Casos de caja negra pasados / totales | — | — | |
 | SUS promedio (turista / admin) | — | — | |
 
+Medición intermedia del 1 nov (`f6f73a9`, PR #69, AF-01): ruff 362; mypy 44 con `scripts/check_docs.py` ya dentro de
+`mypy.files`; import-linter 4 KEPT; cobertura 93 % (solo `app`); **293 tests** (145 de `app` + 148 del script de docs).
+No abre columna: el trinquete de ADR-0005 compara contra el 27 oct y el código de `app` no cambió.
+
 \* B008 son los 41 `Depends(...)` en argumentos por defecto: patrón oficial de FastAPI; se configuró como
 excepción y desaparece al migrar a `Annotated` (D6/S3). Evidencia por fase del 27 oct: `(ADR-0006)`.
 
