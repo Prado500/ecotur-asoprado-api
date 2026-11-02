@@ -421,6 +421,8 @@ del mensaje es exacto.
 
 ## Verificación final
 
+> **Fase B y cierre:** los commits de referencia de los pasos 3 y 4b cambian; ver retoque 3 al final del plan.
+
 ```bash
 # 1. Ningún DTO de salida hereda de una base de entrada (esperado: solo AuditLogResponse(AuditLogBase), sin reglas)
 grep -rnE "class \w+Response\(\w+Base\)" app/schemas/
@@ -512,4 +514,16 @@ coste. Si David quiere que la regla obligue a los DTO futuros, el sitio es AGENT
    duplicación: **regla de tres** — la tercera clase de respuesta de paquete que aparezca obliga a extraer la base.
 2. **`# noqa: UP042 (backlog D2)`: aceptado.** Convertir a `StrEnum` cambia `str()` de un enum que llega al ORM; es D2.
    La retirada del `noqa` se anota en la fila D2 del backlog en el cierre (misma regla que I001 en A4).
+3. **Commits de referencia para la Fase B y el cierre (tras la auditoría de la Fase A, `gaps.md` hallazgos 1 y 2).**
+   `7c6d606` no sirve como base de comparación: SEC1 (`9ce0379`, que toca `app/main.py`) entró en la rama antes del plan,
+   y la Fase A ya cambió `app/schemas/user.py`. En la Verificación final se usan estos commits:
+   - **Paso 3:** `git diff 83bfd6a --stat -- app/api/routers/ app/main.py app/models/ alembic/` → esperado: vacío
+     (`83bfd6a` = commit del plan).
+   - **Paso 4b, `user.py`:** el recuento debe ser idéntico al de `ba75d89` (fin de la Fase A):
+     `git show ba75d89:app/schemas/user.py | grep -cE "…"` → 23. La Fase B no toca ese archivo.
+   - **Paso 4b, `service.py`:** se compara con `git show 83bfd6a:app/schemas/service.py | grep -cE "…"` → 12. Si sube, solo
+     puede ser por líneas de docstring o comentario que mencionen los términos del grep (como el 23 frente a 22 de la
+     Fase A); el handoff identifica cada línea de más y confirma que no ha desaparecido ninguna regla de entrada.
+   - **Alcance del diff de la fase:** `git diff ba75d89 HEAD --stat` contiene solo `app/schemas/service.py`,
+     `tests/test_services.py` y los archivos de `docs/deuda/A9/`.
 Lo demás del plan se ejecuta tal cual.
