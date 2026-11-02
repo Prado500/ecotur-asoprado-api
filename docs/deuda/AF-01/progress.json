@@ -1,10 +1,10 @@
 {
   "plan_file": "docs/deuda/AF-01/plan.md",
-  "current_target": "Fase_A",
+  "current_target": "Fase_B",
   "phases": {
     "Fase_A": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "8d51302",
       "description": "Raíz inyectable (--root), CLI con argparse (flags desconocidos exit 2), helpers sections/strip_citations, tests base, script en mypy.files"
     },
     "Fase_B": {
@@ -23,7 +23,11 @@
       "description": "--cierre: R6 encabezado de versión (ADR-0007) y R7 filas de PLAN §3 cerradas sin marca, con git y reloj inyectados"
     }
   },
-  "allowed_statuses": ["pending", "partial", "completed"],
-  "last_handoff": "Estado inicial.",
+  "allowed_statuses": [
+    "pending",
+    "partial",
+    "completed"
+  ],
+  "last_handoff": "Fase A completada (8d51302): check_docs.py con --root y argparse, helpers sections/strip_citations, 26 tests nuevos, script en mypy.files; compuerta igual a la linea base.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
