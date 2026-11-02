@@ -15,8 +15,8 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from alembic import context
 
 from app.db.database import Base
-from app.models.user import User
-from app.models.service import TouristService
+from app.models.user import User  # noqa: F401  # side-effect import: registers the table on Base.metadata for autogenerate; B-S1 replaces it
+from app.models.service import TouristService  # noqa: F401  # side-effect import: registers the table on Base.metadata for autogenerate; B-S1 replaces it
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
