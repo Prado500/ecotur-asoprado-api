@@ -1,0 +1,29 @@
+{
+  "plan_file": "docs/deuda/AF-01/plan.md",
+  "current_target": "Fase_A",
+  "phases": {
+    "Fase_A": {
+      "status": "pending",
+      "commit": null,
+      "description": "Raíz inyectable (--root), CLI con argparse (flags desconocidos exit 2), helpers sections/strip_citations, tests base, script en mypy.files"
+    },
+    "Fase_B": {
+      "status": "pending",
+      "commit": null,
+      "description": "Reglas bloqueantes R2 (fechas de cronograma), R3 (bloques en sesiones), R4 (Decisión estricta), R5 (deadline = CONTEXT §2)"
+    },
+    "Fase_C": {
+      "status": "pending",
+      "commit": null,
+      "description": "--copias [dueño], --huerfanas y --estado con caso current_target null + todas completed"
+    },
+    "Fase_D": {
+      "status": "pending",
+      "commit": null,
+      "description": "--cierre: R6 encabezado de versión (ADR-0007) y R7 filas de PLAN §3 cerradas sin marca, con git y reloj inyectados"
+    }
+  },
+  "allowed_statuses": ["pending", "partial", "completed"],
+  "last_handoff": "Estado inicial.",
+  "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
+}
