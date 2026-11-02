@@ -5,8 +5,7 @@ from app.models.user import User, UserRole
 
 
 class UserAccessPolicy:
-    """
-    Encapsulates the pure authorization rules governing user-account operations.
+    """Encapsulates the pure authorization rules governing user-account operations.
 
     All guarded mutations follow a hierarchical dominance invariant over role
     ranks with self-operation parity: an actor may always act on their own
@@ -18,8 +17,7 @@ class UserAccessPolicy:
     _ROLE_RANK = {UserRole.tourist: 0, UserRole.admin: 1, UserRole.superadmin: 2}
 
     def assert_can_delete(self, actor: User, target: User) -> None:
-        """
-        Enforces the deletion invariant: self-deletion parity or strictly
+        """Enforces the deletion invariant: self-deletion parity or strictly
         higher rank over the target.
 
         Args:
@@ -39,8 +37,7 @@ class UserAccessPolicy:
             )
 
     def assert_can_update(self, actor: User, target: User, update_dict: dict) -> None:
-        """
-        Enforces update invariants: self-update parity or strictly higher rank,
+        """Enforces update invariants: self-update parity or strictly higher rank,
         plus fail-safe guards blocking role mutations for non-superadmins and
         is_active mutations for tourists.
 
@@ -71,8 +68,7 @@ class UserAccessPolicy:
             )
 
     def assert_can_recover(self, actor: User, target: User) -> None:
-        """
-        Enforces recovery precedence: standard admins cannot restore accounts
+        """Enforces recovery precedence: standard admins cannot restore accounts
         of equal or higher tier.
 
         Args:
@@ -89,8 +85,7 @@ class UserAccessPolicy:
             )
 
     def assert_can_provision_admin(self, actor: User) -> None:
-        """
-        Enforces provisioning governance: only superadmins may create
+        """Enforces provisioning governance: only superadmins may create
         administrative accounts.
 
         Args:
@@ -105,8 +100,7 @@ class UserAccessPolicy:
             )
 
     def assert_is_admin_plus(self, actor: User) -> None:
-        """
-        Enforces the administrative-tier rule: only admins and superadmins may
+        """Enforces the administrative-tier rule: only admins and superadmins may
         proceed with the guarded operation (e.g. reading the audit trail).
 
         The rule inspects nothing beyond the actor role, so it stays reusable
@@ -125,8 +119,7 @@ class UserAccessPolicy:
             )
 
     def can_see(self, viewer_role: UserRole, subject_role: UserRole) -> bool:
-        """
-        Determines whether a viewer role may see a subject role in directory
+        """Determines whether a viewer role may see a subject role in directory
         listings.
 
         Args:

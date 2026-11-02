@@ -1,4 +1,3 @@
-from enum import Enum
 
 import jwt
 from fastapi import Depends, HTTPException, status
@@ -69,8 +68,7 @@ async def get_current_user(
         token: str = Depends(oauth2_scheme),
         user_repo: UserRepository = Depends(get_user_repository)
 ) -> User:
-    """
-    Decodes the given JWT token, verifies payload consistency, lifespan status (unexpired or expired)
+    """Decodes the given JWT token, verifies payload consistency, lifespan status (unexpired or expired)
     and user enabling (only active users are allowed).
 
     It's injected with a UserRepository instance for user-state consulting against the persistence layer.
@@ -106,8 +104,7 @@ async def get_current_user(
     return usuario
 
 async def get_current_admin_user(current_user: User = Depends(get_current_user)) -> User:
-        """
-        Validates if the provided user possesses administrative privileges.
+        """Validates if the provided user possesses administrative privileges.
 
         This method acts as a Role-Based Access Control (RBAC) gatekeeper
         to prevent unauthorized access to resources that should only be available for admin or superadmin users.

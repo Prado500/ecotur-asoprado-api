@@ -1,6 +1,6 @@
 """Unit and integration tests for the transport-agnostic UserService contract."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, UTC
 from unittest.mock import create_autospec
 
 import jwt
@@ -251,7 +251,7 @@ async def test_verify_email_expired_token_raises_invalid_verification_token(user
         {
             "sub": "turista@example.com",
             "scope": "email_verification",
-            "exp": datetime.now(timezone.utc) - timedelta(minutes=1),
+            "exp": datetime.now(UTC) - timedelta(minutes=1),
         },
         SECRET_KEY,
         algorithm=ALGORITHM,
@@ -269,7 +269,7 @@ async def test_verify_email_wrong_scope_raises_invalid_verification_token(user_r
         {
             "sub": "turista@example.com",
             "scope": "access",
-            "exp": datetime.now(timezone.utc) + timedelta(minutes=5),
+            "exp": datetime.now(UTC) + timedelta(minutes=5),
         },
         SECRET_KEY,
         algorithm=ALGORITHM,

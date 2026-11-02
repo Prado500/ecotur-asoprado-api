@@ -4,8 +4,7 @@ from sqlalchemy.sql import func
 from app.db.database import Base
 
 class UserRole(str, enum.Enum):
-    """
-    Enumeration of system user roles.
+    """Enumeration of system user roles.
 
     Defines the hierarchical Access Control levels within the platform,
     ensuring coherence across the persistence layer.
@@ -20,8 +19,7 @@ class UserRole(str, enum.Enum):
     tourist = "tourist"
 
 class User(Base):
-    """
-    SQLAlchemy domain model for the User entity.
+    """SQLAlchemy domain model for the User entity.
 
     Represents the 'users' table in the database, handling authentication
     credentials, personal identification, and Role-Based Access Control (RBAC).

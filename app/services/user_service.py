@@ -21,8 +21,7 @@ from app.services.user_access_policy import UserAccessPolicy
 
 
 class RegistrationResult(NamedTuple):
-    """
-    Outcome of the tourist registration pipeline.
+    """Outcome of the tourist registration pipeline.
 
     Bundles the persisted account with its single-use verification token so
     the transport layer decides when and how to dispatch the activation email,
@@ -37,8 +36,7 @@ class RegistrationResult(NamedTuple):
 
 
 class UserService:
-    """
-    Encapsulates business logic and rules, validations, and the operational logic of User entity.
+    """Encapsulates business logic and rules, validations, and the operational logic of User entity.
     """
     def __init__(self, user_repo: UserRepository, audit_service: AuditService, user_access_policy: UserAccessPolicy):
         self.user_repo = user_repo
@@ -46,8 +44,7 @@ class UserService:
         self.user_access_policy = user_access_policy
 
     async def register_tourist(self, user_data: UserCreate) -> RegistrationResult:
-        """
-        Registers a new tourist account and produces its verification token.
+        """Registers a new tourist account and produces its verification token.
 
         The email dispatch is deliberately excluded: scheduling work belongs
         to the transport layer (the router's BackgroundTasks), while the
@@ -100,8 +97,7 @@ class UserService:
 
 
     async def verify_email_account(self, token: str) -> dict:
-        """
-        Decodes the verification token and activates the user account.
+        """Decodes the verification token and activates the user account.
 
         Args:
             token (str): Single-use JWT issued during registration.
@@ -136,8 +132,7 @@ class UserService:
 
 
     async def authenticate_user(self, credentials: UserLogin) -> TokenResponse:
-        """
-        Authenticates credentials and issues an access token.
+        """Authenticates credentials and issues an access token.
 
         Args:
             credentials (UserLogin): Validated email/password payload.
@@ -166,8 +161,7 @@ class UserService:
         return TokenResponse(access_token=generated_token, token_type="bearer")
 
     async def delete_user_account(self, target_cedula: str, current_user: User) -> dict:
-        """
-        Orchestrates the soft deletion of a user account enforcing hierarchical ABAC.
+        """Orchestrates the soft deletion of a user account enforcing hierarchical ABAC.
 
         Authorization follows a pure hierarchical invariant with self-deletion
         parity: the action is allowed only when the actor deletes their own
@@ -211,8 +205,7 @@ class UserService:
         }
 
     async def get_all_registered_users(self, current_user: User) -> list[User]:
-        """
-        Retrieves the user directory enforcing hierarchical visibility rules.
+        """Retrieves the user directory enforcing hierarchical visibility rules.
 
         Authorization is enforced at the routing boundary (admin-tier
         dependency); this method only applies data-scoping rules: superadmins
@@ -234,8 +227,7 @@ class UserService:
         return users
 
     async def update_user_account(self, target_cedula: str, update_data: UserUpdate, current_user: User) -> User:
-        """
-        Executes a partial update on a user entity enforcing hierarchical ABAC.
+        """Executes a partial update on a user entity enforcing hierarchical ABAC.
 
         Authorization follows the same mathematical dominance rule used by
         account deletion: self-updates are always permitted, while third-party
@@ -283,8 +275,7 @@ class UserService:
         return await self.user_repo.save_user(target_user)
 
     async def get_deleted_users(self, current_user: User) -> list[User]:
-        """
-        Retrieves the collection of logically deleted users (Recycle Bin).
+        """Retrieves the collection of logically deleted users (Recycle Bin).
 
         Authorization is enforced at the routing boundary (admin-tier
         dependency); this method only applies data-scoping rules: standard
@@ -310,8 +301,7 @@ class UserService:
         return deleted_users
 
     async def recover_user_account(self, target_cedula: str, current_user: User) -> dict:
-        """
-        Restores a soft-deleted user account enforcing RBAC precedence.
+        """Restores a soft-deleted user account enforcing RBAC precedence.
 
         Recovered accounts are structurally restored but forced into an inactive
         state (is_active=False) by default, requiring explicit administrative
@@ -351,8 +341,7 @@ class UserService:
         return {"success": True, "cc": target_user.cedula, "correo": target_user.email, "nombre": target_user.first_name, "apellido": target_user.last_name, "message": "Usuario recuperado. Se encuentra inactivo por seguridad."}
 
     async def create_administrative_account(self, user_data: UserCreateByAdmin, current_user: User) -> User:
-        """
-        Provisions a new administrative account bypassing the public pipeline.
+        """Provisions a new administrative account bypassing the public pipeline.
 
         The superadmin-only guard below is an intentional hierarchical business
         rule, not a duplicate of the transport frontier: the router's admin-tier

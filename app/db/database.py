@@ -24,16 +24,14 @@ AsyncSessionLocal = async_sessionmaker(
 
 
 class Base(DeclarativeBase):
-    """
-     Master metadata directory (SQLAlchemy 2.0).
+    """Master metadata directory (SQLAlchemy 2.0).
     """
     pass
 
 
 
 async def get_db():
-    """
-    Async session factory used for dependency injection.
+    """Async session factory used for dependency injection.
     """
     async with AsyncSessionLocal() as session:
         try:

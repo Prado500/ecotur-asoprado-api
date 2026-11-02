@@ -1,8 +1,7 @@
-from unittest.mock import patch, create_autospec
+from unittest.mock import create_autospec
 
 import pytest
 from app.models.user import User, UserRole
-from sqlalchemy.future import select
 from app.core.security import get_password_hash, create_access_token
 from app.core.exceptions import AuthorizationError
 from app.models.audit import AuditLog, AuditAction

@@ -1,11 +1,9 @@
 from pydantic import BaseModel, EmailStr, Field, ConfigDict, field_validator
-from typing import Optional
 from datetime import datetime
 from enum import Enum
 
 class UserRole(str, Enum):
-    """
-    Pydantic enumeration for user roles validation.
+    """Pydantic enumeration for user roles validation.
 
     Mirrors the SQLAlchemy UserRole enum to strictly validate incoming
     and outgoing payload data representing user privileges at the API boundary.
@@ -44,7 +42,7 @@ class UserBase(BaseModel):
         pattern=r"^[A-Za-zÁÉÍÓÚáéíóúÜüÑñ]+(?:\s[A-Za-zÁÉÍÓÚáéíóúÜüÑñ]+)*$",
         description="Apellidos. Máximo 65 caracteres incluyendo un espacio en blanco entre apellidos. (solo puede digitar letras, tíldes y un espacio entre palabras; todo apellido debe empezar con una letra)"
     )
-    phone: Optional[str] = Field(
+    phone: str | None = Field(
         None,
         pattern=r"^3\d{9}$",
         description="Número de celular (debe tener 10 dígitos y comenzar por el número tres (3) )"
@@ -53,8 +51,7 @@ class UserBase(BaseModel):
     @field_validator('first_name', 'last_name')
     @classmethod
     def format_title_case(cls, v: str) -> str:
-        """
-        Applies Postel's Law: silently transforms inputs like 'joSE MaNuEL'
+        """Applies Postel's Law: silently transforms inputs like 'joSE MaNuEL'
         into 'Jose Manuel' before they are persisted to the database.
         """
         # .title() converts the first char of each word into CAPS; the rest of the chars are left in lowercase.
@@ -72,9 +69,8 @@ class UserCreate(UserBase):
     @field_validator('password')
     @classmethod
     def validate_password_strength(cls, v: str) -> str:
-        """
-       Password strength validation without regex lookaheads, avoiding Rust-side issues (Pydantic V2)
-       and enabling specific, granular error messages for better UX.
+        """Password strength validation without regex lookaheads, avoiding Rust-side issues (Pydantic V2)
+        and enabling specific, granular error messages for better UX.
         """
         if not any(c.isupper() for c in v):
             raise ValueError('La contraseña debe contener al menos una letra mayúscula.')
@@ -112,35 +108,33 @@ class UserResponse(UserBase):
     model_config = {"from_attributes": True}
 
 class UserUpdate(BaseModel):
-    """
-    Data Transfer Object (DTO) for updating existing user records.
+    """Data Transfer Object (DTO) for updating existing user records.
 
     Enforces partial updates (PATCH/PUT behavior) by making all fields optional.
     Sensitive immutable fields such as 'cedula' and 'password' are fundamentally
     excluded to prevent unauthorized architectural mutations.
     """
-    email: Optional[EmailStr] = Field(None, description="Correo electrónico válido")
-    first_name: Optional[str] = Field(
+    email: EmailStr | None = Field(None, description="Correo electrónico válido")
+    first_name: str | None = Field(
         None,
         min_length=2,
         max_length=65,
         pattern=r"^[A-Za-zÁÉÍÓÚáéíóúÜüÑñ]+(?:\s[A-Za-zÁÉÍÓÚáéíóúÜüÑñ]+)*$"
     )
-    last_name: Optional[str] = Field(
+    last_name: str | None = Field(
         None,
         min_length=2,
         max_length=65,
         pattern=r"^[A-Za-zÁÉÍÓÚáéíóúÜüÑñ]+(?:\s[A-Za-zÁÉÍÓÚáéíóúÜüÑñ]+)*$"
     )
-    phone: Optional[str] = Field(None, pattern=r"^3\d{9}$")
-    role: Optional[UserRole] = None
-    is_active: Optional[bool] = None
+    phone: str | None = Field(None, pattern=r"^3\d{9}$")
+    role: UserRole | None = None
+    is_active: bool | None = None
 
     @field_validator('first_name', 'last_name')
     @classmethod
-    def format_title_case(cls, v: Optional[str]) -> Optional[str]:
-        """
-        Silently applies title casing if the field is present in the payload.
+    def format_title_case(cls, v: str | None) -> str | None:
+        """Silently applies title casing if the field is present in the payload.
         """
         if v is None:
             return v

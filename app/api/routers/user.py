@@ -47,8 +47,7 @@ async def registrar_turista(
         background_tasks: BackgroundTasks,
         user_service: UserService = Depends(get_user_service)
 ):
-    """
-    Public endpoint: Registers a new tourist account.
+    """Public endpoint: Registers a new tourist account.
 
     Delegates the registration pipeline to UserService, which returns the
     persisted account plus its verification token. The activation email is
@@ -83,8 +82,7 @@ async def verificar_cuenta(
         token: str,
         user_service: UserService = Depends(get_user_service)
 ):
-    """
-    Public endpoint: Activates a user account via the emailed verification token.
+    """Public endpoint: Activates a user account via the emailed verification token.
 
     Args:
         token (str): Single-use JWT issued during registration.
@@ -101,8 +99,7 @@ async def login(
         credenciales: UserLogin,
         user_service: UserService = Depends(get_user_service)
 ):
-    """
-    Public endpoint: Authenticates credentials and issues an access JWT.
+    """Public endpoint: Authenticates credentials and issues an access JWT.
 
     Args:
         credenciales (UserLogin): Validated credentials payload (email + password).
@@ -120,8 +117,7 @@ async def login(
 
 @self_service_router.get("/mi-perfil", response_model=UserResponse)
 async def ver_mi_perfil(usuario_actual: UserDep):
-    """
-    Protected endpoint: Returns the authenticated user's own profile.
+    """Protected endpoint: Returns the authenticated user's own profile.
 
     Args:
         usuario_actual (User): User extracted from the active JWT session.
@@ -138,8 +134,7 @@ async def eliminar_usuario(
         usuario_actual: UserDep,
         user_service: UserService = Depends(get_user_service)
 ):
-    """
-    Protected endpoint: Performs a soft-delete on a target user account.
+    """Protected endpoint: Performs a soft-delete on a target user account.
 
     Hierarchical ABAC is delegated to UserService: the action is allowed only
     on self-deletion or when the actor's role strictly outranks the target's.
@@ -165,8 +160,7 @@ async def actualizar_usuario(
         usuario_actual: UserDep,
         user_service: UserService = Depends(get_user_service)
 ):
-    """
-    Protected endpoint: Updates a specific user's profile information.
+    """Protected endpoint: Updates a specific user's profile information.
 
     Tourist users may self-update certain fields. Strict RBAC precedence and
     self-service rules are delegated to UserService.
@@ -196,8 +190,7 @@ async def listar_usuarios(
         usuario_actual: AdminDep,
         user_service: UserService = Depends(get_user_service)
 ):
-    """
-    Protected endpoint: Retrieves the user directory.
+    """Protected endpoint: Retrieves the user directory.
 
     Delegates hierarchical visibility rules to UserService so standard admins
     cannot retrieve superadmin entities.
@@ -217,8 +210,7 @@ async def listar_usuarios_eliminados(
         usuario_actual: AdminDep,
         user_service: UserService = Depends(get_user_service)
 ):
-    """
-    Protected endpoint: Retrieves the collection of logically deleted users.
+    """Protected endpoint: Retrieves the collection of logically deleted users.
 
     Delegates hierarchical visibility rules to UserService so standard admins
     cannot retrieve soft-deleted superadmin entities.
@@ -239,8 +231,7 @@ async def recuperar_usuario(
         usuario_actual: AdminDep,
         user_service: UserService = Depends(get_user_service)
 ):
-    """
-    Protected endpoint: Recovers a soft-deleted user account.
+    """Protected endpoint: Recovers a soft-deleted user account.
 
     Delegates RBAC precedence rules to UserService to prevent standard admins
     from recovering equal or higher-tier accounts.
@@ -265,8 +256,7 @@ async def crear_administrador(
         usuario_actual: AdminDep,
         user_service: UserService = Depends(get_user_service)
 ):
-    """
-    Protected endpoint: Provisions a new administrative account.
+    """Protected endpoint: Provisions a new administrative account.
 
     The admin-tier dependency gates transport access, while UserService
     enforces the stricter superadmin-only hierarchical rule.

@@ -1,5 +1,4 @@
 import os
-from pathlib import Path
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
 from pydantic import EmailStr
 from dotenv import load_dotenv
@@ -25,8 +24,7 @@ conf = ConnectionConfig(
 fast_mail = FastMail(conf)
 
 async def send_verification_email(email_to: EmailStr, first_name: str, token: str, base_url: str):
-    """
-    Construye y envía el correo electrónico con un diseño HTML corporativo responsivo.
+    """Construye y envía el correo electrónico con un diseño HTML corporativo responsivo.
     """
     verification_link = f"{base_url}/usuarios/verificar-email?token={token}"
 

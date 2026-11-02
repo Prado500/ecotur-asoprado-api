@@ -1,19 +1,16 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from typing import List, Optional
 
 from app.models.audit import AuditLog
 
 class AuditRepository:
-    """
-    Handles data access (SQL transactions) regarding the AuditLog entity.
+    """Handles data access (SQL transactions) regarding the AuditLog entity.
     """
     def __init__(self, db: AsyncSession):
         self.db = db
 
     async def create_audit_log(self, audit_log: AuditLog) -> AuditLog:
-        """
-        Persists a new audit trail record into the database.
+        """Persists a new audit trail record into the database.
         """
         self.db.add(audit_log)
         await self.db.commit()
@@ -24,11 +21,10 @@ class AuditRepository:
             self,
             limit: int = 20,
             offset: int = 0,
-            entity_name: Optional[str] = None,
-            entity_id: Optional[str] = None
-    ) -> List[AuditLog]:
-        """
-        Retrieves the audit logs utilizing explicit pagination (limit/offset)
+            entity_name: str | None = None,
+            entity_id: str | None = None
+    ) -> list[AuditLog]:
+        """Retrieves the audit logs utilizing explicit pagination (limit/offset)
         and optional dynamic equality filters to prevent Over-fetching.
         """
         stmt = select(AuditLog)

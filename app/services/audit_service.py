@@ -1,4 +1,4 @@
-from typing import List, Optional, Any
+from typing import Any
 
 from app.repositories.audit_repository import AuditRepository
 from app.models.audit import AuditLog, AuditAction
@@ -6,8 +6,7 @@ from app.models.user import User
 from app.services.user_access_policy import UserAccessPolicy
 
 class AuditService:
-    """
-    Encapsulates business logic, rules, and operational logic of the Audit Trail ecosystem.
+    """Encapsulates business logic, rules, and operational logic of the Audit Trail ecosystem.
     """
     def __init__(self, audit_repo: AuditRepository, user_access_policy: UserAccessPolicy):
         self.audit_repo = audit_repo
@@ -19,10 +18,9 @@ class AuditService:
             entity_id: str,
             action: AuditAction,
             performed_by: str,
-            changes: Optional[dict[str, Any]] = None
+            changes: dict[str, Any] | None = None
     ) -> AuditLog:
-        """
-        Registers a structural or state mutation inside the system.
+        """Registers a structural or state mutation inside the system.
 
         This method is intended to be invoked internally by other domain services
         (e.g., UserService, TouristServicesService) whenever a write operation occurs.
@@ -41,11 +39,10 @@ class AuditService:
             current_user: User,
             limit: int = 20,
             offset: int = 0,
-            entity_name: Optional[str] = None,
-            entity_id: Optional[str] = None
-    ) -> List[AuditLog]:
-        """
-        Retrieves the global audit history enforcing Role-Based Access Control.
+            entity_name: str | None = None,
+            entity_id: str | None = None
+    ) -> list[AuditLog]:
+        """Retrieves the global audit history enforcing Role-Based Access Control.
 
         Authorization is delegated to the UserAccessPolicy administrative-tier
         rule, keeping the service free of role comparisons and transport

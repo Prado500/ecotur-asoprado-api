@@ -5,8 +5,7 @@ from sqlalchemy.sql import func
 from app.db.database import Base
 
 class AuditAction(str, enum.Enum):
-    """
-    Standardized actions for the Audit Trail.
+    """Standardized actions for the Audit Trail.
     """
     CREATE = "CREATE"
     UPDATE = "UPDATE"
@@ -16,8 +15,7 @@ class AuditAction(str, enum.Enum):
     DEACTIVATE = "DEACTIVATE"
 
 class AuditLog(Base):
-    """
-    SQLAlchemy domain model for the Audit Trail ecosystem.
+    """SQLAlchemy domain model for the Audit Trail ecosystem.
 
     Utilizes PostgreSQL's native JSONB data type to store structural
     snapshots of domain entities regardless of their rigid schema.

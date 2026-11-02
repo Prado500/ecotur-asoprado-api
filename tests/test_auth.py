@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from unittest.mock import patch
 
 import pytest
@@ -356,8 +356,8 @@ async def test_listar_usuarios_eliminados_visibilidad(client, db_session):
     """
     # 1. ARRANGE: Create users and soft-delete some of them
     admin = User(cedula="999999", email="admin101@test.com", first_name="Marisol", last_name="Gutierrez", password_hash="x", role=UserRole.admin, is_active=True, data_consent=True)
-    deleted_tourist = User(cedula="888888", email="tourist102@test.com", first_name="Antonio", last_name="Delgado", password_hash="x", role=UserRole.tourist, is_active=False, data_consent=True, deleted_at=datetime.now(timezone.utc))
-    deleted_super = User(cedula="777777", email="super103@test.com", first_name="Jose", last_name="Flores", password_hash="x", role=UserRole.superadmin, is_active=False, data_consent=True, deleted_at=datetime.now(timezone.utc))
+    deleted_tourist = User(cedula="888888", email="tourist102@test.com", first_name="Antonio", last_name="Delgado", password_hash="x", role=UserRole.tourist, is_active=False, data_consent=True, deleted_at=datetime.now(UTC))
+    deleted_super = User(cedula="777777", email="super103@test.com", first_name="Jose", last_name="Flores", password_hash="x", role=UserRole.superadmin, is_active=False, data_consent=True, deleted_at=datetime.now(UTC))
 
     db_session.add_all([admin, deleted_tourist, deleted_super])
     await db_session.commit()
@@ -382,7 +382,7 @@ async def test_recuperar_usuario_exitoso(client, db_session):
     """
     # 1. ARRANGE: Create Admin and a soft-deleted Tourist
     admin = User(cedula="111111", email="admin201@test.com", first_name="Andres", last_name="Angarita", password_hash="x", role=UserRole.admin, is_active=True, data_consent=True)
-    tourist = User(cedula="222222", email="tourist202@test.com", first_name="Tulio", last_name="Torres", password_hash="x", role=UserRole.tourist, is_active=False, data_consent=True, deleted_at=datetime.now(timezone.utc))
+    tourist = User(cedula="222222", email="tourist202@test.com", first_name="Tulio", last_name="Torres", password_hash="x", role=UserRole.tourist, is_active=False, data_consent=True, deleted_at=datetime.now(UTC))
 
     db_session.add_all([admin, tourist])
     await db_session.commit()
@@ -407,7 +407,7 @@ async def test_recuperar_usuario_violacion_jerarquia(client, db_session):
     """
     # 1. ARRANGE: Create Admin and a soft-deleted Superadmin
     admin = User(cedula="111111", email="admin301@test.com", first_name="Arnulfo", last_name="Anzoátegui", password_hash="x", role=UserRole.admin, is_active=True, data_consent=True)
-    superadmin = User(cedula="222222", email="super302@test.com", first_name="Sandra", last_name="Sanchez", password_hash="x", role=UserRole.superadmin, is_active=False, data_consent=True, deleted_at=datetime.now(timezone.utc))
+    superadmin = User(cedula="222222", email="super302@test.com", first_name="Sandra", last_name="Sanchez", password_hash="x", role=UserRole.superadmin, is_active=False, data_consent=True, deleted_at=datetime.now(UTC))
 
     db_session.add_all([admin, superadmin])
     await db_session.commit()
