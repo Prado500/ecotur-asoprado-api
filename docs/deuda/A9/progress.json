@@ -1,0 +1,19 @@
+{
+  "plan_file": "docs/deuda/A9/plan.md",
+  "current_target": "Fase_A",
+  "phases": {
+    "Fase_A": {
+      "status": "pending",
+      "commit": null,
+      "description": "UserResponse sobre BaseModel sin reglas ni title-case (mismos campos, orden, defaults y from_attributes); commit style previo que deja app/schemas/user.py en 0 de ruff; 7 tests (14 casos) en tests/test_user_response.py. El campo commit guarda los dos hashes: '<style> <fix>'."
+    },
+    "Fase_B": {
+      "status": "pending",
+      "commit": null,
+      "description": "ServiceListResponse y ServiceDetailResponse sobre BaseModel sin reglas ni title-case; commit style previo que deja app/schemas/service.py en 0 de ruff (S7 intacto); 8 tests (13 casos) al final de tests/test_services.py. El campo commit guarda los dos hashes: '<style> <fix>'."
+    }
+  },
+  "allowed_statuses": ["pending", "partial", "completed"],
+  "last_handoff": "Estado inicial. Plan pendiente de aprobación humana.",
+  "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
+}
