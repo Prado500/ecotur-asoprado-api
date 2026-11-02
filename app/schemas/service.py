@@ -62,13 +62,37 @@ class ServiceCreate(ServiceBase):
     )
 
 
-class ServiceListResponse(ServiceBase):
+class ServiceListResponse(BaseModel):
+    """Serialized catalog view of a stored tourist package.
+
+    Declared on BaseModel on purpose: it describes what is stored and never re-applies
+    the input rules of ServiceBase (length, price floor, capacity cap, title-case), so
+    one off-rule package cannot take the public catalog down (backlog A9).
+    """
+
+    name: str
+    description: str | None = None
+    category: ServiceCategory = ServiceCategory.otro
+    base_price: Decimal
+    max_capacity: int
+    is_available: bool = False
     id: int
     images: list[ServiceImageResponse] = []
     model_config = ConfigDict(from_attributes=True)
 
 
-class ServiceDetailResponse(ServiceBase):
+class ServiceDetailResponse(BaseModel):
+    """Serialized detail view of a stored tourist package, including its timestamps.
+
+    Same rationale as ServiceListResponse: no input rules on output (backlog A9).
+    """
+
+    name: str
+    description: str | None = None
+    category: ServiceCategory = ServiceCategory.otro
+    base_price: Decimal
+    max_capacity: int
+    is_available: bool = False
     id: int
     created_at: datetime
     deleted_at: datetime | None = None
