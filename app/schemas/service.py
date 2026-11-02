@@ -1,6 +1,7 @@
-from pydantic import BaseModel, Field, ConfigDict, HttpUrl, field_validator
 from datetime import datetime
 from decimal import Decimal
+
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
 
 from app.models.service import ServiceCategory
 
@@ -39,7 +40,8 @@ class ServiceBase(BaseModel):
     @field_validator("name")
     @classmethod
     def format_service_name(cls, v: str) -> str:
-        """Transforms inputs such as 'pAqUeTe tuRIsTiCo' into 'Paquete Turístico'
+        """Transforms inputs such as 'pAqUeTe tuRIsTiCo' into 'Paquete Turístico'.
+
         It implements title case employing .title()
         """
         # Elimination of double whitespaces ("Tour   por el rio" -> "Tour por el rio")
@@ -53,7 +55,10 @@ class ServiceCreate(ServiceBase):
     image_urls: list[HttpUrl] = Field(
         default=[],
         max_length=10,
-        description="Lista de URLs de imágenes. La primera será la principal. Asegúrese de haber pegado un link que empiece por http:// o https://",
+        description=(
+            "Lista de URLs de imágenes. La primera será la principal. "
+            "Asegúrese de haber pegado un link que empiece por http:// o https://"
+        ),
     )
 
 
