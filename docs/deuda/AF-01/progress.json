@@ -1,6 +1,6 @@
 {
   "plan_file": "docs/deuda/AF-01/plan.md",
-  "current_target": "Fase_C",
+  "current_target": "Fase_D",
   "phases": {
     "Fase_A": {
       "status": "completed",
@@ -13,8 +13,8 @@
       "description": "Reglas bloqueantes R2 (fechas de cronograma), R3 (bloques en sesiones), R4 (Decisión estricta), R5 (deadline = CONTEXT §2)"
     },
     "Fase_C": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "968dc25",
       "description": "--copias [dueño], --huerfanas y --estado con caso current_target null + todas completed"
     },
     "Fase_D": {
@@ -28,6 +28,6 @@
     "partial",
     "completed"
   ],
-  "last_handoff": "Fase B completada (da106b0): R2 rule_no_schedule_days, R3 con docs/sesiones, R4 DECISION_RE estricto, R5 rule_deadline; 48 tests nuevos (219 passed); compuerta igual a la linea base.",
+  "last_handoff": "Fase C completada (968dc25): --copias [dueño], --huerfanas, --estado con JSON (null + todas completed = ejecutado), flags excluyentes; ajustes de B aplicados; 30 tests nuevos (249 passed); compuerta igual a la linea base.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
