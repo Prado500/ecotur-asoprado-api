@@ -1,9 +1,10 @@
-from pydantic import BaseModel, EmailStr, Field, ConfigDict, field_validator
 from datetime import datetime
 from enum import Enum
 
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
-class UserRole(str, Enum):
+
+class UserRole(str, Enum):  # noqa: UP042 (backlog D2)
     """Pydantic enumeration for user roles validation.
 
     Mirrors the SQLAlchemy UserRole enum to strictly validate incoming
@@ -23,7 +24,10 @@ class UserBase(BaseModel):
         min_length=6,
         max_length=10,
         pattern=r"^\d{6,10}$",
-        description="Cédula de ciudadanía. Solo puede contener números del 0 al 9, y su longitud debe ser entre 6 y 10 dígitos",
+        description=(
+            "Cédula de ciudadanía. Solo puede contener números del 0 al 9, "
+            "y su longitud debe ser entre 6 y 10 dígitos"
+        ),
     )
 
     email: EmailStr = Field(..., description="Correo electrónico debe ser válido")
@@ -33,14 +37,22 @@ class UserBase(BaseModel):
         min_length=2,
         max_length=65,
         pattern=r"^[A-Za-zÁÉÍÓÚáéíóúÜüÑñ]+(?:\s[A-Za-zÁÉÍÓÚáéíóúÜüÑñ]+)*$",
-        description="Nombres. Máximo 65 caracteres incluyendo un espacio en blanco entre nombres. (solo puede digitar letras, tíldes y un espacio entre palabras; todo nombre debe empezar con una letra)",
+        description=(
+            "Nombres. Máximo 65 caracteres incluyendo un espacio en blanco entre nombres. "
+            "(solo puede digitar letras, tíldes y un espacio entre palabras; "
+            "todo nombre debe empezar con una letra)"
+        ),
     )
     last_name: str = Field(
         ...,
         min_length=2,
         max_length=65,
         pattern=r"^[A-Za-zÁÉÍÓÚáéíóúÜüÑñ]+(?:\s[A-Za-zÁÉÍÓÚáéíóúÜüÑñ]+)*$",
-        description="Apellidos. Máximo 65 caracteres incluyendo un espacio en blanco entre apellidos. (solo puede digitar letras, tíldes y un espacio entre palabras; todo apellido debe empezar con una letra)",
+        description=(
+            "Apellidos. Máximo 65 caracteres incluyendo un espacio en blanco entre apellidos. "
+            "(solo puede digitar letras, tíldes y un espacio entre palabras; "
+            "todo apellido debe empezar con una letra)"
+        ),
     )
     phone: str | None = Field(
         None,
@@ -52,10 +64,13 @@ class UserBase(BaseModel):
     @field_validator("first_name", "last_name")
     @classmethod
     def format_title_case(cls, v: str) -> str:
-        """Applies Postel's Law: silently transforms inputs like 'joSE MaNuEL'
-        into 'Jose Manuel' before they are persisted to the database.
+        """Applies Postel's Law to names before they are persisted.
+
+        Silently transforms inputs like 'joSE MaNuEL' into 'Jose Manuel' before they are
+        persisted to the database.
         """
-        # .title() converts the first char of each word into CAPS; the rest of the chars are left in lowercase.
+        # .title() converts the first char of each word into CAPS;
+        # the rest of the chars are left in lowercase.
         return v.title()
 
 
@@ -63,7 +78,10 @@ class UserCreate(UserBase):
     password: str = Field(
         ...,
         min_length=8,
-        description="Contraseña segura (debe tener al menos 8 carácteres, al menos una mayúscula, al menos una minúscula y al menos un número. )",
+        description=(
+            "Contraseña segura (debe tener al menos 8 carácteres, al menos una mayúscula, "
+            "al menos una minúscula y al menos un número. )"
+        ),
     )
     data_consent: bool = Field(..., description="Aceptación de la Ley 1581 de protección de datos")
 
@@ -71,8 +89,10 @@ class UserCreate(UserBase):
     @field_validator("password")
     @classmethod
     def validate_password_strength(cls, v: str) -> str:
-        """Password strength validation without regex lookaheads, avoiding Rust-side issues (Pydantic V2)
-        and enabling specific, granular error messages for better UX.
+        """Validates password strength without regex lookaheads.
+
+        Avoids Rust-side issues (Pydantic V2) and enables specific, granular error messages
+        for better UX.
         """
         if not any(c.isupper() for c in v):
             raise ValueError("La contraseña debe contener al menos una letra mayúscula.")
@@ -89,7 +109,11 @@ class UserCreate(UserBase):
     @field_validator("data_consent")
     @classmethod
     def check_consent(cls, v: bool) -> bool:
-        """Logical validator: the system must not allow registration if the data protection law consent is not accepted."""
+        """Rejects registration when the data protection consent is not accepted.
+
+        Logical validator: the system must not allow registration if the data protection law
+        consent is not accepted.
+        """
         if not v:
             raise ValueError("Debe aceptar la política de tratamiento de datos para registrarse.")
         return v
