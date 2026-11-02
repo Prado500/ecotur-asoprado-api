@@ -128,6 +128,9 @@ docker-compose exec web alembic upgrade head
 
 ```
 
+**4. Ignore the formatting commits in `git blame` (optional)**
+Run `git config blame.ignoreRevsFile .git-blame-ignore-revs` once per clone, so `git blame` skips the mass-formatting commits listed in that file (PR #70) and points at the real author of each line.
+
 ---
 
 ##  Main Endpoints and Payloads

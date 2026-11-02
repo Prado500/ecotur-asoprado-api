@@ -87,7 +87,7 @@ extend-immutable-calls = [
 
 [tool.mypy]
 python_version = "3.14"
-files = ["app", "scripts/check_docs.py"]
+files = ["app", "scripts/check_docs.py", "scripts/check.py"]
 plugins = ["pydantic.mypy"]
 # Estricto gradual: primero que lo que existe sea coherente; disallow_untyped_defs se sube por módulo.
 check_untyped_defs = true
@@ -138,5 +138,6 @@ branch = true
 [tool.coverage.report]
 show_missing = true
 skip_empty = true
-# Se fija con el valor de la línea base del día 2 y a partir de ahí "no baja".
-fail_under = 0
+precision = 2
+# Floor, not a ratchet (the per-item ratchet is ADR-0005). Baseline 2 Nov, PR #71: 92.68% with branches (PLAN §6).
+fail_under = 92
