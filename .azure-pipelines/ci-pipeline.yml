@@ -22,12 +22,13 @@ steps:
       versionSpec: '$(pythonVersion)'
 
   - script: |
-      pip install -e .[test]
+      pip install -e .[test,dev]
     displayName: 'Instalar dependencias (pyproject.toml)'
 
+  # --soft: ruff/mypy do not block until the global gate is green (B-TESTS m4, ADR-0005). Remove it then.
   - script: |
-      pytest -v
-    displayName: 'Compuerta de Calidad: Ejecutar Pruebas Unitarias (Pytest)'
+      python scripts/check.py --soft format,ruff,mypy
+    displayName: 'Compuerta de calidad (scripts/check.py)'
     env:
       DATABASE_URL: "sqlite+aiosqlite:///:memory:"
       JWT_SECRET_KEY: "super_secreto_ficticio_para_el_ci_pipeline"
