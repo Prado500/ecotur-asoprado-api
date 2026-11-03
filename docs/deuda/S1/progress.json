@@ -1,0 +1,28 @@
+{
+  "plan_file": "docs/deuda/S1/plan.md",
+  "current_target": "cierre",
+  "phases": {
+    "Fase_A": {
+      "status": "completed",
+      "commit": "a30795a",
+      "description": "tests/test_models_schema.py (nuevo): congela el esquema declarado (tipo compilado para PostgreSQL, nulabilidad, PK, índice, único, defaults, FK con ondelete, nombres y etiquetas de ENUM, relación images); 7 casos verdes sobre los modelos actuales (caracterización) y mutaciones MA1-MA4 que fallan."
+    },
+    "Fase_B": {
+      "status": "completed",
+      "commit": "0e833c0",
+      "description": "app/models/{user,service,audit}.py a Mapped[] + mapped_column() y relationship() anotadas, sin cambio de esquema ni de consumidores; Column( 33 -> 0, mypy 44 -> 10, ruff 82 -> 76; test de A intacto y mutaciones M1-M7. Precondición: M0 de David."
+    },
+    "Fase_C": {
+      "status": "completed",
+      "commit": "8ba10c0",
+      "description": "alembic/env.py importa app.models entero (load_dotenv tras los imports); app/models/__init__.py con __all__; tests/test_models_registry.py (2 casos, rojos antes); ruff 76 -> 60, 369 passed. Después: M1 de David."
+    }
+  },
+  "allowed_statuses": [
+    "pending",
+    "partial",
+    "completed"
+  ],
+  "last_handoff": "Fase C completa (8ba10c0): env.py importa app.models entero, __init__.py con __all__; registry test 2 failed (AttributeError __all__) -> 2 passed, MC1/MC2 fallan; smoke offline identico; ruff 76 -> 60, mypy 10, 369 passed, 94.81 %, 4 KEPT. Pendiente: M1 de David.",
+  "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
+}
