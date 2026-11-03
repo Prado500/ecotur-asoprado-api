@@ -1,6 +1,6 @@
 {
   "plan_file": "docs/deuda/S1/plan.md",
-  "current_target": "Fase_B",
+  "current_target": "Fase_C",
   "phases": {
     "Fase_A": {
       "status": "completed",
@@ -8,8 +8,8 @@
       "description": "tests/test_models_schema.py (nuevo): congela el esquema declarado (tipo compilado para PostgreSQL, nulabilidad, PK, índice, único, defaults, FK con ondelete, nombres y etiquetas de ENUM, relación images); 7 casos verdes sobre los modelos actuales (caracterización) y mutaciones MA1-MA4 que fallan."
     },
     "Fase_B": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "0e833c0",
       "description": "app/models/{user,service,audit}.py a Mapped[] + mapped_column() y relationship() anotadas, sin cambio de esquema ni de consumidores; Column( 33 -> 0, mypy 44 -> 10, ruff 82 -> 76; test de A intacto y mutaciones M1-M7. Precondición: M0 de David."
     },
     "Fase_C": {
@@ -23,6 +23,6 @@
     "partial",
     "completed"
   ],
-  "last_handoff": "Fase A completa (a30795a): tests/test_models_schema.py, 7 passed, MA1-MA4 fallan; 367 passed, 94.77 %, ruff 82, mypy 44, 4 KEPT. Fase B requiere M0 de David.",
+  "last_handoff": "Fase B completa (0e833c0): 33 Column( -> 0, 33 mapped_column, 35 Mapped[; mypy 44 -> 10 (las 10 de la lista), ruff 82 -> 76; 367 passed, 94.80 %, 4 KEPT; test de A intacto y M1-M7 fallan.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
