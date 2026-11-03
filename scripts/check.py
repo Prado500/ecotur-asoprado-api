@@ -17,10 +17,11 @@ agente (OpenCode incluido) por instrucción. Un solo lugar define qué significa
 from __future__ import annotations
 
 import os
-import shutil
 import subprocess
 import sys
+import sysconfig
 import time
+from collections.abc import Callable
 from pathlib import Path
 
 PY = sys.executable
@@ -45,12 +46,59 @@ def _prepare_process() -> None:
     os.chdir(REPO_ROOT)
 
 
-def _lint_imports_cmd() -> list[str]:
-    exe = shutil.which("lint-imports")
-    if exe:
-        return [exe]
-    # Fallback: módulo del paquete (por si el venv no tiene el script en PATH).
-    return [PY, "-m", "importlinter.cli", "lint_imports"]
+# Console script names of import-linter: a Windows install has the .exe, a POSIX one the bare name.
+LINT_IMPORTS_NAMES: tuple[str, ...] = ("lint-imports.exe", "lint-imports")
+
+
+def find_lint_imports(
+    scripts_dir: Path, is_file: Callable[[Path], bool] = Path.is_file
+) -> Path | None:
+    """Return the lint-imports console script installed in ``scripts_dir``, or None.
+
+    Pure on purpose (the existence check is injected) so both platform names can be unit
+    tested on any OS. Only ``scripts_dir`` is searched, never the PATH: the contracts must be
+    checked by the import-linter of the interpreter that runs the gate (backlog AF-05).
+
+    Args:
+        scripts_dir: Where pip installs the running interpreter's console scripts
+            (``sysconfig.get_path("scripts")``: ``venv/Scripts`` on Windows, ``bin`` on POSIX).
+        is_file: Existence check; ``Path.is_file`` outside tests.
+
+    Returns:
+        The first path of ``LINT_IMPORTS_NAMES`` that exists in ``scripts_dir``, or None.
+    """
+    for name in LINT_IMPORTS_NAMES:
+        candidate = scripts_dir / name
+        if is_file(candidate):
+            return candidate
+    return None
+
+
+def _lint_imports_cmd(
+    scripts_dir: Path, is_file: Callable[[Path], bool] = Path.is_file
+) -> list[str]:
+    """Build the import-linter step: the console script, or a stand-in that fails loudly.
+
+    There is no module fallback: the package's cli module only defines the click command, so
+    running it exits 0 having checked nothing. When the script is missing, the stand-in
+    prints what to install and exits 1, so ``run()`` marks the step red with the same
+    exit-code rule as every other step.
+
+    Args:
+        scripts_dir: Directory searched by ``find_lint_imports``.
+        is_file: Existence check; ``Path.is_file`` outside tests.
+
+    Returns:
+        The command to run for the import-linter step.
+    """
+    exe = find_lint_imports(scripts_dir, is_file)
+    if exe is not None:
+        return [str(exe)]
+    hint = (
+        f"lint-imports not found in {scripts_dir}; install the dev extras in this interpreter: "
+        f"{PY} -m pip install -e .[dev]"
+    )
+    return [PY, "-c", f"import sys; sys.exit({hint!r})"]
 
 
 def steps(no_tests: bool) -> list[tuple[str, list[str]]]:
@@ -58,7 +106,7 @@ def steps(no_tests: bool) -> list[tuple[str, list[str]]]:
         ("ruff format --check", [PY, "-m", "ruff", "format", "--check", "."]),
         ("ruff check", [PY, "-m", "ruff", "check", "."]),
         ("mypy", [PY, "-m", "mypy"]),
-        ("import-linter", _lint_imports_cmd()),
+        ("import-linter", _lint_imports_cmd(Path(sysconfig.get_path("scripts")))),
         ("docs (coherencia)", [PY, "scripts/check_docs.py"]),
     ]
     if not no_tests:
