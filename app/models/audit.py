@@ -1,11 +1,16 @@
 import enum
-from sqlalchemy import Column, Integer, String, DateTime, Enum, JSON
+from datetime import datetime
+from typing import Any
+
+from sqlalchemy import JSON, DateTime, Enum, String
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
+
 from app.db.database import Base
 
 
-class AuditAction(str, enum.Enum):
+class AuditAction(str, enum.Enum):  # noqa: UP042 (backlog D2)
     """Standardized actions for the Audit Trail."""
 
     CREATE = "CREATE"
@@ -25,20 +30,22 @@ class AuditLog(Base):
 
     __tablename__ = "audit_logs"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
 
     # "User" o "TouristService"
-    entity_name = Column(String(50), nullable=False, index=True)
+    entity_name: Mapped[str] = mapped_column(String(50), index=True)
 
     # String to gracefully support both INT (Service ID) and VARCHAR (Cedula)
-    entity_id = Column(String(50), nullable=False, index=True)
+    entity_id: Mapped[str] = mapped_column(String(50), index=True)
 
-    action = Column(Enum(AuditAction, name="audit_action_enum"), nullable=False)
+    action: Mapped[AuditAction] = mapped_column(Enum(AuditAction, name="audit_action_enum"))
 
     # Dictionary snapshot containing 'old_values' and 'new_values'
-    changes = Column(JSON().with_variant(JSONB, "postgresql"), nullable=True)
+    changes: Mapped[dict[str, Any] | None] = mapped_column(JSON().with_variant(JSONB, "postgresql"))
 
     # The 'cedula' of the administrator who triggered the transaction
-    performed_by = Column(String(50), nullable=False, index=True)
+    performed_by: Mapped[str] = mapped_column(String(50), index=True)
 
-    timestamp = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    timestamp: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), index=True
+    )
