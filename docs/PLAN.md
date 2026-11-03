@@ -1,6 +1,8 @@
 # Ecotur-ASOPRADO — Plan de trabajo hasta la entrega
 
-> **Versión 2.2 — 2 nov 2026.** Cambios de esta versión: bitácora `2026-11-02` (§2b: `B-FORMATO` y `B-CI` hechos,
+> **Versión 2.3 — 3 nov 2026.** Cambios de esta versión: bitácora `2026-11-03` (§2b: `B-S1` hecho; `B-TESTS` pierde
+> AF-03, AF-04 y AF-05, hechos el martes; §3: marca del martes, adelantado, y nota en el presupuesto; §6: medición al cierre
+> del 3 nov). Versiones anteriores: 2.2 — 2 nov 2026, bitácora `2026-11-02` (§2b: `B-FORMATO` y `B-CI` hechos,
 > `B-HIGIENE` cerrado con dos ítems y el resto reasignado, `B-TESTS` retira `--soft` del CI y recibe AF-02/03/04, `B-FUTURO`
 > recibe lo no hecho en orden de criticidad; §3: marca del lunes y filas de la reunión con María Paula; §6: columna del 2 nov y nota sobre la
 > precisión; §8: riesgo del flag `--soft`). Versiones anteriores: 2.1 — 1 nov 2026, bitácora `2026-11-01` (§3: marca del
@@ -53,8 +55,8 @@ toca. `[señal]` marca una media jornada que necesita red.
 | `B-FORMATO` | `ruff check --fix` (sin I001: `(backlog A4)`) + `ruff format` sobre todo el repo | Dos commits mecánicos en ese orden (lint-fix, luego format), sin cambios de lógica; `.git-blame-ignore-revs` los oculta en `blame` | **Hecho (PR #70)** |
 | `B-CI` | `scripts/check.py` en `.azure-pipelines/ci-pipeline.yml`; `fail_under` y `precision` de cobertura | El CI ejecuta la compuerta con `--soft format,ruff,mypy` (tolerados en rojo hasta `B-TESTS`); piso de cobertura con holgura, no trinquete `(ADR-0005)` | **Hecho (PR #71)** |
 | `B-HIGIENE` | SEC1, A9 | Ítems XS/S de la auditoría por el flujo entero, en orden de severidad; el bloque tenía tope de 1 m y lo no hecho recibió decisión nueva el mismo día (todo en la celda de `B-FUTURO`, en orden de criticidad) | **Cerrado** (dos ítems en 1 m; la media jornada entera cupo dos ítems por el flujo, dato para dimensionar XS en Prado) |
-| `B-S1` | S1, Alembic (`env.py` importa `app.models`) | Modelos a `Mapped[]`/`mapped_column` antes de crear `Reservation`; mypy cae a casi cero | m1 modelos a `Mapped[]` · m2 mypy casi a cero; `env.py` importa `app.models` |
-| `B-TESTS` | §9, huecos B2/B3/B4, BE-02, BE-07, A2 (revisión), AF-02 (puntos 2 y 3), AF-03, AF-04 | Suite conforme a `AGENTS.md` §5; al cerrar, ADR-0005 caduca si la compuerta queda en verde y se **retira `--soft` del YAML del CI** (parte del entregable: CI duro) | m1 fábricas y `conftest` (la suite deja de depender de `.env`) · m2 huecos B2/B3/B4 · m3 BE-02, BE-07, §9 · m4 cierre; compuerta medida; `--soft` fuera; AF-02/03/04 en PR propios si caben |
+| `B-S1` | S1, Alembic (`env.py` importa `app.models`) | Modelos a `Mapped[]`/`mapped_column` antes de crear `Reservation`; mypy cae a casi cero | **Hecho (PR #74; ADR-0010).** Fue una sola jornada corta: tres fases en un PR, mypy 44 → 10; el resto del día fue a AF-05 y AF-04, de `B-TESTS` |
+| `B-TESTS` | §9, huecos B2/B3/B4, BE-02, BE-07, A2 (revisión), AF-02 (puntos 2 y 3). AF-03, AF-04 y AF-05 (la compuerta ya no puede imprimir un contrato no medido) ya están hechos, por adelantado (día en §3) | Suite conforme a `AGENTS.md` §5; al cerrar, ADR-0005 caduca si la compuerta queda en verde y se **retira `--soft` del YAML del CI** (parte del entregable: CI duro) | m1 fábricas y `conftest` (la suite deja de depender de `.env`) · m2 huecos B2/B3/B4 · m3 BE-02, BE-07, §9 · m4 cierre; compuerta medida; `--soft` fuera; AF-02 (puntos 2 y 3) en PR propio si cabe |
 | `B-RESERVAS` | BE-19, BE-13, BE-17, BE-18, A3 (solo en el código nuevo) | Módulo de reservas según ADR-0002 | m1 modelos 2.0 (`Package` ampliado, `PackageAvailabilityWindow`, `Reservation` con `Index(unique=True, postgresql_where=…)`), enums de estado, tests RED · m2 migración `--autogenerate` **revisada** con tres comprobaciones: `max_capacity → party_size` como `alter_column` (no drop/add), `WHERE` del índice parcial presente, migración corrida contra el dump de staging; repositorio `add()`/`flush()` sin `commit()` (A3) · m3 crear: guardia BE-13 (409), expiración perezosa en la misma transacción, `DateAlreadyReserved` desde `IntegrityError` → 409 · m4 cancelar; listar las mías (BE-17, paginado); disponibilidad por rango · m5 admin (listar, filtrar por estado) y métricas (BE-18, un endpoint de agregados) · m6 auditoría, `/pr` |
 | `B-PAGOS` | BE-16, ADR de pagos, A4, A5, BE-12 (ADR; código si cabe) | Puerto `PaymentGateway` de dos sentidos (iniciar pago; interpretar evento), `FakeAdapter` que aprueba por regla y puede notificar, ruta de webhook idempotente y transiciones de estado de la reserva: todo local, sin red; reservas, frontend y tests funcionan contra él. A4, A5 y BE-12 van aquí por ser configuración y trabajo local que cabe en las mismas mañanas, no por ser pagos | m1 ADR de pagos (puerto de dos sentidos, `FakeAdapter`, transiciones, idempotencia por id de transacción + estado) → aprobación · m2 `Settings` con pydantic-settings (A4) primero, con el conmutador Fake/Wompi en configuración; puerto + `FakeAdapter` + ruta de webhook + transiciones; flujo reserva → pago falso → evento falso → `confirmed`; tests con evento duplicado · m3 resto de m2; `echo`, `lifespan`, cliente Azure (A5); BE-12 (ADR; `session_version` si cabe) · m4 auditoría, `/pr`; PR `develop` → `staging`; **pre-aviso** al gerente con ventana para la usabilidad (§7) `[señal]` |
 | `B-WOMPI` | BE-27 | Adaptador real: crea la transacción/checkout en el sandbox, verifica la firma del evento y lo mapea al evento del puerto. Sin lógica de negocio; necesita red y URL pública; deslizable sin bloquear nada | m1 adaptador (transacción, checkout, firma, mapeo) con fixtures de eventos · m2 prueba en sandbox con tarjetas de prueba y webhook real a `staging` `[señal]` · m3 cierre, PR aparte; si el criterio de §7 se cumple entero, confirmación de la ventana al gerente |
@@ -116,13 +118,16 @@ Secuencia: 9 (`B-FORMATO`+`B-CI` 1 · `B-HIGIENE` 1 ·
 era 11 (`B-CHECK-DOCS` 1, `B-HIGIENE` 2) contra 10 → colchón −1; el domingo entra como comodín y repaga
 `B-CHECK-DOCS`; `B-HIGIENE` baja de 2 m a 1 m y esa media jornada queda como colchón de la semana. El recorte se hace
 al principio y se deshace al final si sobró, nunca al revés: si el viernes el colchón no se gastó, vuelve a
-`B-HIGIENE`; si se gastó, lo no hecho de `B-HIGIENE` recibe decisión nueva en el backlog ese día.
+`B-HIGIENE`; si se gastó, lo no hecho de `B-HIGIENE` recibe decisión nueva en el backlog ese día. Estado al cierre del
+martes 3: `B-S1` cerró en poco más de un módulo y el resto del día hizo AF-05 y AF-04 de `B-TESTS` por adelantado, en
+un día normal con colchón positivo (no comodín); el colchón del viernes sigue intacto y `B-TESTS` arranca el miércoles
+con tres ítems menos.
 
 | Día | Mañana | Tarde | Cierre |
 |---|---|---|---|
 | Dom 1 nov | **Comodín (fuera del presupuesto):** `B-CHECK-DOCS m1`: especificación a dos manos, implementación por Claude Code, `/pr` | — | ✔ 1 |
 | Lun 2 | `B-FORMATO`+`B-CI` m1 (dos PR propios). A primera hora: mensaje a María Paula para fijar la reunión | `B-HIGIENE m1` (tope: 1 m; lo que no quepa → decisión nueva en backlog hoy). **Hito: reunión con María Paula, 17:00–18:00, dentro de esta media jornada**; si ella no puede, mar 3 a la misma hora (come una hora de `B-S1 m2`); sus filas se escriben al cierre de ese día (PLAN 2.1) | ◐ 2 |
-| Mar 3 | `B-S1 m1` | `B-S1 m2` | |
+| Mar 3 | `B-S1 m1` (tres fases, PR #74 mezclado 15:15) | `B-S1 m2` no hizo falta: AF-05 (PR #75) y AF-04 (PR abierto con el cierre), adelantados de `B-TESTS` | ✔ 3 |
 | Mié 4 | `B-TESTS m1` | `B-TESTS m2` | |
 | Jue 5 | `B-TESTS m3` | `B-TESTS m4`: cierre; compuerta medida (verde → ADR-0005 superado). Si no cierra, el cierre de hoy lo declara deslizado y mueve la fila; no se arrastra en silencio | |
 | Vie 6 | **Colchón (1 m):** si no se gastó, `B-HIGIENE m2` devuelto | Cierre de Bogotá: PR `develop` → `staging` `[señal]`; dump de la base de staging para `B-RESERVAS m2`; preparar mudanza. **Fechar la semana siguiente (Prado)** | |
@@ -192,6 +197,12 @@ y esa cifra es la que se registra. Las columnas anteriores no se recalculan (med
 El 92.68 % frente al 93 % del 27 oct no es una bajada: `ruff --fix` borró imports muertos (sentencias ejecutadas y
 cubiertas), así que numerador y denominador bajaron; por eso `fail_under` es un piso (92) y no un trinquete. Al cierre
 del 2 nov, `bloque/b-higiene` sin mezclar (`99593c1`): 360 tests · 94.77 % · ruff 82 · mypy 44 · 4 KEPT `(docs/deuda/A9/)`.
+**Al cierre del 3 nov, `develop` = `e39825f` (PR #74 S1 + PR #75 AF-05):** 376 tests · 94.81 % · ruff 60 · mypy 10 en 5
+archivos (ninguno en `app/models`; 34 de los 44 eran los modelos tipados como `Column[...]`, S1) · `Contracts: 4 kept, 0
+broken.` **Desde `e39825f` la compuerta local no puede imprimir un contrato no medido** (AF-05): los "4 KEPT" de las
+columnas anteriores medidos en local con el venv sin activar entre el 2 y el 3 nov no fueron medidos por la compuerta;
+el del 27 oct (venv activo) y los del CI sí. El esquema no cambió con S1: `alembic check` idéntico antes y después
+`(docs/bitacora/2026-11-03.md)`. No abre columna: el trinquete sigue comparando contra la última columna hasta `B-TESTS`.
 
 \* B008 son los 41 `Depends(...)` en argumentos por defecto: patrón oficial de FastAPI; se configuró como
 excepción y desaparece al migrar a `Annotated` (D6/S3). Evidencia por fase del 27 oct: `(ADR-0006)`.
