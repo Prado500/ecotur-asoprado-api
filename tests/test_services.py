@@ -6,6 +6,8 @@ ensuring strict adherence to Data Governance policies (Soft Deletions) and
 Role-Based Access Control (RBAC).
 """
 
+from datetime import UTC, datetime
+from decimal import Decimal
 from unittest.mock import AsyncMock, create_autospec
 
 import pytest
@@ -607,3 +609,192 @@ async def test_create_package_validates_all_urls_before_promoting(
     assert isinstance(response.json()["detail"], str)
     classifying_storage.promote_to_permanent.assert_not_awaited()
     await _assert_nothing_persisted(db_session)
+
+
+# === A9: package responses describe the stored package, not the form ===
+# ServiceListResponse and ServiceDetailResponse must return a stored package as it is: a row
+# that predates or bypasses the ServiceBase rules (length, price floor, capacity cap,
+# title-case) is still readable. ServiceCreate and ServiceUpdate keep rejecting and
+# normalizing what the form receives. Packages are seeded through the ORM, no schema involved.
+
+LIST_RESPONSE_KEYS = {
+    "name",
+    "description",
+    "category",
+    "base_price",
+    "max_capacity",
+    "is_available",
+    "id",
+    "images",
+}
+DETAIL_RESPONSE_KEYS = LIST_RESPONSE_KEYS | {"created_at", "deleted_at"}
+
+
+async def _persist_package(db_session, **overrides) -> TouristService:
+    """Seeds a package through the ORM with valid defaults, bypassing the form DTOs.
+
+    Args:
+        db_session: The active SQLAlchemy asynchronous test session.
+        **overrides: Column values that replace the valid defaults.
+
+    Returns:
+        TouristService: The committed and refreshed ORM entity.
+    """
+    values: dict = {
+        "name": "Paquete De Prueba Automatizada",
+        "base_price": Decimal("50000.00"),
+        "max_capacity": 15,
+        "category": ServiceCategory.agroturismo,
+        "is_available": True,
+    }
+    values.update(overrides)
+    package = TouristService(**values)
+    db_session.add(package)
+    await db_session.commit()
+    await db_session.refresh(package)
+    return package
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("name", "Tour corto"),
+        ("name", "Paquete " + "a" * 70),
+        ("base_price", Decimal("1000.00")),
+        ("max_capacity", 50),
+        ("description", "d" * 1001),
+        ("name", "Ruta Cafetera DeLaCruz"),
+    ],
+    ids=[
+        "short_name",
+        "long_name",
+        "price_below_floor",
+        "capacity_over_cap",
+        "long_description",
+        "mixed_case_name",
+    ],
+)
+async def test_public_catalog_returns_stored_package_verbatim(client, db_session, field, value):
+    """A stored value the form would reject or rewrite is returned exactly as stored."""
+    package = await _persist_package(db_session, **{field: value})
+
+    response = await client.get("/servicios/")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body) == 1
+    item = body[0]
+    assert set(item) == LIST_RESPONSE_KEYS
+    assert item["id"] == package.id
+    if field == "base_price":
+        assert Decimal(item["base_price"]) == value
+    else:
+        assert item[field] == value
+
+
+async def test_public_catalog_survives_one_off_rule_package(client, db_session):
+    """One off-rule package among valid ones does not take the public catalog down."""
+    valid_one = await _persist_package(db_session)
+    valid_two = await _persist_package(db_session)
+    off_rule = await _persist_package(db_session, name="Tour corto")
+
+    response = await client.get("/servicios/")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body) == 3
+    assert {item["id"] for item in body} == {valid_one.id, valid_two.id, off_rule.id}
+
+
+async def test_inactive_column_returns_off_rule_package(client, db_session, admin_headers):
+    """The inactive Kanban column returns an off-rule package as stored."""
+    package = await _persist_package(db_session, is_available=False, max_capacity=50)
+
+    response = await client.get("/servicios/admin/inactivos", headers=admin_headers)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body) == 1
+    assert body[0]["id"] == package.id
+    assert body[0]["max_capacity"] == 50
+
+
+async def test_deleted_column_returns_off_rule_package(client, db_session, admin_headers):
+    """The recycle-bin column returns an off-rule deleted package with its detail keys."""
+    package = await _persist_package(
+        db_session, deleted_at=datetime.now(UTC), base_price=Decimal("1000.00")
+    )
+
+    response = await client.get("/servicios/admin/eliminados", headers=admin_headers)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body) == 1
+    item = body[0]
+    assert set(item) == DETAIL_RESPONSE_KEYS
+    assert item["id"] == package.id
+    assert Decimal(item["base_price"]) == Decimal("1000.00")
+    assert item["deleted_at"] is not None
+
+
+async def test_update_on_off_rule_package_returns_200_with_persisted_change(
+    client, db_session, admin_headers
+):
+    """PUT on an off-rule package answers 200 and the change is persisted."""
+    package = await _persist_package(db_session, name="Tour corto")
+
+    response = await client.put(
+        f"/servicios/{package.id}", json={"max_capacity": 10}, headers=admin_headers
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["name"] == "Tour corto"
+    assert body["max_capacity"] == 10
+    await db_session.refresh(package)
+    assert package.max_capacity == 10
+    assert package.name == "Tour corto"
+
+
+async def test_create_still_rejects_short_name(client, db_session, admin_headers, storage_double):
+    """The create form keeps rejecting a short name with 422 and no side effect."""
+    payload = {**_create_payload([TEMP_URL]), "name": "Tour corto"}
+
+    response = await client.post("/servicios/", json=payload, headers=admin_headers)
+
+    assert response.status_code == 422
+    body = response.json()
+    assert [error["raw_field"] for error in body["detalle"]] == ["name"]
+    await _assert_nothing_persisted(db_session)
+    storage_double.promote_to_permanent.assert_not_awaited()
+
+
+async def test_update_still_rejects_capacity_over_limit(client, db_session, admin_headers):
+    """The update form keeps rejecting a capacity over the cap and leaves the row intact."""
+    package = await _persist_package(db_session)
+
+    response = await client.put(
+        f"/servicios/{package.id}", json={"max_capacity": 50}, headers=admin_headers
+    )
+
+    assert response.status_code == 422
+    body = response.json()
+    assert [error["raw_field"] for error in body["detalle"]] == ["max_capacity"]
+    await db_session.refresh(package)
+    assert package.max_capacity == 15
+
+
+async def test_create_still_title_cases_name(client, db_session, admin_headers, storage_double):
+    """The create form keeps normalizing the package name to title-case before persisting."""
+    storage_double.promote_to_permanent.return_value = PERMANENT_URL
+    payload = {**_create_payload([TEMP_URL]), "name": "ruta cafetera del magdalena"}
+
+    response = await client.post("/servicios/", json=payload, headers=admin_headers)
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["name"] == "Ruta Cafetera Del Magdalena"
+    stored = await db_session.get(TouristService, body["id"])
+    assert stored is not None
+    assert stored.name == "Ruta Cafetera Del Magdalena"
+    storage_double.promote_to_permanent.assert_awaited_once_with(TEMP_URL)

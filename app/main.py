@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -160,11 +162,44 @@ async def domain_error_handler(request: Request, exc: DomainError):
     )
 
 
+# === CORS ===
+DEFAULT_CORS_ORIGINS = "http://localhost:3000"
+
+
+def parse_cors_origins(raw: str) -> list[str]:
+    """Parse the comma-separated ``CORS_ORIGINS`` value into an explicit allow-list.
+
+    Pure on purpose so the startup contract can be unit tested without reloading
+    the module: entries are trimmed, empty entries are dropped and any wildcard is
+    rejected, because Starlette would either reflect every origin (``"*"``) or
+    never match it (``"https://*.example"``).
+
+    Args:
+        raw: The raw environment value, e.g. ``"https://a.example, https://b.example"``.
+
+    Returns:
+        The list of allowed origins, in the order given, possibly empty.
+
+    Raises:
+        ValueError: If any entry contains ``"*"``.
+    """
+    origins = [entry.strip() for entry in raw.split(",")]
+    origins = [origin for origin in origins if origin]
+    if any("*" in origin for origin in origins):
+        raise ValueError("CORS_ORIGINS must list explicit origins; wildcards are not allowed")
+    return origins
+
+
+# Read at import time with os.getenv, like the rest of the configuration (backlog A4
+# centralizes settings). `.env` is already loaded here: app.db.database loads it on
+# import and is imported transitively through app.api.routers above.
+CORS_ORIGINS: list[str] = parse_cors_origins(os.getenv("CORS_ORIGINS", DEFAULT_CORS_ORIGINS))
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
+    allow_origins=CORS_ORIGINS,
+    allow_credentials=False,  # Bearer tokens are not CORS credentials; this API sets none.
+    allow_methods=["*"],  # Open on purpose: only trusted origins get this far (backlog SEC1).
     allow_headers=["*"],
 )
 

@@ -1,7 +1,10 @@
 # Ecotur-ASOPRADO — Plan de trabajo hasta la entrega
 
-> **Versión 2.1 — 1 nov 2026.** Cambios de esta versión: bitácora `2026-11-01` (§3: marca del domingo comodín; §2b:
-> `B-CHECK-DOCS` hecho). Versión anterior: 2.0 — 31 oct 2026, bitácoras `2026-10-30` (decisiones del replan: capacidad en
+> **Versión 2.2 — 2 nov 2026.** Cambios de esta versión: bitácora `2026-11-02` (§2b: `B-FORMATO` y `B-CI` hechos,
+> `B-HIGIENE` cerrado con dos ítems y el resto reasignado, `B-TESTS` retira `--soft` del CI y recibe AF-02/03/04, `B-FUTURO`
+> recibe lo no hecho en orden de criticidad; §3: marca del lunes y filas de la reunión con María Paula; §6: columna del 2 nov y nota sobre la
+> precisión; §8: riesgo del flag `--soft`). Versiones anteriores: 2.1 — 1 nov 2026, bitácora `2026-11-01` (§3: marca del
+> domingo comodín; §2b: `B-CHECK-DOCS` hecho); 2.0 — 31 oct 2026, bitácoras `2026-10-30` (decisiones del replan: capacidad en
 > tres regímenes, orden de bloques, `B-PAGOS` partido, usabilidad por criterio, corte de código nuevo) y `2026-10-31`
 > (escritura; paso 0 copia ↔ dueño por sección; acordeón; domingos comodín; orden de sacrificio). Versiones anteriores:
 > `2026-10-28` (v1.7), `2026-10-27` (v1.6), `2026-10-26` (v1.5), `2026-10-25` (v1.4). Versionado según ADR-0007.
@@ -32,8 +35,8 @@
 - **David:** código, calidad, pruebas, artefactos técnicos y capítulos de arquitectura, metodología y resultados
   `(CONTEXT §2)`. La bitácora diaria es evidencia de Scrum y del desarrollo asistido por IA; quién la redacta y quién
   responde por ella: `(README de sesiones)`.
-- **María Paula:** documento `(CONTEXT §2)`. Sus bloques se definen tras la reunión (hito en §3); el reparto propuesto
-  que se le lleva está en `(CONTEXT §7)`. Hasta entonces, `B-MP-DOC` es un marcador en §2b sin filas en §3.
+- **María Paula:** documento, con el reparto acordado en `(CONTEXT §2)`. Su trabajo es `B-MP-DOC` (§2b), sin medias
+  jornadas: su tiempo no se planifica aquí; las revisiones de David se pagan dentro de `B-TESIS`.
 
 ## 2b. Bloques de trabajo (composición y secuencia)
 
@@ -47,11 +50,11 @@ toca. `[señal]` marca una media jornada que necesita red.
 |---|---|---|---|
 | `B-BE01` | BE-01, P1, A7 | Primera deuda por el flujo: `storage.py` sin HTTP, imports muertos de `security.py`, copia síncrona; contrato de capas 4 KEPT | Hecho (PR #61) |
 | `B-CHECK-DOCS` | AF-01 | Reglas de ADR-0008 y su addendum en `scripts/check_docs.py`: días fuera de §3 (también dentro de PLAN), fecha de entrega en PLAN = CONTEXT §2, bloque citado existe en §2b, encabezado de versión (ADR-0007), fila de §3 cerrada sin marca, listado de citas por dueño (`--copias`), copia de hecho duro sin cita como hallazgo, columna Decisión con exactamente un bloque | m1 especificación a dos manos (David + Mentor, ~1 h) → Claude Code: verificar → planear → implementar → auditar → `/pr`. **Hecho** `(backlog AF-01)`; residuales en `(backlog AF-02)` |
-| `B-FORMATO` | `ruff format` + `ruff check --fix` sobre todo el repo | Un solo commit mecánico, sin cambios de lógica | m1 (compartida con `B-CI`): commit mecánico, PR propio |
-| `B-CI` | `scripts/check.py` en `.azure-pipelines/ci-pipeline.yml` | El CI ejecuta la compuerta, no solo pytest | m1 (compartida con `B-FORMATO`): pipeline, PR propio |
-| `B-HIGIENE` | S2, S4, S5, S6, S7, D2, D3, D4, D5, A6, A8, A9, SEC1, SEC3, P2 (`detalle`→`detail`), SEC2 (verificar; mínimo lista blanca sin SVG + tamaño), BE-23, BE-24, BE-25, BE-26 (decidir), P3 (al tocar) | Ítems XS/S de la auditoría; cada uno un commit pequeño. Es el bloque con tope y la palanca de la semana | m1–m2 ítems en orden de severidad; al final de la última `m` fechada, lo no hecho recibe decisión nueva en el backlog ese mismo día (`Sale → B-FUTURO` o `Decidir en B-QA`) |
+| `B-FORMATO` | `ruff check --fix` (sin I001: `(backlog A4)`) + `ruff format` sobre todo el repo | Dos commits mecánicos en ese orden (lint-fix, luego format), sin cambios de lógica; `.git-blame-ignore-revs` los oculta en `blame` | **Hecho (PR #70)** |
+| `B-CI` | `scripts/check.py` en `.azure-pipelines/ci-pipeline.yml`; `fail_under` y `precision` de cobertura | El CI ejecuta la compuerta con `--soft format,ruff,mypy` (tolerados en rojo hasta `B-TESTS`); piso de cobertura con holgura, no trinquete `(ADR-0005)` | **Hecho (PR #71)** |
+| `B-HIGIENE` | SEC1, A9 | Ítems XS/S de la auditoría por el flujo entero, en orden de severidad; el bloque tenía tope de 1 m y lo no hecho recibió decisión nueva el mismo día (todo en la celda de `B-FUTURO`, en orden de criticidad) | **Cerrado** (dos ítems en 1 m; la media jornada entera cupo dos ítems por el flujo, dato para dimensionar XS en Prado) |
 | `B-S1` | S1, Alembic (`env.py` importa `app.models`) | Modelos a `Mapped[]`/`mapped_column` antes de crear `Reservation`; mypy cae a casi cero | m1 modelos a `Mapped[]` · m2 mypy casi a cero; `env.py` importa `app.models` |
-| `B-TESTS` | §9, huecos B2/B3/B4, BE-02, BE-07, A2 (revisión) | Suite conforme a `AGENTS.md` §5; al cerrar, ADR-0005 caduca si la compuerta queda en verde | m1 fábricas y `conftest` · m2 huecos B2/B3/B4 · m3 BE-02, BE-07, §9 · m4 cierre; compuerta medida |
+| `B-TESTS` | §9, huecos B2/B3/B4, BE-02, BE-07, A2 (revisión), AF-02 (puntos 2 y 3), AF-03, AF-04 | Suite conforme a `AGENTS.md` §5; al cerrar, ADR-0005 caduca si la compuerta queda en verde y se **retira `--soft` del YAML del CI** (parte del entregable: CI duro) | m1 fábricas y `conftest` (la suite deja de depender de `.env`) · m2 huecos B2/B3/B4 · m3 BE-02, BE-07, §9 · m4 cierre; compuerta medida; `--soft` fuera; AF-02/03/04 en PR propios si caben |
 | `B-RESERVAS` | BE-19, BE-13, BE-17, BE-18, A3 (solo en el código nuevo) | Módulo de reservas según ADR-0002 | m1 modelos 2.0 (`Package` ampliado, `PackageAvailabilityWindow`, `Reservation` con `Index(unique=True, postgresql_where=…)`), enums de estado, tests RED · m2 migración `--autogenerate` **revisada** con tres comprobaciones: `max_capacity → party_size` como `alter_column` (no drop/add), `WHERE` del índice parcial presente, migración corrida contra el dump de staging; repositorio `add()`/`flush()` sin `commit()` (A3) · m3 crear: guardia BE-13 (409), expiración perezosa en la misma transacción, `DateAlreadyReserved` desde `IntegrityError` → 409 · m4 cancelar; listar las mías (BE-17, paginado); disponibilidad por rango · m5 admin (listar, filtrar por estado) y métricas (BE-18, un endpoint de agregados) · m6 auditoría, `/pr` |
 | `B-PAGOS` | BE-16, ADR de pagos, A4, A5, BE-12 (ADR; código si cabe) | Puerto `PaymentGateway` de dos sentidos (iniciar pago; interpretar evento), `FakeAdapter` que aprueba por regla y puede notificar, ruta de webhook idempotente y transiciones de estado de la reserva: todo local, sin red; reservas, frontend y tests funcionan contra él. A4, A5 y BE-12 van aquí por ser configuración y trabajo local que cabe en las mismas mañanas, no por ser pagos | m1 ADR de pagos (puerto de dos sentidos, `FakeAdapter`, transiciones, idempotencia por id de transacción + estado) → aprobación · m2 `Settings` con pydantic-settings (A4) primero, con el conmutador Fake/Wompi en configuración; puerto + `FakeAdapter` + ruta de webhook + transiciones; flujo reserva → pago falso → evento falso → `confirmed`; tests con evento duplicado · m3 resto de m2; `echo`, `lifespan`, cliente Azure (A5); BE-12 (ADR; `session_version` si cabe) · m4 auditoría, `/pr`; PR `develop` → `staging`; **pre-aviso** al gerente con ventana para la usabilidad (§7) `[señal]` |
 | `B-WOMPI` | BE-27 | Adaptador real: crea la transacción/checkout en el sandbox, verifica la firma del evento y lo mapea al evento del puerto. Sin lógica de negocio; necesita red y URL pública; deslizable sin bloquear nada | m1 adaptador (transacción, checkout, firma, mapeo) con fixtures de eventos · m2 prueba en sandbox con tarjetas de prueba y webhook real a `staging` `[señal]` · m3 cierre, PR aparte; si el criterio de §7 se cumple entero, confirmación de la ventana al gerente |
@@ -62,8 +65,8 @@ toca. `[señal]` marca una media jornada que necesita red.
 | `B-QA` | Caja negra, bug bash, D1 (usabilidad, criterio de §7), despliegue a `main` | Evidencia para el capítulo de evaluación | m1–m2 casos de caja negra por módulo (tabla) · m3 bug bash · m4 correcciones · m5 despliegue a `main`, capturas `[señal]` · m6 instrumentos de usabilidad (de María Paula si se acordó; si no, de David) · m7–m8 sesiones con testers turista `[señal]` · m9 sesión con el gerente `[señal]` · m10 transcripción, SUS, lista de correcciones · m11–m18 correcciones de usabilidad · m19 segunda pasada de caja negra · m20 OpenAPI revisado; cierre de PRs · m21 medición de §6; despliegue final a `main` `[señal]` · m22 corte de código nuevo (hito de §3) |
 | `B-DOCS-TEC` | UML, MER, OpenAPI, manual técnico, README | Anexos técnicos | m1–m2 UML desde código (componentes, secuencia de reserva y pago, casos de uso) · m3 MER · m4 OpenAPI como anexo · m5–m6 manual técnico de despliegue · m7 README y revisión de anexos · m8 colchón del bloque |
 | `B-TESIS` | Capítulos de arquitectura, metodología, resultados; integración con María Paula; entrega | El documento | m1–m3 arquitectura (desde los ADR) · m4–m6 metodología (Scrum + IA + flujo + lecciones; bitácoras como evidencia) · m7–m9 resultados (§6, caja negra, SUS, correcciones derivadas) · m10–m11 integración con María Paula · m12 `B-FUTURO` como capítulo · m13 conclusiones · m14 referencias · m15 primera lectura completa · m16–m17 correcciones · m18 formato, figuras, PDF · m19 segunda lectura · m20–m21 correcciones finales, checklist de entrega · m22 margen |
-| `B-MP-DOC` | Por definir tras la reunión con María Paula | Marcador; se parte en los bloques que salgan de la reunión | — |
-| `B-FUTURO` | Todo lo marcado "Sale" en el backlog (BE-09, BE-10, BE-11 derivado, BE-14 tiempo real, BE-20, BE-21, BE-22, FE-10, D6/S3 y P2-handlers si no caben) | Capítulo de trabajo futuro, con justificación por ítem | — |
+| `B-MP-DOC` | Especificación de requisitos ampliada con historias de usuario (OE1); wireframes y diagramas de UX/UI completados (OE2); avances de metodología; manuales y documentación compartidos (OE4) | Trabajo de María Paula según el reparto acordado `(CONTEXT §2)`; David entrega las historias de usuario, revisa wireframes, diagramas y la narrativa de Scrum. Sin medias jornadas: su tiempo no se planifica aquí; lo que David revisa se paga con las `m` de `B-TESIS` (m10–m11, integración) | — (hitos de revisión por fechar en §3 cuando haya fecha de entrega) |
+| `B-FUTURO` | Todo lo marcado "Sale" en el backlog. Lo que salió de `B-HIGIENE`, del más crítico al menos, para halar de vuelta en ese orden si se libera colchón: SEC2 · BE-26 · SEC3 · A6 · D5 · P2 (`detalle`→`detail`) · BE-25 · D2 · D3 · BE-24 · BE-23 · D4 · A8 · S5 · S2 · S6 · S7 · P3 · BE-09 · D6/S3. Lo demás: BE-10, BE-11 derivado, BE-14 tiempo real, BE-20, BE-21, BE-22, BE-29, FE-10 | Capítulo de trabajo futuro, con justificación por ítem | — |
 
 ---
 
@@ -88,7 +91,7 @@ CI; hasta entonces `python scripts/check.py` local es la única compuerta).
   un bloque ya abierto necesite para cerrar su PR. Se mueve solo hacia antes: si la reserva de punta a punta y la
   usabilidad ya están, las horas sobrantes van al documento; nunca hacia después. Lo que no esté → `B-FUTURO` (§1-D3).
 - **Lun 11 ene — entrega en línea** `(CONTEXT §2)`. El domingo anterior es margen, no día planificado.
-- **Reunión con María Paula** (fechada abajo); de ella salen `B-MP-DOC` y la respuesta a la pregunta de `(CONTEXT §7)`.
+- **Reunión con María Paula**: hecha; `B-MP-DOC` definido en §2b y reparto en `(CONTEXT §2)`. Próxima reunión y entrega de las historias de usuario de David a ella: por fechar (se añaden aquí cuando tengan fecha).
 
 ### Días cerrados bajo el plan v1.x (historia; el detalle está en cada bitácora)
 
@@ -118,7 +121,7 @@ al principio y se deshace al final si sobró, nunca al revés: si el viernes el 
 | Día | Mañana | Tarde | Cierre |
 |---|---|---|---|
 | Dom 1 nov | **Comodín (fuera del presupuesto):** `B-CHECK-DOCS m1`: especificación a dos manos, implementación por Claude Code, `/pr` | — | ✔ 1 |
-| Lun 2 | `B-FORMATO`+`B-CI` m1 (dos PR propios). A primera hora: mensaje a María Paula para fijar la reunión | `B-HIGIENE m1` (tope: 1 m; lo que no quepa → decisión nueva en backlog hoy). **Hito: reunión con María Paula, 17:00–18:00, dentro de esta media jornada**; si ella no puede, mar 3 a la misma hora (come una hora de `B-S1 m2`); sus filas se escriben al cierre de ese día (PLAN 2.1) | |
+| Lun 2 | `B-FORMATO`+`B-CI` m1 (dos PR propios). A primera hora: mensaje a María Paula para fijar la reunión | `B-HIGIENE m1` (tope: 1 m; lo que no quepa → decisión nueva en backlog hoy). **Hito: reunión con María Paula, 17:00–18:00, dentro de esta media jornada**; si ella no puede, mar 3 a la misma hora (come una hora de `B-S1 m2`); sus filas se escriben al cierre de ese día (PLAN 2.1) | ◐ 2 |
 | Mar 3 | `B-S1 m1` | `B-S1 m2` | |
 | Mié 4 | `B-TESTS m1` | `B-TESTS m2` | |
 | Jue 5 | `B-TESTS m3` | `B-TESTS m4`: cierre; compuerta medida (verde → ADR-0005 superado). Si no cierra, el cierre de hoy lo declara deslizado y mueve la fila; no se arrastra en silencio | |
@@ -168,20 +171,27 @@ previas van al capítulo de metodología como lecciones aprendidas, con las obse
 Medido con `python scripts/check.py` (Python 3.14) sobre `develop`. Columnas: línea base, estado tras el primer
 ciclo del flujo (`B-BE01`), y la medición al corte de código nuevo (hito de §3), que se rellena ese día.
 
-| Métrica | 24 oct, `e4fd14d` | 27 oct, `c8853af` (PR #61) | Al corte de código |
-|---|---|---|---|
-| Archivos sin formatear (`ruff format --check`) | 34 de 90 | no medido | |
-| Errores `ruff check` | 531 (E501 137 · D212 110 · B008 41* · UP045 33 · I001 29 · D205 28 · W292 21 · UP006 21 · F401 16 · B904 7 · resto < 12 c/u) | 362 | |
-| Errores `mypy` | 44 en 12 archivos (29 en los dos servicios grandes; causa dominante: modelos tipados como `Column[...]` → S1, y `SECRET_KEY: str \| None` → A4) | 44 (mismo conjunto de líneas) | |
-| Contratos `import-linter` | **3 KEPT · 1 BROKEN.** Roto: "los servicios no conocen el transporte HTTP", por dependencia transitiva `services → core/storage → fastapi` y `services → core/security → fastapi/starlette` (BE-01 y P1). Antes de evaluar hubo que crear `app/api/__init__.py` | **4 KEPT · 0 BROKEN** | |
-| Tests | 116 passed · 0 failed · 1 warning (S5) | 145 passed | |
-| Cobertura (`pytest-cov`, ramas incluidas) | **89 %** (908 sentencias, 88 sin cubrir). Puntos ciegos: `core/storage.py` 28 %, `core/email.py` 69 %, `main.py` 77 %, `service_repository.py` 77 % | **93 %** (`core/storage.py` 100 %) | |
-| Casos de caja negra pasados / totales | — | — | |
-| SUS promedio (turista / admin) | — | — | |
+| Métrica | 24 oct, `e4fd14d` | 27 oct, `c8853af` (PR #61) | 2 nov, `7c6d606` (PR #71) | Al corte de código |
+|---|---|---|---|---|
+| Archivos sin formatear (`ruff format --check`) | 34 de 90 | no medido | 0 | |
+| Errores `ruff check` | 531 (E501 137 · D212 110 · B008 41* · UP045 33 · I001 29 · D205 28 · W292 21 · UP006 21 · F401 16 · B904 7 · resto < 12 c/u) | 362 | 98 | |
+| Errores `mypy` | 44 en 12 archivos (29 en los dos servicios grandes; causa dominante: modelos tipados como `Column[...]` → S1, y `SECRET_KEY: str \| None` → A4) | 44 (mismo conjunto de líneas) | 44 | |
+| Contratos `import-linter` | **3 KEPT · 1 BROKEN.** Roto: "los servicios no conocen el transporte HTTP", por dependencia transitiva `services → core/storage → fastapi` y `services → core/security → fastapi/starlette` (BE-01 y P1). Antes de evaluar hubo que crear `app/api/__init__.py` | **4 KEPT · 0 BROKEN** | 4 KEPT | |
+| Tests | 116 passed · 0 failed · 1 warning (S5) | 145 passed | 317 passed | |
+| Cobertura (`pytest-cov`, ramas incluidas) | **89 %** (908 sentencias, 88 sin cubrir). Puntos ciegos: `core/storage.py` 28 %, `core/email.py` 69 %, `main.py` 77 %, `service_repository.py` 77 % | **93 %** (`core/storage.py` 100 %) | **92.68 %** | |
+| Casos de caja negra pasados / totales | — | — | — | |
+| SUS promedio (turista / admin) | — | — | — | |
 
 Medición intermedia del 1 nov (`f6f73a9`, PR #69, AF-01): ruff 362; mypy 44 con `scripts/check_docs.py` ya dentro de
 `mypy.files`; import-linter 4 KEPT; cobertura 93 % (solo `app`); **293 tests** (145 de `app` + 148 del script de docs).
 No abre columna: el trinquete de ADR-0005 compara contra el 27 oct y el código de `app` no cambió.
+
+Columna del 2 nov: medida por `/deuda-verificar SEC1` sobre `develop` tras `B-FORMATO` y `B-CI` `(docs/deuda/SEC1/)`.
+**Precisión:** hasta el 1 nov la herramienta imprimía la cobertura sin decimales; desde `B-CI` (`precision = 2`) imprime dos,
+y esa cifra es la que se registra. Las columnas anteriores no se recalculan (mediciones fechadas con el método de su día).
+El 92.68 % frente al 93 % del 27 oct no es una bajada: `ruff --fix` borró imports muertos (sentencias ejecutadas y
+cubiertas), así que numerador y denominador bajaron; por eso `fail_under` es un piso (92) y no un trinquete. Al cierre
+del 2 nov, `bloque/b-higiene` sin mezclar (`99593c1`): 360 tests · 94.77 % · ruff 82 · mypy 44 · 4 KEPT `(docs/deuda/A9/)`.
 
 \* B008 son los 41 `Depends(...)` en argumentos por defecto: patrón oficial de FastAPI; se configuró como
 excepción y desaparece al migrar a `Annotated` (D6/S3). Evidencia por fase del 27 oct: `(ADR-0006)`.
@@ -228,3 +238,4 @@ excepción y desaparece al migrar a `Annotated` (D6/S3). Evidencia por fase del 
 | Tiempo en meta-trabajo del flujo y de los documentos (del 26 al 31 oct) | El flujo y los documentos solo cambian si un bloque se bloquea por su culpa; `B-CHECK-DOCS` tiene alcance fijo; el fechado semanal son cinco minutos |
 | Perfeccionismo en deuda | Regla a-b-c de §1-D3; lo demás es deuda conocida documentada |
 | Línea base desactualizada entre ítems | Un solo ítem en curso; hash de la verificación comparado por el ejecutor `(ADR-0005)` |
+| El CI tolera ruff y mypy en rojo (`--soft`, `B-CI`) y `B-TESTS` se desliza: un PR que añada deuda nueva pasaría en verde | La excepción vive solo en la invocación del YAML (en local `check.py` sigue estricto) y su retirada es parte del entregable de `B-TESTS` (§2b); mientras tanto, el trinquete del auditor `(ADR-0005)` cubre lo que pasa por el flujo; los commits directos no tienen red |
