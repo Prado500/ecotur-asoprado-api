@@ -1,14 +1,14 @@
 {
   "plan_file": "docs/deuda/AF-05/plan.md",
-  "current_target": "Fase_A",
+  "current_target": "Auditoria",
   "phases": {
     "Fase_A": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "bd9b8c7",
       "description": "scripts/check.py: find_lint_imports (pura, scripts_dir + is_file inyectados) busca lint-imports(.exe) solo en sysconfig.get_path(\"scripts\"); sin which ni fallback -m; ausente -> comando sustituto que sale 1 con mensaje (run() intacto). tests/test_check.py: 6 funciones (7 casos), la 1 reproduce el no-op. Mutaciones MA1-MA4. Después: MD1 de David (log del CI). Plan aprobado por David el 3 nov 2026 con 5 enmiendas."
     }
   },
   "allowed_statuses": ["pending", "partial", "completed"],
-  "last_handoff": "Estado inicial. Plan aprobado por David el 3 nov 2026 con enmiendas (directorio = sysconfig.get_path(\"scripts\")).",
+  "last_handoff": "Fase_A completed en bd9b8c7: RED 7 failed/24 passed -> GREEN 31 passed; suite 376 passed, 94.81 %, Contracts: 4 kept, 0 broken. (también sin venv en el PATH), ruff 60 / mypy 10 sin cambios; MA1-MA4 en rojo y restauradas. Pendiente: /auditar AF-05 y MD1 de David (log del CI).",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
