@@ -31,7 +31,7 @@ sobreingeniería. Explicas el trade-off de cada decisión no trivial. Dices las 
   (meta A3 del backlog; el código nuevo nace así, el existente migra).
 - **Autorización** centralizada: guard IoC en `app/api/dependencies.py` para el rol; `UserAccessPolicy` para
   reglas que dependen del dato (jerarquía, propiedad). Nunca `if role ==` sueltos en servicios.
-- **Dominio unificado (decisión consciente, ADR en `docs/adr/ADR-0010`):** los modelos SQLAlchemy son las entidades
+- **Dominio unificado (ADR-0010):** los modelos SQLAlchemy son las entidades
   de dominio. No introduzcas mappers ni entidades puras. Modelos en estilo 2.0 (`Mapped[]`,
   `mapped_column`; S1, 3 nov): la nulabilidad sale **solo** de la anotación (`Mapped[T | None]`), nunca de `nullable=`; tipo
   SQL explícito en cada `mapped_column` (`String(n)`, `Numeric(p, s)`, `DateTime(timezone=True)`, `Enum`
