@@ -1,6 +1,6 @@
 {
   "plan_file": "docs/deuda/S1/plan.md",
-  "current_target": "Fase_C",
+  "current_target": "cierre",
   "phases": {
     "Fase_A": {
       "status": "completed",
@@ -13,8 +13,8 @@
       "description": "app/models/{user,service,audit}.py a Mapped[] + mapped_column() y relationship() anotadas, sin cambio de esquema ni de consumidores; Column( 33 -> 0, mypy 44 -> 10, ruff 82 -> 76; test de A intacto y mutaciones M1-M7. Precondición: M0 de David."
     },
     "Fase_C": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "8ba10c0",
       "description": "alembic/env.py importa app.models entero (load_dotenv tras los imports); app/models/__init__.py con __all__; tests/test_models_registry.py (2 casos, rojos antes); ruff 76 -> 60, 369 passed. Después: M1 de David."
     }
   },
@@ -23,6 +23,6 @@
     "partial",
     "completed"
   ],
-  "last_handoff": "Fase B completa (0e833c0): 33 Column( -> 0, 33 mapped_column, 35 Mapped[; mypy 44 -> 10 (las 10 de la lista), ruff 82 -> 76; 367 passed, 94.80 %, 4 KEPT; test de A intacto y M1-M7 fallan.",
+  "last_handoff": "Fase C completa (8ba10c0): env.py importa app.models entero, __init__.py con __all__; registry test 2 failed (AttributeError __all__) -> 2 passed, MC1/MC2 fallan; smoke offline identico; ruff 76 -> 60, mypy 10, 369 passed, 94.81 %, 4 KEPT. Pendiente: M1 de David.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
