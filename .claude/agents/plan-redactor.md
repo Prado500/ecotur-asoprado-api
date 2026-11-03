@@ -62,6 +62,12 @@ por sesiones aisladas. Un buen plan cabe en una página y se puede auditar contr
 
 ## Verificación final
 <comandos grep/pytest exactos que demuestran la deuda saldada en todo el repo>
+Cada comando con un número esperado se calcula contando **también el texto literal que este plan dicta**
+(docstrings, mensajes, nombres de tests, comentarios): si el plan fija un docstring con una cadena, esa cadena
+cuenta en el grep. Al aplicar enmiendas, se recalculan los comandos afectados, no solo las decisiones. Una
+expectativa falsa aquí hace que el ejecutor "arregle" código correcto o que el auditor descarte la comprobación a
+ojo, y la verificación deja de ser mecánica (AF-05, 3 nov).
+
 
 ## Residuales
 <hallazgos fuera de alcance con evidencia y destino sugerido>
