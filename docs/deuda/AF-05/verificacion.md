@@ -184,13 +184,22 @@ Compuerta NO superada: ruff check, mypy
 Resuelve lo que la conclusión deja abierto. El planificador las toma como dadas; lo demás (fases, tests, commits) es
 suyo.
 
-1. **Solo junto a `sys.executable`; sin `which`.** `lint-imports` se busca en el directorio del intérprete que corre la
-   compuerta (`Scripts\lint-imports.exe` en Windows, `bin/lint-imports` en Linux) y en ningún otro sitio. Si no está, el
-   paso sale en rojo con un mensaje que diga qué instalar en ese intérprete (`pip install -e .[dev]`). Razón: en el CI
-   `lint-imports` también vive junto a `sys.executable` (`UsePythonVersion`), así que `which` no cubre ningún caso real
-   del proyecto y sí abre el que la propia verificación nombra (un `lint-imports` de otro Python antes en el `PATH`,
-   corriendo el contrato con otro intérprete). Una herramienta por intérprete, sin adivinar: el mismo criterio que
-   ADR-0001 aplica a `ruff`, `mypy` y `pytest` con `-m`. Sin fallback a `-m importlinter.cli`.
+1. **Solo en el directorio de scripts del intérprete que corre la compuerta; sin `which`.** Ese directorio es el que
+   devuelve `sysconfig.get_path("scripts")`: donde pip instala los console scripts de *ese* intérprete
+   (`venv\Scripts\lint-imports.exe` en Windows, `venv/bin/lint-imports` en POSIX y en el toolcache del CI). Allí y en
+   ningún otro sitio. Si no está, el paso sale en rojo con un mensaje que diga qué instalar en ese intérprete
+   (`pip install -e .[dev]`). Razón: en el CI `lint-imports` también vive en ese directorio (`UsePythonVersion`), así
+   que `which` no cubre ningún caso real del proyecto y sí abre el que la propia verificación nombra (un `lint-imports`
+   de otro Python antes en el `PATH`, corriendo el contrato con otro intérprete). Una herramienta por intérprete, sin
+   adivinar: el mismo criterio que ADR-0001 aplica a `ruff`, `mypy` y `pytest` con `-m`. Sin fallback a
+   `-m importlinter.cli`.
+   *Corrección del 3 nov, 16:10:* la primera redacción decía "junto a `sys.executable`" y el plan la llevó a
+   `Path(sys.executable).parent`, que coincide con `sysconfig` en todos los modos del proyecto pero no en un Python
+   global de Windows (`C:\Python314` frente a `C:\Python314\Scripts`, comprobado por el planificador). Se fija
+   `sysconfig.get_path("scripts")` porque expresa la intención (la herramienta de este intérprete) con la API que la
+   define, y hace innecesario el cuidado con `.resolve()` y el symlink de `venv/bin/python` en POSIX (`sysconfig`
+   responde por `sys.prefix`, no por la ruta del binario). La función pura sigue recibiendo el directorio y la función
+   de existencia; solo cambia quién le pasa el directorio.
 2. **"Contrato roto → rojo" es mutación de auditoría, no test permanente.** Un test que rompa un contrato de capas
    tendría que meter un import prohibido en `app/`; eso no entra en la suite. Va como mutación del auditor (import
    temporal entre capas, compuerta en rojo, archivo restaurado byte a byte), como MA1–MA4 de S1. El test permanente es
