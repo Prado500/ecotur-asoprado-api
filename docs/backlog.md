@@ -1,7 +1,7 @@
 # Ecotur-ASOPRADO — Backlog consolidado
 
 > **Versión 1.11 — 2 nov 2026.** Cambios de esta versión: bitácora `2026-11-02` (S4, SEC1 y A9 → Hecho; `B-HIGIENE`
-> cerrado: BE-26, A6, SEC2, SEC3 y S5 a decidir en `B-QA`, el resto a `B-FUTURO`; AF-02 → `B-TESTS`; BE-29, AF-03 y
+> cerrado: todo lo no hecho a `B-FUTURO`, ordenado por criticidad en PLAN §2b; AF-02 → `B-TESTS`; BE-29, AF-03 y
 > AF-04 nuevas; notas de retirada en A4 y D2). Versiones anteriores: `2026-11-01` (v1.10, siete filas sin bloques
 > dentro del calificador de la Decisión; AF-01 → Hecho y AF-02 nueva);
 > `2026-10-31` (v1.9, replan: BE-16 partido en BE-16 y BE-27; BE-08 partido en BE-08 y BE-28; sección E con AF-01);
@@ -50,7 +50,7 @@
 | BE-23 | ADR-0003 | `AlreadyExistsError` responde 400; 409 es lo correcto | Baja | **Sale → `B-FUTURO`** | Residuo declarado en ADR-0003. Cambia el contrato del cliente: hay que revisar dónde Flutter maneja el 400 de duplicados. Si es un solo sitio, entra en `B-HIGIENE`; si no, `B-FUTURO`. |
 | BE-24 | plan BE-01 (27 oct) | Dos formas de 422 en `/servicios/`: Pydantic responde `{"detalle": [...]}` y una excepción de dominio respondería `{"detail": str}`; por eso `InvalidImageUrlError` se mapeó a 400 (ADR-0006) | Baja | **Sale → `B-FUTURO`** | Junto a P2 (`detalle`→`detail`): unificar la forma del 422, actualizar el cliente Flutter y remapear `InvalidImageUrlError` a 422 en `_DOMAIN_ERROR_STATUS` (una línea). |
 | BE-25 | plan BE-01 (27 oct) | Blobs compartidos: `PUT /servicios/{id}` acepta una URL permanente que ya usa otro paquete; al quitarla después, `delete_image` borra el blob y rompe la imagen del otro paquete | Media | **Sale → `B-FUTURO`** | Rechazar en `PUT` las URLs permanentes que no pertenezcan ya al paquete, o no borrar blobs referenciados por otros paquetes. Crear ya solo acepta blobs temporales (ADR-0006). |
-| BE-26 | revisión humana del diff de BE-01 fase D (27 oct) | En `update_package_details` los blobs viejos se borran del CDN **antes** de promover los nuevos; si una promoción falla, el paquete queda sin unas ni otras. Comportamiento previo a BE-01 | Media | **Decidir en `B-QA`** | Promover primero, borrar después (o borrar fuera de la transacción, tras confirmar). Test: fallo de promoción en `PUT` deja las imágenes anteriores intactas. |
+| BE-26 | revisión humana del diff de BE-01 fase D (27 oct) | En `update_package_details` los blobs viejos se borran del CDN **antes** de promover los nuevos; si una promoción falla, el paquete queda sin unas ni otras. Comportamiento previo a BE-01 | Media | **Sale → `B-FUTURO`** | Promover primero, borrar después (o borrar fuera de la transacción, tras confirmar). Test: fallo de promoción en `PUT` deja las imágenes anteriores intactas. |
 | BE-27 | Replan 30 oct (partido de BE-16) | `WompiAdapter` sandbox: creación de la transacción/checkout, verificación de firma del evento, mapeo evento Wompi → evento del puerto | — | **Entra · `B-WOMPI`** | Solo adaptador, sin lógica de negocio; necesita red y URL pública; PR aparte, deslizable; primero en el orden de sacrificio (PLAN §8). Si no entra antes del corte de código, la usabilidad se declara con `FakeAdapter` (PLAN §7). |
 | BE-28 | txt (partido de BE-08) | Orden de paquetes en el kanban (cliente) | Media | **Entra · `B-FE-RESERVAS`** | Campo numérico en la tarjeta del kanban que llama al `PATCH` de BE-08. Nada de drag & drop. |
 | BE-29 | A9 (2 nov) | El patrón de nombres rechaza guion y apóstrofo ("Jean-Luc", "O'Brien") en registro y actualización | Baja | **Sale → `B-FUTURO`** | Regla de negocio, no técnica: decidir con gerencia qué caracteres admite un nombre; hoy la salida ya los devuelve tal cual (A9). |
@@ -69,10 +69,10 @@ contra el informe: la auditoría tiene un mes y mucho ya cambió. Esfuerzo: XS �
 | A3 | Repositorios hacen `commit()` (sin Unit of Work; auditoría antes que creación) | **7** `commit()` en repositorios, 0 en servicios | Alta | M | **Entra · `B-RESERVAS` (código nuevo con UoW; repos existentes si cabe)** |
 | A4 | Configuración dispersa: 14 `os.getenv`, `pydantic-settings` sin usar. Al cerrar A4, aplicar I001 (`ruff check --fix --select I001 .`): `B-FORMATO` lo excluyó porque `security.py` lee el entorno al importar y reordenar imports cambia el comportamiento (bitácora 2026-11-02) | **14** `os.getenv`, **0** `BaseSettings` | Alta | S–M | **Entra · `B-PAGOS`**
 | A5 | `echo=True` fijo; sin `lifespan`; cliente Azure por petición | `echo=True` **1**; `lifespan` **aparece 2** (verificar) | Media | XS–S | **Entra · `B-PAGOS`**
-| A6 | Sin `logging`; 2 `print()`; `IntegrityError` descartado sin registro | **0** `logging`, **2** `print(` | Media | S | **Decidir en `B-QA`**
+| A6 | Sin `logging`; 2 `print()`; `IntegrityError` descartado sin registro | **0** `logging`, **2** `print(` | Media | S | **Sale → `B-FUTURO`**
 | A7 | `promote_to_permanent` borra el origen sin esperar la copia (pérdida de imágenes) | `start_copy_from_url` **1**, sin espera de `copy_status` | Alta | S | **Hecho (PR #61, 27 oct)**
 | A8 | `get_deleted_users` filtra en memoria | **1** comprensión sobre `deleted_at` | Baja | XS | **Sale → `B-FUTURO`**
-| A9 | `UserResponse` hereda validaciones de entrada → 500 al leer nombres válidos | **1** `class UserResponse(UserBase` | Alta | S | **Entra · `B-HIGIENE`**
+| A9 | `UserResponse` hereda validaciones de entrada → 500 al leer nombres válidos | **1** `class UserResponse(UserBase` | Alta | S | **Hecho (2 nov, `c369e3f` y `f59f75e`)**
 | D1 | Regla "es administrador" escrita 6 veces | `UserAccessPolicy` + commit `e581c6a`; re-verificación en `B-TESTS` | — | — | **Hecho (ADR-0003, PR #45)** |
 | D2 | `UserRole` definido dos veces. Al unificar, retirar `# noqa: UP042` de `app/schemas/user.py` (A9) | **2** definiciones | Media | XS | **Sale → `B-FUTURO`**
 | D3 | `jwt.decode` duplicado fuera de `core/security` | **2** fuera | Media | XS | **Sale → `B-FUTURO`**
@@ -82,19 +82,19 @@ contra el informe: la auditoría tiene un mes y mucho ya cambió. Esfuerzo: XS �
 | S1 | Modelos en estilo SQLAlchemy 1.x (`Column`) sobre base 2.0 | **33** `Column(`, **0** `mapped_column` | Media | M | **Entra · `B-S1`**
 | S2 | `sqlalchemy.future` legado | **3** | Baja | XS | **Sale → `B-FUTURO`**
 | S4 | `typing.List/Optional` mezclados con nativos | **10** imports | Baja | XS | **Hecho (PR #70, 2 nov)**
-| S5 | `HTTP_422_UNPROCESSABLE_ENTITY` deprecado | **1** | Baja | XS | **Decidir en `B-QA`**
+| S5 | `HTTP_422_UNPROCESSABLE_ENTITY` deprecado | **1** | Baja | XS | **Sale → `B-FUTURO`**
 | S6 | `PUT` con semántica `PATCH`; `model_config` como dict | `@router.put` **0** (ya corregido); dict **1** | Baja | XS | **Sale → `B-FUTURO` (solo el dict)**
 | S7 | `Field(default=[])` | **1** | Baja | XS | **Sale → `B-FUTURO`**
 | P1 | `core/security` importa `User`, `UserRole`, `HTTPException` y `status` sin usarlos (arrastra el engine y rompe el contrato de capas por transitividad) | **4** imports muertos (l.6–10) | Media | XS | **Hecho (PR #61, 27 oct)**
 | P2 | Spanglish: 12 handlers en español; clave `"detalle"` vs `"detail"`. Renombrar los handlers solo si sobra tiempo en el bloque | **12** handlers, **1** `"detalle"` | Media (el `detalle` es bug funcional) | XS + S | **Sale → `B-FUTURO`**
 | P3 | 8 docstrings que contradicen al código; lo que quede al cerrar el bloque recibe decisión nueva ese día (PLAN §2b) | No verificado por grep | Baja | S | **Sale → `B-FUTURO`**
-| SEC1 | CORS `*` con credenciales | **1** `allow_origins=["*"]` | Alta | XS | **Entra · `B-HIGIENE`**
-| SEC2 | Subida de imágenes: sin límite de tamaño, tipo confiado al cliente, SVG permitido | `.read()` **0** (cambió); `svg` **0** (no excluido) | Alta | S | **Decidir en `B-QA`** |
-| SEC3 | Detalle interno en errores (`str(e)`); enumeración de cuentas por tiempo en login | **4** `str(e)`; `verify_password` **2** | Media | S | **Decidir en `B-QA`**
+| SEC1 | CORS `*` con credenciales | **1** `allow_origins=["*"]` | Alta | XS | **Hecho (2 nov, `9ce0379`)**
+| SEC2 | Subida de imágenes: sin límite de tamaño, tipo confiado al cliente, SVG permitido | `.read()` **0** (cambió); `svg` **0** (no excluido) | Alta | S | **Sale → `B-FUTURO`** |
+| SEC3 | Detalle interno en errores (`str(e)`); enumeración de cuentas por tiempo en login | **4** `str(e)`; `verify_password` **2** | Media | S | **Sale → `B-FUTURO`**
 | §9 | Suite: mocks sin `spec`, setup duplicado, aserciones en español, sesión ≠ `get_db`, sin cobertura | `MagicMock()` sin spec **1**; `spec=` **13**; aserciones `detail ==` **4**; 110 tests | Alta | M | **Entra · `B-TESTS`**
 | Alembic | `env.py` depende de un efecto colateral de importación | 3 imports de modelos (verificar que importa `app.models` completo) | Baja | XS | **Entra · `B-S1`**
 
-**Lectura:** de 31 hallazgos, 7 estaban cerrados el 24 oct; el bloque `B-HIGIENE` cerró con SEC1 y A9 y el resto recibió decisión nueva el mismo día (bitácora 2026-11-02); 3 son estructurales (A3, A4, S1) con bloque asignado. Ninguno bloquea el módulo de reservas.
+**Lectura:** de 31 hallazgos, 7 estaban cerrados el 24 oct; el bloque `B-HIGIENE` cerró con SEC1 y A9 y el resto salió a `B-FUTURO` el mismo día, en orden de criticidad (PLAN §2b); 3 son estructurales (A3, A4, S1) con bloque asignado. Ninguno bloquea el módulo de reservas.
 
 ## B. Frontend (Flutter)
 
