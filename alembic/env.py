@@ -1,21 +1,17 @@
-import os
-from dotenv import load_dotenv
-
-load_dotenv()
-
-
 import asyncio
+import os
 from logging.config import fileConfig
 
+from dotenv import load_dotenv
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
+import app.models  # noqa: F401  # registers every model on Base.metadata for autogenerate
 from alembic import context
-
 from app.db.database import Base
-from app.models.user import User  # noqa: F401  # side-effect import: registers the table on Base.metadata for autogenerate; B-S1 replaces it
-from app.models.service import TouristService  # noqa: F401  # side-effect import: registers the table on Base.metadata for autogenerate; B-S1 replaces it
+
+load_dotenv()
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
