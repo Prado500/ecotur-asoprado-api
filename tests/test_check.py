@@ -1,13 +1,17 @@
-"""Tests for scripts/check.py: the --soft policy of the quality gate (B-CI, ADR-0005).
+"""Tests for scripts/check.py: the --soft policy of the quality gate (B-CI, ADR-0005) and the
+resolution of the lint-imports console script (AF-05).
 
-Only the pure functions are exercised; no step (ruff, mypy, pytest...) is ever executed here.
+No real step (ruff, mypy, import-linter, pytest...) is ever executed here: the only subprocess
+is the stand-in command that the gate runs when lint-imports is missing.
 """
 
 from __future__ import annotations
 
 import importlib
 import io
+import subprocess
 import sys
+import sysconfig
 from pathlib import Path
 from unittest.mock import create_autospec
 
@@ -131,3 +135,57 @@ class TestMainRejectsBadSoft:
     def test_missing_value_exits_2(self, capsys: pytest.CaptureFixture[str]) -> None:
         assert check.main(["--soft"]) == 2
         assert capsys.readouterr().out == ""
+
+
+class TestLintImportsResolution:
+    """The import-linter step runs the interpreter's own console script, or fails loudly."""
+
+    BIN = Path("/fake/bin")
+
+    def test_step_resolves_from_scripts_dir_regardless_of_path(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        with_path = dict(check.steps(no_tests=True))["import-linter"]
+        # A PATH without the venv: the scenario of AF-05 (venv invoked by path, not activated).
+        monkeypatch.setenv("PATH", str(tmp_path))
+        without_path = dict(check.steps(no_tests=True))["import-linter"]
+
+        assert "importlinter.cli" not in without_path
+        assert without_path[1:2] != ["-m"]
+        assert without_path == with_path
+        assert without_path == check._lint_imports_cmd(Path(sysconfig.get_path("scripts")))
+
+    @pytest.mark.parametrize("name", ["lint-imports.exe", "lint-imports"], ids=["windows", "posix"])
+    def test_finds_console_script_in_scripts_dir(self, name: str) -> None:
+        assert check.find_lint_imports(self.BIN, lambda p: p == self.BIN / name) == self.BIN / name
+
+    def test_looks_only_inside_the_scripts_dir(self) -> None:
+        seen: list[Path] = []
+
+        def is_file(path: Path) -> bool:
+            seen.append(path)
+            return False
+
+        assert check.find_lint_imports(self.BIN, is_file) is None
+        assert seen == [self.BIN / "lint-imports.exe", self.BIN / "lint-imports"]
+
+    def test_found_tool_is_invoked_directly(self) -> None:
+        cmd = check._lint_imports_cmd(self.BIN, lambda p: p.name == "lint-imports")
+        assert cmd == [str(self.BIN / "lint-imports")]
+
+    def test_missing_tool_yields_failing_command_with_install_hint(self, tmp_path: Path) -> None:
+        cmd = check._lint_imports_cmd(tmp_path)
+
+        assert cmd[:2] == [check.PY, "-c"]
+        assert "importlinter.cli" not in " ".join(cmd)
+        result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        assert result.returncode == 1
+        assert result.stdout == ""
+        assert str(tmp_path) in result.stderr
+        assert "-m pip install -e .[dev]" in result.stderr
+
+    def test_missing_tool_makes_the_gate_step_red(
+        self, tmp_path: Path, capfd: pytest.CaptureFixture[str]
+    ) -> None:
+        assert check.run("import-linter", check._lint_imports_cmd(tmp_path)) is False
+        assert str(tmp_path) in capfd.readouterr().err
