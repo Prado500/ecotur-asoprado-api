@@ -1,0 +1,28 @@
+{
+  "plan_file": "docs/deuda/S1/plan.md",
+  "current_target": "Fase_B",
+  "phases": {
+    "Fase_A": {
+      "status": "completed",
+      "commit": "a30795a",
+      "description": "tests/test_models_schema.py (nuevo): congela el esquema declarado (tipo compilado para PostgreSQL, nulabilidad, PK, índice, único, defaults, FK con ondelete, nombres y etiquetas de ENUM, relación images); 7 casos verdes sobre los modelos actuales (caracterización) y mutaciones MA1-MA4 que fallan."
+    },
+    "Fase_B": {
+      "status": "pending",
+      "commit": null,
+      "description": "app/models/{user,service,audit}.py a Mapped[] + mapped_column() y relationship() anotadas, sin cambio de esquema ni de consumidores; Column( 33 -> 0, mypy 44 -> 10, ruff 82 -> 76; test de A intacto y mutaciones M1-M7. Precondición: M0 de David."
+    },
+    "Fase_C": {
+      "status": "pending",
+      "commit": null,
+      "description": "alembic/env.py importa app.models entero (load_dotenv tras los imports); app/models/__init__.py con __all__; tests/test_models_registry.py (2 casos, rojos antes); ruff 76 -> 60, 369 passed. Después: M1 de David."
+    }
+  },
+  "allowed_statuses": [
+    "pending",
+    "partial",
+    "completed"
+  ],
+  "last_handoff": "Fase A completa (a30795a): tests/test_models_schema.py, 7 passed, MA1-MA4 fallan; 367 passed, 94.77 %, ruff 82, mypy 44, 4 KEPT. Fase B requiere M0 de David.",
+  "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
+}
