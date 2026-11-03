@@ -20,6 +20,9 @@ sobreingeniería. Explicas el trade-off de cada decisión no trivial. Dices las 
 ## 3. Leyes arquitectónicas (las hace cumplir `import-linter`; ver `pyproject.toml`)
 - Flujo: Router → Servicio (inyección por `Depends`) → Repositorio → Engine asíncrono.
 - **Routers** solo orquestan: reciben, delegan, devuelven schemas Pydantic (`response_model`); nunca modelos ORM.
+- **Un DTO de salida nunca hereda de uno de entrada** (A9, 2 nov): los validadores de entrada (patrones de
+    nombre, longitudes, `EmailStr`) no se aplican a datos que ya están en la base; heredarlos devuelve 500 al
+    leer filas válidas. Los campos comunes van en un `Base` sin validadores, del que heredan ambos.
 - **Servicios** contienen reglas de negocio puras. No importan FastAPI ni Starlette. Ante un fallo lanzan
   excepciones de dominio (`app/core/exceptions.py`, subclases de `DomainError`) que un único handler global
   traduce a HTTP (ADR-0003). Toda excepción de dominio nueva se registra en `_DOMAIN_ERROR_STATUS` en el
@@ -28,9 +31,12 @@ sobreingeniería. Explicas el trade-off de cada decisión no trivial. Dices las 
   (meta A3 del backlog; el código nuevo nace así, el existente migra).
 - **Autorización** centralizada: guard IoC en `app/api/dependencies.py` para el rol; `UserAccessPolicy` para
   reglas que dependen del dato (jerarquía, propiedad). Nunca `if role ==` sueltos en servicios.
-- **Dominio unificado (decisión consciente, ADR en `docs/adr/`):** los modelos SQLAlchemy son las entidades
-  de dominio. No introduzcas mappers ni entidades puras. Modelos nuevos en estilo 2.0 (`Mapped[]`,
-  `mapped_column`).
+- **Dominio unificado (ADR-0010):** los modelos SQLAlchemy son las entidades
+  de dominio. No introduzcas mappers ni entidades puras. Modelos en estilo 2.0 (`Mapped[]`,
+  `mapped_column`; S1, 3 nov): la nulabilidad sale **solo** de la anotación (`Mapped[T | None]`), nunca de `nullable=`; tipo
+  SQL explícito en cada `mapped_column` (`String(n)`, `Numeric(p, s)`, `DateTime(timezone=True)`, `Enum`
+  con `name=`); `relationship()` anotado (`Mapped[list[X]]` / `Mapped[X]`). Un modelo nuevo se exporta en
+  `app/models/__init__.py` (`__all__`) o `tests/test_models_registry.py` falla.
 - Invariantes de negocio críticas viven también en la base de datos (índices únicos, FK, CHECK), no solo
   en Python (ADR-0002).
 - SOLID, KISS, DRY, YAGNI. Código aburrido y predecible. Nada de generalidad especulativa.
@@ -58,9 +64,14 @@ sobreingeniería. Explicas el trade-off de cada decisión no trivial. Dices las 
 
 ## 6. Compuerta de calidad (determinismo por herramientas, ADR-0001)
 `python scripts/check.py` ejecuta: `ruff format --check` · `ruff check` · `mypy` · `lint-imports` ·
-`pytest --cov`. **Un PR está listo solo si la compuerta pasa y la cobertura no baja.** Lo que debe pasar
-siempre vive ahí y en el CI, no en este archivo. `--fix` autocorrige formato e imports; `--no-tests` para
-iterar rápido.
+`check_docs` · `pytest --cov`. **Un PR está listo solo si la compuerta pasa y la cobertura no baja.** Lo que
+debe pasar siempre vive ahí y en el CI, no en este archivo. `--fix` autocorrige formato e imports; `--no-tests`
+para iterar rápido. **Se invoca siempre con el Python del `venv/` por ruta** (`./venv/Scripts/python.exe
+scripts/check.py` en Windows, `./venv/bin/python scripts/check.py` en POSIX), nunca `python` a secas: cada paso
+corre con `sys.executable` y busca sus herramientas en el directorio de scripts de ese intérprete (AF-05, 3 nov);
+con otro intérprete la compuerta sale en rojo, no mide otra cosa. Un paso nuevo se añade con un test que lo
+ejecuta **con su herramienta ausente** y comprueba que sale en rojo: un paso que "sale con 0 sin hacer nada" es
+el fallo que AF-05 corrigió.
 
 ## 7. Decisiones y documentación
 - Decisión no trivial (patrón nuevo, módulo nuevo, cambio de contrato, trade-off que rompe un principio)

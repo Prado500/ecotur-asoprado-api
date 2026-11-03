@@ -5,9 +5,11 @@
 > Vive en `docs/CONTEXT.md`. Regla de oro: **el contexto vive en archivos versionados, no en la
 > memoria de un chat.** Cada sesión nueva arranca leyendo esto.
 >
-> **Versión 3.3 — 2 nov 2026.** Cambios de esta versión: bitácora `2026-11-02` (§4: medición de calidad citada a PLAN §6 en
-> vez de copiada tres veces, CI con la compuerta; §5: `check.py` ya corre en el CI; §8 tras `B-FORMATO`, `B-CI` y `B-HIGIENE`).
-> Versiones anteriores: `2026-11-01` (3.2: §8 sin días ni fecha en el título; §0: regla de addenda en ADR-0009; §6: fila de
+> **Versión 3.4 — 3 nov 2026.** Cambios de esta versión: bitácora `2026-11-03` (§4: modelos en estilo 2.0 y dominio
+> unificado con ADR; `import-linter` medido de verdad en local desde AF-05; §6: fila de ADR-0010; §8 tras `B-S1`, AF-05 y
+> AF-04). Versiones anteriores: `2026-11-02` (3.3: §4: medición de calidad citada a PLAN §6 en
+> vez de copiada tres veces, CI con la compuerta; §5: `check.py` ya corre en el CI; §8 tras `B-FORMATO`, `B-CI` y `B-HIGIENE`);
+> `2026-11-01` (3.2: §8 sin días ni fecha en el título; §0: regla de addenda en ADR-0009; §6: fila de
 > ADR-0009);
 > `2026-10-31` (3.1: §0: fila de composición ampliada con la secuencia de medias jornadas; §2: fila de deadline al día,
 > regla de los domingos comodín y del fechado semanal, roles del equipo con el de David; §7: reparto propuesto a María
@@ -149,8 +151,8 @@ por el equipo humano"**. → El flujo agéntico es parte de la metodología decl
 ### Backend
 - **Python 3.14 en dev, CI y producción** (**ADR-0004**, escrito por David el 25 oct). Antes convivían 3.14 (venv, CI) y 3.11 (Dockerfile, `.python-version`).
 - **Stack:** FastAPI async, SQLAlchemy async, Alembic, Pydantic, uvicorn. Clean/Onion. Sin
-  clases de dominio propias (los modelos SQLAlchemy actúan como entidades: trade-off consciente
-  de MVP, documentar).
+  clases de dominio propias: los modelos SQLAlchemy son las entidades, declarados en estilo 2.0 (`Mapped[]`,
+  `mapped_column`) desde el 3 nov (`B-S1`), con registro explícito en `app/models/__init__.py` y test (**ADR-0010**).
 - **Hecho y verificado:** autenticación JWT, registro con hash, handlers globales de
   excepciones, `UserAccessPolicy` con ABAC jerárquico (cubre delete y update), auditoría básica
   (`test_audit.py`). **Desde el 27 oct, los cuatro contratos de capas de `import-linter` se cumplen**
@@ -161,7 +163,8 @@ por el equipo humano"**. → El flujo agéntico es parte de la metodología decl
 - **Tests y calidad:** pytest + mocks; la medición vigente (tests, cobertura, ruff, mypy, contratos) es la última columna
   de `(PLAN §6)` y no se copia aquí. Tooling desde el 24 oct: `ruff`, `mypy`, `import-linter`, `pytest-cov`, unidos
   en `scripts/check.py` (AGENTS §6); la compuerta global sigue en rojo por deuda heredada de ruff y mypy y rige el
-  trinquete de ADR-0005 hasta `B-TESTS`. Los tests de `scripts/check_docs.py` corren en la suite pero fuera de la cobertura. El diagnóstico de la suite (mocks sin
+  trinquete de ADR-0005 hasta `B-TESTS`. Desde el 3 nov (AF-05) la compuerta local busca `lint-imports` en el
+  directorio de scripts del intérprete y sale en rojo si no está: un "4 KEPT" ya no puede ser un paso que no corrió. Los tests de `scripts/check_docs.py` corren en la suite pero fuera de la cobertura. El diagnóstico de la suite (mocks sin
   `spec`, setup duplicado, aserciones sobre texto, sesión ≠ `get_db`, huecos B2/B3/B4) es la fila
   §9/BE-15 del backlog y se corrige en `B-TESTS`.
 - **Deuda y features:** inventario completo con decisión por ítem en `docs/backlog.md`.
@@ -227,6 +230,7 @@ la Web App la hala al reiniciar. Operación: 2 clics.
 | 28 oct | Versionado de los documentos vivos: la versión es del archivo, no de una sección; mayor cuando cambia una premisa, menor cuando cambia el contenido; encabezado con solo referencias a bitácoras; aplica a CONTEXT, PLAN, backlog y `docs/sesiones/`. | **ADR-0007** | Cap. de metodología (gestión documental del proyecto) |
 | 30 oct | Copias derivadas de un hecho: hecho duro a lo sumo una vez por documento, con cita de forma fija al dueño; explicaciones resumidas con cita; gana el dueño; mapa hecho → dueño solo en §0, crece por incidente; verificación acotada en el cierre por `check_docs.py`. | **ADR-0008**, `CONTEXT.md` §0, README de sesiones paso 3 | Cap. de metodología (evaluator-optimizer con revisión humana, bitácoras 28–30 oct) |
 | 1 nov | Addenda a ADR aceptados: sección fechada y firmada al final; puede aclarar, corregir una omisión, afinar un criterio o decir cómo se cumple un punto; no puede cambiar la decisión ni el alcance (eso es ADR nuevo); tres addenda son señal de superseder. Segundo addendum de ADR-0008 el mismo día: R6 y R7 de `check_docs.py` corren solo con `--cierre`. | **ADR-0009**, ADR-0008 (addendum 1 nov), `CONTEXT.md` §0 | Cap. de metodología (cómo evolucionan las decisiones registradas) |
+| 3 nov | Dominio unificado y estilo de modelos: los modelos SQLAlchemy son las entidades (retroactivo: práctica desde `20486ad`, citada en AGENTS §3 sin ADR); todo modelo en estilo 2.0, nulabilidad solo por la anotación, tipo SQL explícito donde el tipo Python no lo determina, `Enum` con `name=`, relaciones anotadas, registro explícito con test; un refactor de modelos se prueba con `alembic check` antes y después (M0 = M1). | **ADR-0010**, AGENTS §3 (PR de AF-04) | Cap. de diseño (modelo de datos) y de resultados (mypy 44 → 10 sin tocar el esquema) |
 | pendiente | Pagos: puerto `PaymentGateway`, `WompiAdapter`, `FakeAdapter`, webhook idempotente. | ADR de pagos (`B-PAGOS`, tomará el siguiente número libre) | Cap. de diseño (secuencia de pago) y arquitectura |
 
 ## 7. Preguntas abiertas
@@ -241,30 +245,36 @@ la Web App la hala al reiniciar. Operación: 2 clics.
 
 ## 8. Próximo paso
 
-Dónde estamos (estado al cierre de la bitácora `2026-11-02`): **`B-FORMATO`, `B-CI` y `B-HIGIENE` cerrados** `(PLAN §2b)`:
-el CI ejecuta la compuerta con ruff y mypy tolerados en rojo hasta `B-TESTS`; `B-HIGIENE` hizo SEC1 (CORS con lista blanca
-sin credenciales) y A9 (los DTO de salida ya no heredan validaciones de entrada) por el flujo entero, y el resto del
-bloque recibió decisión nueva `(backlog)`. La rama `bloque/b-higiene` lleva los dos ítems auditados; su PR y su merge los
-cuenta la bitácora. Medición vigente en `(PLAN §6)`. Compuerta global sigue en rojo (ADR-0005 vigente); ningún ítem de
-deuda en curso. Presupuesto de Bogotá `(PLAN §3)`: colchón de 1 m intacto. Reunión con María Paula hecha; sus filas, en
-PLAN §3.
+Dónde estamos (estado al cierre de la bitácora `2026-11-03`): **`B-S1` cerrado** `(PLAN §2b)`: modelos en estilo 2.0 sin
+cambiar el esquema (`alembic check` idéntico antes y después), `env.py` con registro explícito, mypy 44 → 10; ADR-0010 lo
+posee. Del mismo día, por adelantado de `B-TESTS`: **AF-05** (la compuerta local ya no puede imprimir un contrato no
+medido; PR #75) y **AF-04** (reglas de A9, S1 y AF-05 en AGENTS §3/§6 y en `plan-redactor.md`; PR abierto con el cierre
+del día). AF-03 también hecho (el 2 nov decidido, el 3 aplicado). Medición vigente en `(PLAN §6)`. Compuerta global
+sigue en rojo (ADR-0005 vigente); ningún ítem de deuda en curso. Presupuesto de Bogotá `(PLAN §3)`: colchón de 1 m
+intacto; `B-TESTS` arranca con tres ítems menos.
 
-1. **Ritual de cierre:** paso 3 con `python scripts/check_docs.py --copias "<dueño>"` por dueño tocado y `--cierre` antes
-   del commit de cierre (README de sesiones, paso 3). Regla nueva `(bitácora 2026-11-02)`, pendiente de llevar al README: un retoque
-   aprobado a un plan es una edición a `plan.md` antes de `/implementar`, o no existe (los agentes leen archivos).
-2. **Semana de Bogotá** `(PLAN §3)`: `B-S1` → `B-TESTS` → cierre de Bogotá con PR a `staging`, dump de staging para
+1. **Siguiente: `B-TESTS m1`** (día y hora en `(PLAN §3)`; composición en `(PLAN §2b)`): empezar por `/deuda-verificar BE-07` (pequeño, autocontenido, deja
+   el flujo caliente) o directamente por `conftest`/fábricas (§9, la reescritura grande); decisión de David al abrir.
+   Claude Code se abre desde una terminal con el venv activo; la compuerta se invoca por ruta (AGENTS §6).
+2. **Ritual de cierre:** paso 3 con `python scripts/check_docs.py --copias "<dueño>"` por dueño tocado y `--cierre` antes
+   del commit de cierre (README de sesiones, paso 3). Regla `(bitácora 2026-11-02)`, pendiente de llevar al README por
+   segundo día: un retoque aprobado a un plan es una edición a `plan.md` (o a la adenda de `verificacion.md`) antes de
+   `/implementar`, o no existe (los agentes leen archivos). Aplicada hoy dos veces (adenda y cinco enmiendas de AF-05).
+3. **Semana de Bogotá** `(PLAN §3)`: `B-TESTS` (mié–jue) → cierre de Bogotá con PR a `staging`, dump de staging para
    `B-RESERVAS m2` y mudanza. Antes del PR a `staging`: `CORS_ORIGINS` en las tres Web Apps y prueba del frontend de
    `develop` `(docs/deuda/SEC1/)`. Al cierre del último día trabajado de la semana: fechar la semana de Prado.
-3. Prado y régimen final: orden y presupuestos en PLAN §3; secuencias en §2b.
-4. Pendientes de flujo (no urgentes, con dueño; pasan a filas `AF-0x` cuando se decida atacarlos): YAML estricto en
+4. Prado y régimen final: orden y presupuestos en PLAN §3; secuencias en §2b.
+5. Pendientes de flujo (no urgentes, con dueño; pasan a filas `AF-0x` cuando se decida atacarlos): YAML estricto en
    `check_docs.py`; `/pr` con `#N`; formalizar en `docs/sesiones/` las reglas del Mentor (solo `git log`; nada fuera de
    `docs/`; propuesta y permiso antes de escribir; excepciones declaradas en bitácora); `mentor.md` más ligero por cuota
-   (los ADR por su fila de §6, abriendo solo el que cite el ítem del día; de la bitácora anterior, solo su cierre);
-   conectar la carpeta del repo antes del primer mensaje; deny list de plumbing de git (`commit-tree`, `update-ref`,
-   `replace`, `filter-branch`, `reset`) y AGENTS §9 "reescribir historia por cualquier medio" (un agente rodeó la
-   prohibición de `rebase` `(bitácora 2026-11-02)`); `.github/pull_request_template.md` diverge de la skill `pr-author` (copia sin
-   dueño); hook `ruff_on_edit.py` con `--ignore I001` y `unfixable` en `pyproject` **solo si** un ítem toca
-   `app/api/dependencies.py` antes de A4 `(bitácora 2026-11-02)`. Ya con fila: AF-02, AF-03, AF-04 `(backlog)`.
+   (los ADR por su fila de §6, abriendo solo el que cite el ítem del día; de la bitácora anterior, solo su cierre) y
+   **que diga Opus, no Fable**, salvo decisiones que paguen su juicio `(bitácora 2026-11-02)`; conectar la carpeta del
+   repo antes del primer mensaje; deny list de plumbing de git (`commit-tree`, `update-ref`, `replace`, `filter-branch`,
+   `reset`) y AGENTS §9 "reescribir historia por cualquier medio" `(bitácora 2026-11-02)`; `.github/pull_request_template.md`
+   diverge de la skill `pr-author` (copia sin dueño); hook `ruff_on_edit.py` con `--ignore I001` y `unfixable` en
+   `pyproject` **solo si** un ítem toca `app/api/dependencies.py` antes de A4 `(bitácora 2026-11-02)`; el auditor
+   commitea `gaps.md` con el prefijo `docs(item-<id>):` como el resto (hoy dos commits sin prefijo); el ejecutor pone
+   `current_target` en `"cierre"` al terminar la última fase. Ya con fila: AF-02 `(backlog)`; AF-06 en `B-FUTURO`.
 
 ## 9. Sesiones de IA
 Cualquier sesión (ingeniería, documento, estudio, mentor) arranca con los prompts de `docs/sesiones/` y el ritual
