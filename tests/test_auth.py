@@ -210,7 +210,9 @@ async def test_tourist_self_role_escalation_returns_403_without_mutation(
     )
 
     assert response.status_code == 403
-    assert "detail" in response.json()
+    body = response.json()
+    assert set(body) == {"detail"}
+    assert isinstance(body["detail"], str)
 
     await db_session.refresh(tourist)
     assert tourist.role == UserRole.tourist
@@ -229,7 +231,9 @@ async def test_tourist_self_is_active_change_returns_403_without_mutation(
     )
 
     assert response.status_code == 403
-    assert "detail" in response.json()
+    body = response.json()
+    assert set(body) == {"detail"}
+    assert isinstance(body["detail"], str)
 
     await db_session.refresh(tourist)
     assert tourist.is_active is True
@@ -322,7 +326,10 @@ async def test_admin_recovers_tourist_as_inactive(
     )
 
     assert response.status_code == 200
-    assert response.json()["success"] is True
+    body = response.json()
+    assert {"success", "message"} <= set(body)
+    assert body["success"] is True
+    assert isinstance(body["message"], str)
 
     await db_session.refresh(tourist)
     assert tourist.deleted_at is None
@@ -382,7 +389,9 @@ async def test_admin_provisioning_admin_returns_403_without_row(
     assert count.scalar_one() == 1
 
 
-async def test_superadmin_provisions_admin_account(client, persist_user, make_auth_headers):
+async def test_superadmin_provisions_admin_account(
+    client, db_session, persist_user, make_auth_headers
+):
     """A superadmin can provision a new, active admin account."""
     superadmin = await persist_user(role=UserRole.superadmin)
 
@@ -407,3 +416,10 @@ async def test_superadmin_provisions_admin_account(client, persist_user, make_au
     assert data["role"] == "admin"
     assert data["cedula"] == "555555"
     assert data["is_active"] is True
+
+    result = await db_session.execute(select(User).where(User.cedula == "555555"))
+    created = result.scalar_one()
+    await db_session.refresh(created)
+    assert created.role == UserRole.admin
+    assert created.is_active is True
+    assert created.deleted_at is None
