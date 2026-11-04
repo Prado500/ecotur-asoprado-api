@@ -7,6 +7,7 @@ Freezes the pure hierarchical ABAC invariants at the domain-policy level
 """
 
 import json
+from datetime import UTC, datetime
 from unittest.mock import create_autospec
 
 import pytest
@@ -16,6 +17,7 @@ from starlette.requests import Request
 from app.api.dependencies import get_user_service
 from app.core.exceptions import AuthorizationError
 from app.main import app, domain_error_handler
+from app.models.audit import AuditAction, AuditLog
 from app.models.user import User, UserRole
 from app.services.user_access_policy import UserAccessPolicy
 from app.services.user_service import UserService
@@ -344,7 +346,7 @@ async def test_delete_nonexistent_cedula_returns_404_before_403(
 async def test_admin_cannot_provision_admin_account_403_and_no_db_mutation(
     client, db_session, persist_user, make_auth_headers
 ):
-    """Proxy-person escalation: admin provisioning an admin account yields 403 and persists nothing."""
+    """Admin provisioning an admin account yields 403 and persists nothing."""
     admin = await persist_user(role=UserRole.admin)
 
     payload = {
@@ -392,7 +394,7 @@ async def test_admin_update_tourist_persists_mutation(
 async def test_admin_cannot_escalate_tourist_to_superadmin_via_patch(
     client, db_session, persist_user, make_auth_headers
 ):
-    """Two-step proxy escalation: admin promoting a tourist to superadmin yields 403 with no mutation."""
+    """Admin promoting a tourist to superadmin yields 403 with no mutation."""
     admin = await persist_user(role=UserRole.admin)
     tourist = await persist_user(role=UserRole.tourist)
 
@@ -427,6 +429,227 @@ async def test_admin_cannot_escalate_tourist_to_admin_via_patch(
 
     await db_session.refresh(tourist)
     assert tourist.role == UserRole.tourist
+
+
+# --- B2 regression: an admin must not change their own role (audit B2) ---
+
+
+async def test_b2_admin_self_promotion_to_superadmin_returns_403_without_mutation(
+    client, db_session, persist_user, make_auth_headers
+):
+    """An admin PATCHing their own cedula to superadmin gets 403; nothing is written."""
+    admin = await persist_user(role=UserRole.admin)
+
+    response = await client.patch(
+        f"/usuarios/{admin.cedula}",
+        json={"role": "superadmin"},
+        headers=make_auth_headers(admin),
+    )
+
+    assert response.status_code == 403
+    body = response.json()
+    assert set(body) == {"detail"}
+    assert isinstance(body["detail"], str)
+
+    await db_session.refresh(admin)
+    assert admin.role == UserRole.admin
+    audits = (await db_session.execute(select(AuditLog))).scalars().all()
+    assert audits == []
+
+
+async def test_b2_admin_self_demotion_to_tourist_returns_403(
+    client, db_session, persist_user, make_auth_headers
+):
+    """An admin PATCHing their own role down to tourist gets 403; the role is kept."""
+    admin = await persist_user(role=UserRole.admin)
+
+    response = await client.patch(
+        f"/usuarios/{admin.cedula}",
+        json={"role": "tourist"},
+        headers=make_auth_headers(admin),
+    )
+
+    assert response.status_code == 403
+    assert set(response.json()) == {"detail"}
+
+    await db_session.refresh(admin)
+    assert admin.role == UserRole.admin
+
+
+async def test_b2_admin_self_update_without_role_returns_200(
+    client, db_session, persist_user, make_auth_headers
+):
+    """An admin PATCHing their own profile without a role key succeeds and persists it."""
+    admin = await persist_user(role=UserRole.admin)
+
+    response = await client.patch(
+        f"/usuarios/{admin.cedula}",
+        json={"first_name": "Changed"},
+        headers=make_auth_headers(admin),
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["first_name"] == "Changed"
+    assert body["cedula"] == admin.cedula
+
+    await db_session.refresh(admin)
+    assert admin.first_name == "Changed"
+    assert admin.role == UserRole.admin
+
+
+async def test_b2_admin_self_role_noop_returns_403(
+    client, db_session, persist_user, make_auth_headers
+):
+    """The role key itself is blocked: resending the admin's current role still gets 403."""
+    admin = await persist_user(role=UserRole.admin)
+
+    response = await client.patch(
+        f"/usuarios/{admin.cedula}",
+        json={"role": "admin"},
+        headers=make_auth_headers(admin),
+    )
+
+    assert response.status_code == 403
+    assert set(response.json()) == {"detail"}
+
+    await db_session.refresh(admin)
+    assert admin.role == UserRole.admin
+
+
+async def test_b2_admin_self_promotion_with_profile_fields_mutates_nothing(
+    client, db_session, persist_user, make_auth_headers
+):
+    """A role key mixed with profile fields rejects the whole PATCH: no field changes."""
+    admin = await persist_user(role=UserRole.admin)
+
+    response = await client.patch(
+        f"/usuarios/{admin.cedula}",
+        json={"role": "superadmin", "first_name": "Changed"},
+        headers=make_auth_headers(admin),
+    )
+
+    assert response.status_code == 403
+    assert set(response.json()) == {"detail"}
+
+    await db_session.refresh(admin)
+    assert admin.first_name == "John"
+    assert admin.role == UserRole.admin
+
+
+# --- B3 regression: a superadmin deletes third-party accounts (audit B3) ---
+
+
+@pytest.mark.parametrize(
+    "target_role", [UserRole.admin, UserRole.tourist], ids=["admin", "tourist"]
+)
+async def test_b3_superadmin_deletes_third_party_account(
+    client, db_session, persist_user, make_auth_headers, target_role
+):
+    """A superadmin soft-deletes a lower-rank account and the audit row names the actor."""
+    superadmin = await persist_user(role=UserRole.superadmin)
+    target = await persist_user(role=target_role)
+
+    response = await client.delete(
+        f"/usuarios/{target.cedula}",
+        headers=make_auth_headers(superadmin),
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert set(body) == {"success", "message"}
+    assert body["success"] is True
+    assert isinstance(body["message"], str)
+
+    await db_session.refresh(target)
+    assert target.deleted_at is not None
+    assert target.is_active is False
+
+    audits = (await db_session.execute(select(AuditLog))).scalars().all()
+    assert len(audits) == 1
+    assert audits[0].entity_id == target.cedula
+    assert audits[0].action == AuditAction.SOFT_DELETE
+    assert audits[0].performed_by == superadmin.cedula
+
+
+async def test_b3_superadmin_deleting_peer_superadmin_returns_403_without_mutation(
+    client, db_session, persist_user, make_auth_headers
+):
+    """A superadmin cannot delete another superadmin: 403 and the target stays alive."""
+    superadmin = await persist_user(role=UserRole.superadmin)
+    peer = await persist_user(role=UserRole.superadmin)
+
+    response = await client.delete(
+        f"/usuarios/{peer.cedula}",
+        headers=make_auth_headers(superadmin),
+    )
+
+    assert response.status_code == 403
+    assert set(response.json()) == {"detail"}
+
+    await db_session.refresh(peer)
+    assert peer.deleted_at is None
+    assert peer.is_active is True
+
+
+async def test_b3_admin_deleting_peer_admin_returns_403_without_mutation(
+    client, db_session, persist_user, make_auth_headers
+):
+    """An admin cannot delete another admin: 403 and the target stays alive."""
+    admin = await persist_user(role=UserRole.admin)
+    peer = await persist_user(role=UserRole.admin)
+
+    response = await client.delete(
+        f"/usuarios/{peer.cedula}",
+        headers=make_auth_headers(admin),
+    )
+
+    assert response.status_code == 403
+    assert set(response.json()) == {"detail"}
+
+    await db_session.refresh(peer)
+    assert peer.deleted_at is None
+    assert peer.is_active is True
+
+
+async def test_b3_superadmin_deleting_already_deleted_account_returns_404(
+    client, db_session, persist_user, make_auth_headers
+):
+    """Deleting an account already in the recycle bin is a 404 and writes no audit row."""
+    superadmin = await persist_user(role=UserRole.superadmin)
+    target = await persist_user(
+        role=UserRole.tourist, deleted_at=datetime.now(UTC), is_active=False
+    )
+
+    response = await client.delete(
+        f"/usuarios/{target.cedula}",
+        headers=make_auth_headers(superadmin),
+    )
+
+    assert response.status_code == 404
+    body = response.json()
+    assert set(body) == {"detail"}
+    assert isinstance(body["detail"], str)
+
+    audits = (await db_session.execute(select(AuditLog))).scalars().all()
+    assert audits == []
+
+
+async def test_b3_superadmin_deleting_missing_cedula_returns_404(
+    client, persist_user, make_auth_headers
+):
+    """Deleting a cedula that matches no account is a 404 with the detail shape."""
+    superadmin = await persist_user(role=UserRole.superadmin)
+
+    response = await client.delete(
+        "/usuarios/9999999999",
+        headers=make_auth_headers(superadmin),
+    )
+
+    assert response.status_code == 404
+    body = response.json()
+    assert set(body) == {"detail"}
+    assert isinstance(body["detail"], str)
 
 
 # ==========================================
