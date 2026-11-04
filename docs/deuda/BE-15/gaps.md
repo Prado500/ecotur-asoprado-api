@@ -273,3 +273,97 @@ no se borran.
   fixtures vecinos sí llevan `Returns:`. Evidencia: `tests/conftest.py:117-124` frente a `tests/conftest.py:144-148`.
 - Sigue abierto, sin cambios, lo de la fase A: el `no-any-return` de `persist_user` se desplazó a
   `tests/conftest.py:223`. No es un hallazgo nuevo.
+
+## Auditoría Fase D — 2026-11-04
+
+- **Veredicto:** PASS (0 bloqueantes, 2 opcionales).
+- **Auditado:** `ee9d54b` (fase) y `e1e7df3` (registro en `progress.json` y handoff). Base de la fase: `c699ac6`.
+- **Árbol:** `git status --short` vacío antes de la auditoría; HEAD `e1e7df3`, rama `bloque/b-tests`.
+- **Bloqueantes anteriores:** ninguno (A, B y C cerraron en PASS).
+
+### Evidencia
+
+- Compuerta re-ejecutada (`./venv/Scripts/python.exe scripts/check.py`, exit 1, rojo heredado previsto por la
+  decisión 8 del plan):
+
+  ```
+  === RESUMEN ===
+    ✔ ruff format --check
+    ✘ ruff check
+    ✘ mypy
+    ✔ import-linter
+    ✔ docs (coherencia)
+    ✔ pytest + cobertura
+
+  Compuerta NO superada: ruff check, mypy
+  ```
+
+  | Medida | Auditor | Fila "Fase D" | Handoff |
+  |---|---|---|---|
+  | pytest | `381 passed, 5 warnings in 14.07s` | 381 | 381 |
+  | Cobertura | `TOTAL 942 34 136 22 94.81%` | ≥ 94.81 % | 94.81 % |
+  | import-linter | `Contracts: 4 kept, 0 broken.` | 4 KEPT | 4 KEPT |
+  | ruff total | `Found 56 errors.` | 56 | 56 |
+  | ruff en `tests/` | `Found 3 errors.` | 3 | 3 |
+  | mypy | `Found 10 errors in 5 files (checked 35 source files)` (todos en `app/`) | 10 | 10 |
+
+  `ruff check tests/test_auth.py` → `All checks passed!`; `ruff format --check tests/test_auth.py` → `1 file already
+  formatted`; `mypy tests/test_auth.py` → 3 errores, los tres en `app/` (`database.py:11`, `security.py:71,87`), 0 en
+  el archivo. `git ls-files --eol tests/test_auth.py` → `i/lf w/lf`; 0 `\r` en el blob de `ee9d54b`.
+- Commit: `git show --stat ee9d54b` → solo `tests/test_auth.py` (111+/353−). Mensaje (sin el trailer) contra el bloque
+  de `plan.md:391-401` con `diff` → idéntico. `e1e7df3` solo toca `handoff-Fase_D.md` y `progress.json`.
+- Alcance: hunks de `git diff -U0 c699ac6 ee9d54b -- tests/test_auth.py` → `@@ -11 +10,0 @@` (retirada de
+  `create_access_token,`, asignada a D por `plan.md:382`) y, después, desde `@@ -177,…` (primer `def` RBAC); las l.1-171
+  de la fase C no cambian salvo ese import. `git diff --stat c699ac6..e1e7df3 -- app/ pyproject.toml scripts/
+  .azure-pipelines/ .claude/ AGENTS.md CLAUDE.md tests/conftest.py` → vacío; lo mismo desde `7877829`.
+- Red de seguridad (refactor sin RED), reproducida por el auditor: los blobs de `c699ac6` y `ee9d54b` de
+  `tests/test_auth.py` extraídos al scratchpad (`audD_before/`, `audD_after/`) y recogidos con `pytest --collect-only
+  -q --noconftest` → `19 tests collected` en ambos; `diff` de los nombres: l.1-8 idénticas (fase C), l.9-19 cambian
+  1:1 y en el mismo orden que la tabla de `plan.md:368-380`. En el repo: `19 tests collected`.
+- Criterio de aceptación sobre `tests/test_auth.py`: `User(` 0; `create_access_token` 0; `f"Bearer {` 0;
+  `get_password_hash("pass")` 0; regex de nombres en español (punto 6 de la Verificación final) 0; regex de
+  aserciones de texto (punto 5) 0; `jerarqu|superusuario|Violaci` 0; `^async def test_` 19.
+- `progress.json`: JSON válido; `Fase_D` = `completed`, `commit` `ee9d54b` (real); `current_target` = `Fase_E`;
+  `last_handoff` actualizado; el diff de `e1e7df3` solo toca esos cuatro campos (`edit_rules`, `approval` y las demás
+  fases intactos).
+- Aserción a aserción (`c699ac6` l.177-657 → `ee9d54b` l.176-408): 1, 2, 3, 8 y 11 conservan todas sus aserciones; 4
+  añade `refresh` + `email` en BD; 5, 9 y 10 cambian el texto en español por `set(body) == {"detail"}` + `str` + no
+  mutación (`first_name`, `deleted_at`, `count == 1`), que antes no se comprobaba; 6 y 7 pasan de `in`/`not in` a
+  igualdad exacta de cédulas, que implica las anteriores (cada cédula tiene un rol fijo y solo existen las filas que
+  crea el test: `setup_database` es `autouse` y crea/borra las tablas por test, `tests/conftest.py:33-47`; ningún otro
+  fixture `autouse` crea usuarios). En 7 la lista tiene un solo elemento, así que el orden no importa; 6 usa conjunto.
+  Ninguna aserción de comportamiento desaparece sin sustituto.
+- Sensibilidad de los tres 403 (plugins en el scratchpad, `-p`, sin editar `app/`; `git status` limpio después):
+  - `audD_noop_policy` (`assert_can_update`, `assert_can_recover` y `assert_can_provision_admin` sin efecto) → los 3
+    tests 403 de `test_auth.py`: `3 failed`.
+  - `audD_wrong_reason` (los tres métodos lanzan `AccountNotActiveError`, que también es 403, `app/main.py:127`) → los
+    3 tests 403 de `test_auth.py`: `3 passed` (no lo distinguen); los unitarios
+    `test_admin_cannot_update_superadmin`, `test_admin_cannot_recover_superadmin` y `test_admin_cannot_provision_admin`
+    (`tests/test_user_access_policy.py:115-210`): `3 failed` (sí lo distinguen, por tipo).
+- Observaciones de la sesión principal: la 2 (los tres tests que registraban por HTTP probaban la edición de perfil,
+  no el alta; el alta y la activación siguen por HTTP en `tests/test_auth.py:28`, `:53`, `:75`, `:120`), la 3 (igualdad
+  exacta: dictada por `plan.md:375-376` y determinista) y la 4 (`isinstance` en 9 y 10: forma de la decisión 4;
+  `original_first_name`: equivale al literal `"John"` de `tests/conftest.py:162` y no depende de él; docstrings de una
+  línea en inglés sin AAA: misma convención que la fase C auditada y que `test_user_access_policy.py`, los tests no son
+  API pública) no dan hallazgo.
+
+### Hallazgos
+
+- [OPCIONAL] — Fase D — La afirmación de `plan.md:164-166` y del handoff ("la distinción … la congelan por tipo
+  `tests/test_user_access_policy.py:115-216`") es imprecisa: todas las ramas de la política lanzan el mismo
+  `AuthorizationError` (`app/services/user_access_policy.py:35,56,61,66,83,98,117`) y esos tests solo hacen
+  `pytest.raises(AuthorizationError)`. Lo que sí congelan es el tipo frente a otro `DomainError` en la capa de política
+  (mutante `audD_wrong_reason`: 3 unitarios en rojo). Para los tres escenarios HTTP hoy solo hay un `raise` alcanzable
+  (el admin pasa `get_current_admin_user`, `app/api/dependencies.py:128-131`; un actor inactivo da 401, `:110-111`), así
+  que no hay "403 por la razón equivocada" posible sin cambiar `app/`. Lo que se pierde: un cambio en el servicio o el
+  router que devolviera otro 403 (p. ej. `AccountNotActiveError`) antes de llegar a la política pasaría los tres tests
+  HTTP (`tests/test_auth.py:272-278`, `:345-351`, `:376-382`; mutante: `3 passed`), y la aserción de texto antigua lo
+  habría detectado. Es el coste aceptado de AGENTS §5 (sin texto en español); además, la aserción antigua del PATCH
+  tampoco separaba la rama de jerarquía de la de rol (los dos mensajes contienen "Violación de jerarquía", `:57`, `:62`).
+  Destino: backlog (si se quiere cerrar: un código de error estable en el cuerpo, que es cambio de contrato y pide ADR,
+  o subclases de `AuthorizationError` registradas en `_DOMAIN_ERROR_STATUS`).
+- [OPCIONAL] — Fase D — Los tests que la tabla marca "—" conservan aserciones por debajo de la decisión 4 y de AGENTS §5:
+  `"detail" in response.json()` en vez de `set(body) == {"detail"}` (`tests/test_auth.py:213`, `:232`); sin
+  `set(body)` en la recuperación (`:324-325`); sin comprobar en BD la fila del admin creado (`:404-408`). No es
+  bloqueante: el plan dicta "se conservan" (`plan.md:370-372`, `:377`, `:380`). Destino: residual del bloque o
+  backlog, junto a las aserciones de mock sin argumentos.
