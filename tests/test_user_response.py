@@ -9,7 +9,7 @@ can deliberately break the form rules.
 """
 
 from datetime import UTC, datetime
-from unittest.mock import ANY, patch
+from unittest.mock import ANY
 
 import pytest
 from sqlalchemy import func, select
@@ -38,13 +38,6 @@ REGISTRATION_PAYLOAD = {
     "password": "passwordSegura123",
     "data_consent": True,
 }
-
-
-@pytest.fixture(autouse=True)
-def mock_send_email():
-    """Replaces the verification email dispatch so no SMTP connection is attempted."""
-    with patch("app.api.routers.user.send_verification_email", autospec=True) as mock:
-        yield mock
 
 
 async def _count_users(db_session: AsyncSession) -> int:

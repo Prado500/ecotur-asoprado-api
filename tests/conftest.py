@@ -1,5 +1,5 @@
 import itertools
-from unittest.mock import create_autospec
+from unittest.mock import create_autospec, patch
 
 import pytest
 import pytest_asyncio
@@ -110,6 +110,19 @@ def override_azure_storage_client():
     yield
 
     app.dependency_overrides.pop(get_storage_client, None)
+
+
+@pytest.fixture(autouse=True)
+def mock_send_email():
+    """
+    Replaces the verification email dispatch in the user router for every test.
+
+    No test opens an SMTP connection. The double is autospecced on
+    send_verification_email, so a call off its signature raises TypeError when
+    awaited. Tests that check the dispatch request this fixture by name.
+    """
+    with patch("app.api.routers.user.send_verification_email", autospec=True) as mock:
+        yield mock
 
 
 # ==========================================

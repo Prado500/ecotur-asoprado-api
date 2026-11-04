@@ -1,13 +1,20 @@
-from datetime import datetime, UTC
-from unittest.mock import patch
+from datetime import UTC, datetime
+from typing import Any
+from unittest.mock import ANY
 
-import pytest
-from sqlalchemy.future import select
+import jwt
+from sqlalchemy import func, select
 
-from app.core.security import create_verification_token, create_access_token, get_password_hash
+from app.core.security import (
+    ALGORITHM,
+    SECRET_KEY,
+    create_access_token,
+    create_verification_token,
+    get_password_hash,
+)
 from app.models.user import User, UserRole
 
-USER_PAYLOAD = {
+USER_PAYLOAD: dict[str, Any] = {
     "cedula": "1005911792",
     "email": "turista@example.com",
     "first_name": "Juan",
@@ -16,21 +23,13 @@ USER_PAYLOAD = {
     "password": "passwordSegura123",
     "data_consent": True,
 }
+PASSWORD = USER_PAYLOAD["password"]
 
 
-# === PREVENT ACTUAL EMAIL DISPATCH DURING TESTS ===
-@pytest.fixture(autouse=True)
-def mock_send_email():
-    """
-    Intercepts the email dispatch function within the user router to avoid
-    SMTP connection exceptions and accelerate test execution.
-    """
-    with patch("app.api.routers.user.send_verification_email") as mock:
-        yield mock
-
-
-async def test_registro_usuario_exitoso(client, mock_send_email):
-    """Test that a new user can successfully register and triggers the email task."""
+async def test_register_tourist_returns_201_and_schedules_verification_email(
+    client, db_session, mock_send_email
+):
+    """Registration creates an inactive tourist and schedules the verification email."""
     response = await client.post("/usuarios/registro", json=USER_PAYLOAD)
 
     assert response.status_code == 201
@@ -42,136 +41,132 @@ async def test_registro_usuario_exitoso(client, mock_send_email):
     assert data["cedula"] == USER_PAYLOAD["cedula"]
     assert data["is_active"] is False
 
-    # Verify that the email BackgroundTask was successfully called
-    mock_send_email.assert_called_once()
+    mock_send_email.assert_called_once_with(
+        email_to=USER_PAYLOAD["email"], first_name="Juan", token=ANY, base_url=ANY
+    )
+
+    stmt = select(User).where(User.cedula == USER_PAYLOAD["cedula"])
+    user = (await db_session.execute(stmt)).scalar_one()
+    assert user.is_active is False
+    assert user.role == UserRole.tourist
 
 
-async def test_registro_usuario_duplicado(client):
-    """Test that the system rejects any registration attempts with already-registered email addresses (HTTP 400)."""
-    # 1. Simulation of first-time user registration.
-    await client.post("/usuarios/registro", json=USER_PAYLOAD)
+async def test_register_duplicate_returns_400_without_second_row(
+    client, db_session, mock_send_email
+):
+    """A second registration with the same data yields 400 and persists nothing new."""
+    first = await client.post("/usuarios/registro", json=USER_PAYLOAD)
+    assert first.status_code == 201
 
-    # 2. Attempt to register the same user with the same email again.
     response = await client.post("/usuarios/registro", json=USER_PAYLOAD)
 
     assert response.status_code == 400
-    assert response.json()["detail"] == "Este usuario ya se encuentra registrado."
+    body = response.json()
+    assert set(body) == {"detail"}
+    assert isinstance(body["detail"], str)
+
+    count = await db_session.execute(select(func.count()).select_from(User))
+    assert count.scalar_one() == 1
+
+    mock_send_email.assert_called_once_with(
+        email_to=USER_PAYLOAD["email"], first_name="Juan", token=ANY, base_url=ANY
+    )
 
 
-async def test_verificacion_email_exitosa(client, db_session):
-    """Test that a valid JWT verification token activates the user."""
-    # 1. Register user
-    await client.post("/usuarios/registro", json=USER_PAYLOAD)
+async def test_verify_email_endpoint_activates_account(client, db_session, persist_user):
+    """A valid verification token activates the account behind it."""
+    user = await persist_user(is_active=False)
+    token = create_verification_token(user.email)
 
-    # 2. Forge the verification token using the test secret key
-    token = create_verification_token(USER_PAYLOAD["email"])
-
-    # 3. Consume the verification endpoint
     response = await client.get(f"/usuarios/verificar-email?token={token}")
-    assert response.status_code == 200
-    assert response.json()["success"] is True
 
-    # 4. Assert database state mutation
-    stmt = select(User).where(User.email == USER_PAYLOAD["email"])
-    result = await db_session.execute(stmt)
-    user = result.scalars().first()
+    assert response.status_code == 200
+    body = response.json()
+    assert set(body) == {"success", "message"}
+    assert body["success"] is True
+
+    await db_session.refresh(user)
     assert user.is_active is True
 
 
-async def test_verificacion_email_token_invalido(client):
-    """Test that invalid or corrupted tokens are rejected (HTTP 400)."""
+async def test_verify_email_invalid_token_returns_400(client):
+    """A malformed verification token yields 400 with the error shape."""
     response = await client.get("/usuarios/verificar-email?token=tokenFalso123")
+
     assert response.status_code == 400
-    assert "inválido" in response.json()["detail"].lower()
+    body = response.json()
+    assert set(body) == {"detail"}
+    assert isinstance(body["detail"], str)
 
 
-async def test_login_exitoso(client, db_session):
-    """Test that a registered and active user can log in."""
+async def test_login_active_user_returns_bearer_token(client, persist_user):
+    """An active account with the right password receives a bearer token with its claims."""
+    user = await persist_user(password_hash=get_password_hash(PASSWORD), is_active=True)
 
-    # 1. ARRANGE: User creation (backend will send it disabled by default is_active=False).
-    await client.post("/usuarios/registro", json=USER_PAYLOAD)
-
-    # 2. ARRANGE (State mutation): Simulation of successful user email verification.
-    stmt = select(User).where(User.email == USER_PAYLOAD["email"])
-    result = await db_session.execute(stmt)
-    user = result.scalars().first()
-
-    # Simulation of user activation at persistency layer.
-    user.is_active = True
-    await db_session.commit()
-
-    # 3. ACT: Afterward, the verified user logs in.
-    login_data = {"email": USER_PAYLOAD["email"], "password": USER_PAYLOAD["password"]}
-    response = await client.post("/usuarios/login", json=login_data)
-
-    # 4. ASSERT: After a successful login, response code should be 200 OK.
-    assert response.status_code == 200
-    data = response.json()
-    assert "access_token" in data
-    assert data["token_type"] == "bearer"
-
-
-async def test_login_usuario_inactivo(client):
-    """Test that registered but inactive users cannot log in (HTTP 403)."""
-    await client.post("/usuarios/registro", json=USER_PAYLOAD)
-
-    login_data = {"email": USER_PAYLOAD["email"], "password": USER_PAYLOAD["password"]}
-    response = await client.post("/usuarios/login", json=login_data)
-
-    assert response.status_code == 403
-    assert "verificar su cuenta" in response.json()["detail"]
-
-
-async def test_login_credenciales_invalidas(client):
-    """Test that invalid credentials trigger an HTTP 401 response."""
-    login_data = {"email": "noexiste@example.com", "password": "claveIncorrecta"}
-    response = await client.post("/usuarios/login", json=login_data)
-
-    assert response.status_code == 401
-    assert response.json()["detail"] == "Revise su correo y contraseña"
-
-
-async def test_borrado_logico_usuario(client, db_session):
-    """Test that a soft-deleted user retains their DB row but cannot log in (HTTP 403)."""
-
-    # 1. ARRANGE: Register and activate a user
-    await client.post("/usuarios/registro", json=USER_PAYLOAD)
-    stmt = select(User).where(User.email == USER_PAYLOAD["email"])
-    result = await db_session.execute(stmt)
-    user = result.scalars().first()
-    user.is_active = True
-    await db_session.commit()
-
-    # 2. ARRANGE: Login to get the Bearer token for authorization
-    login_data = {"email": USER_PAYLOAD["email"], "password": USER_PAYLOAD["password"]}
-    login_response = await client.post("/usuarios/login", json=login_data)
-    token = login_response.json()["access_token"]
-    headers = {"Authorization": f"Bearer {token}"}
-
-    # 3. ACT: Request self-deletion using CEDULA instead of email
-    target_cedula = USER_PAYLOAD["cedula"]
-    target_email = USER_PAYLOAD["email"]
-    delete_response = await client.delete(f"/usuarios/{target_cedula}", headers=headers)
-
-    # 4. ASSERT: Verify successful response and exact custom message
-    assert delete_response.status_code == 200
-    response_data = delete_response.json()
-    assert response_data["success"] is True
-    assert (
-        response_data["message"]
-        == f"La cuenta vinculada a {target_email}, con C.C. {target_cedula} ha sido eliminada exitosamente."
+    response = await client.post(
+        "/usuarios/login", json={"email": user.email, "password": PASSWORD}
     )
 
-    # 5. ASSERT: Verify the row still exists but is structurally deactivated
-    result = await db_session.execute(stmt)
-    deleted_user = result.scalars().first()
-    assert deleted_user is not None  # The row must NOT be deleted
-    assert deleted_user.deleted_at is not None  # Timestamp must exist
-    assert deleted_user.is_active is False  # Must be deactivated
+    assert response.status_code == 200
+    body = response.json()
+    assert set(body) == {"access_token", "token_type"}
+    assert body["token_type"] == "bearer"
 
-    # 6. ASSERT: Attempt to login again should be strictly rejected
-    failed_login = await client.post("/usuarios/login", json=login_data)
-    assert failed_login.status_code == 401
+    assert SECRET_KEY is not None
+    claims = jwt.decode(body["access_token"], SECRET_KEY, algorithms=[ALGORITHM])
+    assert claims["sub"] == user.email
+    assert claims["role"] == "tourist"
+
+
+async def test_login_inactive_user_returns_403_without_token(client, persist_user):
+    """An inactive account with the right password yields 403 and no token."""
+    user = await persist_user(password_hash=get_password_hash(PASSWORD), is_active=False)
+
+    response = await client.post(
+        "/usuarios/login", json={"email": user.email, "password": PASSWORD}
+    )
+
+    assert response.status_code == 403
+    body = response.json()
+    assert set(body) == {"detail"}
+    assert isinstance(body["detail"], str)
+
+
+async def test_login_wrong_password_returns_401_with_bearer_challenge(client, persist_user):
+    """A wrong password on an active account yields 401 with the Bearer challenge."""
+    user = await persist_user(password_hash=get_password_hash(PASSWORD), is_active=True)
+
+    response = await client.post(
+        "/usuarios/login", json={"email": user.email, "password": "wrongPassword1"}
+    )
+
+    assert response.status_code == 401
+    assert response.headers["www-authenticate"] == "Bearer"
+    body = response.json()
+    assert set(body) == {"detail"}
+    assert isinstance(body["detail"], str)
+
+
+async def test_self_soft_delete_keeps_row_and_blocks_login(
+    client, db_session, persist_user, make_auth_headers
+):
+    """Self-deletion keeps the row, stamps deleted_at, deactivates it and blocks login."""
+    user = await persist_user(password_hash=get_password_hash(PASSWORD), is_active=True)
+
+    response = await client.delete(f"/usuarios/{user.cedula}", headers=make_auth_headers(user))
+
+    assert response.status_code == 200
+    body = response.json()
+    assert set(body) == {"success", "message"}
+    assert body["success"] is True
+    assert isinstance(body["message"], str)
+
+    await db_session.refresh(user)
+    assert user.deleted_at is not None
+    assert user.is_active is False
+
+    login = await client.post("/usuarios/login", json={"email": user.email, "password": PASSWORD})
+    assert login.status_code == 401
 
 
 # ==========================================

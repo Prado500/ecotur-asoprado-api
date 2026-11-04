@@ -1,8 +1,11 @@
 """Contract tests for the shared doubles and sessions of tests/conftest.py."""
 
+from unittest.mock import MagicMock
+
 import pytest
 
 from app.api.dependencies import get_storage_client
+from app.api.routers import user as user_router
 from app.core.storage import AzureStorageClient
 from app.main import app
 
@@ -42,3 +45,13 @@ async def test_storage_double_mirrors_the_cdn_url_rules():
     assert double.is_permanent_url(TEMP) is False
     assert double.is_permanent_url(PERM) is True
     double.promote_to_permanent.assert_awaited_once_with(TEMP)
+
+
+async def test_email_dispatch_double_is_autouse_and_autospecced(mock_send_email: MagicMock):
+    """The router's email dispatch is the autouse double, and it keeps the real signature."""
+    assert user_router.send_verification_email is mock_send_email
+
+    with pytest.raises(TypeError):
+        await mock_send_email(recipient="x")
+
+    mock_send_email.assert_not_called()
