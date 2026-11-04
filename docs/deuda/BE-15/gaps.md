@@ -157,3 +157,119 @@ no se borran.
   está en el diff (`git blame`: `53ca672`, 29 jul, y `e581c6a`, 10 oct) y los dos ya estaban en `68cf40c` (mypy del
   auditor sobre el árbol extraído: `test_services.py:183` y `test_audit.py:98`, mismo mensaje, desplazados 26 líneas).
   Destino: residual con la entrada de `tests/` en el alcance de mypy (PLAN día 4-5); no se exige corrección en BE-15.
+
+## Auditoría Fase C — 2026-11-04
+
+- **Veredicto:** PASS (0 bloqueantes, 3 opcionales).
+- **Auditado:** `bf22982` (fase) y `ec474e5` (registro en `progress.json` y handoff). Base de la fase: `818027a`.
+- **Árbol:** `git status --short` vacío antes y después de la auditoría (RED y mutantes con plugins en el
+  scratchpad, `--noconftest -p no:cacheprovider`; en el repo solo se escribió este archivo).
+- **Bloqueantes anteriores:** ninguno (A y B cerraron en PASS).
+
+### Evidencia
+
+- Compuerta re-ejecutada (`./venv/Scripts/python.exe scripts/check.py`, exit 1, rojo heredado previsto por la
+  decisión 8 del plan):
+
+  ```
+  === RESUMEN ===
+    ✔ ruff format --check
+    ✘ ruff check
+    ✘ mypy
+    ✔ import-linter
+    ✔ docs (coherencia)
+    ✔ pytest + cobertura
+
+  Compuerta NO superada: ruff check, mypy
+  ```
+
+  | Medida | Línea base (`verificacion.md`) | Auditoría | Fila "Fase C" del plan (`plan.md:69`) | Handoff |
+  |---|---|---|---|---|
+  | pytest | 376 passed | `381 passed, 5 warnings in 12.04s` | 381 | 381 |
+  | Cobertura | 94.81 % | `TOTAL 942 34 136 22 94.81%` | ≥ 94.81 % | 94.81 % |
+  | import-linter | 4 kept | `Contracts: 4 kept, 0 broken.` | 4 KEPT | 4 KEPT |
+  | ruff total | 60 | `Found 56 errors.` | 56 | 56 |
+  | ruff en `tests/` | 7 | `Found 3 errors.` (test_user_access_policy 347/395, test_user_service 3) | 3 | 3 |
+  | mypy | 10 | `Found 10 errors in 5 files (checked 35 source files)` (todos en `app/`) | 10 | 10 |
+  | ruff format | OK | `53 files already formatted` | OK | OK |
+
+- Archivos tocados: `ruff check` de los cuatro → `All checks passed!` (en `818027a` daban 3: `test_auth.py:1`, `:50`
+  y `:162`); `ruff format --check` → `4 files already formatted`. `mypy` de los cuatro (fuera del alcance de la
+  compuerta), medido por el auditor sobre `git archive 818027a`: antes 2 errores en `tests/` (`test_auth.py:67`,
+  `conftest.py:210`); ahora 1 (`conftest.py:223`, el mismo `no-any-return` heredado del OPCIONAL de la fase A, fuera
+  del diff).
+- `git show --stat bf22982` → exactamente `tests/conftest.py`, `tests/test_auth.py`,
+  `tests/test_fixtures_contract.py` y `tests/test_user_response.py`. `ec474e5` → solo `handoff-Fase_C.md` y
+  `progress.json`. `git diff --stat 818027a ec474e5 -- app/ AGENTS.md CLAUDE.md pyproject.toml scripts/
+  .azure-pipelines/ .claude/` → vacío.
+- Fin de línea: `git ls-files --eol` de los cuatro → `i/lf w/lf attr/text=auto eol=lf`.
+- Mensaje de commit: el cuerpo de `bf22982` sin el trailer es idéntico al bloque "Commit" de la fase C
+  (`plan.md:292-309`; `diff` → sin diferencias).
+- Alcance de `test_auth.py`: todos los hunks de `git diff -U0 818027a bf22982 -- tests/test_auth.py` empiezan en las
+  l.1-172 del original (el último es `@@ -172,3 +168,2 @@`). `diff` entre `git show 818027a:tests/test_auth.py | tail
+  -n +177` y `git show bf22982:tests/test_auth.py | tail -n +172` → idéntico: la sección RBAC (fase D) no cambia.
+- Cambios exactos: fixture `mock_send_email` con `@pytest.fixture(autouse=True)` en la línea anterior a `def
+  mock_send_email():` (`tests/conftest.py:115-116`), `patch(..., autospec=True)` y docstring (`:117-125`), import
+  `patch` (`:2`). `tests/test_user_response.py`: fixture local borrado e import `ANY` solo (`:12`).
+  `tests/test_auth.py`: fixture local y `patch` fuera; `from sqlalchemy import func, select` (`:6`); `jwt`, `ANY`,
+  `ALGORITHM` y `SECRET_KEY` (`:3-14`); `PASSWORD = USER_PAYLOAD["password"]` (`:26`); los 8 nombres del plan (`:29`,
+  `:54`, `:76`, `:92`, `:102`, `:121`, `:135`, `:150`).
+- Criterio de aceptación: `grep -rnE "def mock_send_email\(" tests/` → 1 (`tests/conftest.py:116`); `grep -B1 …
+  | grep -c "@pytest.fixture(autouse=True)"` → 1; en `test_auth.py` l.1-171 `["detail"|"message"] ==`, `.lower()` e
+  `in response.json()["detail"]` → 0; `sqlalchemy.future` → 0; `noexiste@example.com` → 0; `test_auth.py` →
+  `19 tests collected`; `patch(` sin autospec en `tests/` → 0; `MagicMock(` y afines → 0;
+  `test_fixtures_contract.py` → 5 tests (A 4 + C 1).
+- RED reproducido por el auditor con el `conftest.py` de `818027a` como plugin (`PYTHONPATH=<scratchpad> pytest -q
+  -p no:cacheprovider --noconftest -p be15_old_conftest tests/test_fixtures_contract.py`): `E fixture
+  'mock_send_email' not found` · `4 passed, 1 error`. GREEN: `test_fixtures_contract.py test_auth.py
+  test_user_response.py` → `38 passed`.
+- Sensibilidad del test de contrato (mutantes del `conftest.py` actual, cargados como plugin): sin `autospec=True` →
+  `1 failed, 4 passed` (lo detecta); sin `autouse=True` → `5 passed` (no lo detecta; ver hallazgo 1).
+- Aserción a aserción (l.1-175 de `818027a` → l.1-170 de `bf22982`; líneas `assert`/`mock.assert_*`: 29 → 43):
+  - Registro: se conservan las 7 de l.36-43; `assert_called_once()` → `assert_called_once_with(email_to=…,
+    first_name="Juan", token=ANY, base_url=ANY)`, que coincide con la firma real (`app/core/email.py:27`) y con la
+    llamada del router (`app/api/routers/user.py:71-75`); + fila por cédula con `is_active is False` y
+    `role == UserRole.tourist`.
+  - Duplicado: texto (l.58) → `set(body) == {"detail"}` + `str`; + primer POST 201, `count(User) == 1` y correo una
+    sola vez con argumentos.
+  - Verificación: se conservan el 200 y `success`; + `set(body)`; estado vía `refresh(user)` (antes, re-`select`).
+  - Token inválido: `"inválido" in ….lower()` (l.85) → forma `{"detail"}` + `str`.
+  - Login: se conservan el 200 y `bearer`; `"access_token" in data` → `set(body)` exacto; + claims `sub` y `role`.
+  - Inactivo: texto (l.122) → forma; `set(body) == {"detail"}` prueba además que no hay token.
+  - Credenciales: texto (l.131) → forma + `www-authenticate == "Bearer"`; el correo inexistente (D3) sigue cubierto
+    por HTTP en `tests/test_user_service.py:363-372` (`ghost@example.com`, 401 y cabecera).
+  - Auto-borrado: texto (l.160-163) → `message` de tipo `str` + `set(body)`; se conservan `deleted_at`,
+    `is_active` y el 401 posterior. `deleted_user is not None` (l.168) queda implícito: `refresh(user)` (`:164`)
+    lanza `InvalidRequestError` si la fila desaparece.
+
+  Ninguna aserción de comportamiento se pierde sin sustituto, y ninguna afirma texto en español (`"Juan"` es un dato
+  del payload).
+- Desviaciones del ejecutor: (1) `USER_PAYLOAD: dict[str, Any]` (`tests/test_auth.py:17`): aceptable, solo es un
+  tipo. (2) `assert SECRET_KEY is not None` (`:115`): aceptable; es el estrechamiento de tipo idiomático en pytest,
+  no afirma comportamiento ni texto y no puede ocultar nada (el login ya firmó el token con esa clave).
+  `typing.cast` sería equivalente y sin coste en ejecución; no se exige. (3a) import del router a nivel de módulo
+  (`tests/test_fixtures_contract.py:8`): aceptable, porque importa el módulo y el atributo se resuelve al ejecutar el
+  test, así que el `is` ve el parche. (3b) anotación `mock_send_email: MagicMock` (`:50`): OPCIONAL, ver hallazgo 2.
+- `progress.json`: JSON válido; `Fase_C` = `completed` con `commit` `bf22982` (real); `current_target` = `Fase_D`;
+  `last_handoff` presente; el diff de `ec474e5` solo toca esos cuatro campos (`edit_rules` y `approval` intactos).
+- AGENTS §5: doble con `autospec=True`; preparación con `persist_user`/`make_auth_headers`; código HTTP + forma +
+  estado (`refresh`, `count`) + mock con argumentos donde interviene el correo; nombres y docstrings en inglés.
+
+### Hallazgos
+
+- [OPCIONAL] — Fase C — `test_email_dispatch_double_is_autouse_and_autospecced` no congela la mitad "autouse" de su
+  nombre: al pedir el fixture por parámetro, el parche se activa aunque el fixture no sea `autouse`. Un mutante con
+  `@pytest.fixture` sin `autouse=True` da `5 passed` en `tests/test_fixtures_contract.py` y `381 passed` en toda la
+  suite. Hoy solo lo vigila el grep 4 de "Verificación final" (`plan.md:502`). Evidencia:
+  `tests/test_fixtures_contract.py:50-57`, `tests/conftest.py:115`. El test es el que dicta el plan
+  (`plan.md:280-283`). Para congelarlo bastaría un test que no pida el fixture y compruebe que
+  `user_router.send_verification_email` no es la función de `app.core.email`. Destino: residual, o la fase F, que ya
+  toca ese archivo.
+- [OPCIONAL] — Fase C — la anotación `mock_send_email: MagicMock` es inexacta. `patch(autospec=True)` sobre una
+  función devuelve una `function` con atributos de mock (`type(m)` → `<class 'function'>`, `isinstance(m,
+  MagicMock)` → `False`). No afecta a la ejecución y silencia mypy, pero describe mal el objeto; `Any` sería más
+  honesta. Evidencia: `tests/test_fixtures_contract.py:3`, `:50`.
+- [OPCIONAL] — Fase C — a la docstring del fixture nuevo le falta la sección `Yields:` (AGENTS §4, Google Style); los
+  fixtures vecinos sí llevan `Returns:`. Evidencia: `tests/conftest.py:117-124` frente a `tests/conftest.py:144-148`.
+- Sigue abierto, sin cambios, lo de la fase A: el `no-any-return` de `persist_user` se desplazó a
+  `tests/conftest.py:223`. No es un hallazgo nuevo.
