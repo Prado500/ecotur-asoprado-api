@@ -11,11 +11,11 @@
       "Salvaguarda E: antes del commit de E, git hash-object app/services/user_access_policy.py == git rev-parse HEAD:app/services/user_access_policy.py; si algún método editara el archivo, se restaura byte a byte."
     ]
   },
-  "current_target": "Fase_A",
+  "current_target": "Fase_B",
   "phases": {
     "Fase_A": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "9484b04",
       "description": "Global storage double as create_autospec(AzureStorageClient, instance=True); test_services.py:234 side_effect on the autospecced method; new tests/test_fixtures_contract.py with 4 tests (3 RED). Target: 380 passed, ruff 60."
     },
     "Fase_B": {
@@ -49,6 +49,6 @@
     "partial",
     "completed"
   ],
-  "last_handoff": "Plan aprobado por David el 2026-11-04 con enmiendas D1-D3 + salvaguarda E. Ninguna fase ejecutada; siguiente: /implementar BE-15 A.",
+  "last_handoff": "Fase A completada (9484b04): doble global de almacenamiento con create_autospec(AzureStorageClient); 4 tests de contrato nuevos (3 RED->GREEN); compuerta 380 passed, 94.81 %, 4 KEPT, ruff 60, mypy 10 (fila A exacta). Siguiente: /implementar BE-15 B.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
