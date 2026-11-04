@@ -1,0 +1,39 @@
+{
+  "plan_file": "docs/deuda/BE-15/plan.md",
+  "current_target": "Fase_A",
+  "phases": {
+    "Fase_A": {
+      "status": "pending",
+      "commit": null,
+      "description": "Global storage double as create_autospec(AzureStorageClient, instance=True); test_services.py:234 side_effect on the autospecced method; new tests/test_fixtures_contract.py with 4 tests (3 RED). Target: 380 passed, ruff 60."
+    },
+    "Fase_B": {
+      "status": "pending",
+      "commit": null,
+      "description": "test_services.py drops admin_token/auth_headers (13 tests move to admin_headers); test_audit.py drops superadmin_token and hand-built tourist; same test IDs. Target: 380 passed, ruff 59."
+    },
+    "Fase_C": {
+      "status": "pending",
+      "commit": null,
+      "description": "Single autouse autospecced mock_send_email in conftest; test_user_response.py drops its copy; test_auth.py l.1-175: 8 tests renamed, factories, codes+structure instead of Spanish text, refresh after requests; +1 contract test (RED). Target: 381 passed, ruff 56."
+    },
+    "Fase_D": {
+      "status": "pending",
+      "commit": null,
+      "description": "test_auth.py l.177-657: 11 RBAC tests renamed and built on persist_user/make_auth_headers; last 3 Spanish assertions become detail shape + no mutation. Target: 381 passed, ruff 56."
+    },
+    "Fase_E": {
+      "status": "pending",
+      "commit": null,
+      "description": "test_user_access_policy.py: 5 B2 + 5 B3 tests (11 cases) over HTTP; E501 at l.347/395 fixed; mutant run must give exactly 6 failed, 5 passed. Target: 392 passed, ruff 54."
+    },
+    "Fase_F": {
+      "status": "pending",
+      "commit": null,
+      "description": "Cuttable. Per-request app session in conftest client fixture; +3 contract tests (2 RED); docs/adr/0011 copied from the BE-15 draft if D1 = yes. The commit field stores '<test> <docs>'. Target: 395 passed, ruff 54."
+    }
+  },
+  "allowed_statuses": ["pending", "partial", "completed"],
+  "last_handoff": "Estado inicial. Plan pendiente de aprobación humana (decisiones D1-D3 en el Análisis del redactor).",
+  "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
+}
