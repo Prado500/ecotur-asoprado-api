@@ -367,3 +367,91 @@ no se borran.
   `set(body)` en la recuperación (`:324-325`); sin comprobar en BD la fila del admin creado (`:404-408`). No es
   bloqueante: el plan dicta "se conservan" (`plan.md:370-372`, `:377`, `:380`). Destino: residual del bloque o
   backlog, junto a las aserciones de mock sin argumentos.
+
+## Auditoría Fase E — 2026-11-04
+
+- **Veredicto:** PASS (0 bloqueantes, 1 opcional).
+- **Auditado:** `84ad522` (fase) y `9e2700f` (registro en `progress.json` y handoff). Base de la fase: `e9904f9`.
+- **Árbol:** `git status --short` vacío antes y después de la auditoría; HEAD `9e2700f`, rama `bloque/b-tests`.
+- **Bloqueantes anteriores:** ninguno (A, B, C y D cerraron en PASS).
+
+### Evidencia
+
+- Compuerta re-ejecutada (`./venv/Scripts/python.exe scripts/check.py`, exit 1, rojo heredado previsto por la
+  decisión 8 del plan):
+
+  ```
+  === RESUMEN ===
+    ✔ ruff format --check
+    ✘ ruff check
+    ✘ mypy
+    ✔ import-linter
+    ✔ docs (coherencia)
+    ✔ pytest + cobertura
+
+  Compuerta NO superada: ruff check, mypy
+  ```
+
+  | Medida | Auditor | Fila "Fase E" | Handoff |
+  |---|---|---|---|
+  | pytest | `392 passed, 5 warnings in 14.41s` | 392 | 392 |
+  | Cobertura | `TOTAL 942 34 136 22 94.81%` | ≥ 94.81 % | 94.81 % |
+  | import-linter | `Contracts: 4 kept, 0 broken.` | 4 KEPT | 4 KEPT |
+  | ruff total | `Found 54 errors.` | 54 | 54 |
+  | ruff en `tests/` | `Found 1 error.` (`tests\test_user_service.py:3:1`, I001 heredado) | 1 | 1 |
+  | mypy | `Found 10 errors in 5 files (checked 35 source files)` (todos en `app/`) | 10 | 10 |
+
+  `ruff check tests/test_user_access_policy.py` → `All checks passed!`; `ruff format --check` → `1 file already
+  formatted`; `mypy tests/test_user_access_policy.py` → los 10 heredados de `app/`, 0 en `tests/`. `git ls-files --eol`
+  del test, el handoff, `progress.json` y `gaps.md` → `i/lf w/lf`; 0 `\r` en el blob de `84ad522`.
+- Commit: `git show --stat 84ad522` → solo `tests/test_user_access_policy.py` (225+/2−). Mensaje sin el trailer contra
+  `plan.md:451-464` con `diff` → idéntico. `9e2700f` solo toca `handoff-Fase_E.md` y `progress.json`.
+- Alcance: `git diff --stat 7877829..HEAD -- app/ pyproject.toml scripts/ .azure-pipelines/ .claude/ AGENTS.md
+  CLAUDE.md` → vacío; `git diff --stat e9904f9..HEAD` → los tres archivos citados, ni `tests/conftest.py` ni
+  `tests/test_auth.py`. `git log 7877829..HEAD -- app/services/user_access_policy.py` → vacío.
+- Salvaguarda E (decisión 9), re-ejecutada: `test "$(git hash-object app/services/user_access_policy.py)" = "$(git
+  rev-parse HEAD:app/services/user_access_policy.py)" && echo IGUAL` → `IGUAL`; `git status --short app/` → vacío.
+  Hash `eea566b2a738caaeda2d5472937a5c839867b98c` antes y después de todas las corridas de mutantes.
+- Cambios exactos: docstrings de l.349 y l.397 con el texto literal de `plan.md:409-410`; `sqlalchemy.future` de l.13
+  intacto; imports `datetime`/`UTC` y `AuditAction`/`AuditLog`. `grep -cE "^async def test_b[23]_"` → `10`; 11 casos.
+  Los 10 tests (`tests/test_user_access_policy.py:437-653`) tienen el nombre, la petición y todas las aserciones que
+  dicta `plan.md:411-431`; usan solo `persist_user`/`make_auth_headers`, `refresh` y `select(AuditLog)`; ningún mock;
+  ninguna aserción sobre texto en español (los docstrings y `"Changed"` son inglés).
+- Sensibilidad (plugins en el scratchpad, cargados con `-p`, sin editar `app/`):
+  - `e_be15_mutants.py` del ejecutor: coincide con `plan.md:433-436` (fixture `autouse` con `monkeypatch.setattr` sobre
+    la clase; `assert_can_update` → `return None`; `assert_can_delete` → `raise AuthorizationError()`). Resultado:
+    `6 failed, 5 passed, 46 deselected`; fallan 1, 2, 4, 5 y `[admin]`/`[tourist]` de 6; pasan 3, 7, 8, 9, 10. Sin
+    plugin: `11 passed, 46 deselected`.
+  - `audE_b2_only` (solo `assert_can_update`, con la guarda de rol saltada en auto-edición, la forma previa del bug B2;
+    jerarquía e `is_active` reales; `assert_can_delete` real) → `4 failed, 7 passed`: los cuatro B2 de 403, ningún B3.
+  - `audE_b3_only` (solo `assert_can_delete`: niega todo borrado de un tercero, la forma previa de B3) →
+    `2 failed, 9 passed`: los dos casos de 6, ningún B2.
+  - `audE_b3_allow_all` (`assert_can_delete` sin efecto) → `2 failed, 9 passed`: 7 y 8 (los 403 entre pares).
+  - `audE_b2_value_based` (la guarda de rol compara el valor con el rol actual en vez de la clave) → `1 failed,
+    10 passed`: solo `test_b2_admin_self_role_noop_returns_403`.
+- `progress.json`: JSON válido; `Fase_E` = `completed`, `commit` `84ad522` (real); `current_target` = `Fase_F`;
+  `last_handoff` actualizado; el diff de `9e2700f` solo toca esos cuatro campos (`edit_rules`, `approval` y las demás
+  fases intactos).
+- Observación de la sesión principal (no-op de rol): el test 4 lo dicta el plan (`plan.md:417-418`: "Lo que se bloquea
+  es la clave, no el valor") y coincide con la política real (`app/services/user_access_policy.py:60`, `"role" in
+  update_dict and actor.role != UserRole.superadmin`, sobre un `update_dict` con `exclude_unset=True`,
+  `app/services/user_service.py:272`). Es la guarda fail-safe que corrige B2 y la verificación ya la describe
+  (`verificacion.md:98-99`). No es decisión del ejecutor. Ver opcional 1.
+- Desviaciones declaradas: nombre `e_be15_mutants` (scratchpad compartido; contenido igual al del plan); aserciones
+  extra (`isinstance`, `set(body)`, `is_active`, `body["cedula"]`), dentro de la decisión 4 y AGENTS §5, sin cambio en
+  el resultado de mutantes; `ids=["admin", "tourist"]`, que solo da nombre a los casos que pide el plan; `-rpf --tb=no`,
+  que no cambia la cifra. Ninguna da hallazgo.
+- Enmienda E3 / D-bis (`docs/bitacora/2026-11-04.md:210-213`): no está en `plan.md` ni en `progress.json`. El
+  `current_target: Fase_F` es correcto según el plan vigente. No hay conflicto mientras E3 no se registre. Al
+  registrarla, la enmienda debe añadir la entrada `Fase_D_bis` a `progress.json`, como E2 hizo con `Fase_F_min`, y
+  decidir el `current_target`, porque la bitácora deja abierto el orden ("luego D-bis o F").
+
+### Hallazgos
+
+- [OPCIONAL] — Fase E — `test_b2_admin_self_role_noop_returns_403` (`tests/test_user_access_policy.py:501-517`) congela
+  una decisión de producto: un admin que reenvía su rol actual (`{"role": "admin"}`) recibe 403. Lo dicta el plan
+  (`plan.md:417-418`) y coincide con `app/services/user_access_policy.py:60`. Es el único test que separa una guarda
+  por clave de una por valor (mutante `audE_b2_value_based`: `1 failed, 10 passed`). Consecuencia: un cliente que
+  envíe el formulario de perfil completo, con `role` incluido, recibirá 403 en la auto-edición de un admin. Es
+  defendible como fail-safe, pero si producto quiere aceptar el rol sin cambio, ese cambio va en la política con su
+  propio ítem (junto a BE-02), y este test se ajusta a conciencia. Sin acción en BE-15.
