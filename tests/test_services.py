@@ -8,7 +8,7 @@ Role-Based Access Control (RBAC).
 
 from datetime import UTC, datetime
 from decimal import Decimal
-from unittest.mock import AsyncMock, create_autospec
+from unittest.mock import create_autospec
 
 import pytest
 from sqlalchemy.future import select
@@ -231,7 +231,7 @@ async def test_upload_images_storage_outage_returns_503(client, auth_headers):
     StagedImage built by the transport layer from the multipart binary.
     """
     failing_client = create_autospec(AzureStorageClient, instance=True)
-    failing_client.upload_image = AsyncMock(side_effect=StorageUnavailableError("cdn outage"))
+    failing_client.upload_image.side_effect = StorageUnavailableError("cdn outage")
     app.dependency_overrides[get_storage_client] = lambda: failing_client
 
     fake_file = ("images", ("test_image.jpg", b"fake_binary_payload", "image/jpeg"))

@@ -1,5 +1,5 @@
 import itertools
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import create_autospec
 
 import pytest
 import pytest_asyncio
@@ -9,6 +9,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.api.dependencies import get_storage_client
 from app.core.security import create_access_token
+from app.core.storage import AzureStorageClient
 from app.db.database import Base, get_db
 from app.main import app
 from app.models.user import User, UserRole
@@ -75,31 +76,34 @@ async def client(db_session):
 def override_azure_storage_client():
     """
     Overwrites the AzureStorageClient dependency globally for all tests.
-    Ensures that no test attempts to instantiate the real cloud client,
-    preventing missing environment variable errors and avoiding real HTTP egress.
+
+    No test instantiates the real cloud client, so there is no real HTTP egress.
+    The double is autospecced on the adapter: it is an AzureStorageClient instance,
+    it has no attribute the adapter lacks, and a call off a method's signature
+    raises TypeError, so renaming or re-signing an adapter method breaks the tests.
     """
-    mock_client = MagicMock()
+    mock_client = create_autospec(AzureStorageClient, instance=True)
 
-    # Mocking environment variables bound to the client
-    mock_client.temporal_container_name = "temp-ecotur-images"
-    mock_client.container_name = "ecotur-images"
-
-    # Mocking I/O Coroutines
-    mock_client.upload_image = AsyncMock(
-        return_value="https://ecoturasopradocdn2026.blob.core.windows.net/temp-ecotur-images/fake_image.jpg"
+    # I/O coroutines
+    mock_client.upload_image.return_value = (
+        "https://ecoturasopradocdn2026.blob.core.windows.net/temp-ecotur-images/fake_image.jpg"
     )
-    mock_client.delete_image = AsyncMock(return_value=None)
+    mock_client.delete_image.return_value = None
 
     # Simulating Azure's Copy & Delete promotion behavior dynamically
     async def mock_promote(url: str) -> str:
         return url.replace("temp-ecotur-images", "ecotur-images")
 
-    mock_client.promote_to_permanent = AsyncMock(side_effect=mock_promote)
+    mock_client.promote_to_permanent.side_effect = mock_promote
 
     # URL classification by prefix, mirroring the real adapter
     cdn_prefix = "https://ecoturasopradocdn2026.blob.core.windows.net/"
-    mock_client.is_temporal_url = lambda url: url.startswith(f"{cdn_prefix}temp-ecotur-images/")
-    mock_client.is_permanent_url = lambda url: url.startswith(f"{cdn_prefix}ecotur-images/")
+    mock_client.is_temporal_url.side_effect = lambda url: url.startswith(
+        f"{cdn_prefix}temp-ecotur-images/"
+    )
+    mock_client.is_permanent_url.side_effect = lambda url: url.startswith(
+        f"{cdn_prefix}ecotur-images/"
+    )
 
     app.dependency_overrides[get_storage_client] = lambda: mock_client
 
