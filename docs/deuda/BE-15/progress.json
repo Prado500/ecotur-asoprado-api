@@ -11,7 +11,7 @@
       "Salvaguarda E: antes del commit de E, git hash-object app/services/user_access_policy.py == git rev-parse HEAD:app/services/user_access_policy.py; si algún método editara el archivo, se restaura byte a byte."
     ]
   },
-  "current_target": "Fase_C",
+  "current_target": "Fase_D",
   "phases": {
     "Fase_A": {
       "status": "completed",
@@ -24,8 +24,8 @@
       "description": "test_services.py drops admin_token/auth_headers (13 tests move to admin_headers); test_audit.py drops superadmin_token and hand-built tourist; same test IDs. Target: 380 passed, ruff 59."
     },
     "Fase_C": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "bf22982",
       "description": "D2: single @pytest.fixture(autouse=True) autospecced mock_send_email in conftest; test_user_response.py drops its copy; test_auth.py l.1-175: 8 tests renamed, factories, codes+structure instead of Spanish text, refresh after requests; D3 wrong-password login case; +1 contract test (RED). Target: 381 passed, ruff 56."
     },
     "Fase_D": {
@@ -49,6 +49,6 @@
     "partial",
     "completed"
   ],
-  "last_handoff": "Fase B completada (fc06d1e): test_services.py (13 tests) y test_audit.py sobre persist_user/make_auth_headers; collect-only idéntico (42 IDs); compuerta 380 passed, 94.81 %, 4 KEPT, ruff 59 (tests/ 6), mypy 10 (fila B exacta). Siguiente: /implementar BE-15 C.",
+  "last_handoff": "Fase C completada (bf22982): mock_send_email autouse+autospec único en conftest; test_auth.py l.1-175 con 8 tests renombrados, persist_user y aserciones por código/forma/estado (D3: contraseña incorrecta); +1 test de contrato (RED fixture not found -> GREEN); compuerta 381 passed, 94.81 %, 4 KEPT, ruff 56 (tests/ 3), mypy 10 (fila C exacta). Siguiente: /implementar BE-15 D.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
