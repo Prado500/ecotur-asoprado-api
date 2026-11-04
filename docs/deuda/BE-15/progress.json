@@ -1,5 +1,16 @@
 {
   "plan_file": "docs/deuda/BE-15/plan.md",
+  "approval": {
+    "date": "2026-11-04",
+    "by": "David",
+    "status": "aprobado con enmiendas D1-D3 + salvaguarda E",
+    "amendments": [
+      "D1: sí, ADR-0011 corto (decisión, límite aceptado, consecuencias con las dos reglas, alternativas: sesión compartida, conexiones separadas, Postgres -> BE-31); la fase F lo copia a docs/adr/. El plan no edita AGENTS.md: David lleva las reglas a AGENTS §5 por PR al cierre.",
+      "D2: sí, mock_send_email autouse con autospec=True en tests/conftest.py.",
+      "D3: sí, el caso de credenciales inválidas pasa a contraseña incorrecta (test_login_wrong_password_returns_401_with_bearer_challenge).",
+      "Salvaguarda E: antes del commit de E, git hash-object app/services/user_access_policy.py == git rev-parse HEAD:app/services/user_access_policy.py; si algún método editara el archivo, se restaura byte a byte."
+    ]
+  },
   "current_target": "Fase_A",
   "phases": {
     "Fase_A": {
@@ -15,7 +26,7 @@
     "Fase_C": {
       "status": "pending",
       "commit": null,
-      "description": "Single autouse autospecced mock_send_email in conftest; test_user_response.py drops its copy; test_auth.py l.1-175: 8 tests renamed, factories, codes+structure instead of Spanish text, refresh after requests; +1 contract test (RED). Target: 381 passed, ruff 56."
+      "description": "D2: single @pytest.fixture(autouse=True) autospecced mock_send_email in conftest; test_user_response.py drops its copy; test_auth.py l.1-175: 8 tests renamed, factories, codes+structure instead of Spanish text, refresh after requests; D3 wrong-password login case; +1 contract test (RED). Target: 381 passed, ruff 56."
     },
     "Fase_D": {
       "status": "pending",
@@ -25,15 +36,19 @@
     "Fase_E": {
       "status": "pending",
       "commit": null,
-      "description": "test_user_access_policy.py: 5 B2 + 5 B3 tests (11 cases) over HTTP; E501 at l.347/395 fixed; mutant run must give exactly 6 failed, 5 passed. Target: 392 passed, ruff 54."
+      "description": "test_user_access_policy.py: 5 B2 + 5 B3 tests (11 cases) over HTTP; E501 at l.347/395 fixed; mutant run must give exactly 6 failed, 5 passed. Target: 392 passed, ruff 54. Safeguard: git hash-object app/services/user_access_policy.py must equal git rev-parse HEAD:app/services/user_access_policy.py before the commit."
     },
     "Fase_F": {
       "status": "pending",
       "commit": null,
-      "description": "Cuttable. Per-request app session in conftest client fixture; +3 contract tests (2 RED); docs/adr/0011 copied from the BE-15 draft if D1 = yes. The commit field stores '<test> <docs>'. Target: 395 passed, ruff 54."
+      "description": "Cuttable. Per-request app session in conftest client fixture; +3 contract tests (2 RED); docs/adr/0011-sesion-de-la-app-distinta-de-la-del-test.md copied from the BE-15 draft (D1 = yes; quote block and ' (borrador)' removed). AGENTS.md untouched. The commit field stores '<test> <docs>'. Target: 395 passed, ruff 54."
     }
   },
-  "allowed_statuses": ["pending", "partial", "completed"],
-  "last_handoff": "Estado inicial. Plan pendiente de aprobación humana (decisiones D1-D3 en el Análisis del redactor).",
+  "allowed_statuses": [
+    "pending",
+    "partial",
+    "completed"
+  ],
+  "last_handoff": "Plan aprobado por David el 2026-11-04 con enmiendas D1-D3 + salvaguarda E. Ninguna fase ejecutada; siguiente: /implementar BE-15 A.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }

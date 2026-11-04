@@ -3,6 +3,8 @@
 - **Fecha:** 2026-11-04 · **Fuente:** `verificacion.md` (veredicto parcial; la adenda de David, puntos 1 a 5, manda
   sobre la conclusión) · **Rama:** `bloque/b-tests` · **Base develop:** `7877829` (la de la verificación; el ejecutor
   la vuelve a comprobar al arrancar)
+- **Aprobación:** David, 2026-11-04. Aprobado con enmiendas: D1, D2 y D3 = sí, y salvaguarda de la fase E (ver
+  "Decisiones de David").
 
 ## Resumen para aprobación
 
@@ -18,7 +20,8 @@ superadmin borra a un tercero → 200, `deleted_at` y fila de auditoría).
 Son seis fases: A–D en `m1` y E–F en `m2`; F es recortable. El riesgo principal es (4). Un ensayo en seco, hecho sin
 tocar el repo, dio 1 fallo de 376, y es un test que la fase C ya reescribe; por eso F se queda en `conftest.py`, 3
 tests y el ADR. No se toca `app/`, el `--soft` del CI, la clave `"detalle"` (P2), la carga de `.env` (A4), BE-02 ni
-BE-31. Hay tres decisiones abiertas para David (D1–D3, al final del Análisis).
+BE-31, y tampoco se edita `AGENTS.md`: David llevará a AGENTS §5, en un PR al cierre, las dos reglas que enuncia
+ADR-0011. Aprobado por David el 4 nov 2026 con enmiendas (D1–D3 = sí y salvaguarda en la fase E).
 
 ## Objetivo y decisiones bloqueadas
 
@@ -26,8 +29,9 @@ Que cada test de la suite cumpla AGENTS §5: dobles con firma, preparación con 
 códigos y estructura y no sobre prosa, y una sesión de la app distinta de la del test. Además, B2 y B3 quedan
 congelados por HTTP.
 
-1. **Solo tests y documentación.** Ninguna fase modifica `app/`, `.azure-pipelines/`, `pyproject.toml`, `scripts/` ni
-   `.claude/`. `git diff --stat <base>..HEAD -- app/` debe salir vacío al final.
+1. **Solo tests y documentación.** Ninguna fase modifica `app/`, `.azure-pipelines/`, `pyproject.toml`, `scripts/`,
+   `.claude/`, `AGENTS.md` ni `CLAUDE.md`. `git diff --stat <base>..HEAD` sobre esas rutas debe salir vacío al
+   final.
 2. **No se crean fábricas nuevas** (adenda, punto 1). Se usan `make_user`, `make_token`, `make_auth_headers` y
    `persist_user` (`tests/conftest.py:119-208`). Se admite un fixture local que solo combina fábricas, como el
    `admin_headers` que ya existe en `tests/test_services.py:404-409`.
@@ -44,13 +48,18 @@ congelados por HTTP.
 6. **Orden:** A → B → C → D (`m1`), E → F (`m2`). F va la última y es recortable: si no cabe en `m2`, el cierre del
    día la declara deslizada (adenda, punto 1).
 7. **Sesión (fase F):** el override abre una sesión de `TestingSessionLocal` por petición, sobre el mismo engine con
-   `StaticPool` (adenda, punto 4). Hay dos convenciones: confirmar con `commit()` lo preparado antes de llamar al
-   cliente y hacer `refresh` después. Se recogen en ADR-0011 si David lo aprueba (D1).
+   `StaticPool` (adenda, punto 4). ADR-0011 (D1) enuncia las dos reglas: "commit antes de la petición" y "refresh
+   después". Este plan **no edita `AGENTS.md`**; llevar las reglas a AGENTS §5 es tarea de David, en un PR al
+   cierre.
 8. **Compuerta "verde" en este ítem** (ADR-0005, trinquete). `./venv/Scripts/python.exe scripts/check.py` sale con
    exit 1 en la línea base por ruff (53 errores en `app/`) y mypy (10, todos en `app/`). Una fase se acepta si:
    pytest pasa con el número de la tabla; la cobertura es ≥ 94.81 %; import-linter da 4 KEPT; docs da OK; `ruff
    format` da OK; **cada archivo tocado tiene 0 errores de ruff**; el total de ruff es **igual** al de la tabla; mypy
    sigue en 10.
+9. **Salvaguarda de la fase E** (enmienda de David). La prueba de mutantes no edita `app/`. Antes del commit de E,
+   `git hash-object app/services/user_access_policy.py` tiene que ser igual a `git rev-parse
+   HEAD:app/services/user_access_policy.py`. Si algún método llegara a editar ese archivo, se restaura byte a byte
+   antes de seguir.
 
 | Al cerrar | pytest (passed) | ruff total | ruff en `tests/` | mypy |
 |---|---|---|---|---|
@@ -109,7 +118,8 @@ en C y D no pierden su poder de distinguir errores, porque la distinción entre 
 `tests/test_user_service.py:114-122` y `:202-233` y `tests/test_user_access_policy.py:115-216`. Los tests HTTP
 afirman el código, la forma `{"detail": str}` y la **ausencia de mutación**. Los 11 casos de E congelan B2 y B3 en la
 capa HTTP. Su RED es imposible sin tocar `app/` (los bugs ya están corregidos), así que se sustituye por una prueba de
-sensibilidad con mutantes cargados como plugin, sin editar `app/`. Los 3 tests de F congelan la sesión por petición.
+sensibilidad con mutantes cargados como plugin, sin editar `app/`. La salvaguarda de la decisión 9 lo comprueba por
+hash. Los 3 tests de F congelan la sesión por petición.
 
 **Riesgos.** (1) F cambia la semántica de la suite. Mitigación: el ensayo en seco, C antes que F, el ADR y la
 docstring de `client`. (2) C y D son diffs grandes sobre un solo archivo; se mitiga partiéndolos por secciones y
@@ -123,27 +133,28 @@ m4`); la clave `"detalle"` (`test_services.py:767,782`, `test_user_response.py:1
 `JWT_SECRET_KEY` (A4, adenda punto 2); la auto-degradación del superadmin (BE-02); `sqlite_where` (BE-31); `from
 sqlalchemy.future` fuera de `test_auth.py` (S2).
 
-**Decisiones que debe tomar David.**
-- **D1, ADR-0011** (recomendado: sí). La regla "la sesión de prueba no es la de la app" ya está en AGENTS §5. Lo
-  nuevo, y lo que justifica un ADR, son las dos convenciones que obliga a seguir a todo test futuro y la limitación
-  aceptada (aislamiento de sesión, no de conexión). El borrador está en `docs/deuda/BE-15/adr-0011-borrador.md`,
-  porque esta sesión solo escribe en esta carpeta; la fase F lo copia a `docs/adr/`. Alternativa: sin ADR, con las
-  convenciones solo en la docstring de `client` (en ese caso F hace un solo commit).
-- **D2, `mock_send_email` `autouse` global en `conftest.py`** (recomendado). Alternativa: un fixture no `autouse`
-  que cada test pide. Es más explícito, pero un test de registro que lo olvide intentaría enviar correo de verdad.
-- **D3, en C se cambia `test_login_credenciales_invalidas` de "correo inexistente" a "contraseña incorrecta de una
-  cuenta activa"** (recomendado). El caso del correo inexistente ya está por HTTP en `test_user_service.py:363-372`;
-  la contraseña incorrecta solo está en unidad (`:212-220`). Alternativa: conservar el caso actual y tener un
-  duplicado.
+**Decisiones de David (resueltas el 4 nov 2026).**
+- **D1 = sí: ADR-0011, corto.** Contiene la decisión (una sesión por petición, aparte de la del test), el límite
+  aceptado (la conexión es compartida por `StaticPool`; el aislamiento es de sesión, no de transacción; el commit
+  olvidado se detecta al cerrarse la sesión de la app) y las alternativas (sesión compartida, conexiones separadas,
+  Postgres → BE-31). El ADR enuncia las dos reglas. El borrador está en `docs/deuda/BE-15/adr-0011-borrador.md` y la
+  fase F lo copia a `docs/adr/`. **AGENTS.md no se edita en este plan:** David lleva las reglas a AGENTS §5 por PR
+  al cierre.
+- **D2 = sí:** un `mock_send_email` `autouse` en `tests/conftest.py`, con `autospec=True`.
+- **D3 = sí:** en C, `test_login_credenciales_invalidas` pasa a "contraseña incorrecta de una cuenta activa"
+  (`test_login_wrong_password_returns_401_with_bearer_challenge`). El correo inexistente ya está por HTTP en
+  `test_user_service.py:363-372`.
+- **Salvaguarda E:** decisión bloqueada 9.
 
 ## Regla de alcance
 
 - **Sí:** `tests/conftest.py`, `tests/test_auth.py`, `tests/test_audit.py`, `tests/test_services.py`,
   `tests/test_user_response.py`, `tests/test_user_access_policy.py`, `tests/test_fixtures_contract.py` (nuevo) y
-  `docs/adr/0011-sesion-de-la-app-distinta-de-la-del-test.md` (si D1 = sí). Dentro de cada archivo tocado, los errores
+  `docs/adr/0011-sesion-de-la-app-distinta-de-la-del-test.md`. Dentro de cada archivo tocado, los errores
   de ruff hasta dejarlo en 0. En F, hasta dos archivos de test más si se rompen por la sesión, y solo para añadir
   `refresh`.
-- **No:** todo lo listado en "Qué NO se toca"; `tests/test_user_service.py` (su I001 queda como residual); las 10
+- **No:** todo lo listado en "Qué NO se toca"; `AGENTS.md` y `CLAUDE.md` (las reglas de ADR-0011 las lleva David a
+  AGENTS §5 por PR al cierre); `tests/test_user_service.py` (su I001 queda como residual); las 10
   aserciones de mock sin argumentos fuera de `test_auth.py`; comentarios en español fuera de las líneas que se
   reescriben; los tests duplicados entre `test_auth.py` y `test_user_access_policy.py` (se migran, no se borran: el
   conteo no baja).
@@ -245,9 +256,10 @@ sqlalchemy.future` fuera de `test_auth.py` (S2).
 - **Archivos:** `tests/conftest.py`, `tests/test_user_response.py`, `tests/test_auth.py` (l.1-175),
   `tests/test_fixtures_contract.py`.
 - **Cambios exactos:**
-  - `conftest.py`: se añade un fixture `autouse` `mock_send_email` que hace `with
-    patch("app.api.routers.user.send_verification_email", autospec=True) as mock: yield mock`, con docstring. Import:
-    `patch`.
+  - `conftest.py` (D2): se añade el fixture `mock_send_email`, con `@pytest.fixture(autouse=True)` en la línea
+    inmediatamente anterior a `def mock_send_email():`. Hace `with
+    patch("app.api.routers.user.send_verification_email", autospec=True) as mock: yield mock` y lleva docstring.
+    Import: `patch`.
   - `test_user_response.py`: se borra el fixture local (l.43-47) y `patch` del import de la l.12 (se queda `ANY`).
   - `test_auth.py`: se borra el fixture local (l.21-29) y el import de `patch`; `from sqlalchemy.future import select`
     pasa a `from sqlalchemy import func, select`. Se añaden la constante `PASSWORD = USER_PAYLOAD["password"]` y los
@@ -375,11 +387,15 @@ sqlalchemy.future` fuera de `test_auth.py` (S2).
   función que no hace nada y `UserAccessPolicy.assert_can_delete` por una que lanza
   `AuthorizationError()`. Se ejecuta `PYTHONPATH=<scratchpad> ./venv/Scripts/python.exe -m pytest -p be15_mutants
   -p no:cacheprovider tests/test_user_access_policy.py -k "b2_ or b3_" -q` y el resultado esperado es **`6 failed, 5
-  passed`**: fallan 1, 2, 4, 5 y los dos casos de 6; pasan 3, 7, 8, 9 y 10. Sin el plugin: 11 passed. `git status
-  --short app/` tiene que salir vacío.
+  passed`**: fallan 1, 2, 4, 5 y los dos casos de 6; pasan 3, 7, 8, 9 y 10. Sin el plugin: 11 passed. El plugin
+  vive fuera del repo y no edita `app/`. Si se usara cualquier otro método que editara
+  `app/services/user_access_policy.py`, el archivo se restaura byte a byte (decisión 9) antes de seguir.
 - **Criterio de aceptación:** fila "Fase E" (392 passed; ruff 54; `test_user_access_policy.py` en 0). `grep -cE
   "^async def test_b[23]_" tests/test_user_access_policy.py` → 10. La prueba de sensibilidad da exactamente `6
-  failed, 5 passed`.
+  failed, 5 passed`. **Paso obligatorio antes del commit**, con su salida literal en el handoff:
+  `test "$(git hash-object app/services/user_access_policy.py)" = "$(git rev-parse
+  HEAD:app/services/user_access_policy.py)" && echo IGUAL` → `IGUAL`, y `git status --short app/` → vacío. Si no
+  da `IGUAL`, no se hace el commit.
 - **Fuera de alcance:** cambiar la política (BE-02: un superadmin que cambia su propio rol); tests de B4 (ya
   cubierto); `sqlalchemy.future` en l.13.
 - **Commit:**
@@ -402,7 +418,7 @@ sqlalchemy.future` fuera de `test_auth.py` (S2).
 
 ### Fase F — Una sesión por petición para la app (recortable)
 - **Archivos:** `tests/conftest.py`, `tests/test_fixtures_contract.py`,
-  `docs/adr/0011-sesion-de-la-app-distinta-de-la-del-test.md` (si D1 = sí). Hueco para 2 archivos de test más, solo
+  `docs/adr/0011-sesion-de-la-app-distinta-de-la-del-test.md`. Hueco para 2 archivos de test más, solo
   para añadir `refresh` si algún test se rompe. Si se rompen 3 o más, la fase se detiene en `partial` y se informa.
 - **Cambios exactos:**
   - `conftest.py`, fixture `client`: deja de recibir `db_session`; el override pasa a ser `async def
@@ -410,8 +426,10 @@ sqlalchemy.future` fuera de `test_auth.py` (S2).
     las dos convenciones (confirmar con `commit()` lo preparado antes de la petición; hacer `refresh` de los objetos
     ya cargados después) y cita ADR-0011. La docstring de `db_session` dice que es la sesión del test y que la app
     nunca la recibe.
-  - `docs/adr/0011-...md`: copia de `docs/deuda/BE-15/adr-0011-borrador.md` sin el aviso inicial, sin "(borrador)" en
-    el título y con el estado "aceptado" y la fecha de aprobación.
+  - `docs/adr/0011-sesion-de-la-app-distinta-de-la-del-test.md`: copia literal de
+    `docs/deuda/BE-15/adr-0011-borrador.md` con dos cambios: se borra el bloque de cita inicial (las líneas que
+    empiezan por `>` y la línea en blanco que les sigue) y se quita " (borrador)" del título. El estado ya es "aceptado". El borrador se queda en esta
+    carpeta como registro.
   - `test_fixtures_contract.py`: se le añaden 3 tests `async` que reciben `client` (instala el override) y
     `db_session`. Cada uno obtiene el generador con `app.dependency_overrides[get_db]()` y lo cierra con
     `aclose()`.
@@ -428,8 +446,9 @@ sqlalchemy.future` fuera de `test_auth.py` (S2).
   db_session" tests/conftest.py` → 0; `grep -cE "async with TestingSessionLocal\(\) as session" tests/conftest.py` →
   2. Cobertura ≥ 94.81 %.
 - **Fuera de alcance:** cambiar `StaticPool`, el motor o `expire_on_commit`; PostgreSQL de pruebas; `sqlite_where`
-  (BE-31); `app/db/database.py`.
-- **Commits** (dos; `progress.json` guarda `"<test> <docs>"`; si D1 = no, solo el primero):
+  (BE-31); `app/db/database.py`; **`AGENTS.md`** (llevar las dos reglas a AGENTS §5 es tarea de David, por PR al
+  cierre).
+- **Commits** (dos; `progress.json` guarda `"<test> <docs>"`):
   ```
   test(conftest): give each request its own session, apart from the test's
 
@@ -451,23 +470,26 @@ sqlalchemy.future` fuera de `test_auth.py` (S2).
   ```
   docs(adr): add ADR-0011, the app and the test use separate sessions
 
-  Records the BE-15 phase F decision and its trade-off: isolation is per
-  session, not per connection (StaticPool keeps one SQLite connection),
-  hence the commit-before / refresh-after rules every new test follows.
-  Alternatives weighed: shared session, file SQLite with NullPool, a
-  PostgreSQL test database, and an outer SAVEPOINT per test.
+  Records the BE-15 phase F decision: one app session per request, apart
+  from the test's. Accepted limit: StaticPool shares one connection, so
+  isolation is per session, not per transaction, and a forgotten commit
+  shows up when the app session closes. It states the two rules every
+  test follows (commit before the request, refresh after); David moves
+  them into AGENTS 5 in a PR at closing. Alternatives: shared session,
+  separate connections, a PostgreSQL test database (decided in BE-31).
   ```
 
 ## Verificación final
 
-Desde la raíz del repo, con la rama tras la fase F; si F se recorta, valen las cifras de la fila E y los puntos 10 y
-11 no se aplican. Cada cifra cuenta también el texto que dicta este plan (nombres de test, docstrings, literales).
-Ninguno de esos textos contiene `MagicMock(`, `User(`, `f"Bearer {` ni una frase en español entre comillas.
+Se ejecuta desde la raíz del repo, con la rama tras la fase F. Si F se recorta, valen las cifras de la fila E, los
+puntos 10 y 11 no se aplican y el 9 da 5. Cada cifra cuenta también el texto que dicta este plan (nombres de test,
+docstrings, literales y el ADR). Ninguno de esos textos contiene `MagicMock(`, `User(`, `f"Bearer {`,
+`noexiste@example.com` ni una frase en español entre comillas en `tests/`.
 
 ```bash
 # 1. Mocks sin spec → 0
 grep -rnE "\b(MagicMock|AsyncMock|Mock|NonCallableMock)\(" tests/ --include=*.py | wc -l
-# 2. patch sin autospec (excluye client.patch) → 0; y el único patch del correo, en conftest → 1 línea
+# 2. patch sin autospec (excluye client.patch) → 0; y el único patch del correo, en conftest → 1 línea (tests/conftest.py)
 grep -rnE "(^|[^.])\bpatch(\.object)?\(" tests/ --include=*.py | grep -v "autospec=True" | wc -l
 grep -rnE "(^|[^.])\bpatch\(\"app\.api\.routers\.user\.send_verification_email\", autospec=True\)" tests/ --include=*.py
 # 3. Preparación a mano fuera de conftest → 0, 0, 0, 0
@@ -475,14 +497,19 @@ grep -rnE "\bUser\(" tests/ --include=*.py | grep -v "tests/conftest.py" | wc -l
 grep -rnE "create_access_token\(" tests/ --include=*.py | grep -v "tests/conftest.py" | wc -l
 grep -rnE "f\"Bearer \{" tests/ --include=*.py | grep -v "tests/conftest.py" | wc -l
 grep -rnE "get_password_hash\(\"pass\"\)" tests/ --include=*.py | wc -l
-# 4. Fixtures duplicados → 1 línea: tests/conftest.py (mock_send_email)
+# 4. D2: fixtures duplicados → 1 línea (tests/conftest.py: mock_send_email); está declarado autouse → 1
 grep -rnE "def (mock_send_email|admin_token|auth_headers|superadmin_token)\(" tests/ --include=*.py
-# 5. Aserciones sobre texto → 0; y la frase entre comillas → 2 líneas, ambas en tests/test_services.py con "Tour corto" (dato, no mensaje)
+grep -B1 -E "^def mock_send_email\(" tests/conftest.py | grep -c "@pytest.fixture(autouse=True)"
+# 5. Aserciones sobre texto → 0; frase entre comillas → 2 líneas, ambas en tests/test_services.py con "Tour corto" (dato)
 grep -rnE "\[\"(detail|message)\"\]( ==|\.lower\(\))|in response\.json\(\)\[\"detail\"\]" tests/ --include=*.py | wc -l
 grep -rnE "== f?\"[A-ZÁÉÍÓÚ][a-záéíóúñ]+ [a-záéíóúñ]+" tests/ --include=*.py
 # 6. Nombres en español y sqlalchemy.future en test_auth.py → 0, 0
 grep -nE "def test_\w*(registro|verificacion|usuario|actualizacion|listar|recuperar|crear|borrado|exitos|jerarquia)" tests/test_auth.py | wc -l
 grep -c "sqlalchemy.future" tests/test_auth.py
+# 6b. D3: el caso de credenciales inválidas es contraseña incorrecta → 1; el correo inexistente salió de test_auth.py → 0; test_auth.py sigue con 19 tests
+grep -c "def test_login_wrong_password_returns_401_with_bearer_challenge(" tests/test_auth.py
+grep -c "noexiste@example.com" tests/test_auth.py
+./venv/Scripts/python.exe -m pytest --collect-only -q -p no:cacheprovider tests/test_auth.py | tail -1   # "19 tests collected"
 # 7. Aserciones de mock sin argumentos → 10 (residual: services 245/520, storage 92/159/189/198, user_service 110/111/328/329)
 grep -rnE "\.assert_(called|awaited)(_once)?\(\)" tests/ --include=*.py | wc -l
 # 8. Regresiones B2/B3 → 10 definiciones
@@ -492,14 +519,20 @@ grep -cE "^(async )?def test_" tests/test_fixtures_contract.py
 # 10. Sesión por petición → 0 y 2
 grep -c "yield db_session" tests/conftest.py
 grep -cE "async with TestingSessionLocal\(\) as session" tests/conftest.py
-# 11. ADR (si D1 = sí) → 1
-ls docs/adr/ | grep -c "^0011-"
-# 12. Ruff: en tests/ queda solo el I001 de test_user_service.py → "Found 1 error."; total → "Found 54 errors."
+# 11. D1: ADR-0011 en docs/adr → 1; sin el bloque de borrador → 0 y 0; estado aceptado → 1
+ls docs/adr/ | grep -c "^0011-sesion-de-la-app-distinta-de-la-del-test\.md$"
+grep -c "^>" docs/adr/0011-sesion-de-la-app-distinta-de-la-del-test.md
+grep -c "borrador" docs/adr/0011-sesion-de-la-app-distinta-de-la-del-test.md
+grep -c "^- \*\*Estado:\*\* aceptado$" docs/adr/0011-sesion-de-la-app-distinta-de-la-del-test.md
+# 12. Ruff: en tests/ solo queda el I001 de test_user_service.py → "Found 1 error."; total → "Found 54 errors."
 ./venv/Scripts/python.exe -m ruff check tests/ 2>&1 | grep -E "^Found"
 ./venv/Scripts/python.exe -m ruff check . 2>&1 | grep -E "^Found"
-# 13. app/ intacto → vacío
-git diff --stat 7877829..HEAD -- app/ pyproject.toml scripts/ .azure-pipelines/
-# 14. Compuerta: ruff ✘ (54, en app/ y test_user_service) y mypy ✘ (10) heredados; el resto ✔;
+# 13. Fuera de alcance intacto: app/, configuración, CI, reglas de agentes → salida vacía
+git diff --stat 7877829..HEAD -- app/ pyproject.toml scripts/ .azure-pipelines/ .claude/ AGENTS.md CLAUDE.md
+git status --short -- app/ AGENTS.md CLAUDE.md
+# 14. Salvaguarda E (obligatoria antes del commit de E y otra vez aquí) → IGUAL
+test "$(git hash-object app/services/user_access_policy.py)" = "$(git rev-parse HEAD:app/services/user_access_policy.py)" && echo IGUAL
+# 15. Compuerta: ruff ✘ (54, en app/ y test_user_service) y mypy ✘ (10), heredados; el resto ✔;
 #     pytest "395 passed" (392 si F se recorta); cobertura ≥ 94.81 %; "Contracts: 4 kept, 0 broken."
 ./venv/Scripts/python.exe scripts/check.py
 ```
@@ -513,6 +546,7 @@ git diff --stat 7877829..HEAD -- app/ pyproject.toml scripts/ .azure-pipelines/
 | `from sqlalchemy.future` en tests | `tests/test_services.py:14`, `tests/test_user_access_policy.py:13` | S2 (`B-FUTURO`), junto con `app/` |
 | Tests HTTP duplicados | `test_auth.py` (admin → superadmin con PATCH; admin crea admin) frente a `test_user_access_policy.py:274-291` y `:344-369` | Backlog, Baja: consolidar cuando se pueda bajar el conteo con justificación |
 | Comentario en español | `tests/test_audit.py:37` | Trivial; con el próximo PR que toque el archivo (AGENTS §4) |
+| Las reglas "commit antes de la petición" y "refresh después" de ADR-0011 no están en AGENTS §5 | Enmienda D1 de David (4 nov 2026). Este plan no edita `AGENTS.md` | **David**, PR al cierre de BE-15. No lo hace ninguna fase |
 | La respuesta de recuperación de usuario usa claves en español (`cc`, `correo`, `nombre`, `apellido`) | `app/services/user_service.py:359-366` | Junto a P2 (`B-FUTURO`): es contrato con el cliente Flutter |
 
 ## Referencias
@@ -529,5 +563,5 @@ en `venv/` (scripts en el scratchpad de la sesión, fuera del repo) y se enlaza 
 - httpx `ASGITransport` · 0.28.1 · https://www.python-httpx.org/advanced/transports/#asgi-transport
 - pytest-asyncio `asyncio_mode = "auto"`, ámbito de bucle por función · 1.3.0 ·
   https://pytest-asyncio.readthedocs.io/en/stable/reference/configuration.html
-- ADR-0005 (trinquete), ADR-0003 (forma `{"detail": str}`), ADR-0011 (borrador en
-  `docs/deuda/BE-15/adr-0011-borrador.md`)
+- ADR-0005 (trinquete), ADR-0003 (forma `{"detail": str}`), ADR-0011 (aprobado el 4 nov 2026; borrador en
+  `docs/deuda/BE-15/adr-0011-borrador.md`, que la fase F copia a `docs/adr/`)
