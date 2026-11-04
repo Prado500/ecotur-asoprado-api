@@ -5,7 +5,9 @@
   la vuelve a comprobar al arrancar)
 - **Aprobación:** David, 2026-11-04. Aprobado con enmiendas: D1, D2 y D3 = sí, y salvaguarda de la fase E (ver
   "Decisiones de David"). Enmienda E2 (4 nov, 12:25), tras la auditoría PASS de la fase C: test de contrato del
-  `autouse` de `mock_send_email` en F y fase F-mínima si F se recorta (ver "Enmiendas aprobadas").
+  `autouse` de `mock_send_email` en F y fase F-mínima si F se recorta (ver "Enmiendas aprobadas"). Enmienda E3 (4 nov,
+  17:28), tras la auditoría PASS de la fase D: fase D-bis, entre E y F, que eleva a la decisión 4 las cuatro
+  aserciones conservadas de `test_auth.py` (ver "Enmiendas aprobadas").
 
 ## Resumen para aprobación
 
@@ -18,8 +20,9 @@ las fábricas que ya existen en `conftest.py`; `mock_send_email` queda en un sol
 (6) Se añaden las regresiones de B2 (un admin se asciende a sí mismo → 403, sin mutación) y de B3 por HTTP (un
 superadmin borra a un tercero → 200, `deleted_at` y fila de auditoría).
 (4) La app recibe una sesión propia en cada petición.
-Son seis fases: A–D en `m1` y E–F en `m2`; F es recortable. Si se recorta, una fase F-mínima conserva el test
-que vigila el `autouse` del correo (enmienda E2). El riesgo principal es (4). Un ensayo en seco, hecho sin
+Son siete fases: A–D en `m1` y E, D-bis y F en `m2`; F es recortable. D-bis (enmienda E3) eleva a la decisión 4
+las cuatro aserciones que D conservó en `test_auth.py`, sin tests nuevos. Si F se recorta, una fase F-mínima
+conserva el test que vigila el `autouse` del correo (enmienda E2). El riesgo principal es (4). Un ensayo en seco, hecho sin
 tocar el repo, dio 1 fallo de 376, y es un test que la fase C ya reescribe; por eso F se queda en `conftest.py`, 3
 tests y el ADR. No se toca `app/`, el `--soft` del CI, la clave `"detalle"` (P2), la carga de `.env` (A4), BE-02 ni
 BE-31, y tampoco se edita `AGENTS.md`: David llevará a AGENTS §5, en un PR al cierre, las dos reglas que enuncia
@@ -47,7 +50,8 @@ congelados por HTTP.
 5. **Alcance adyacente** (adenda, punto 3): se renombran los 19 tests de `test_auth.py`; `from sqlalchemy.future`
    pasa a `from sqlalchemy` solo en `test_auth.py`; `assert_called_once_with` se aplica solo en `test_auth.py:46`.
    Las otras 10 aserciones de mock sin argumentos quedan como residual.
-6. **Orden:** A → B → C → D (`m1`), E → F (`m2`). F va la última y es recortable: si no cabe en `m2`, el cierre del
+6. **Orden:** A → B → C → D (`m1`), E → D-bis → F (`m2`). D-bis (enmienda E3) va después de E y antes de F, y no
+   es recortable. F va la última y es recortable: si no cabe en `m2`, el cierre del
    día la declara deslizada (adenda, punto 1). En ese caso se ejecuta F-mínima antes del PR del bloque (enmienda
    E2); F y F-mínima son excluyentes.
 7. **Sesión (fase F):** el override abre una sesión de `TestingSessionLocal` por petición, sobre el mismo engine con
@@ -72,6 +76,7 @@ congelados por HTTP.
 | Fase C | 381 | 56 | 3 | 10 |
 | Fase D | 381 | 56 | 3 | 10 |
 | Fase E | 392 | 54 | 1 | 10 |
+| Fase D-bis (enmienda E3) | 392 | 54 | 1 | 10 |
 | Fase F | 396 | 54 | 1 | 10 |
 | Fase F-mínima (solo si F se recorta) | 393 | 54 | 1 | 10 |
 
@@ -117,6 +122,34 @@ congelados por HTTP.
     E (392) + 1.
   - Se recalculan la fila F de la tabla, el RED y el criterio de F, el commit de F, la fase F-mínima nueva y los
     puntos 4b, 9 y 15 de la Verificación final, y su nota de cabecera. No cambia ninguna otra decisión.
+- **E3, 4 nov 2026, 17:28: fase D-bis, las cuatro aserciones conservadas de `test_auth.py` a la decisión 4.** David
+  la aprobó tras la auditoría PASS de la fase D (`gaps.md`, fase D, opcional 2). Texto literal:
+
+  > "Añádela a 'Enmiendas aprobadas' y crea la fase D-bis, a ejecutar después de E y antes de F: un archivo,
+  > tests/test_auth.py; eleva a la decisión 4 las cuatro aserciones de los tests conservados: :213 y :232 →
+  > set(body) == {"detail"}; :324-325 comprueban la forma del cuerpo en la recuperación; :404-408 comprueban en la
+  > base de datos la fila del admin creado. 0 tests nuevos (392 al cerrar, tras E), ruff y mypy sin cambio, su
+  > mensaje de commit, y su RED: cada aserción nueva debe fallar contra una respuesta o fila manipulada (mutación de
+  > auditoría sin editar app/). Recalcula la tabla y la Verificación final; no toques nada más; no implementes."
+
+  Cómo queda aplicada. Todo comprobado en HEAD `9e2700f`.
+  - **Líneas.** `tests/test_auth.py:213` y `:232` hacen `assert "detail" in response.json()`; `:324-325`, solo 200 y
+    `success is True`; `:404-408`, solo la respuesta del alta. Las líneas son las de HEAD `9e2700f`.
+  - **Forma de la recuperación.** La respuesta es `{"success", "cc", "correo", "nombre", "apellido", "message"}`
+    (`app/services/user_service.py:359-366`). La fase D dejó fuera de alcance afirmar las claves en español, que
+    son contrato con el cliente y van con P2 (residual de este plan). Por eso la forma se comprueba sobre la parte
+    estable: `{"success", "message"} <= set(body)`, `success is True` y `message` de tipo str (decisión 4). La
+    igualdad exacta congelaría `cc`, `correo`, `nombre` y `apellido`.
+  - **Fila del admin.** El test lee la fila con `select` + `refresh` (ADR-0011: "refresh después"), así que sirve
+    igual con la sesión compartida de hoy que con la sesión por petición de F.
+  - **Sondeo** (scratchpad, sin tocar el repo; `git hash-object tests/test_auth.py` no cambió). Con los cuatro tests
+    reescritos en un archivo de sondeo y el plugin de mutantes de la fase D-bis, cada mutante sobrevive a las
+    aserciones actuales (`4 passed`) y tumba solo su test con las nuevas (2 o 1 failed; tabla en la fase D-bis).
+  - **Conteos.** 0 tests nuevos: D-bis cierra en 392. F sigue en 396 y F-mínima en 393 (381 + D 0 + E 11 + D-bis 0
+    + 1). Ruff 54 (1 en `tests/`) y mypy 10 no cambian: no hay imports nuevos (`select`, `User` y `UserRole` ya
+    están en `test_auth.py`).
+  - Se recalculan el resumen, la decisión 6, la tabla, la fase D-bis nueva, el conteo de F-mínima y el punto 6c de
+    la Verificación final. No cambia ninguna otra decisión ni ninguna fase ya ejecutada.
 
 
 ## Análisis del redactor
@@ -155,7 +188,8 @@ conexión. De ahí sale la convención "commit antes de la petición".
 independiente de A, pero va después para que `test_services.py` se toque en dos commits pequeños y se puedan leer.
 C → D: las dos reescriben `test_auth.py` por secciones (l.1-175 y l.177-657). C deja el archivo con 0 errores de ruff
 porque los tres errores (l.1, 50 y 162) caen en su sección. C → F: C reescribe con `refresh` el único test que
-rompería F. E es independiente de todas; va en `m2` por la adenda.
+rompería F. E es independiente de todas; va en `m2` por la adenda. D-bis (enmienda E3) depende de D, porque toca
+tests que D reescribió, y va antes de F para que F se mida sobre la suite final de `test_auth.py`.
 
 **Qué congela qué.** Los 4 tests nuevos de A congelan el contrato del doble de almacenamiento: tiene firma y reproduce
 las reglas de URL del CDN. Los tests de `test_services.py` que usan el doble global (l.191-250 y 295-367) siguen
@@ -464,6 +498,135 @@ sqlalchemy.future` fuera de `test_auth.py` (S2).
   checks turns exactly the six expected cases red.
   ```
 
+### Fase D-bis — Las cuatro aserciones conservadas de `test_auth.py`, a la decisión 4 (enmienda E3)
+- **Archivos:** `tests/test_auth.py` (solo los cuatro tests de abajo).
+- **Cambios exactos** (líneas de HEAD `9e2700f`):
+  1. `test_tourist_self_role_escalation_returns_403_without_mutation`, l.213: `assert "detail" in response.json()`
+     pasa a `body = response.json()`, `assert set(body) == {"detail"}` y `assert isinstance(body["detail"], str)`.
+  2. `test_tourist_self_is_active_change_returns_403_without_mutation`, l.232: el mismo cambio.
+  3. `test_admin_recovers_tourist_as_inactive`, l.324-325: tras `assert response.status_code == 200`, `body =
+     response.json()`, `assert {"success", "message"} <= set(body)`, `assert body["success"] is True` y `assert
+     isinstance(body["message"], str)`. No se afirman `cc`, `correo`, `nombre` ni `apellido` (P2; ver E3).
+  4. `test_superadmin_provisions_admin_account`, l.404-408: recibe además `db_session`; se conservan las tres
+     aserciones sobre la respuesta y se añaden:
+     ```python
+     result = await db_session.execute(select(User).where(User.cedula == "555555"))
+     created = result.scalar_one()
+     await db_session.refresh(created)
+     assert created.role == UserRole.admin
+     assert created.is_active is True
+     assert created.deleted_at is None
+     ```
+  Nada más cambia en el archivo: ni nombres, ni docstrings, ni imports, ni los otros 15 tests.
+- **Tests (RED primero):** 0 tests nuevos. El RED es una **mutación de auditoría que no edita `app/` ni el repo**:
+  cada mutante manipula una respuesta o una fila, sobrevive a las aserciones actuales y tumba la nueva. Plugin
+  `dbis_mutants.py` en el scratchpad (el prefijo `dbis_` evita choques en el scratchpad compartido), con el mutante
+  elegido por la variable `DBIS_MUTANT`:
+  ```python
+  import os
+  from datetime import UTC, datetime
+
+  import httpx
+  import pytest
+  from sqlalchemy import update
+
+  from app.models.user import User, UserRole
+  from app.repositories.user_repository import UserRepository
+
+  MUTANT = os.environ.get("DBIS_MUTANT", "")
+  ROW_VALUES = {
+      "row_role": {"role": UserRole.tourist},
+      "row_is_active": {"is_active": False},
+      "row_deleted_at": {"deleted_at": datetime.now(UTC)},
+  }
+
+  def _rebuild(response, body):
+      headers = {k: v for k, v in response.headers.items()
+                 if k.lower() not in ("content-length", "content-encoding")}
+      return httpx.Response(response.status_code, headers=headers, json=body, request=response.request)
+
+  @pytest.fixture(autouse=True)
+  def _dbis_mutant(monkeypatch):
+      if MUTANT in ("extra_key_403", "detail_not_str_403", "recover_no_message", "recover_message_not_str"):
+          real_send = httpx.AsyncClient.send
+
+          async def send(self, request, **kwargs):
+              response = await real_send(self, request, **kwargs)
+              recover = request.url.path.endswith("/recuperar") and response.status_code == 200
+              if MUTANT == "extra_key_403" and response.status_code == 403:
+                  return _rebuild(response, {**response.json(), "code": "x"})
+              if MUTANT == "detail_not_str_403" and response.status_code == 403:
+                  return _rebuild(response, {"detail": {"msg": response.json()["detail"]}})
+              if MUTANT == "recover_no_message" and recover:
+                  body = response.json()
+                  body.pop("message")
+                  return _rebuild(response, body)
+              if MUTANT == "recover_message_not_str" and recover:
+                  return _rebuild(response, {**response.json(), "message": None})
+              return response
+
+          monkeypatch.setattr(httpx.AsyncClient, "send", send)
+      elif MUTANT in ROW_VALUES:
+          real_create = UserRepository.create_user
+
+          async def create_user(self, user):
+              created = await real_create(self, user)
+              await self.db.execute(
+                  update(User).where(User.cedula == user.cedula).values(**ROW_VALUES[MUTANT])
+                  .execution_options(synchronize_session=False)
+              )
+              await self.db.commit()
+              return created
+
+          monkeypatch.setattr(UserRepository, "create_user", create_user)
+  ```
+  Los mutantes de fila cambian la fila con `synchronize_session=False`. Como `expire_on_commit=False`, el objeto en
+  memoria (y por tanto la respuesta) sigue diciendo admin, activo y sin borrar; solo la relectura con `refresh` lo
+  ve. Comando, por cada mutante:
+  `DBIS_MUTANT=<m> PYTHONPATH=<scratchpad> ./venv/Scripts/python.exe -m pytest -q -p no:cacheprovider -p
+  dbis_mutants tests/test_auth.py -k "tourist_self_role_escalation or tourist_self_is_active_change or
+  admin_recovers_tourist or superadmin_provisions_admin"`.
+
+  | `DBIS_MUTANT` | Antes de editar (RED: el hueco) | Después de editar | Test que cae |
+  |---|---|---|---|
+  | (vacío) | `4 passed` | `4 passed` | — |
+  | `extra_key_403` | `4 passed` | `2 failed, 2 passed` | 1 y 2 (`set(body)`) |
+  | `detail_not_str_403` | `4 passed` | `2 failed, 2 passed` | 1 y 2 (`isinstance`) |
+  | `recover_no_message` | `4 passed` | `1 failed, 3 passed` | 3 (forma) |
+  | `recover_message_not_str` | `4 passed` | `1 failed, 3 passed` | 3 (`message` str) |
+  | `row_role` | `4 passed` | `1 failed, 3 passed` | 4 (`role`) |
+  | `row_is_active` | `4 passed` | `1 failed, 3 passed` | 4 (`is_active`) |
+  | `row_deleted_at` | `4 passed` | `1 failed, 3 passed` | 4 (`deleted_at`) |
+
+  Las dos columnas, con su salida literal y `-rf` para nombrar el test que cae, van al handoff.
+- **Criterio de aceptación:** fila "Fase D-bis" (392 passed; ruff 54, 1 en `tests/`; `test_auth.py` en 0; mypy 10;
+  cobertura ≥ 94.81 %; 4 KEPT). `test_auth.py` sigue con 19 tests y los mismos nombres. `grep -c 'assert "detail" in
+  response.json()' tests/test_auth.py` → 0; `grep -c 'set(body) == {"detail"}' tests/test_auth.py` → 9 (7 de C y D,
+  más 2). La tabla de mutantes da exactamente esas cifras. Antes del commit: `git diff --stat HEAD` solo muestra
+  `tests/test_auth.py`, y `git status --short app/` sale vacío.
+- **Fuera de alcance:** afirmar las claves en español de la recuperación (P2); la distinción entre causas de 403
+  (opcional 1 de la fase D, backlog); cualquier otro test de `test_auth.py`; `app/`.
+- **Commit:**
+  ```
+  test(auth): raise four kept RBAC assertions to the decision 4 form
+
+  Phase D kept four assertions of tests/test_auth.py as they were, and
+  its audit (optional 2) found them weaker than the plan's decision 4:
+  two 403 cases only checked that "detail" was a key, the recovery case
+  did not check the body shape, and the admin provisioning case never
+  looked at the database.
+
+  - The two tourist self-update 403s assert set(body) == {"detail"} and
+    a str detail.
+  - Recovery asserts success and a str message, without freezing the
+    Spanish data keys (P2).
+  - Provisioning reads the new row back with refresh and asserts role
+    admin, active and not deleted.
+
+  Same count. Response and row mutants that the old assertions let pass
+  now turn exactly the targeted test red.
+  ```
+
 ### Fase F — Una sesión por petición para la app (recortable)
 - **Archivos:** `tests/conftest.py`, `tests/test_fixtures_contract.py`,
   `docs/adr/0011-sesion-de-la-app-distinta-de-la-del-test.md`. Hueco para 2 archivos de test más, solo
@@ -576,7 +739,7 @@ sqlalchemy.future` fuera de `test_auth.py` (S2).
   `tests/test_fixtures_contract.py` da **`1 failed, 5 passed`** (falla solo el test nuevo; pasan los 4 de A y el de
   C). Sin el plugin: `6 passed`.
 - **Criterio de aceptación** (trinquete ADR-0005):
-  - fila "Fase F-mínima": 393 passed (381 + D 0 + E 11 + 1); ruff total 54; 1 en `tests/` (el I001 heredado de
+  - fila "Fase F-mínima": 393 passed (381 + D 0 + E 11 + D-bis 0 + 1); ruff total 54; 1 en `tests/` (el I001 heredado de
     `test_user_service.py:3`); 0 en los dos archivos tocados; mypy 10; cobertura ≥ 94.81 %; import-linter 4 KEPT;
     docs OK; `ruff format` OK;
   - `grep -cE "^(async )?def test_" tests/test_fixtures_contract.py` → 6;
@@ -649,6 +812,13 @@ grep -c "sqlalchemy.future" tests/test_auth.py
 grep -c "def test_login_wrong_password_returns_401_with_bearer_challenge(" tests/test_auth.py
 grep -c "noexiste@example.com" tests/test_auth.py
 ./venv/Scripts/python.exe -m pytest --collect-only -q -p no:cacheprovider tests/test_auth.py | tail -1   # "19 tests collected"
+# 6c. E3 (D-bis): "detail" in response.json() en test_auth.py → 0; set(body) == {"detail"} → 9; forma de la recuperación → 1; relectura de la fila del admin creado → 1
+grep -c 'assert "detail" in response.json()' tests/test_auth.py
+grep -c 'set(body) == {"detail"}' tests/test_auth.py
+grep -c '{"success", "message"} <= set(body)' tests/test_auth.py
+grep -c 'select(User).where(User.cedula == "555555")' tests/test_auth.py
+#     mutantes de D-bis (plugin dbis_mutants en el scratchpad, ver fase D-bis) → columna "Después de editar" de su tabla
+for m in extra_key_403 detail_not_str_403 recover_no_message recover_message_not_str row_role row_is_active row_deleted_at; do DBIS_MUTANT=$m PYTHONPATH=<scratchpad> ./venv/Scripts/python.exe -m pytest -q -p no:cacheprovider -p dbis_mutants tests/test_auth.py -k "tourist_self_role_escalation or tourist_self_is_active_change or admin_recovers_tourist or superadmin_provisions_admin" | tail -1; done
 # 7. Aserciones de mock sin argumentos → 10 (residual: services 245/520, storage 92/159/189/198, user_service 110/111/328/329)
 grep -rnE "\.assert_(called|awaited)(_once)?\(\)" tests/ --include=*.py | wc -l
 # 8. Regresiones B2/B3 → 10 definiciones
