@@ -1,13 +1,17 @@
 """Contract tests for the shared doubles and sessions of tests/conftest.py."""
 
-from unittest.mock import MagicMock
+from typing import Any
 
 import pytest
+from sqlalchemy import func, select
 
 from app.api.dependencies import get_storage_client
 from app.api.routers import user as user_router
+from app.core.email import send_verification_email as real_send_verification_email
 from app.core.storage import AzureStorageClient
+from app.db.database import get_db
 from app.main import app
+from app.models.user import User
 
 CDN_PREFIX = "https://ecoturasopradocdn2026.blob.core.windows.net/"
 TEMP = f"{CDN_PREFIX}temp-ecotur-images/a.jpg"
@@ -47,7 +51,7 @@ async def test_storage_double_mirrors_the_cdn_url_rules():
     double.promote_to_permanent.assert_awaited_once_with(TEMP)
 
 
-async def test_email_dispatch_double_is_autouse_and_autospecced(mock_send_email: MagicMock):
+async def test_email_dispatch_double_is_autouse_and_autospecced(mock_send_email: Any):
     """The router's email dispatch is the autouse double, and it keeps the real signature."""
     assert user_router.send_verification_email is mock_send_email
 
@@ -55,3 +59,50 @@ async def test_email_dispatch_double_is_autouse_and_autospecced(mock_send_email:
         await mock_send_email(recipient="x")
 
     mock_send_email.assert_not_called()
+
+
+def test_email_dispatch_is_patched_without_requesting_the_fixture():
+    """The autouse email double is active in a test that does not request it."""
+    assert user_router.send_verification_email is not real_send_verification_email
+
+
+async def test_each_request_gets_its_own_session(client, db_session):
+    """Each request receives a fresh app session, never the test's own session."""
+    first_request = app.dependency_overrides[get_db]()
+    second_request = app.dependency_overrides[get_db]()
+
+    first_session = await anext(first_request)
+    second_session = await anext(second_request)
+    await second_request.aclose()
+    await first_request.aclose()
+
+    assert first_session is not db_session
+    assert second_session is not first_session
+
+
+async def test_app_flush_without_commit_is_invisible_to_the_test(client, db_session, make_user):
+    """A row the app flushes but never commits is gone once its session closes."""
+    request = app.dependency_overrides[get_db]()
+    app_session = await anext(request)
+
+    app_session.add(make_user())
+    await app_session.flush()
+    await request.aclose()
+
+    count = await db_session.scalar(select(func.count()).select_from(User))
+    assert count == 0
+
+
+async def test_app_commit_is_visible_to_the_test(client, db_session, make_user):
+    """A row the app commits is visible to the test's session."""
+    user = make_user()
+    request = app.dependency_overrides[get_db]()
+    app_session = await anext(request)
+
+    app_session.add(user)
+    await app_session.commit()
+    await request.aclose()
+
+    result = await db_session.execute(select(User).where(User.cedula == user.cedula))
+    rows = result.scalars().all()
+    assert [row.email for row in rows] == [user.email]

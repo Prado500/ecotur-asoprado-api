@@ -49,20 +49,33 @@ async def setup_database():
 
 @pytest_asyncio.fixture
 async def db_session():
-    """Returns test database session"""
+    """
+    Yields the test's own database session, for arranging data and reading state.
+
+    The app never receives this session: each request gets its own (see client).
+    """
     async with TestingSessionLocal() as session:
         yield session
 
 
 @pytest_asyncio.fixture
-async def client(db_session):
+async def client():
     """
-    Overwrites non-testable `get_db` API dependency over the SQLite session for testing.
-    Runs an async HTTP client (httpx) aiming to this FastAPI app.
+    Runs an async HTTP client (httpx) against the app, with one session per request.
+
+    The get_db override opens a fresh TestingSessionLocal session for each request
+    and closes it afterwards, apart from db_session, as get_db does in production
+    (ADR-0011). Every test follows two rules:
+
+    1. Commit before the request: data the test arranges is committed before the
+       client is called (persist_user already does it).
+    2. Refresh after: any object the test already holds is re-read with
+       `await db_session.refresh(obj)` after the request.
     """
 
     async def override_get_db():
-        yield db_session
+        async with TestingSessionLocal() as session:
+            yield session
 
     app.dependency_overrides[get_db] = override_get_db
 
@@ -120,6 +133,9 @@ def mock_send_email():
     No test opens an SMTP connection. The double is autospecced on
     send_verification_email, so a call off its signature raises TypeError when
     awaited. Tests that check the dispatch request this fixture by name.
+
+    Yields:
+        The autospecced stand-in for send_verification_email.
     """
     with patch("app.api.routers.user.send_verification_email", autospec=True) as mock:
         yield mock
