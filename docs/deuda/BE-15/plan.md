@@ -581,8 +581,10 @@ sqlalchemy.future` fuera de `test_auth.py` (S2).
           monkeypatch.setattr(UserRepository, "create_user", create_user)
   ```
   Los mutantes de fila cambian la fila con `synchronize_session=False`. Como `expire_on_commit=False`, el objeto en
-  memoria (y por tanto la respuesta) sigue diciendo admin, activo y sin borrar; solo la relectura con `refresh` lo
-  ve. Comando, por cada mutante:
+  memoria (y por tanto la respuesta) sigue diciendo admin, activo y sin borrar; la relectura desde la base lo ve.
+  *Corrección tras la auditoría de D-bis (4 nov, 18:43):* el `select` ya trae la fila de la base, así que los tres
+  mutantes caen aunque se quite el `refresh` (el auditor lo probó en una copia); el `refresh` queda como lectura
+  defensiva (ADR-0011), no como lo que hace fallar el test. Comando, por cada mutante:
   `DBIS_MUTANT=<m> PYTHONPATH=<scratchpad> ./venv/Scripts/python.exe -m pytest -q -p no:cacheprovider -p
   dbis_mutants tests/test_auth.py -k "tourist_self_role_escalation or tourist_self_is_active_change or
   admin_recovers_tourist or superadmin_provisions_admin"`.
