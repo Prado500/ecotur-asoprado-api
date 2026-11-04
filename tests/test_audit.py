@@ -1,38 +1,22 @@
 from unittest.mock import create_autospec
 
 import pytest
-from app.models.user import User, UserRole
-from app.core.security import get_password_hash, create_access_token
+
 from app.core.exceptions import AuthorizationError
-from app.models.audit import AuditLog, AuditAction
+from app.models.audit import AuditAction, AuditLog
+from app.models.user import UserRole
 from app.repositories.audit_repository import AuditRepository
 from app.services.audit_service import AuditService
 from app.services.user_access_policy import UserAccessPolicy
 
 
-@pytest.fixture
-async def superadmin_token(db_session) -> dict:
-    admin = User(
-        cedula="999888",
-        email="audit@test.com",
-        first_name="AdminAdmin",
-        last_name="AdminAdmin",
-        password_hash=get_password_hash("ciscociscoA1"),
-        role=UserRole.superadmin,
-        is_active=True,
-        data_consent=True,
-    )
-    db_session.add(admin)
-    await db_session.commit()
-    token = create_access_token(data={"sub": admin.email, "role": admin.role.value})
-    return {"Authorization": f"Bearer {token}"}
-
-
-async def test_audit_trail_creation_and_retrieval(client, superadmin_token, db_session):
+async def test_audit_trail_creation_and_retrieval(client, persist_user, make_auth_headers):
     """
     Validates that operations across the system successfully emit silent snapshots
     to the Audit Trail via Dependency Injection.
     """
+    superadmin = await persist_user(role=UserRole.superadmin)
+    headers = make_auth_headers(superadmin)
 
     # 1. Sustituimos el multipart/form-data por un JSON puro que cumple con ServiceCreate
     json_payload = {
@@ -47,12 +31,12 @@ async def test_audit_trail_creation_and_retrieval(client, superadmin_token, db_s
         ],
     }
 
-    post_response = await client.post("/servicios/", json=json_payload, headers=superadmin_token)
+    post_response = await client.post("/servicios/", json=json_payload, headers=headers)
 
     assert post_response.status_code == 201
 
     # 2. Retrieve Audit History
-    response = await client.get("/auditoria/", headers=superadmin_token)
+    response = await client.get("/auditoria/", headers=headers)
 
     assert response.status_code == 200
     logs = response.json()
@@ -62,26 +46,16 @@ async def test_audit_trail_creation_and_retrieval(client, superadmin_token, db_s
     assert logs[0]["action"] == "CREATE"
 
 
-async def test_audit_trail_forbidden_for_tourist(client, db_session):
+async def test_audit_trail_forbidden_for_tourist(client, persist_user, make_auth_headers):
     """
     Validates RBAC restrictions ensuring tourists cannot read sensitive system logs.
     """
-    tourist = User(
-        cedula="888",
-        email="tourist@audit.com",
-        first_name="T",
-        last_name="T",
-        password_hash="x",
-        role=UserRole.tourist,
-        is_active=True,
-        data_consent=True,
-    )
-    db_session.add(tourist)
-    await db_session.commit()
-    token = create_access_token(data={"sub": tourist.email, "role": tourist.role.value})
+    tourist = await persist_user(role=UserRole.tourist)
 
-    response = await client.get("/auditoria/", headers={"Authorization": f"Bearer {token}"})
+    response = await client.get("/auditoria/", headers=make_auth_headers(tourist))
+
     assert response.status_code == 403
+    assert isinstance(response.json()["detail"], str)
 
 
 # ==========================================
