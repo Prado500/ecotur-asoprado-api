@@ -455,3 +455,117 @@ no se borran.
   envíe el formulario de perfil completo, con `role` incluido, recibirá 403 en la auto-edición de un admin. Es
   defendible como fail-safe, pero si producto quiere aceptar el rol sin cambio, ese cambio va en la política con su
   propio ítem (junto a BE-02), y este test se ajusta a conciencia. Sin acción en BE-15.
+
+## Auditoría Fase D-bis — 2026-11-04
+
+- **Veredicto:** PASS (0 bloqueantes, 2 opcionales).
+- **Auditado:** `c8743ed` (fase) y `0e81c7d` (registro en `progress.json` y handoff). Base de la fase: `f9b850c`;
+  enmienda E3 registrada en `a164b7d` (`plan.md` y `progress.json`, sesión principal).
+- **Árbol:** `git status --short` vacío antes y después de la auditoría; HEAD `0e81c7d`, rama `bloque/b-tests`.
+- **Bloqueantes anteriores:** ninguno (A–E cerraron en PASS). El opcional 2 de la fase D (aserciones conservadas de
+  `tests/test_auth.py:213`, `:232`, `:324-325`, `:404-408`) queda atendido por `c8743ed`.
+
+### Evidencia
+
+- Compuerta re-ejecutada (`./venv/Scripts/python.exe scripts/check.py`, exit 1, rojo heredado previsto por la
+  decisión 8 del plan):
+
+  ```
+  === RESUMEN ===
+    ✔ ruff format --check
+    ✘ ruff check
+    ✘ mypy
+    ✔ import-linter
+    ✔ docs (coherencia)
+    ✔ pytest + cobertura
+
+  Compuerta NO superada: ruff check, mypy
+  ```
+
+  | Medida | Auditor | Fila "Fase D-bis" | Handoff |
+  |---|---|---|---|
+  | pytest | `392 passed, 5 warnings in 11.09s` | 392 | 392 |
+  | Cobertura | `TOTAL 942 34 136 22 94.81%` | ≥ 94.81 % | 94.81 % |
+  | import-linter | `Contracts: 4 kept, 0 broken.` | 4 KEPT | 4 KEPT |
+  | ruff total | `Found 54 errors.` | 54 | 54 |
+  | ruff en `tests/` | `Found 1 error.` (`tests\test_user_service.py:3:1: I001`, heredado) | 1 | 1 |
+  | mypy | `Found 10 errors in 5 files (checked 35 source files)` (todos en `app/`) | 10 | 10 |
+
+  `ruff check tests/test_auth.py` → `All checks passed!`; `ruff format --check tests/test_auth.py` → `1 file already
+  formatted`; `mypy tests/test_auth.py` → 3 errores, los tres en `app/` (`database.py:11`, `security.py:71,87`), 0 en
+  el archivo. `git ls-files --eol` → `i/lf w/lf` en `tests/test_auth.py`, `progress.json` y `handoff-Fase_D_bis.md`.
+- Commit: `git show --stat c8743ed` → solo `tests/test_auth.py` (20+/4−). Mensaje (sin el trailer) contra el bloque de
+  `plan.md:611-627` con `diff` → idéntico. `0e81c7d` solo toca `handoff-Fase_D_bis.md` y `progress.json`. `git diff
+  --stat f9b850c HEAD -- app/ tests/conftest.py AGENTS.md CLAUDE.md pyproject.toml scripts/ .azure-pipelines/ .claude/
+  .github/` → vacío.
+- Cambios exactos (`plan.md:503-520`) contra el diff: 1 → `tests/test_auth.py:213-215`; 2 → `:234-236`; 3 →
+  `:329-332` (sin `cc`/`correo`/`nombre`/`apellido`); 4 → firma con `db_session` (`:392-394`, reformateada por `ruff
+  format`) y el bloque literal del plan en `:420-425`. Las tres aserciones de respuesta del test 4 se conservan
+  (`:415-418`). Imports: `diff` de las líneas `from|import` entre `f9b850c` y HEAD → idénticas. Nombres: `diff` de los
+  `def test_` → idénticos, 19.
+- Criterio de aceptación: `grep -c 'assert "detail" in response.json()'` → 0 (era 2 en `f9b850c`); `grep -c 'set(body)
+  == {"detail"}'` → 9 (era 7); `{"success", "message"} <= set(body)` → 1; `select(User).where(User.cedula ==
+  "555555")` → 1.
+- `progress.json`: JSON válido; `Fase_D_bis` = `completed`, `commit` `c8743ed` (real); `current_target` = `Fase_F`;
+  `last_handoff` actualizado; el diff de `0e81c7d` solo toca esos cuatro campos (`edit_rules`, `approval` y las
+  demás fases intactos).
+- Mutación de auditoría reproducida con un plugin propio (`audDbis_mutants.py` en el scratchpad, lógica literal de
+  `plan.md:525-582` más un contador de disparos y dos mutantes de sondeo). "Antes": `tests/test_auth.py` de `f9b850c`
+  (hash `0a33509…`, igual al del handoff) junto a una copia de `tests/conftest.py` (hash igual a HEAD) en el
+  scratchpad, con `-c pyproject.toml --rootdir .` desde el repo (el árbol de `git archive` no arranca sin `.env`, A4).
+  "Después": el repo en HEAD. Sin editar `app/` ni el repo.
+
+  | `DBIS_MUTANT` | Disparos | Antes (`f9b850c`) | Después (HEAD) | Línea que cae |
+  |---|---|---|---|---|
+  | (vacío) | 0 | `4 passed` | `4 passed` | — |
+  | `extra_key_403` | 2 | `4 passed` | `2 failed, 2 passed` | `:214` y `:235` (`set(body)`) |
+  | `detail_not_str_403` | 2 | `4 passed` | `2 failed, 2 passed` | `:215` y `:236` (`isinstance`) |
+  | `recover_no_message` | 1 | `4 passed` | `1 failed, 3 passed` | `:330` (subconjunto) |
+  | `recover_message_not_str` | 1 | `4 passed` | `1 failed, 3 passed` | `:332` (`message` str) |
+  | `row_role` | 1 | `4 passed` | `1 failed, 3 passed` | `:423` |
+  | `row_is_active` | 1 | `4 passed` | `1 failed, 3 passed` | `:424` |
+  | `row_deleted_at` | 1 | `4 passed` | `1 failed, 3 passed` | `:425` |
+  | `recover_success_false` (control, auditor) | 1 | `1 failed, 3 passed` | `1 failed, 3 passed` | `:325` / `:331` |
+  | `recover_drop_cc` (sondeo, auditor) | 1 | `4 passed` | `4 passed` | — (ver opcional 1) |
+
+  Con `-rf`, el test que cae es siempre el previsto: `test_tourist_self_role_escalation_returns_403_without_mutation`
+  y `test_tourist_self_is_active_change_returns_403_without_mutation` (403), `test_admin_recovers_tourist_as_inactive`
+  (recuperación), `test_superadmin_provisions_admin_account` (fila). Coincide con `plan.md:590-599` y con el handoff.
+- Sondeo del `refresh` del test 4: con `tests/test_auth.py` de HEAD sin la línea `await db_session.refresh(created)`
+  (copia en el scratchpad), los tres mutantes de fila siguen dando `1 failed`. Ver opcional 2.
+- Diseño de E3 (escrito por la sesión principal, no por el `plan-redactor`):
+  - (a) El subconjunto es coherente: la decisión 4 fija la forma del cuerpo; E3 dice "comprueban la forma del cuerpo
+    en la recuperación" sin exigir igualdad; el fuera de alcance de D (`plan.md:421-422`) y de D-bis (`:607`) prohíbe
+    afirmar las claves en español. La igualdad exacta habría contradicho a D. Deja pasar dos regresiones: que
+    desaparezca o se renombre `cc`/`correo`/`nombre`/`apellido` (sondeo `recover_drop_cc`: `4 passed`) y que se añada
+    una clave (por ejemplo, un dato sensible: la ruta no tiene `response_model`, `app/api/routers/user.py:216`, y el
+    dict se arma a mano, `app/services/user_service.py:359-366`). Ver opcional 1.
+  - (b) `isinstance(body["detail"], str)` es aceptable: es una de las formas que nombra la decisión 4 (`plan.md:47-48`),
+    E3 pide "elevar a la decisión 4", los 7 casos de C y D ya la llevan junto a `set(body)` (`tests/test_auth.py:65`,
+    `:98`, `:131`, `:146`, `:279`, `:355`, `:386`) y el mutante `detail_not_str_403` demuestra que no es redundante con
+    `set(body)`.
+  - (c) El mutante de fila modela un estado persistido distinto del devuelto (una escritura posterior en la misma
+    petición, un valor por defecto de la base o una respuesta construida desde la entrada). Es realista, aunque menos
+    frecuente que "no persiste" (que `scalar_one()` también detecta). Tras F sigue siendo válido: la sesión por petición
+    sale de `TestingSessionLocal` (`expire_on_commit=False`, `tests/conftest.py:24-27`; `plan.md:57-58`), así que la
+    respuesta sigue diciendo admin, y el `select` de la sesión del test lee la fila confirmada.
+  - (d) No hay mutante tautológico: cada uno aísla una sola aserción (líneas distintas de la tabla) y el contador de
+    disparos confirma que todos se activan antes y después. El plugin del plan no cuenta disparos, así que "Antes = `4
+    passed`" no distingue por sí solo entre "sobrevive" y "no se activa"; la columna "Después", con el mismo plugin y
+    los mismos flujos, cierra ese hueco. Los greps miden recuentos, no posiciones; el diff confirma las posiciones. La
+    explicación de `plan.md:583-585` es inexacta (opcional 2).
+
+### Hallazgos
+
+- [OPCIONAL] — Fase D-bis — El subconjunto `{"success", "message"} <= set(body)` (`tests/test_auth.py:330`) no detecta
+  que se pierda o se renombre una clave de datos de la recuperación ni que aparezca una clave extra (sondeo
+  `recover_drop_cc`: `4 passed` en HEAD). Es el trade-off consciente de E3 (`plan.md:138-142`). El vínculo con P2 solo
+  existe en el residual del plan (`plan.md:859`): la fila P2 del backlog (`docs/backlog.md:93`) no menciona `cc`,
+  `correo`, `nombre` ni `apellido`. Destino: cuando los residuales del bloque pasen al backlog, la nota de P2 debe decir
+  que, al renombrar esas claves, este test pasa a `set(body) == {...}` exacto. Sin acción en D-bis.
+- [OPCIONAL] — Fase D-bis — `plan.md:583-585` afirma que, con los mutantes de fila, "solo la relectura con `refresh` lo
+  ve". El sondeo lo desmiente: sin `await db_session.refresh(created)` (`tests/test_auth.py:422`) los tres mutantes de
+  fila siguen dando `1 failed`. El `select` ya trae la fila de la base, probablemente porque el objeto de la app sale
+  del mapa de identidad (débil) al terminar la petición. El `refresh` es defensivo (ADR-0011, "refresh después"),
+  inocuo y válido antes y después de F, pero hoy no es lo que hace caer el test. Sin acción en el código; la ficha o
+  la bitácora pueden corregir la explicación.
