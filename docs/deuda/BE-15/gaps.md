@@ -74,3 +74,86 @@ no se borran.
   (comprobado por el auditor sobre `git show 987e568:tests/...`: `test_services.py:183` y `conftest.py:206`). No los
   introduce la fase y el plan aprobado fija mypy = 10 en el alcance de la compuerta. Destino: residual, junto con la
   entrada de `tests/` en el alcance de mypy (PLAN día 4-5), no se exige corrección en BE-15.
+
+## Auditoría Fase B — 2026-11-04
+
+- **Veredicto:** PASS (0 bloqueantes, 1 opcional).
+- **Auditado:** `fc06d1e` (fase) y `9b69358` (registro en `progress.json` y handoff). Base de la fase: `68cf40c`.
+  `35e2627` (gaps de la fase A, commit de David) solo toca `docs/deuda/BE-15/gaps.md`.
+- **Árbol:** `git status --short` vacío antes de la auditoría.
+- **Bloqueantes anteriores:** ninguno (la fase A cerró en PASS).
+
+### Evidencia
+
+- Compuerta re-ejecutada (`./venv/Scripts/python.exe scripts/check.py`, exit 1, rojo heredado previsto por la
+  decisión 8 del plan):
+
+  ```
+  === RESUMEN ===
+    ✔ ruff format --check
+    ✘ ruff check
+    ✘ mypy
+    ✔ import-linter
+    ✔ docs (coherencia)
+    ✔ pytest + cobertura
+
+  Compuerta NO superada: ruff check, mypy
+  ```
+
+  | Medida | Línea base (`verificacion.md`) | Auditoría | Fila "Fase B" del plan (`plan.md:68`) | Handoff |
+  |---|---|---|---|---|
+  | pytest | 376 passed | `380 passed, 5 warnings in 16.56s` | 380 | 380 |
+  | Cobertura | 94.81 % | `TOTAL 942 34 136 22 94.81%` | ≥ 94.81 % | 94.81 % |
+  | import-linter | 4 kept | `Contracts: 4 kept, 0 broken.` | 4 KEPT | 4 KEPT |
+  | ruff total | 60 | `Found 59 errors.` | 59 | 59 |
+  | ruff en `tests/` | 7 | `Found 6 errors.` (test_auth 1/50/162, test_user_access_policy 347/395, test_user_service 3) | 6 | 6 |
+  | mypy | 10 | `Found 10 errors in 5 files (checked 35 source files)` | 10 | 10 |
+  | ruff format | OK | `53 files already formatted` | OK | OK |
+
+- Archivos tocados: `ruff check tests/test_services.py tests/test_audit.py` → `All checks passed!`;
+  `ruff format --check` de los dos → `2 files already formatted`. Los dos archivos solos: `42 passed`.
+- `git show --stat fc06d1e` → exactamente `tests/test_audit.py` y `tests/test_services.py`. `git diff --stat
+  68cf40c fc06d1e -- app/ AGENTS.md CLAUDE.md pyproject.toml scripts/ .azure-pipelines/ .claude/
+  tests/conftest.py` → vacío. `git diff --name-only 68cf40c HEAD` → solo esos dos tests más `gaps.md`,
+  `handoff-Fase_B.md` y `progress.json`.
+- Mensaje de commit: el cuerpo de `fc06d1e` (sin el trailer `Co-Authored-By`) es idéntico byte a byte al bloque
+  "Commit" de la fase B (`plan.md:238-252`; `diff` → sin diferencias).
+- Fin de línea: `git cat-file blob` de los dos archivos en `68cf40c` y en `fc06d1e` → 0 bytes `\r`; working tree → 0;
+  `git ls-files --eol` → `i/lf w/lf eol=lf`; `git diff --ignore-cr-at-eol --stat 68cf40c fc06d1e` igual al `--stat`
+  normal (48+/108-). La conversión CRLF→LF que menciona el handoff no dejó rastro en el commit.
+- Collect-only reproducido por el auditor: `git archive 68cf40c` y `git archive fc06d1e` extraídos al scratchpad,
+  `pytest --collect-only -q -p no:cacheprovider tests/test_services.py tests/test_audit.py` con el `venv` del repo
+  (con variables de entorno ficticias de `DATABASE_URL`/`JWT_*`/`MAIL_*`, porque el archivo no lleva `.env`; la
+  colección no conecta). Antes `42 tests collected`, después `42 tests collected` (36 + 6); `diff` de las listas de
+  IDs → sin diferencias; también idénticas a la colección del working tree. sha256 de las tres listas:
+  `325d3bda95f3af090dae831f492518ae614bebd339da4de3b320fea63bcfcb1c`, el mismo del handoff.
+- Cambios exactos, todos presentes: `admin_token` y `auth_headers` borrados; `admin_headers` movido sin cambios al
+  bloque "TEST FIXTURES" (`tests/test_services.py:33-38`); los 13 tests (`deactivate_and_activate` …
+  `update_package_concurrent_reconciliation`) reciben y usan `admin_headers`; imports `create_access_token`,
+  `get_password_hash` y `User` fuera (`tests/test_services.py:22-26`). `superadmin_token` borrado;
+  `test_audit_trail_creation_and_retrieval(client, persist_user, make_auth_headers)` con `persist_user(role=
+  UserRole.superadmin)` + `make_auth_headers` (`tests/test_audit.py:13-19`);
+  `test_audit_trail_forbidden_for_tourist` con `persist_user(role=UserRole.tourist)` y la aserción nueva
+  `isinstance(response.json()["detail"], str)` (`tests/test_audit.py:49-58`); I001 corregido (imports ordenados,
+  `tests/test_audit.py:1-11`).
+- Criterio de aceptación: en los dos archivos `User\(` → 0, `create_access_token\(` → 0, `f"Bearer \{` → 0,
+  `def (admin_token|auth_headers|superadmin_token)\(` → 0.
+- Sin fábricas nuevas: `tests/conftest.py` no cambia en la fase; se usan `persist_user` (`conftest.py:196`) y
+  `make_auth_headers` (`conftest.py:180`), que ya existían; `admin_headers` es el fixture local combinador que la
+  decisión 2 del plan (`plan.md:35-37`) admite.
+- Aserciones (AGENTS §5): el diff no borra ninguna línea `assert`; añade una (`tests/test_audit.py:58`). Conteo de
+  `assert`/`.assert_*` en `68cf40c` → `fc06d1e`: `test_services.py` 124 → 124, `test_audit.py` 17 → 18. En los 13
+  tests de services solo cambia el nombre del fixture de cabeceras; ninguna aserción sobre texto en español.
+- `progress.json`: JSON válido; `Fase_B` = `completed` con `commit` `fc06d1e` (real, `git cat-file -t` → `commit`);
+  `current_target` = `Fase_C`; `last_handoff` presente; el diff de `9b69358` solo toca esos cuatro campos
+  (`edit_rules` y `approval` intactos).
+
+### Hallazgos
+
+- [OPCIONAL] — Fase B — `mypy tests/test_services.py tests/test_audit.py` da 2 errores en los archivos tocados:
+  `tests/test_services.py:157` (`Value of type "object" is not indexable [index]`) y `tests/test_audit.py:72`
+  (`Returning Any from function declared to return "AuditRepository" [no-any-return]`). Mismo criterio que el
+  OPCIONAL de la fase A: `tests/` está fuera de `[tool.mypy] files` (`pyproject.toml:90`), ninguna de las dos líneas
+  está en el diff (`git blame`: `53ca672`, 29 jul, y `e581c6a`, 10 oct) y los dos ya estaban en `68cf40c` (mypy del
+  auditor sobre el árbol extraído: `test_services.py:183` y `test_audit.py:98`, mismo mensaje, desplazados 26 líneas).
+  Destino: residual con la entrada de `tests/` en el alcance de mypy (PLAN día 4-5); no se exige corrección en BE-15.
