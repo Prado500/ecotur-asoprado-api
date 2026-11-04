@@ -4,7 +4,8 @@
   sobre la conclusión) · **Rama:** `bloque/b-tests` · **Base develop:** `7877829` (la de la verificación; el ejecutor
   la vuelve a comprobar al arrancar)
 - **Aprobación:** David, 2026-11-04. Aprobado con enmiendas: D1, D2 y D3 = sí, y salvaguarda de la fase E (ver
-  "Decisiones de David").
+  "Decisiones de David"). Enmienda E2 (4 nov, 12:25), tras la auditoría PASS de la fase C: test de contrato del
+  `autouse` de `mock_send_email` en F y fase F-mínima si F se recorta (ver "Enmiendas aprobadas").
 
 ## Resumen para aprobación
 
@@ -17,7 +18,8 @@ las fábricas que ya existen en `conftest.py`; `mock_send_email` queda en un sol
 (6) Se añaden las regresiones de B2 (un admin se asciende a sí mismo → 403, sin mutación) y de B3 por HTTP (un
 superadmin borra a un tercero → 200, `deleted_at` y fila de auditoría).
 (4) La app recibe una sesión propia en cada petición.
-Son seis fases: A–D en `m1` y E–F en `m2`; F es recortable. El riesgo principal es (4). Un ensayo en seco, hecho sin
+Son seis fases: A–D en `m1` y E–F en `m2`; F es recortable. Si se recorta, una fase F-mínima conserva el test
+que vigila el `autouse` del correo (enmienda E2). El riesgo principal es (4). Un ensayo en seco, hecho sin
 tocar el repo, dio 1 fallo de 376, y es un test que la fase C ya reescribe; por eso F se queda en `conftest.py`, 3
 tests y el ADR. No se toca `app/`, el `--soft` del CI, la clave `"detalle"` (P2), la carga de `.env` (A4), BE-02 ni
 BE-31, y tampoco se edita `AGENTS.md`: David llevará a AGENTS §5, en un PR al cierre, las dos reglas que enuncia
@@ -46,7 +48,8 @@ congelados por HTTP.
    pasa a `from sqlalchemy` solo en `test_auth.py`; `assert_called_once_with` se aplica solo en `test_auth.py:46`.
    Las otras 10 aserciones de mock sin argumentos quedan como residual.
 6. **Orden:** A → B → C → D (`m1`), E → F (`m2`). F va la última y es recortable: si no cabe en `m2`, el cierre del
-   día la declara deslizada (adenda, punto 1).
+   día la declara deslizada (adenda, punto 1). En ese caso se ejecuta F-mínima antes del PR del bloque (enmienda
+   E2); F y F-mínima son excluyentes.
 7. **Sesión (fase F):** el override abre una sesión de `TestingSessionLocal` por petición, sobre el mismo engine con
    `StaticPool` (adenda, punto 4). ADR-0011 (D1) enuncia las dos reglas: "commit antes de la petición" y "refresh
    después". Este plan **no edita `AGENTS.md`**; llevar las reglas a AGENTS §5 es tarea de David, en un PR al
@@ -69,7 +72,52 @@ congelados por HTTP.
 | Fase C | 381 | 56 | 3 | 10 |
 | Fase D | 381 | 56 | 3 | 10 |
 | Fase E | 392 | 54 | 1 | 10 |
-| Fase F | 395 | 54 | 1 | 10 |
+| Fase F | 396 | 54 | 1 | 10 |
+| Fase F-mínima (solo si F se recorta) | 393 | 54 | 1 | 10 |
+
+## Enmiendas aprobadas
+
+- **E1, 4 nov 2026: aprobación del plan.** D1, D2 y D3 = sí, más la salvaguarda de la fase E. Siguen registradas donde
+  estaban: en "Decisiones de David (resueltas el 4 nov 2026)", en el Análisis del redactor y en la decisión
+  bloqueada 9. No se mueven.
+- **E2, 4 nov 2026, 12:25: el test que vigila el `autouse` de `mock_send_email`.** David la aprobó tras la auditoría
+  PASS de la fase C (`gaps.md`, fase C, opcionales 1 a 3). Texto literal:
+
+  > "La fase F añade un test de contrato en tests/test_fixtures_contract.py que no pide el fixture mock_send_email por
+  > parámetro y afirma que app.api.routers.user.send_verification_email no es la función real (es decir, que el
+  > parche autouse está activo sin pedirlo). Razón: el test actual (l.50-57) pide el fixture por parámetro y pasa
+  > aunque se quite autouse=True (el auditor lo verificó: 381 passed sin él); D2 se eligió para que un test que olvide
+  > el fixture no envíe un correo real, y hoy ningún test lo vigila.
+  > En el mismo cambio de F: la anotación de mock_send_email en test_fixtures_contract.py:50 pasa de MagicMock a Any
+  > (patch(autospec=True) sobre una función devuelve una función), y el docstring del fixture mock_send_email en
+  > tests/conftest.py recibe su sección Yields: (AGENTS §4).
+  > Conteos: la fase F cierra con 396 tests (antes 395); la tabla de fases, la Verificación final de F y el RED
+  > esperado de F se actualizan; el nuevo test empieza en verde (el autouse ya existe), así que su prueba es una
+  > mutación de auditoría: quitar autouse=True del fixture debe hacerlo fallar, y se restaura.
+  > Si F se recorta, estos tres puntos no se recortan con ella: pasan a una fase F-mínima (un archivo de tests más la
+  > línea del docstring en conftest.py, sin el cambio de sesión ni ADR-0011), con su propio mensaje de commit, que se
+  > ejecuta antes del PR del bloque."
+
+  Cómo queda aplicada. Todo lo comprobé en HEAD `ec474e5`.
+  - **Test nuevo.** El test actual está en `tests/test_fixtures_contract.py:50-57` y el fixture en
+    `tests/conftest.py:115-125` (`@pytest.fixture(autouse=True)` en l.115). La función real es
+    `send_verification_email` (`app/core/email.py:27`). El router la importa con `from app.core.email import
+    send_verification_email` (`app/api/routers/user.py:7`). El fixture parchea solo el nombre del router
+    (`patch("app.api.routers.user.send_verification_email", ...)`) y nunca `app.core.email`, así que un `from
+    app.core.email import send_verification_email as real_send_verification_email` a nivel de módulo siempre
+    obtiene la función real, sin activar ni esquivar el parche.
+  - **Imports.** `MagicMock` solo se usa en la anotación de l.50 (import en l.3). Al pasar a `Any`, el import queda
+    sin uso: se quita, se añade `from typing import Any` y el hook reordena los imports. El archivo sigue con 0
+    errores de ruff y los totales no cambian (54 en total, 1 en `tests/`). `tests/` no entra en mypy
+    (`pyproject.toml:90`): sigue en 10.
+  - **Sondeo.** Lo hice en el scratchpad, sin tocar el repo; `git hash-object tests/conftest.py` no cambió. El test
+    nuevo, junto a los 5 de `test_fixtures_contract.py`, da `6 passed` con el `conftest.py` actual cargado como
+    plugin. Con un mutante sin `autouse=True` da `1 failed, 5 passed`, y el que falla es solo el test nuevo.
+  - **Conteos.** F pasa de 395 a 396. F-mínima: 381 (C) + 0 (D) + 11 (E) + 1 = 393, que coincide con la fila
+    E (392) + 1.
+  - Se recalculan la fila F de la tabla, el RED y el criterio de F, el commit de F, la fase F-mínima nueva y los
+    puntos 4b, 9 y 15 de la Verificación final, y su nota de cabecera. No cambia ninguna otra decisión.
+
 
 ## Análisis del redactor
 
@@ -433,6 +481,13 @@ sqlalchemy.future` fuera de `test_auth.py` (S2).
   - `test_fixtures_contract.py`: se le añaden 3 tests `async` que reciben `client` (instala el override) y
     `db_session`. Cada uno obtiene el generador con `app.dependency_overrides[get_db]()` y lo cierra con
     `aclose()`.
+  - `test_fixtures_contract.py` (enmienda E2):
+    - se añade un cuarto test, `test_email_dispatch_is_patched_without_requesting_the_fixture()`, sin parámetros;
+    - en l.50, `mock_send_email: MagicMock` pasa a `mock_send_email: Any`;
+    - fuera `from unittest.mock import MagicMock` y dentro `from typing import Any` y
+      `from app.core.email import send_verification_email as real_send_verification_email`.
+  - `conftest.py` (enmienda E2): la docstring de `mock_send_email` (l.117-123) recibe una sección
+    `Yields:` con la línea `The autospecced stand-in for send_verification_email.`. Nada más cambia en el fixture.
 - **Tests (RED primero):** se escriben con el `conftest.py` actual y se comprueba que los dos primeros fallan.
   1. `test_each_request_gets_its_own_session`: dos generadores, `anext` en cada uno; se comprueba
      `first_session is not db_session` y `second_session is not first_session`. RED, porque hoy los dos son
@@ -442,9 +497,29 @@ sqlalchemy.future` fuera de `test_auth.py` (S2).
      da 1.
   3. `test_app_commit_is_visible_to_the_test(make_user)`: lo mismo con `commit()`; `select(User).where(User.cedula
      == user.cedula)` en `db_session` → una fila con `email == user.email`. Pasa antes y después.
-- **Criterio de aceptación:** fila "Fase F" (395 passed; ruff 54; 0 en los archivos tocados). `grep -c "yield
+  4. `test_email_dispatch_is_patched_without_requesting_the_fixture()` (enmienda E2), síncrono y sin parámetros.
+     Docstring: "The autouse email double is active in a test that does not request it." Comprueba `assert
+     user_router.send_verification_email is not real_send_verification_email`. **Empieza en verde**, porque el
+     `autouse` ya existe (fase C), así que no tiene RED. Su prueba es una **mutación de auditoría que no edita el
+     repo**:
+     - se guarda `H=$(git hash-object tests/conftest.py)` después de las ediciones de la fase;
+     - se copia ese `conftest.py` al scratchpad como `be15_no_autouse.py`, cambiando solo
+       `@pytest.fixture(autouse=True)\ndef mock_send_email():` por `@pytest.fixture\ndef mock_send_email():`;
+     - se ejecuta `PYTHONPATH=<scratchpad> ./venv/Scripts/python.exe -m pytest -q -p no:cacheprovider --noconftest
+       -p be15_no_autouse tests/test_fixtures_contract.py` → **`1 failed, 8 passed`**. Falla solo el test 4; los 4
+       de A, el de C y los 3 de sesión pasan;
+     - sin el plugin, el mismo archivo da `9 passed`.
+
+     Si algún método llegara a editar `tests/conftest.py` en el sitio, antes se guarda una copia y después se
+     restaura byte a byte.
+- **Criterio de aceptación:** fila "Fase F" (396 passed; ruff 54; 0 en los archivos tocados). `grep -c "yield
   db_session" tests/conftest.py` → 0; `grep -cE "async with TestingSessionLocal\(\) as session" tests/conftest.py` →
-  2. Cobertura ≥ 94.81 %.
+  2. Cobertura ≥ 94.81 %. Mutación de auditoría del test 4: exactamente `1 failed, 8 passed`. **Salvaguarda
+  antes del commit**, con su salida literal en el handoff: `test "$(git hash-object tests/conftest.py)" = "$H" &&
+  echo IGUAL` → `IGUAL` (el mutante no tocó el archivo de la fase), y `grep -B1 -E "^def mock_send_email\("
+  tests/conftest.py | grep -c "@pytest.fixture(autouse=True)"` → 1. Tras el commit: `test "$(git hash-object
+  tests/conftest.py)" = "$(git rev-parse HEAD:tests/conftest.py)" && echo IGUAL` → `IGUAL`. Si no da `IGUAL`, no
+  se hace el commit.
 - **Fuera de alcance:** cambiar `StaticPool`, el motor o `expire_on_commit`; PostgreSQL de pruebas; `sqlite_where`
   (BE-31); `app/db/database.py`; **`AGENTS.md`** (llevar las dos reglas a AGENTS §5 es tarea de David, por PR al
   cierre).
@@ -465,7 +540,14 @@ sqlalchemy.future` fuera de `test_auth.py` (S2).
     states the two rules: commit arrange data before calling the client,
     refresh held objects afterwards.
   - tests/test_fixtures_contract.py: freezes one session per request, an
-    uncommitted app flush invisible to the test, a commit visible.
+    uncommitted app flush invisible to the test, a commit visible. One
+    more test does not request mock_send_email and asserts that the
+    router's send_verification_email is not the real app.core.email
+    function, so dropping autouse=True (D2) now fails the suite; the
+    fixture parameter is annotated Any, since patch(autospec=True) on a
+    function returns a function, and the unused MagicMock import goes.
+  - tests/conftest.py: the mock_send_email docstring gets its Yields
+    section (AGENTS 4).
   ```
   ```
   docs(adr): add ADR-0011, the app and the test use separate sessions
@@ -479,12 +561,60 @@ sqlalchemy.future` fuera de `test_auth.py` (S2).
   separate connections, a PostgreSQL test database (decided in BE-31).
   ```
 
+### Fase F-mínima — El test que vigila el `autouse` del correo (solo si F se recorta; enmienda E2)
+- **Cuándo:** solo si F se recorta. Se ejecuta antes del PR del bloque. F y F-mínima son excluyentes: si F se
+  ejecuta, F-mínima no se ejecuta, porque su contenido va dentro de F.
+- **Archivos:** `tests/test_fixtures_contract.py` y `tests/conftest.py` (solo la docstring de `mock_send_email`). Sin
+  el cambio de sesión y sin ADR-0011.
+- **Cambios exactos:** los dos puntos "(enmienda E2)" de "Cambios exactos" de la fase F, idénticos:
+  - test `test_email_dispatch_is_patched_without_requesting_the_fixture()` sin parámetros;
+  - anotación `Any` en l.50;
+  - fuera el import de `MagicMock`; dentro `Any` y `real_send_verification_email`;
+  - sección `Yields:` en la docstring del fixture.
+- **Tests (RED primero):** el test nuevo empieza en verde y no tiene RED. Su prueba es la mutación de auditoría
+  descrita en el test 4 de la fase F, igual en todo salvo la cifra: con `be15_no_autouse`,
+  `tests/test_fixtures_contract.py` da **`1 failed, 5 passed`** (falla solo el test nuevo; pasan los 4 de A y el de
+  C). Sin el plugin: `6 passed`.
+- **Criterio de aceptación** (trinquete ADR-0005):
+  - fila "Fase F-mínima": 393 passed (381 + D 0 + E 11 + 1); ruff total 54; 1 en `tests/` (el I001 heredado de
+    `test_user_service.py:3`); 0 en los dos archivos tocados; mypy 10; cobertura ≥ 94.81 %; import-linter 4 KEPT;
+    docs OK; `ruff format` OK;
+  - `grep -cE "^(async )?def test_" tests/test_fixtures_contract.py` → 6;
+  - `grep -c "MagicMock" tests/test_fixtures_contract.py` → 0;
+  - `git diff -- tests/conftest.py`, antes del commit: solo líneas añadidas (`+`), todas dentro de la docstring de
+    `mock_send_email`;
+  - mutación: `1 failed, 5 passed`;
+  - salvaguarda antes del commit: `test "$(git hash-object tests/conftest.py)" = "$H" && echo IGUAL` → `IGUAL`, y
+    el grep de `autouse=True` → 1.
+- **Fuera de alcance:** todo lo demás de F (sesión por petición, sus 3 tests, ADR-0011), que queda deslizado según
+  la decisión 6.
+- **Commit:**
+  ```
+  test(conftest): freeze that the email double is active without asking
+
+  D2 made mock_send_email autouse so that a test which forgets the fixture
+  cannot send a real verification email. The phase C contract test
+  requests the fixture by name, so it kept passing with autouse=True
+  removed (audit of phase C: 381 passed): nothing guarded D2.
+
+  - tests/test_fixtures_contract.py: a new test that does not request the
+    fixture asserts that app.api.routers.user.send_verification_email is
+    not the real app.core.email function. The mock_send_email parameter
+    is annotated Any, since patch(autospec=True) on a function returns a
+    function, and the unused MagicMock import goes.
+  - tests/conftest.py: the mock_send_email docstring gets its Yields
+    section (AGENTS 4).
+
+  A conftest mutant without autouse=True turns exactly the new test red.
+  ```
+
 ## Verificación final
 
-Se ejecuta desde la raíz del repo, con la rama tras la fase F. Si F se recorta, valen las cifras de la fila E, los
-puntos 10 y 11 no se aplican y el 9 da 5. Cada cifra cuenta también el texto que dicta este plan (nombres de test,
-docstrings, literales y el ADR). Ninguno de esos textos contiene `MagicMock(`, `User(`, `f"Bearer {`,
-`noexiste@example.com` ni una frase en español entre comillas en `tests/`.
+Se ejecuta desde la raíz del repo, con la rama tras la fase F. Si F se recorta, se ejecuta F-mínima y valen las
+cifras de su fila (393 passed): los puntos 10 y 11 no se aplican, el 9 da 6 y el mutante del 4b da `1 failed, 5
+passed`. Cada cifra cuenta también el texto que dicta este plan (nombres de test, docstrings, literales y el ADR).
+Ninguno de esos textos contiene `MagicMock(`, `User(`, `f"Bearer {`, `noexiste@example.com` ni una frase en español
+entre comillas en `tests/`.
 
 ```bash
 # 1. Mocks sin spec → 0
@@ -500,6 +630,15 @@ grep -rnE "get_password_hash\(\"pass\"\)" tests/ --include=*.py | wc -l
 # 4. D2: fixtures duplicados → 1 línea (tests/conftest.py: mock_send_email); está declarado autouse → 1
 grep -rnE "def (mock_send_email|admin_token|auth_headers|superadmin_token)\(" tests/ --include=*.py
 grep -B1 -E "^def mock_send_email\(" tests/conftest.py | grep -c "@pytest.fixture(autouse=True)"
+# 4b. E2: test sin parámetros que vigila el autouse → 1; MagicMock fuera del archivo → 0; anotación Any → 1; Yields en la docstring → 1
+grep -c "def test_email_dispatch_is_patched_without_requesting_the_fixture()" tests/test_fixtures_contract.py
+grep -c "MagicMock" tests/test_fixtures_contract.py
+grep -c "mock_send_email: Any" tests/test_fixtures_contract.py
+grep -A12 -E "^def mock_send_email\(" tests/conftest.py | grep -c "Yields:"
+#     mutante sin autouse=True (plugin be15_no_autouse en el scratchpad, ver fase F, test 4) → "1 failed, 8 passed" (F-mínima: "1 failed, 5 passed")
+PYTHONPATH=<scratchpad> ./venv/Scripts/python.exe -m pytest -q -p no:cacheprovider --noconftest -p be15_no_autouse tests/test_fixtures_contract.py
+#     conftest.py commiteado tal cual, sin restos del mutante → IGUAL
+test "$(git hash-object tests/conftest.py)" = "$(git rev-parse HEAD:tests/conftest.py)" && echo IGUAL
 # 5. Aserciones sobre texto → 0; frase entre comillas → 2 líneas, ambas en tests/test_services.py con "Tour corto" (dato)
 grep -rnE "\[\"(detail|message)\"\]( ==|\.lower\(\))|in response\.json\(\)\[\"detail\"\]" tests/ --include=*.py | wc -l
 grep -rnE "== f?\"[A-ZÁÉÍÓÚ][a-záéíóúñ]+ [a-záéíóúñ]+" tests/ --include=*.py
@@ -514,7 +653,7 @@ grep -c "noexiste@example.com" tests/test_auth.py
 grep -rnE "\.assert_(called|awaited)(_once)?\(\)" tests/ --include=*.py | wc -l
 # 8. Regresiones B2/B3 → 10 definiciones
 grep -cE "^async def test_b[23]_" tests/test_user_access_policy.py
-# 9. Tests de contrato de los fixtures → 8 (A 4 + C 1 + F 3; con F recortada: 5)
+# 9. Tests de contrato de los fixtures → 9 (A 4 + C 1 + F 3 + E2 1; con F-mínima: 6)
 grep -cE "^(async )?def test_" tests/test_fixtures_contract.py
 # 10. Sesión por petición → 0 y 2
 grep -c "yield db_session" tests/conftest.py
@@ -533,7 +672,7 @@ git status --short -- app/ AGENTS.md CLAUDE.md
 # 14. Salvaguarda E (obligatoria antes del commit de E y otra vez aquí) → IGUAL
 test "$(git hash-object app/services/user_access_policy.py)" = "$(git rev-parse HEAD:app/services/user_access_policy.py)" && echo IGUAL
 # 15. Compuerta: ruff ✘ (54, en app/ y test_user_service) y mypy ✘ (10), heredados; el resto ✔;
-#     pytest "395 passed" (392 si F se recorta); cobertura ≥ 94.81 %; "Contracts: 4 kept, 0 broken."
+#     pytest "396 passed" (393 con F-mínima); cobertura ≥ 94.81 %; "Contracts: 4 kept, 0 broken."
 ./venv/Scripts/python.exe scripts/check.py
 ```
 

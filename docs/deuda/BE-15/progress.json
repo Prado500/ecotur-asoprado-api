@@ -41,7 +41,12 @@
     "Fase_F": {
       "status": "pending",
       "commit": null,
-      "description": "Cuttable. Per-request app session in conftest client fixture; +3 contract tests (2 RED); docs/adr/0011-sesion-de-la-app-distinta-de-la-del-test.md copied from the BE-15 draft (D1 = yes; quote block and ' (borrador)' removed). AGENTS.md untouched. The commit field stores '<test> <docs>'. Target: 395 passed, ruff 54."
+      "description": "Cuttable. Per-request app session in conftest client fixture; +3 contract tests (2 RED); docs/adr/0011-sesion-de-la-app-distinta-de-la-del-test.md copied from the BE-15 draft (D1 = yes; quote block and ' (borrador)' removed). Amendment E2 (4 Nov, 12:25): +1 contract test without the mock_send_email parameter asserting the router's send_verification_email is not the real app.core.email function (starts green; audit mutant without autouse=True must give 1 failed, 8 passed); mock_send_email annotated Any (MagicMock import removed); Yields: section in the fixture docstring; conftest.py hash safeguard before commit. AGENTS.md untouched. The commit field stores '<test> <docs>'. Target: 396 passed, ruff 54."
+    },
+    "Fase_F_min": {
+      "status": "pending",
+      "commit": null,
+      "description": "Amendment E2. Only if Fase_F is cut; runs before the block PR. Mutually exclusive with Fase_F: if Fase_F is completed, mark this completed with Fase_F's test commit hash (its content is inside F). Files: tests/test_fixtures_contract.py and the mock_send_email docstring in tests/conftest.py (Yields:); no session change, no ADR-0011. +1 test without the fixture parameter (starts green; audit mutant without autouse=True must give 1 failed, 5 passed); Any annotation, MagicMock import removed; conftest.py hash safeguard before commit. Target: 393 passed, ruff 54 (tests/ 1), mypy 10."
     }
   },
   "allowed_statuses": [
