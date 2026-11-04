@@ -55,6 +55,7 @@ solo las copias derivadas que un documento concreto lleva por diseño.
 | Estado de saldado de un ítem (presente o ausente) | `docs/deuda/<ID>/` | — |
 | Estado actual del proyecto y próximo paso | CONTEXT §4 y §8 | — |
 | Dudas de estudio | `docs/aprendizaje/preguntas.md` | la bitácora del día: conteo y enlace |
+| Ficha de estudio de un ítem de deuda (antes / cómo se saldó / qué preguntaría un jurado) | `docs/aprendizaje/fichas/<ID>.md` | la bitácora del día: enlace; "Después" solo al cerrar el ítem |
 | Versión de un documento vivo | su encabezado (ADR-0007) | — |
 
 La tabla crece por incidente: cuando aparece una divergencia sobre información cuyo dueño no está registrado aquí, se
