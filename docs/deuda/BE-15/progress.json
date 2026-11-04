@@ -11,7 +11,7 @@
       "Salvaguarda E: antes del commit de E, git hash-object app/services/user_access_policy.py == git rev-parse HEAD:app/services/user_access_policy.py; si algún método editara el archivo, se restaura byte a byte."
     ]
   },
-  "current_target": "Fase_D",
+  "current_target": "Fase_E",
   "phases": {
     "Fase_A": {
       "status": "completed",
@@ -29,8 +29,8 @@
       "description": "D2: single @pytest.fixture(autouse=True) autospecced mock_send_email in conftest; test_user_response.py drops its copy; test_auth.py l.1-175: 8 tests renamed, factories, codes+structure instead of Spanish text, refresh after requests; D3 wrong-password login case; +1 contract test (RED). Target: 381 passed, ruff 56."
     },
     "Fase_D": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "ee9d54b",
       "description": "test_auth.py l.177-657: 11 RBAC tests renamed and built on persist_user/make_auth_headers; last 3 Spanish assertions become detail shape + no mutation. Target: 381 passed, ruff 56."
     },
     "Fase_E": {
@@ -54,6 +54,6 @@
     "partial",
     "completed"
   ],
-  "last_handoff": "Fase C completada (bf22982): mock_send_email autouse+autospec único en conftest; test_auth.py l.1-175 con 8 tests renombrados, persist_user y aserciones por código/forma/estado (D3: contraseña incorrecta); +1 test de contrato (RED fixture not found -> GREEN); compuerta 381 passed, 94.81 %, 4 KEPT, ruff 56 (tests/ 3), mypy 10 (fila C exacta). Siguiente: /implementar BE-15 D.",
+  "last_handoff": "Fase D completada (ee9d54b): test_auth.py RBAC, 11 tests renombrados 1:1, persist_user + make_auth_headers, refresh tras cada petición; las 3 aserciones en español pasan a {\"detail\": str} + sin mutación; directorios con igualdad exacta de cédulas; compuerta 381 passed, 94.81 %, 4 KEPT, ruff 56 (tests/ 3), mypy 10 (fila D exacta). Siguiente: /implementar BE-15 E.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
