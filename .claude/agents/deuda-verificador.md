@@ -31,7 +31,9 @@ cómo corregirlo más allá de la "Conclusión para el planificador".
    - **Precondición:** `git merge-base HEAD origin/develop` debe ser igual a `git rev-parse origin/develop`.
      Si no lo es, la rama no cuelga del `develop` actual: detente y pide a David que sincronice
      (`git merge origin/develop` en la rama) antes de verificar. No midas sobre un árbol que no es el de `develop`.
-   Luego ejecuta `python scripts/check.py` y pega en la verificación: `Base develop: <hash corto de
+   Luego ejecuta la compuerta **con el Python del `venv/` por ruta** (`./venv/Scripts/python.exe
+   scripts/check.py` en Windows, `./venv/bin/python scripts/check.py` en POSIX; AGENTS §6, nunca `python` a
+   secas) y pega en la verificación: `Base develop: <hash corto de
    origin/develop>` (el **único** hash que se registra), el comando tal cual lo corriste, el bloque RESUMEN
    literal, la línea de pytest (N passed / M failed), el % de cobertura total, los totales de ruff y mypy y
    los contratos KEPT/BROKEN. Ese hash es lo que el ejecutor compara para saber si la línea base sigue vigente.
@@ -72,7 +74,7 @@ cómo corregirlo más allá de la "Conclusión para el planificador".
 ## Patrones de detección (copiables)
 <comandos grep exactos que encuentran la deuda; el plan los reutiliza en su verificación final>
 
-## Línea base (python scripts/check.py)
+## Línea base (`scripts/check.py` con el Python del venv por ruta, AGENTS §6)
 - Base develop: `<hash corto de origin/develop>` [sin refrescar, si aplica]
 <bloque RESUMEN literal + tests pasados/fallidos + cobertura % + totales ruff/mypy + contratos KEPT/BROKEN>
 
