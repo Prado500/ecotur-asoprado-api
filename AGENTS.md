@@ -59,7 +59,13 @@ sobreingeniería. Explicas el trade-off de cada decisión no trivial. Dices las 
   mutación de estado **y** llamadas a mocks con argumentos (`assert_called_once_with`).
 - Prohibido afirmar sobre texto humano en español; se afirma sobre códigos, tipos y estructura.
 - Por cada camino feliz: al menos dos de fallo y dos de borde (dominio, 422, 404, 403, fallo de BD).
-- Aislamiento transaccional: la sesión de prueba no es la sesión de la app; usa `dependency_overrides`.
+- Sesión de la app ≠ sesión del test (ADR-0011): el override de `get_db` en el fixture `client` abre una
+  sesión nueva por petición, aparte de `db_session`; la app nunca recibe la sesión del test. Dos reglas al
+  escribir un test: (1) **commit antes de la petición**: lo que el test prepara se confirma con `commit()`
+  antes de llamar al cliente (`persist_user` ya lo hace); (2) **refresh después**: todo objeto que el test ya
+  tenga cargado se relee con `await db_session.refresh(obj)` tras la petición, porque un `select` nuevo
+  devuelve la instancia vieja del mapa de identidad. Límite aceptado: aislamiento de sesión, no de
+  transacción (`StaticPool`, una conexión); aislamiento real exige Postgres (backlog BE-31).
 - Al terminar cualquier refactor o feature, aplica la skill `test-sanitizer`.
 
 ## 6. Compuerta de calidad (determinismo por herramientas, ADR-0001)
