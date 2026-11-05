@@ -1,0 +1,14 @@
+{
+  "plan_file": "docs/deuda/BE-02/plan.md",
+  "current_target": "Fase_A",
+  "phases": {
+    "Fase_A": {
+      "status": "pending",
+      "commit": null,
+      "description": "Self-update guard on the role key in assert_can_update, three docstrings and 19 test cases (10 RED). Target: 415 passed, ruff 53, mypy 10, coverage >= 94.81 %."
+    }
+  },
+  "allowed_statuses": ["pending", "partial", "completed"],
+  "last_handoff": "Estado inicial.",
+  "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
+}
