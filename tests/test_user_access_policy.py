@@ -160,6 +160,32 @@ class TestAssertCanUpdate:
         with pytest.raises(AuthorizationError):
             policy.assert_can_update(actor, target, {"last_name": "Changed"})
 
+    @pytest.mark.parametrize("actor_role", list(UserRole))
+    @pytest.mark.parametrize("new_role", list(UserRole))
+    def test_be02_nobody_can_send_own_role(self, policy, make_user, actor_role, new_role):
+        actor = make_user(role=actor_role)
+
+        with pytest.raises(AuthorizationError):
+            policy.assert_can_update(actor, actor, {"role": new_role.value})
+
+    def test_be02_superadmin_self_update_with_role_none_is_rejected(self, policy, make_user):
+        superadmin = make_user(role=UserRole.superadmin)
+
+        with pytest.raises(AuthorizationError):
+            policy.assert_can_update(superadmin, superadmin, {"role": None})
+
+    def test_be02_self_role_guard_identifies_the_actor_by_cedula(self, policy, make_user):
+        superadmin = make_user(role=UserRole.superadmin)
+        twin = make_user(role=UserRole.superadmin, cedula=superadmin.cedula)
+
+        with pytest.raises(AuthorizationError):
+            policy.assert_can_update(superadmin, twin, {"role": "tourist"})
+
+    def test_be02_superadmin_self_update_profile_fields_is_allowed(self, policy, make_user):
+        superadmin = make_user(role=UserRole.superadmin)
+
+        policy.assert_can_update(superadmin, superadmin, {"first_name": "Updated"})
+
 
 class TestAssertCanRecover:
     """Freezes recovery precedence: admins cannot restore equal/higher tiers."""
@@ -535,6 +561,153 @@ async def test_b2_admin_self_promotion_with_profile_fields_mutates_nothing(
     await db_session.refresh(admin)
     assert admin.first_name == "John"
     assert admin.role == UserRole.admin
+
+
+# --- BE-02 regression: nobody changes their own role, superadmin included ---
+
+
+@pytest.mark.parametrize("new_role", ["tourist", "admin"])
+async def test_be02_superadmin_self_role_change_returns_403_without_mutation(
+    client, db_session, persist_user, make_auth_headers, new_role
+):
+    """A superadmin PATCHing their own role down gets 403; nothing is written."""
+    superadmin = await persist_user(role=UserRole.superadmin)
+
+    response = await client.patch(
+        f"/usuarios/{superadmin.cedula}",
+        json={"role": new_role},
+        headers=make_auth_headers(superadmin),
+    )
+
+    assert response.status_code == 403
+    body = response.json()
+    assert set(body) == {"detail"}
+    assert isinstance(body["detail"], str)
+
+    await db_session.refresh(superadmin)
+    assert superadmin.role == UserRole.superadmin
+    audits = (await db_session.execute(select(AuditLog))).scalars().all()
+    assert audits == []
+
+
+async def test_be02_superadmin_self_role_noop_returns_403(
+    client, db_session, persist_user, make_auth_headers
+):
+    """The role key itself is blocked: resending the superadmin's current role still gets 403."""
+    superadmin = await persist_user(role=UserRole.superadmin)
+
+    response = await client.patch(
+        f"/usuarios/{superadmin.cedula}",
+        json={"role": "superadmin"},
+        headers=make_auth_headers(superadmin),
+    )
+
+    assert response.status_code == 403
+    assert set(response.json()) == {"detail"}
+
+    await db_session.refresh(superadmin)
+    assert superadmin.role == UserRole.superadmin
+    audits = (await db_session.execute(select(AuditLog))).scalars().all()
+    assert audits == []
+
+
+async def test_be02_superadmin_self_role_with_profile_fields_mutates_nothing(
+    client, db_session, persist_user, make_auth_headers
+):
+    """A role key mixed with profile fields rejects the whole PATCH: no field changes."""
+    superadmin = await persist_user(role=UserRole.superadmin)
+
+    response = await client.patch(
+        f"/usuarios/{superadmin.cedula}",
+        json={"role": "tourist", "first_name": "Changed"},
+        headers=make_auth_headers(superadmin),
+    )
+
+    assert response.status_code == 403
+    assert set(response.json()) == {"detail"}
+
+    await db_session.refresh(superadmin)
+    assert superadmin.first_name == "John"
+    assert superadmin.role == UserRole.superadmin
+
+
+async def test_be02_superadmin_keeps_powers_after_rejected_self_demotion(
+    client, db_session, persist_user, make_auth_headers
+):
+    """After a rejected self-demotion the same token still changes third-party roles."""
+    superadmin = await persist_user(role=UserRole.superadmin)
+    tourist = await persist_user(role=UserRole.tourist)
+    headers = make_auth_headers(superadmin)
+
+    rejected = await client.patch(
+        f"/usuarios/{superadmin.cedula}", json={"role": "tourist"}, headers=headers
+    )
+    accepted = await client.patch(
+        f"/usuarios/{tourist.cedula}", json={"role": "admin"}, headers=headers
+    )
+
+    assert rejected.status_code == 403
+    assert accepted.status_code == 200
+    assert accepted.json()["role"] == "admin"
+
+    await db_session.refresh(tourist)
+    assert tourist.role == UserRole.admin
+
+
+async def test_be02_superadmin_self_profile_update_returns_200(
+    client, db_session, persist_user, make_auth_headers
+):
+    """A superadmin still edits their own profile; the audit row records exactly that change."""
+    superadmin = await persist_user(role=UserRole.superadmin)
+
+    response = await client.patch(
+        f"/usuarios/{superadmin.cedula}",
+        json={"first_name": "Changed"},
+        headers=make_auth_headers(superadmin),
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["first_name"] == "Changed"
+    assert body["cedula"] == superadmin.cedula
+
+    await db_session.refresh(superadmin)
+    assert superadmin.first_name == "Changed"
+    assert superadmin.role == UserRole.superadmin
+
+    audits = (await db_session.execute(select(AuditLog))).scalars().all()
+    assert len(audits) == 1
+    assert audits[0].action == AuditAction.UPDATE
+    assert audits[0].performed_by == superadmin.cedula
+    assert audits[0].changes == {"first_name": "Changed"}
+
+
+async def test_be02_superadmin_changes_third_party_role_returns_200(
+    client, db_session, persist_user, make_auth_headers
+):
+    """A superadmin still changes a lower-rank account's role; the audit row names both ends."""
+    superadmin = await persist_user(role=UserRole.superadmin)
+    admin = await persist_user(role=UserRole.admin)
+
+    response = await client.patch(
+        f"/usuarios/{admin.cedula}",
+        json={"role": "tourist"},
+        headers=make_auth_headers(superadmin),
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["role"] == "tourist"
+    assert body["cedula"] == admin.cedula
+
+    await db_session.refresh(admin)
+    assert admin.role == UserRole.tourist
+
+    audits = (await db_session.execute(select(AuditLog))).scalars().all()
+    assert len(audits) == 1
+    assert audits[0].entity_id == admin.cedula
+    assert audits[0].performed_by == superadmin.cedula
+    assert audits[0].changes == {"role": "tourist"}
 
 
 # --- B3 regression: a superadmin deletes third-party accounts (audit B3) ---
