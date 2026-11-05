@@ -1,7 +1,9 @@
 # Sesiones de IA: cómo arrancar cualquiera sin depender de ninguna conversación anterior
 
-> **Versión 1.2 — 1 nov 2026.** Cambios de esta versión: bitácora `2026-11-01` (paso 3: pasada de citas con `--copias`,
-> candidatos con `--huerfanas` y `--cierre` antes del commit de cierre; AF-01). Versiones anteriores: `2026-10-31` (1.1,
+> **Versión 1.3 — 4 nov 2026.** Cambios de esta versión: bitácora `2026-11-04` (regla del retoque: un retoque aprobado
+> a un plan es una edición a `plan.md` antes de `/implementar`, o no existe; decidida el 2 nov, aplicada el 3 y el 4).
+> Versiones anteriores: `2026-11-01` (1.2, paso 3: pasada de citas con `--copias`,
+> candidatos con `--huerfanas` y `--cierre` antes del commit de cierre; AF-01); `2026-10-31` (1.1,
 > paso 1 del ritual de cierre: de quién es la bitácora y qué hace la sesión con ella; regla decidida el 29 y llevada a
 > su dueño el 31);
 > `2026-10-30` (1.0, primera numerada según ADR-0007: paso 3 del ritual de cierre: dueños → tabla de `CONTEXT.md` §0;
@@ -54,6 +56,14 @@ porque cada uno alimenta al siguiente:
 
 Si una sesión no cierra con esto, la siguiente empieza desactualizada; y la que lo note deja fe de erratas
 en la bitácora del día en que lo nota, nunca editando la bitácora anterior.
+
+**Regla del retoque (decidida el 2 nov, aquí desde el 4).** Un retoque aprobado a un plan (una decisión que el
+planificador dejó abierta, un cambio de alcance, una fase nueva) es una **edición a `plan.md`** (o a la adenda de
+`verificacion.md`, si es anterior al plan) hecha antes de `/implementar`, o no existe: los agentes leen archivos, no
+conversaciones. Se registra en la sección "Enmiendas aprobadas" de `plan.md` con fecha y hora, con el texto literal
+de David, y el planificador recalcula lo que dependa de ella (tabla de fases, Verificación final, `progress.json`,
+incluido `current_target` si la enmienda añade una fase). Ejemplos: la adenda y las cinco enmiendas de AF-05 (3 nov);
+E1–E3 de BE-15 (4 nov).
 
 ## Comandos de Claude Code (se escriben en la sesión abierta con `claude` en la raíz del repo)
 
