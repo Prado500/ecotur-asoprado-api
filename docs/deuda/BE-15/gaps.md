@@ -569,3 +569,169 @@ no se borran.
   del mapa de identidad (débil) al terminar la petición. El `refresh` es defensivo (ADR-0011, "refresh después"),
   inocuo y válido antes y después de F, pero hoy no es lo que hace caer el test. Sin acción en el código; la ficha o
   la bitácora pueden corregir la explicación.
+
+## Auditoría Fase F — 2026-11-04
+
+- **Veredicto:** PASS (0 bloqueantes, 5 opcionales). F es la última fase: el juicio de cierre de BE-15 va al final.
+- **Auditado:** `22d9a22` (test), `2c8e3d5` (ADR) y `2a1ee41` (`progress.json` y handoff). Base de la fase: `70b0f2e`
+  (`git rev-parse 22d9a22^`). Base develop: `7877829`.
+- **Árbol:** `git status --short` vacío antes y después de la auditoría; HEAD `2a1ee41`, rama `bloque/b-tests`. RED,
+  mutantes y sondeos de mypy con plugins y copias en el scratchpad (prefijo `audF_`); en el repo solo se escribió
+  este archivo.
+- **Bloqueantes anteriores:** ninguno (A–E y D-bis cerraron en PASS). Los opcionales 1, 2 y 3 de la fase C (autouse sin
+  vigilar, anotación `MagicMock`, falta de `Yields:`) quedan atendidos por `22d9a22` (enmienda E2).
+
+### Evidencia
+
+- Compuerta re-ejecutada (`./venv/Scripts/python.exe scripts/check.py`, exit 1, rojo heredado previsto por la
+  decisión 8 del plan):
+
+  ```
+  === RESUMEN ===
+    ✔ ruff format --check
+    ✘ ruff check
+    ✘ mypy
+    ✔ import-linter
+    ✔ docs (coherencia)
+    ✔ pytest + cobertura
+
+  Compuerta NO superada: ruff check, mypy
+  ```
+
+  | Medida | Línea base (`verificacion.md`) | Auditor | Fila "Fase F" (`plan.md:80`) | Handoff |
+  |---|---|---|---|---|
+  | pytest | 376 passed | `396 passed, 5 warnings in 11.45s` | 396 | 396 |
+  | Cobertura | 94.81 % | `TOTAL 942 34 136 22 94.81%` | ≥ 94.81 % | 94.81 % |
+  | import-linter | 4 kept | `Contracts: 4 kept, 0 broken.` | 4 KEPT | 4 KEPT |
+  | ruff total | 60 | `Found 54 errors.` | 54 | 54 |
+  | ruff en `tests/` | 7 | `Found 1 error.` (I001 heredado de `tests/test_user_service.py:3`) | 1 | 1 |
+  | mypy | 10 | `Found 10 errors in 5 files (checked 35 source files)` (todos en `app/`) | 10 | 10 |
+  | ruff format | OK | `53 files already formatted` | OK | OK |
+
+  Archivos tocados: `ruff check tests/conftest.py tests/test_fixtures_contract.py` → `All checks passed!`; `ruff
+  format --check` → `2 files already formatted`. `git ls-files --eol` → `i/lf w/lf` en los tres archivos de la fase,
+  `progress.json` y `handoff-Fase_F.md`.
+- Commits: `git show --stat` → `22d9a22` = `tests/conftest.py` + `tests/test_fixtures_contract.py`; `2c8e3d5` = solo
+  el ADR; `2a1ee41` = solo `handoff-Fase_F.md` y `progress.json`. No se usó el hueco de dos archivos de test más.
+  Mensajes sin el trailer contra `plan.md:693-715` y `:718-726` con `diff` → idénticos los dos.
+- Cambios exactos contra el diff: `client()` sin `db_session` y override con `async with TestingSessionLocal() as
+  session: yield session` (`tests/conftest.py:62-78`); docstring de `client` con las dos reglas y la cita a ADR-0011
+  (`:63-74`); docstring de `db_session` ("the test's own … The app never receives this session", `:52-56`); `Yields:`
+  con el texto literal en `mock_send_email` (`:137-138`), sin otro cambio en el fixture. `test_fixtures_contract.py`:
+  fuera `MagicMock`, dentro `Any` (`:3`) y `real_send_verification_email` (`:10`); `mock_send_email: Any` (`:54`); los
+  4 tests con los nombres del plan (`:64`, `:69`, `:83`, `:96`), los tres de sesión con `client` + `db_session`,
+  `app.dependency_overrides[get_db]()`, `anext` y `aclose()`; el 4, síncrono, sin parámetros y con la docstring
+  literal.
+- (1) RED reproducido por el auditor: `tests/conftest.py` de `70b0f2e` como plugin (`PYTHONPATH=<scratchpad> pytest -q
+  -p no:cacheprovider --noconftest -p audF_old_conftest tests/test_fixtures_contract.py -rf`) → `2 failed, 7 passed`;
+  caen exactamente `test_each_request_gets_its_own_session` y
+  `test_app_flush_without_commit_is_invisible_to_the_test`. Con el `conftest.py` de HEAD → `9 passed`.
+- (2) Mutación E2 reproducida con un plugin propio (`audF_no_autouse.py`: el `conftest.py` de HEAD con una sola línea
+  cambiada, `diff --strip-trailing-cr` → `128c128 < @pytest.fixture(autouse=True) --- > @pytest.fixture`; idéntico
+  al `f_be15_no_autouse.py` del ejecutor) → `1 failed, 8 passed`; cae solo
+  `test_email_dispatch_is_patched_without_requesting_the_fixture`. `git hash-object tests/conftest.py` =
+  `ffc3e71…` antes y después = `HEAD:tests/conftest.py` → `IGUAL`.
+- (3) Verificación final (`plan.md:784-848`) re-ejecutada entera con plugins propios (`audF_no_autouse`,
+  `audF_dbis_mutants` extraído de `plan.md:526-581`); cada cifra coincide con la que dicta el plan y con el handoff:
+  1 → `0`; 2 → `0` y `tests/conftest.py:140`; 3 → `0 0 0 0`; 4 → `tests/conftest.py:129:def mock_send_email():` y `1`;
+  4b → `1 0 1 1`, `1 failed, 8 passed`, `IGUAL`; 5 → `0` y las dos líneas "Tour corto" (`tests/test_services.py:718`,
+  `:722`); 6 → `0 0`; 6b → `1 0` y `19 tests collected`; 6c → `0 9 1 1`; mutantes de D-bis con la sesión nueva: vacío
+  `4 passed`, `extra_key_403` y `detail_not_str_403` `2 failed, 2 passed` (los dos 403), `recover_no_message` y
+  `recover_message_not_str` `1 failed, 3 passed` (recuperación), `row_role`, `row_is_active` y `row_deleted_at` `1
+  failed, 3 passed` (`test_superadmin_provisions_admin_account`); 7 → `10`; 8 → `10`; 9 → `9`; 10 → `0` y `2`; 11 →
+  `1 0 0 1`; 12 → `Found 1 error.` y `Found 54 errors.`; 13 → vacío; 14 → `IGUAL`; 15 → la compuerta de arriba.
+- Sondeo del auditor, el commit olvidado de A3 (el motivo de (4)): plugin `audF_forgot_commit.py` que hace que
+  `UserRepository.create_user` haga `flush()` sin `commit()`. Suite completa con HEAD → `1 failed, 395 passed` (cae
+  `test_superadmin_provisions_admin_account`, la relectura que añadió D-bis); con el `conftest.py` de `70b0f2e` → `2
+  failed, 394 passed` (solo los dos contratos de sesión, que con ese conftest fallan siempre): la sesión compartida lo
+  ocultaba y la sesión por petición lo detecta. El registro no cae porque `log_transaction` confirma después de
+  `create_user` (`app/services/user_service.py:94-101`), así que ahí no hay commit olvidado.
+- ADR-0011: `diff docs/deuda/BE-15/adr-0011-borrador.md docs/adr/0011-…md` → solo `1,5c1` (título sin " (borrador)";
+  fuera la línea en blanco y las tres líneas `>`); el resto, byte a byte. Contenido frente a D1 (`plan.md:219-224`):
+  decisión (sesión por petición, aparte de la del test), límite aceptado con los tres puntos (conexión compartida por
+  `StaticPool`; aislamiento de sesión, no de transacción; commit olvidado detectado al cerrar la sesión de la app),
+  las dos reglas en "Consecuencias" y las tres alternativas (sesión compartida, conexiones separadas, PostgreSQL →
+  BE-31). Formato: contexto, decisión, consecuencias y alternativas presentes; falta "Evidencia" (opcional 2).
+- `progress.json`: JSON válido; `Fase_F` = `completed`, `commit` `"22d9a22 2c8e3d5"` (los dos reales, formato
+  `"<test> <docs>"` que dicta `plan.md:691`); `Fase_F_min` = `completed` con `22d9a22`, que es lo que dice su
+  descripción ("if Fase_F is completed, mark this completed with Fase_F's test commit hash"), y es necesario para que
+  `read_progress` (`scripts/check_docs.py:451-478`) pueda dar el ítem por ejecutado. `current_target` = `"Auditoria"`:
+  precedente real en `docs/deuda/AF-05/progress.json:3`. `last_handoff` actualizado. El diff de `2a1ee41` solo toca
+  esos campos de las dos fases, `current_target` y `last_handoff`; `edit_rules` y `approval` intactos.
+  `check_docs.py --estado` → `BE-15: … en ejecución (objetivo: Auditoria) → handoffs: … Fase_F → …` (ver opcional 4).
+- Fuera de alcance intacto: `git diff --stat 7877829..HEAD -- app/ pyproject.toml scripts/ .azure-pipelines/ .claude/
+  AGENTS.md CLAUDE.md` → vacío; `git status --short -- app/ AGENTS.md CLAUDE.md` → vacío.
+- Desviaciones declaradas: (a) plugin `f_be15_no_autouse.py` en vez de `be15_no_autouse.py`: aceptable, mismo
+  contenido (`diff` contra el del auditor → idéntico salvo fin de línea). (b) imports `func`, `select`, `get_db` y
+  `User` no listados: aceptable, los tests 1-3 tal como los describe `plan.md:657-664` no se pueden escribir sin ellos;
+  0 errores de ruff. (c) copia temporal `tests/_f_head_probe.py`: no está en el árbol (`ls tests/`) ni en ningún commit
+  (`git log --all -- tests/_f_head_probe.py` → vacío). Aceptable; nota de proceso: el sondeo cabe en el scratchpad
+  (`mypy --cache-dir <scratchpad> <copia>`, como hizo esta auditoría) sin crear nada dentro de `tests/`.
+- AGENTS §5 en los 4 tests: sin mocks nuevos; aserciones sobre identidad, recuento y filas (`[row.email for row in
+  rows] == [user.email]`, más estricto que "una fila"); nada de texto en español; docstrings en inglés. El test 3 es el
+  borde que impide un aislamiento excesivo (un commit sí llega); el 2 es el fallo que (4) quería detectar.
+
+### Hallazgos
+
+- [OPCIONAL] — Fase F — mypy sobre el archivo tocado pasa de 0 a 2 errores: `tests/test_fixtures_contract.py:59`
+  (`Unexpected keyword argument "recipient" for "send_verification_email" [call-arg]`) y `:61` (`… has no attribute
+  "assert_not_called" [attr-defined]`). Causa: tras `assert user_router.send_verification_email is mock_send_email`
+  (`:56`) mypy estrecha el `Any` de E2 al tipo de la función real. La copia de `70b0f2e` da 0 errores en el archivo
+  (sondeo del auditor). No bloquea: `tests/` está fuera de `[tool.mypy] files` (`pyproject.toml:90`), la decisión 8 mide
+  mypy por el total de la compuerta (sigue en 10) y la anotación es el texto literal de E2; es el mismo criterio de los
+  opcionales de A y B. Pero, a diferencia de aquellos, este error lo introduce la fase. El opcional 2 de la fase C
+  propuso `Any` sin prever el estrechamiento. Arreglo mínimo, probado en una copia (0 errores en el archivo): tras el
+  `is`, `double: Any = user_router.send_verification_email` y usar `double` en `:59` y `:61`. Sin import nuevo. También
+  vale `double = cast(Any, mock_send_email)`. Invertir los operandos del `is` no lo arregla. Destino: el próximo PR que
+  toque el archivo, como tarde cuando `tests/` entre en mypy (PLAN día 4-5).
+- [OPCIONAL] — Fase F — ADR-0011 no tiene sección "Evidencia" (AGENTS §7 la nombra en el formato Nygard). No es
+  bloqueante: D1 pidió un ADR "corto" y enumeró su contenido sin evidencia (`plan.md:219-222`), y 5 de los 10 ADR
+  aceptados tampoco la tienen (0002, 0005, 0007, 0008, 0009). La evidencia existe: el RED de esta fase (`2 failed, 7
+  passed` → `9 passed`), el ensayo en seco del plan (`1 failed, 375 passed`, `plan.md:168-174`) y el sondeo del commit
+  olvidado de esta auditoría. Destino: si David la quiere en el ADR, un addendum (ADR-0009, "corregir una omisión"); el
+  ADR aceptado no se edita.
+- [OPCIONAL] — Fase F — las docstrings reescritas de `client` y `db_session` (`tests/conftest.py:52-56`, `:63-74`) no
+  tienen sección `Yields:` (AGENTS §4). Es el mismo defecto que el opcional 3 de la fase C para `mock_send_email`, que
+  esta fase corrige; el plan dictó su contenido, no su formato. Destino: el próximo PR que toque `conftest.py`.
+- [OPCIONAL] — Fase F — `current_target: "Auditoria"` es válido por el precedente de AF-05, pero `check_docs.py
+  --estado` mantiene BE-15 "en ejecución". Los ítems cerrados (`docs/deuda/BE-01/progress.json:3`,
+  `docs/deuda/AF-01/progress.json:3`) tienen `null` y salen como "ejecutado (todas las fases); pendiente de PR o
+  mezclado". Destino: al cerrar el ítem tras esta auditoría, `current_target` pasa a `null`. Lo decide David, porque
+  `edit_rules` reserva ese campo a la sesión que ejecuta una fase.
+- [OPCIONAL] — Fase F — ADR-0011 no figura en la tabla de decisiones de `docs/CONTEXT.md` (§6; la fila de ADR-0010
+  está en `:234`). Fuera del alcance del plan (`plan.md:233-235`). Destino: el PR de cierre de David, junto a las reglas
+  de AGENTS §5.
+
+### Juicio de cierre de BE-15
+
+- Sub-hallazgos de `verificacion.md` (l.8-13):
+  - (1) mocks sin spec: **cerrado**. Verificación final 1 → 0 y 2 → 0; un solo `patch`, con autospec
+    (`tests/conftest.py:140`).
+  - (2) preparación a mano: **cerrado**. Puntos 3 → 0/0/0/0 y 4 → un solo `mock_send_email`.
+  - (3) texto en español: **cerrado**. Puntos 5 y 6 → 0; 6c → 9 formas `{"detail"}`.
+  - (4) sesión compartida: **cerrado**. Punto 10 → 0/2; RED de F reproducido; el commit olvidado ahora se detecta (sondeo
+    de arriba); ADR-0011.
+  - (6) B2/B3: **cerrado**. Punto 8 → 10 definiciones (11 casos), sensibilidad por mutantes en E.
+  - (5) ya estaba corregido al verificar.
+- Residuales del plan (`plan.md:851-861`), sin cambios:
+  - 10 aserciones de mock sin argumentos (punto 7). Destino: backlog, `B-TESTS m3`.
+  - I001 de `tests/test_user_service.py:3`. Destino: el próximo cambio que toque el archivo.
+  - `sqlalchemy.future` en `tests/test_services.py:14` y `tests/test_user_access_policy.py:13`. Destino: S2.
+  - Tests HTTP duplicados entre `test_auth.py` y `test_user_access_policy.py`. Destino: backlog, prioridad baja.
+  - Comentario en español en `tests/test_audit.py:37`. Destino: el próximo PR que toque el archivo.
+  - Claves en español de la recuperación (`cc`, `correo`, `nombre`, `apellido`). Destino: P2.
+- Opcionales acumulados A–F y su destino:
+  - A y B (mypy en tests heredado: `no-any-return` de `persist_user`, hoy en `tests/conftest.py:239`; `[index]` de
+    `test_services.py`; `no-any-return` de `test_audit.py`): con la entrada de `tests/` en mypy (PLAN día 4-5).
+  - C 1-3: atendidos en `22d9a22`.
+  - D 1 (403 sin distinguir la causa): backlog. Para cerrarlo hace falta un código de error estable con ADR, o
+    subclases de `AuthorizationError` registradas.
+  - D 2: atendido en `c8743ed`.
+  - E 1 (403 con el mismo rol): solo si producto lo cambia, junto a BE-02.
+  - D-bis 1 (subconjunto en la recuperación): una nota en la fila P2 del backlog.
+  - D-bis 2: corregido en `70b0f2e`.
+  - F 1-5: arriba.
+- Tarea pendiente de **David**: llevar a AGENTS §5, por PR, las dos reglas de ADR-0011 ("commit antes de la petición",
+  "refresh después"), y con ellas la fila de ADR-0011 en CONTEXT §6 y `current_target: null` en `progress.json`.
+  Ninguna fase lo hace (decisión 7).
+- Veredicto de cierre: BE-15 queda cumplido en lo que el plan exige; el ítem está listo para el PR del bloque: PASS
