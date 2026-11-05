@@ -1,0 +1,64 @@
+{
+  "plan_file": "docs/deuda/BE-15/plan.md",
+  "approval": {
+    "date": "2026-11-04",
+    "by": "David",
+    "status": "aprobado con enmiendas D1-D3 + salvaguarda E",
+    "amendments": [
+      "D1: sí, ADR-0011 corto (decisión, límite aceptado, consecuencias con las dos reglas, alternativas: sesión compartida, conexiones separadas, Postgres -> BE-31); la fase F lo copia a docs/adr/. El plan no edita AGENTS.md: David lleva las reglas a AGENTS §5 por PR al cierre.",
+      "D2: sí, mock_send_email autouse con autospec=True en tests/conftest.py.",
+      "D3: sí, el caso de credenciales inválidas pasa a contraseña incorrecta (test_login_wrong_password_returns_401_with_bearer_challenge).",
+      "Salvaguarda E: antes del commit de E, git hash-object app/services/user_access_policy.py == git rev-parse HEAD:app/services/user_access_policy.py; si algún método editara el archivo, se restaura byte a byte."
+    ]
+  },
+  "current_target": "Auditoria",
+  "phases": {
+    "Fase_A": {
+      "status": "completed",
+      "commit": "9484b04",
+      "description": "Global storage double as create_autospec(AzureStorageClient, instance=True); test_services.py:234 side_effect on the autospecced method; new tests/test_fixtures_contract.py with 4 tests (3 RED). Target: 380 passed, ruff 60."
+    },
+    "Fase_B": {
+      "status": "completed",
+      "commit": "fc06d1e",
+      "description": "test_services.py drops admin_token/auth_headers (13 tests move to admin_headers); test_audit.py drops superadmin_token and hand-built tourist; same test IDs. Target: 380 passed, ruff 59."
+    },
+    "Fase_C": {
+      "status": "completed",
+      "commit": "bf22982",
+      "description": "D2: single @pytest.fixture(autouse=True) autospecced mock_send_email in conftest; test_user_response.py drops its copy; test_auth.py l.1-175: 8 tests renamed, factories, codes+structure instead of Spanish text, refresh after requests; D3 wrong-password login case; +1 contract test (RED). Target: 381 passed, ruff 56."
+    },
+    "Fase_D": {
+      "status": "completed",
+      "commit": "ee9d54b",
+      "description": "test_auth.py l.177-657: 11 RBAC tests renamed and built on persist_user/make_auth_headers; last 3 Spanish assertions become detail shape + no mutation. Target: 381 passed, ruff 56."
+    },
+    "Fase_E": {
+      "status": "completed",
+      "commit": "84ad522",
+      "description": "test_user_access_policy.py: 5 B2 + 5 B3 tests (11 cases) over HTTP; E501 at l.347/395 fixed; mutant run must give exactly 6 failed, 5 passed. Target: 392 passed, ruff 54. Safeguard: git hash-object app/services/user_access_policy.py must equal git rev-parse HEAD:app/services/user_access_policy.py before the commit."
+    },
+    "Fase_D_bis": {
+      "status": "completed",
+      "commit": "c8743ed",
+      "description": "Amendment E3 (4 Nov, 17:28). Runs after E and before F; not cuttable. Only tests/test_auth.py, the four kept tests: l.213 and l.232 assert set(body) == {'detail'} and detail is str; l.324-325 assert {'success','message'} <= set(body), success is True, message is str (cc/correo/nombre/apellido not frozen: P2); l.404-408 also read the created admin row with select + refresh (ADR-0011) and assert role admin, is_active True, deleted_at None. 0 new tests. RED is an audit mutation without editing app/ or the repo: each mutant must survive the old assertions and kill only its test. Target: 392 passed, ruff 54 (tests/ 1), mypy 10. Commit message in the plan."
+    },
+    "Fase_F": {
+      "status": "completed",
+      "commit": "22d9a22 2c8e3d5",
+      "description": "Cuttable. Per-request app session in conftest client fixture; +3 contract tests (2 RED); docs/adr/0011-sesion-de-la-app-distinta-de-la-del-test.md copied from the BE-15 draft (D1 = yes; quote block and ' (borrador)' removed). Amendment E2 (4 Nov, 12:25): +1 contract test without the mock_send_email parameter asserting the router's send_verification_email is not the real app.core.email function (starts green; audit mutant without autouse=True must give 1 failed, 8 passed); mock_send_email annotated Any (MagicMock import removed); Yields: section in the fixture docstring; conftest.py hash safeguard before commit. AGENTS.md untouched. The commit field stores '<test> <docs>'. Target: 396 passed, ruff 54."
+    },
+    "Fase_F_min": {
+      "status": "completed",
+      "commit": "22d9a22",
+      "description": "Amendment E2. Only if Fase_F is cut; runs before the block PR. Mutually exclusive with Fase_F: if Fase_F is completed, mark this completed with Fase_F's test commit hash (its content is inside F). Files: tests/test_fixtures_contract.py and the mock_send_email docstring in tests/conftest.py (Yields:); no session change, no ADR-0011. +1 test without the fixture parameter (starts green; audit mutant without autouse=True must give 1 failed, 5 passed); Any annotation, MagicMock import removed; conftest.py hash safeguard before commit. Target: 393 passed, ruff 54 (tests/ 1), mypy 10."
+    }
+  },
+  "allowed_statuses": [
+    "pending",
+    "partial",
+    "completed"
+  ],
+  "last_handoff": "Fase F completada (22d9a22 test + 2c8e3d5 docs): override de get_db con una sesion de TestingSessionLocal por peticion, client sin db_session, docstrings de client (dos reglas, ADR-0011) y db_session; +4 tests de contrato (1 y 2 RED -> GREEN; 3 y 4 verdes desde el inicio); mutante sin autouse 1 failed, 8 passed (solo el test 4), sin plugin 9 passed; salvaguarda IGUAL/1 antes y IGUAL tras el commit; 0 tests rotos por la sesion; ADR-0011 copiado del borrador. Compuerta 396 passed, 94.81 %, 4 KEPT, ruff 54 (tests/ 1), mypy 10 (fila F exacta); Verificacion final 1-15 exacta. Fase_F_min marcada completed con el hash de test de F (excluyentes). Hallazgo: mypy explicito sobre test_fixtures_contract.py da 2 errores (l.59, 61) por el estrechamiento de Any tras 'is' (fuera del alcance de mypy de pyproject). Siguiente: /auditar BE-15 F.",
+  "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
+}

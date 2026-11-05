@@ -8,7 +8,7 @@ Role-Based Access Control (RBAC).
 
 from datetime import UTC, datetime
 from decimal import Decimal
-from unittest.mock import AsyncMock, create_autospec
+from unittest.mock import create_autospec
 
 import pytest
 from sqlalchemy.future import select
@@ -19,12 +19,11 @@ from app.core.exceptions import (
     StorageUnavailableError,
     UnsupportedMediaTypeError,
 )
-from app.core.security import create_access_token, get_password_hash
 from app.core.storage import AzureStorageClient, StagedImage
 from app.main import app
 from app.models.audit import AuditLog
 from app.models.service import ServiceCategory, ServiceImage, TouristService
-from app.models.user import User, UserRole
+from app.models.user import UserRole
 
 # ==========================================
 # TEST FIXTURES (Context Setup)
@@ -32,36 +31,11 @@ from app.models.user import User, UserRole
 
 
 @pytest.fixture
-async def admin_token(db_session) -> str:
-    """
-    Seeds a temporary administrator user into the test database and
-    generates a valid JWT token for endpoint authorization.
-
-    Args:
-        db_session: The active SQLAlchemy asynchronous test session.
-
-    Returns:
-        str: A signed JWT access token containing admin role claims.
-    """
-    admin = User(
-        cedula="999999999",
-        email="admin.test@asoprado.com",
-        first_name="Admin",
-        last_name="Asoprado",
-        password_hash=get_password_hash("AdminSecr3t"),
-        role=UserRole.admin,
-        is_active=True,
-        data_consent=True,
-    )
-    db_session.add(admin)
-    await db_session.commit()
-    return create_access_token(data={"sub": admin.email, "role": admin.role.value})
-
-
-@pytest.fixture
-async def auth_headers(admin_token: str) -> dict:
-    """Returns standard HTTP Authorization headers utilizing the admin token."""
-    return {"Authorization": f"Bearer {admin_token}"}
+async def admin_headers(persist_user, make_auth_headers) -> dict:
+    """Authorization headers of a persisted admin built with the central factories."""
+    admin = await persist_user(role=UserRole.admin)
+    headers: dict = make_auth_headers(admin)
+    return headers
 
 
 @pytest.fixture
@@ -97,7 +71,7 @@ async def test_package(db_session) -> TouristService:
 # ==========================================
 
 
-async def test_deactivate_and_activate_package(client, auth_headers, test_package, db_session):
+async def test_deactivate_and_activate_package(client, admin_headers, test_package, db_session):
     """
     Validates the boolean toggling mechanism for public availability.
 
@@ -106,7 +80,7 @@ async def test_deactivate_and_activate_package(client, auth_headers, test_packag
     """
     # 1. ACT: Trigger deactivation (Move to 'Por Activar')
     deactivate_response = await client.patch(
-        f"/servicios/{test_package.id}/desactivar", headers=auth_headers
+        f"/servicios/{test_package.id}/desactivar", headers=admin_headers
     )
     assert deactivate_response.status_code == 200
 
@@ -116,7 +90,7 @@ async def test_deactivate_and_activate_package(client, auth_headers, test_packag
 
     # 3. ACT: Trigger activation (Move back to 'Activos')
     activate_response = await client.patch(
-        f"/servicios/{test_package.id}/activar", headers=auth_headers
+        f"/servicios/{test_package.id}/activar", headers=admin_headers
     )
     assert activate_response.status_code == 200
 
@@ -125,7 +99,7 @@ async def test_deactivate_and_activate_package(client, auth_headers, test_packag
     assert test_package.is_available is True
 
 
-async def test_soft_delete_and_recover(client, auth_headers, test_package, db_session):
+async def test_soft_delete_and_recover(client, admin_headers, test_package, db_session):
     """
     Validates the logical deletion flow and the business recovery rules.
 
@@ -134,7 +108,7 @@ async def test_soft_delete_and_recover(client, auth_headers, test_package, db_se
     unauthorized public exposure.
     """
     # 1. ACT: Perform logical deletion
-    delete_response = await client.delete(f"/servicios/{test_package.id}", headers=auth_headers)
+    delete_response = await client.delete(f"/servicios/{test_package.id}", headers=admin_headers)
     assert delete_response.status_code == 200
 
     # 2. ASSERT: Verify the soft deletion state
@@ -144,7 +118,7 @@ async def test_soft_delete_and_recover(client, auth_headers, test_package, db_se
 
     # 3. ACT: Perform recovery
     recover_response = await client.patch(
-        f"/servicios/{test_package.id}/recuperar", headers=auth_headers
+        f"/servicios/{test_package.id}/recuperar", headers=admin_headers
     )
     assert recover_response.status_code == 200
 
@@ -154,7 +128,7 @@ async def test_soft_delete_and_recover(client, auth_headers, test_package, db_se
     assert test_package.is_available is False
 
 
-async def test_update_package_details(client, auth_headers, test_package, db_session):
+async def test_update_package_details(client, admin_headers, test_package, db_session):
     """
     Validates deep updates on an existing package entity.
 
@@ -171,7 +145,7 @@ async def test_update_package_details(client, auth_headers, test_package, db_ses
 
     # 1. ACT: Submit partial update payload
     update_response = await client.put(
-        f"/servicios/{test_package.id}", json=update_payload, headers=auth_headers
+        f"/servicios/{test_package.id}", json=update_payload, headers=admin_headers
     )
 
     # 2. ASSERT: Verify HTTP response format
@@ -188,7 +162,7 @@ async def test_update_package_details(client, auth_headers, test_package, db_ses
     assert test_package.max_capacity == 25
 
 
-async def test_upload_images_staging_endpoint(client, auth_headers):
+async def test_upload_images_staging_endpoint(client, admin_headers):
     """
     Validates the ephemeral CDN staging endpoint.
     Asserts that multipart/form-data binaries are correctly ingested and
@@ -197,7 +171,7 @@ async def test_upload_images_staging_endpoint(client, auth_headers):
     fake_file = ("images", ("test_image.jpg", b"fake_binary_payload", "image/jpeg"))
 
     response = await client.post(
-        "/servicios/upload-images/", files=[fake_file], headers=auth_headers
+        "/servicios/upload-images/", files=[fake_file], headers=admin_headers
     )
 
     assert response.status_code == 200
@@ -207,7 +181,7 @@ async def test_upload_images_staging_endpoint(client, auth_headers):
     assert "temp-ecotur-images" in data["image_urls"][0]
 
 
-async def test_upload_images_ceiling_limit_rejection(client, auth_headers):
+async def test_upload_images_ceiling_limit_rejection(client, admin_headers):
     """
     Validates the fail-fast ceiling gate on the staging endpoint.
     Asserts that 11 multipart images are rejected with 400 before any
@@ -215,7 +189,7 @@ async def test_upload_images_ceiling_limit_rejection(client, auth_headers):
     """
     files = [("images", (f"image_{i}.jpg", b"payload", "image/jpeg")) for i in range(11)]
 
-    response = await client.post("/servicios/upload-images/", files=files, headers=auth_headers)
+    response = await client.post("/servicios/upload-images/", files=files, headers=admin_headers)
 
     assert response.status_code == 400
     assert "detail" in response.json()
@@ -224,19 +198,19 @@ async def test_upload_images_ceiling_limit_rejection(client, auth_headers):
     storage_mock.upload_image.assert_not_awaited()
 
 
-async def test_upload_images_storage_outage_returns_503(client, auth_headers):
+async def test_upload_images_storage_outage_returns_503(client, admin_headers):
     """
     Validates the CDN outage translation to 503 Service Unavailable.
     Asserts the storage client was invoked exactly once with a well-formed
     StagedImage built by the transport layer from the multipart binary.
     """
     failing_client = create_autospec(AzureStorageClient, instance=True)
-    failing_client.upload_image = AsyncMock(side_effect=StorageUnavailableError("cdn outage"))
+    failing_client.upload_image.side_effect = StorageUnavailableError("cdn outage")
     app.dependency_overrides[get_storage_client] = lambda: failing_client
 
     fake_file = ("images", ("test_image.jpg", b"fake_binary_payload", "image/jpeg"))
     response = await client.post(
-        "/servicios/upload-images/", files=[fake_file], headers=auth_headers
+        "/servicios/upload-images/", files=[fake_file], headers=admin_headers
     )
 
     assert response.status_code == 503
@@ -250,49 +224,49 @@ async def test_upload_images_storage_outage_returns_503(client, auth_headers):
     assert staged.content == b"fake_binary_payload"
 
 
-async def test_toggle_nonexistent_package_returns_404(client, auth_headers):
+async def test_toggle_nonexistent_package_returns_404(client, admin_headers):
     """Unhappy path: activating a package that does not exist yields 404, not a mutation."""
-    response = await client.patch("/servicios/999999/activar", headers=auth_headers)
+    response = await client.patch("/servicios/999999/activar", headers=admin_headers)
 
     assert response.status_code == 404
     assert "detail" in response.json()
 
 
-async def test_soft_delete_nonexistent_package_returns_404(client, auth_headers):
+async def test_soft_delete_nonexistent_package_returns_404(client, admin_headers):
     """Unhappy path: soft-deleting a package that does not exist yields 404."""
-    response = await client.delete("/servicios/999999", headers=auth_headers)
+    response = await client.delete("/servicios/999999", headers=admin_headers)
 
     assert response.status_code == 404
     assert "detail" in response.json()
 
 
-async def test_update_nonexistent_package_returns_404(client, auth_headers):
+async def test_update_nonexistent_package_returns_404(client, admin_headers):
     """Unhappy path: updating a package that does not exist yields 404."""
     payload = {"name": "Un Paquete Que No Existe En La Base"}
 
-    response = await client.put("/servicios/999999", json=payload, headers=auth_headers)
+    response = await client.put("/servicios/999999", json=payload, headers=admin_headers)
 
     assert response.status_code == 404
     assert "detail" in response.json()
 
 
-async def test_recover_package_not_in_trash_returns_400(client, auth_headers, test_package):
+async def test_recover_package_not_in_trash_returns_400(client, admin_headers, test_package):
     """Edge case: recovering a package that was never soft-deleted is a 400 rule violation."""
-    response = await client.patch(f"/servicios/{test_package.id}/recuperar", headers=auth_headers)
+    response = await client.patch(f"/servicios/{test_package.id}/recuperar", headers=admin_headers)
 
     assert response.status_code == 400
     assert "detail" in response.json()
 
 
-async def test_recover_nonexistent_package_returns_400(client, auth_headers):
+async def test_recover_nonexistent_package_returns_400(client, admin_headers):
     """Edge case: recovering a package that does not exist is a 400 rule violation."""
-    response = await client.patch("/servicios/999999/recuperar", headers=auth_headers)
+    response = await client.patch("/servicios/999999/recuperar", headers=admin_headers)
 
     assert response.status_code == 400
     assert "detail" in response.json()
 
 
-async def test_update_package_image_ceiling_limit_rejection(client, auth_headers, test_package):
+async def test_update_package_image_ceiling_limit_rejection(client, admin_headers, test_package):
     """
     Validates the Fail-Fast mechanism preventing database and CDN bloat.
     Asserts that payloads exceeding the 10-image limit are intercepted and rejected
@@ -307,7 +281,7 @@ async def test_update_package_image_ceiling_limit_rejection(client, auth_headers
     }
 
     response = await client.put(
-        f"/servicios/{test_package.id}", json=malicious_payload, headers=auth_headers
+        f"/servicios/{test_package.id}", json=malicious_payload, headers=admin_headers
     )
 
     assert response.status_code == 422
@@ -315,7 +289,7 @@ async def test_update_package_image_ceiling_limit_rejection(client, auth_headers
 
 
 async def test_update_package_concurrent_reconciliation(
-    client, auth_headers, test_package, db_session
+    client, admin_headers, test_package, db_session
 ):
     """
     Validates the concurrent CDN reconciliation pattern (Constructive and Destructive).
@@ -333,7 +307,7 @@ async def test_update_package_concurrent_reconciliation(
     }
 
     res1 = await client.put(
-        f"/servicios/{test_package.id}", json=initial_payload, headers=auth_headers
+        f"/servicios/{test_package.id}", json=initial_payload, headers=admin_headers
     )
     assert res1.status_code == 200
 
@@ -354,7 +328,7 @@ async def test_update_package_concurrent_reconciliation(
     }
 
     res2 = await client.put(
-        f"/servicios/{test_package.id}", json=second_payload, headers=auth_headers
+        f"/servicios/{test_package.id}", json=second_payload, headers=admin_headers
     )
     assert res2.status_code == 200
 
@@ -399,14 +373,6 @@ def storage_double():
     double.is_permanent_url.return_value = False
     app.dependency_overrides[get_storage_client] = lambda: double
     return double
-
-
-@pytest.fixture
-async def admin_headers(persist_user, make_auth_headers) -> dict:
-    """Authorization headers of a persisted admin built with the central factories."""
-    admin = await persist_user(role=UserRole.admin)
-    headers: dict = make_auth_headers(admin)
-    return headers
 
 
 async def _assert_nothing_persisted(db_session) -> None:

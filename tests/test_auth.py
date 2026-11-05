@@ -1,13 +1,19 @@
-from datetime import datetime, UTC
-from unittest.mock import patch
+from datetime import UTC, datetime
+from typing import Any
+from unittest.mock import ANY
 
-import pytest
-from sqlalchemy.future import select
+import jwt
+from sqlalchemy import func, select
 
-from app.core.security import create_verification_token, create_access_token, get_password_hash
+from app.core.security import (
+    ALGORITHM,
+    SECRET_KEY,
+    create_verification_token,
+    get_password_hash,
+)
 from app.models.user import User, UserRole
 
-USER_PAYLOAD = {
+USER_PAYLOAD: dict[str, Any] = {
     "cedula": "1005911792",
     "email": "turista@example.com",
     "first_name": "Juan",
@@ -16,21 +22,13 @@ USER_PAYLOAD = {
     "password": "passwordSegura123",
     "data_consent": True,
 }
+PASSWORD = USER_PAYLOAD["password"]
 
 
-# === PREVENT ACTUAL EMAIL DISPATCH DURING TESTS ===
-@pytest.fixture(autouse=True)
-def mock_send_email():
-    """
-    Intercepts the email dispatch function within the user router to avoid
-    SMTP connection exceptions and accelerate test execution.
-    """
-    with patch("app.api.routers.user.send_verification_email") as mock:
-        yield mock
-
-
-async def test_registro_usuario_exitoso(client, mock_send_email):
-    """Test that a new user can successfully register and triggers the email task."""
+async def test_register_tourist_returns_201_and_schedules_verification_email(
+    client, db_session, mock_send_email
+):
+    """Registration creates an inactive tourist and schedules the verification email."""
     response = await client.post("/usuarios/registro", json=USER_PAYLOAD)
 
     assert response.status_code == 201
@@ -42,136 +40,132 @@ async def test_registro_usuario_exitoso(client, mock_send_email):
     assert data["cedula"] == USER_PAYLOAD["cedula"]
     assert data["is_active"] is False
 
-    # Verify that the email BackgroundTask was successfully called
-    mock_send_email.assert_called_once()
+    mock_send_email.assert_called_once_with(
+        email_to=USER_PAYLOAD["email"], first_name="Juan", token=ANY, base_url=ANY
+    )
+
+    stmt = select(User).where(User.cedula == USER_PAYLOAD["cedula"])
+    user = (await db_session.execute(stmt)).scalar_one()
+    assert user.is_active is False
+    assert user.role == UserRole.tourist
 
 
-async def test_registro_usuario_duplicado(client):
-    """Test that the system rejects any registration attempts with already-registered email addresses (HTTP 400)."""
-    # 1. Simulation of first-time user registration.
-    await client.post("/usuarios/registro", json=USER_PAYLOAD)
+async def test_register_duplicate_returns_400_without_second_row(
+    client, db_session, mock_send_email
+):
+    """A second registration with the same data yields 400 and persists nothing new."""
+    first = await client.post("/usuarios/registro", json=USER_PAYLOAD)
+    assert first.status_code == 201
 
-    # 2. Attempt to register the same user with the same email again.
     response = await client.post("/usuarios/registro", json=USER_PAYLOAD)
 
     assert response.status_code == 400
-    assert response.json()["detail"] == "Este usuario ya se encuentra registrado."
+    body = response.json()
+    assert set(body) == {"detail"}
+    assert isinstance(body["detail"], str)
+
+    count = await db_session.execute(select(func.count()).select_from(User))
+    assert count.scalar_one() == 1
+
+    mock_send_email.assert_called_once_with(
+        email_to=USER_PAYLOAD["email"], first_name="Juan", token=ANY, base_url=ANY
+    )
 
 
-async def test_verificacion_email_exitosa(client, db_session):
-    """Test that a valid JWT verification token activates the user."""
-    # 1. Register user
-    await client.post("/usuarios/registro", json=USER_PAYLOAD)
+async def test_verify_email_endpoint_activates_account(client, db_session, persist_user):
+    """A valid verification token activates the account behind it."""
+    user = await persist_user(is_active=False)
+    token = create_verification_token(user.email)
 
-    # 2. Forge the verification token using the test secret key
-    token = create_verification_token(USER_PAYLOAD["email"])
-
-    # 3. Consume the verification endpoint
     response = await client.get(f"/usuarios/verificar-email?token={token}")
-    assert response.status_code == 200
-    assert response.json()["success"] is True
 
-    # 4. Assert database state mutation
-    stmt = select(User).where(User.email == USER_PAYLOAD["email"])
-    result = await db_session.execute(stmt)
-    user = result.scalars().first()
+    assert response.status_code == 200
+    body = response.json()
+    assert set(body) == {"success", "message"}
+    assert body["success"] is True
+
+    await db_session.refresh(user)
     assert user.is_active is True
 
 
-async def test_verificacion_email_token_invalido(client):
-    """Test that invalid or corrupted tokens are rejected (HTTP 400)."""
+async def test_verify_email_invalid_token_returns_400(client):
+    """A malformed verification token yields 400 with the error shape."""
     response = await client.get("/usuarios/verificar-email?token=tokenFalso123")
+
     assert response.status_code == 400
-    assert "inválido" in response.json()["detail"].lower()
+    body = response.json()
+    assert set(body) == {"detail"}
+    assert isinstance(body["detail"], str)
 
 
-async def test_login_exitoso(client, db_session):
-    """Test that a registered and active user can log in."""
+async def test_login_active_user_returns_bearer_token(client, persist_user):
+    """An active account with the right password receives a bearer token with its claims."""
+    user = await persist_user(password_hash=get_password_hash(PASSWORD), is_active=True)
 
-    # 1. ARRANGE: User creation (backend will send it disabled by default is_active=False).
-    await client.post("/usuarios/registro", json=USER_PAYLOAD)
-
-    # 2. ARRANGE (State mutation): Simulation of successful user email verification.
-    stmt = select(User).where(User.email == USER_PAYLOAD["email"])
-    result = await db_session.execute(stmt)
-    user = result.scalars().first()
-
-    # Simulation of user activation at persistency layer.
-    user.is_active = True
-    await db_session.commit()
-
-    # 3. ACT: Afterward, the verified user logs in.
-    login_data = {"email": USER_PAYLOAD["email"], "password": USER_PAYLOAD["password"]}
-    response = await client.post("/usuarios/login", json=login_data)
-
-    # 4. ASSERT: After a successful login, response code should be 200 OK.
-    assert response.status_code == 200
-    data = response.json()
-    assert "access_token" in data
-    assert data["token_type"] == "bearer"
-
-
-async def test_login_usuario_inactivo(client):
-    """Test that registered but inactive users cannot log in (HTTP 403)."""
-    await client.post("/usuarios/registro", json=USER_PAYLOAD)
-
-    login_data = {"email": USER_PAYLOAD["email"], "password": USER_PAYLOAD["password"]}
-    response = await client.post("/usuarios/login", json=login_data)
-
-    assert response.status_code == 403
-    assert "verificar su cuenta" in response.json()["detail"]
-
-
-async def test_login_credenciales_invalidas(client):
-    """Test that invalid credentials trigger an HTTP 401 response."""
-    login_data = {"email": "noexiste@example.com", "password": "claveIncorrecta"}
-    response = await client.post("/usuarios/login", json=login_data)
-
-    assert response.status_code == 401
-    assert response.json()["detail"] == "Revise su correo y contraseña"
-
-
-async def test_borrado_logico_usuario(client, db_session):
-    """Test that a soft-deleted user retains their DB row but cannot log in (HTTP 403)."""
-
-    # 1. ARRANGE: Register and activate a user
-    await client.post("/usuarios/registro", json=USER_PAYLOAD)
-    stmt = select(User).where(User.email == USER_PAYLOAD["email"])
-    result = await db_session.execute(stmt)
-    user = result.scalars().first()
-    user.is_active = True
-    await db_session.commit()
-
-    # 2. ARRANGE: Login to get the Bearer token for authorization
-    login_data = {"email": USER_PAYLOAD["email"], "password": USER_PAYLOAD["password"]}
-    login_response = await client.post("/usuarios/login", json=login_data)
-    token = login_response.json()["access_token"]
-    headers = {"Authorization": f"Bearer {token}"}
-
-    # 3. ACT: Request self-deletion using CEDULA instead of email
-    target_cedula = USER_PAYLOAD["cedula"]
-    target_email = USER_PAYLOAD["email"]
-    delete_response = await client.delete(f"/usuarios/{target_cedula}", headers=headers)
-
-    # 4. ASSERT: Verify successful response and exact custom message
-    assert delete_response.status_code == 200
-    response_data = delete_response.json()
-    assert response_data["success"] is True
-    assert (
-        response_data["message"]
-        == f"La cuenta vinculada a {target_email}, con C.C. {target_cedula} ha sido eliminada exitosamente."
+    response = await client.post(
+        "/usuarios/login", json={"email": user.email, "password": PASSWORD}
     )
 
-    # 5. ASSERT: Verify the row still exists but is structurally deactivated
-    result = await db_session.execute(stmt)
-    deleted_user = result.scalars().first()
-    assert deleted_user is not None  # The row must NOT be deleted
-    assert deleted_user.deleted_at is not None  # Timestamp must exist
-    assert deleted_user.is_active is False  # Must be deactivated
+    assert response.status_code == 200
+    body = response.json()
+    assert set(body) == {"access_token", "token_type"}
+    assert body["token_type"] == "bearer"
 
-    # 6. ASSERT: Attempt to login again should be strictly rejected
-    failed_login = await client.post("/usuarios/login", json=login_data)
-    assert failed_login.status_code == 401
+    assert SECRET_KEY is not None
+    claims = jwt.decode(body["access_token"], SECRET_KEY, algorithms=[ALGORITHM])
+    assert claims["sub"] == user.email
+    assert claims["role"] == "tourist"
+
+
+async def test_login_inactive_user_returns_403_without_token(client, persist_user):
+    """An inactive account with the right password yields 403 and no token."""
+    user = await persist_user(password_hash=get_password_hash(PASSWORD), is_active=False)
+
+    response = await client.post(
+        "/usuarios/login", json={"email": user.email, "password": PASSWORD}
+    )
+
+    assert response.status_code == 403
+    body = response.json()
+    assert set(body) == {"detail"}
+    assert isinstance(body["detail"], str)
+
+
+async def test_login_wrong_password_returns_401_with_bearer_challenge(client, persist_user):
+    """A wrong password on an active account yields 401 with the Bearer challenge."""
+    user = await persist_user(password_hash=get_password_hash(PASSWORD), is_active=True)
+
+    response = await client.post(
+        "/usuarios/login", json={"email": user.email, "password": "wrongPassword1"}
+    )
+
+    assert response.status_code == 401
+    assert response.headers["www-authenticate"] == "Bearer"
+    body = response.json()
+    assert set(body) == {"detail"}
+    assert isinstance(body["detail"], str)
+
+
+async def test_self_soft_delete_keeps_row_and_blocks_login(
+    client, db_session, persist_user, make_auth_headers
+):
+    """Self-deletion keeps the row, stamps deleted_at, deactivates it and blocks login."""
+    user = await persist_user(password_hash=get_password_hash(PASSWORD), is_active=True)
+
+    response = await client.delete(f"/usuarios/{user.cedula}", headers=make_auth_headers(user))
+
+    assert response.status_code == 200
+    body = response.json()
+    assert set(body) == {"success", "message"}
+    assert body["success"] is True
+    assert isinstance(body["message"], str)
+
+    await db_session.refresh(user)
+    assert user.deleted_at is not None
+    assert user.is_active is False
+
+    login = await client.post("/usuarios/login", json={"email": user.email, "password": PASSWORD})
+    assert login.status_code == 401
 
 
 # ==========================================
@@ -179,28 +173,18 @@ async def test_borrado_logico_usuario(client, db_session):
 # ==========================================
 
 
-async def test_actualizacion_perfil_self_service_exitoso(client, db_session):
-    """
-    Validates that a standard tourist can securely update their own basic profile data.
-    """
-    # 1. ARRANGE: Create and activate a Tourist
-    await client.post("/usuarios/registro", json=USER_PAYLOAD)
-    stmt = select(User).where(User.email == USER_PAYLOAD["email"])
-    tourist = (await db_session.execute(stmt)).scalars().first()
-    tourist.is_active = True
-    await db_session.commit()
+async def test_tourist_self_update_persists_profile_change(
+    client, db_session, persist_user, make_auth_headers
+):
+    """A tourist can update their own basic profile data, and the change is persisted."""
+    tourist = await persist_user(role=UserRole.tourist)
 
-    # Generate Token
-    token = create_access_token(data={"sub": tourist.email, "role": tourist.role.value})
-    headers = {"Authorization": f"Bearer {token}"}
-
-    # 2. ACT: Send PATCH request with valid scalar fields
-    update_payload = {"first_name": "Nombre Modificado"}
     response = await client.patch(
-        f"/usuarios/{tourist.cedula}", json=update_payload, headers=headers
+        f"/usuarios/{tourist.cedula}",
+        json={"first_name": "Nombre Modificado"},
+        headers=make_auth_headers(tourist),
     )
 
-    # 3. ASSERT: Response is successful and the mutation was persisted
     assert response.status_code == 200
     data = response.json()
     assert data["first_name"] == "Nombre Modificado"
@@ -213,377 +197,172 @@ async def test_actualizacion_perfil_self_service_exitoso(client, db_session):
     assert tourist.is_active is True
 
 
-async def test_actualizacion_perfil_escalacion_rol_rechazada(client, db_session):
-    """
-    Validates the fail-safe invariant: a tourist attempting to mutate 'role'
-    is rejected with HTTP 403 and the role remains unchanged in the database.
-    """
-    # 1. ARRANGE: Create and activate a Tourist
-    await client.post("/usuarios/registro", json=USER_PAYLOAD)
-    stmt = select(User).where(User.email == USER_PAYLOAD["email"])
-    tourist = (await db_session.execute(stmt)).scalars().first()
-    tourist.is_active = True
-    await db_session.commit()
+async def test_tourist_self_role_escalation_returns_403_without_mutation(
+    client, db_session, persist_user, make_auth_headers
+):
+    """A tourist sending a role change on their own account gets 403; the role stays."""
+    tourist = await persist_user(role=UserRole.tourist)
 
-    token = create_access_token(data={"sub": tourist.email, "role": tourist.role.value})
-    headers = {"Authorization": f"Bearer {token}"}
-
-    # 2. ACT: Malicious escalation attempt
-    update_payload = {"role": "superadmin"}
     response = await client.patch(
-        f"/usuarios/{tourist.cedula}", json=update_payload, headers=headers
+        f"/usuarios/{tourist.cedula}",
+        json={"role": "superadmin"},
+        headers=make_auth_headers(tourist),
     )
 
-    # 3. ASSERT: Loud rejection without any state mutation
     assert response.status_code == 403
-    assert "detail" in response.json()
+    body = response.json()
+    assert set(body) == {"detail"}
+    assert isinstance(body["detail"], str)
 
     await db_session.refresh(tourist)
     assert tourist.role == UserRole.tourist
 
 
-async def test_actualizacion_perfil_mutacion_estado_rechazada(client, db_session):
-    """
-    Validates the fail-safe invariant: a tourist attempting to mutate 'is_active'
-    is rejected with HTTP 403 and the active state remains unchanged.
-    """
-    # 1. ARRANGE: Create and activate a Tourist
-    await client.post("/usuarios/registro", json=USER_PAYLOAD)
-    stmt = select(User).where(User.email == USER_PAYLOAD["email"])
-    tourist = (await db_session.execute(stmt)).scalars().first()
-    tourist.is_active = True
-    await db_session.commit()
+async def test_tourist_self_is_active_change_returns_403_without_mutation(
+    client, db_session, persist_user, make_auth_headers
+):
+    """A tourist sending an is_active change on their own account gets 403; the state stays."""
+    tourist = await persist_user(role=UserRole.tourist)
 
-    token = create_access_token(data={"sub": tourist.email, "role": tourist.role.value})
-    headers = {"Authorization": f"Bearer {token}"}
-
-    # 2. ACT: Malicious status mutation attempt
-    update_payload = {"is_active": False}
     response = await client.patch(
-        f"/usuarios/{tourist.cedula}", json=update_payload, headers=headers
+        f"/usuarios/{tourist.cedula}",
+        json={"is_active": False},
+        headers=make_auth_headers(tourist),
     )
 
-    # 3. ASSERT: Loud rejection without any state mutation
     assert response.status_code == 403
-    assert "detail" in response.json()
+    body = response.json()
+    assert set(body) == {"detail"}
+    assert isinstance(body["detail"], str)
 
     await db_session.refresh(tourist)
     assert tourist.is_active is True
 
 
-async def test_actualizacion_usuario_helpdesk_exitoso(client, db_session):
-    """
-    Validates the Helpdesk pattern: An Admin can update a Tourist's account.
-    """
-    # 1. ARRANGE: Create Admin
-    admin = User(
-        cedula="999999999",
-        email="admin@asoprado.com",
-        first_name="Admin",
-        last_name="Test",
-        password_hash=get_password_hash("pass"),
-        role=UserRole.admin,
-        is_active=True,
-        data_consent=True,
-    )
-    db_session.add(admin)
+async def test_admin_updates_tourist_email_and_persists_it(
+    client, db_session, persist_user, make_auth_headers
+):
+    """An admin can correct a tourist's email (helpdesk), and the change is persisted."""
+    admin = await persist_user(role=UserRole.admin)
+    tourist = await persist_user(role=UserRole.tourist)
 
-    # ARRANGE: Create Tourist
-    tourist = User(
-        cedula="111111111",
-        email="turista2@asoprado.com",
-        first_name="Juan",
-        last_name="Test",
-        password_hash=get_password_hash("pass"),
-        role=UserRole.tourist,
-        is_active=True,
-        data_consent=True,
-    )
-    db_session.add(tourist)
-    await db_session.commit()
-
-    admin_token = create_access_token(data={"sub": admin.email, "role": admin.role.value})
-
-    # 2. ACT: Admin updates Tourist's email
-    update_payload = {"email": "correo_corregido@asoprado.com"}
     response = await client.patch(
         f"/usuarios/{tourist.cedula}",
-        json=update_payload,
-        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"email": "correo_corregido@asoprado.com"},
+        headers=make_auth_headers(admin),
     )
 
-    # 3. ASSERT
     assert response.status_code == 200
     assert response.json()["email"] == "correo_corregido@asoprado.com"
 
+    await db_session.refresh(tourist)
+    assert tourist.email == "correo_corregido@asoprado.com"
 
-async def test_actualizacion_usuario_violacion_jerarquia(client, db_session):
-    """
-    Validates hierarchical precedence rules: An Admin MUST NOT be able to modify
-    the account of a Superadmin (403 Forbidden).
-    """
-    # 1. ARRANGE: Create Admin and Superadmin
-    admin = User(
-        cedula="888888888",
-        email="admin2@asoprado.com",
-        first_name="Admin",
-        last_name="Test",
-        password_hash=get_password_hash("pass"),
-        role=UserRole.admin,
-        is_active=True,
-        data_consent=True,
-    )
-    superadmin = User(
-        cedula="000000000",
-        email="super@asoprado.com",
-        first_name="Super",
-        last_name="Test",
-        password_hash=get_password_hash("pass"),
-        role=UserRole.superadmin,
-        is_active=True,
-        data_consent=True,
-    )
-    db_session.add_all([admin, superadmin])
-    await db_session.commit()
 
-    admin_token = create_access_token(data={"sub": admin.email, "role": admin.role.value})
+async def test_admin_patching_superadmin_returns_403_without_mutation(
+    client, db_session, persist_user, make_auth_headers
+):
+    """An admin cannot modify a superadmin's account: 403 and no change in the database."""
+    admin = await persist_user(role=UserRole.admin)
+    superadmin = await persist_user(role=UserRole.superadmin)
+    original_first_name = superadmin.first_name
 
-    # 2. ACT: Admin attempts to update Superadmin
     response = await client.patch(
         f"/usuarios/{superadmin.cedula}",
         json={"first_name": "Hacked"},
-        headers={"Authorization": f"Bearer {admin_token}"},
+        headers=make_auth_headers(admin),
     )
 
-    # 3. ASSERT
     assert response.status_code == 403
-    assert "Violación de jerarquía" in response.json()["detail"]
+    body = response.json()
+    assert set(body) == {"detail"}
+    assert isinstance(body["detail"], str)
+
+    await db_session.refresh(superadmin)
+    assert superadmin.first_name == original_first_name
 
 
-async def test_listar_usuarios_visibilidad_jerarquica(client, db_session):
-    """
-    Validates dynamic directory visibility. A standard Admin requesting the user
-    list should receive Tourists and Admins, but Superadmins must be completely obscured.
-    """
-    # 1. ARRANGE: Create 1 of each role
-    u1 = User(
-        cedula="111111",
-        email="t@t.com",
-        first_name="Tania",
-        last_name="Torres",
-        password_hash="x",
-        role=UserRole.tourist,
-        is_active=True,
-        data_consent=True,
-    )
-    u2 = User(
-        cedula="222222",
-        email="a@a.com",
-        first_name="Anastasia",
-        last_name="Andrade",
-        password_hash="x",
-        role=UserRole.admin,
-        is_active=True,
-        data_consent=True,
-    )
-    u3 = User(
-        cedula="333333",
-        email="s@s.com",
-        first_name="Sofia",
-        last_name="Sanchez",
-        password_hash="x",
-        role=UserRole.superadmin,
-        is_active=True,
-        data_consent=True,
-    )
+async def test_admin_directory_hides_superadmins(client, persist_user, make_auth_headers):
+    """An admin's user directory lists tourists and admins, never superadmins."""
+    tourist = await persist_user(role=UserRole.tourist)
+    admin = await persist_user(role=UserRole.admin)
+    await persist_user(role=UserRole.superadmin)
 
-    db_session.add_all([u1, u2, u3])
-    await db_session.commit()
+    response = await client.get("/usuarios/", headers=make_auth_headers(admin))
 
-    admin_token = create_access_token(data={"sub": u2.email, "role": u2.role.value})
-
-    # 2. ACT: Admin fetches user directory
-    response = await client.get("/usuarios/", headers={"Authorization": f"Bearer {admin_token}"})
-
-    # 3. ASSERT
     assert response.status_code == 200
-    data = response.json()
-    roles_returned = [user["role"] for user in data]
-
-    assert "tourist" in roles_returned
-    assert "admin" in roles_returned
-    assert "superadmin" not in roles_returned  # Obscured successfully
+    body = response.json()
+    assert {u["cedula"] for u in body} == {tourist.cedula, admin.cedula}
 
 
-async def test_listar_usuarios_eliminados_visibilidad(client, db_session):
-    """
-    Validates dynamic directory visibility for the Recycle Bin.
-    A standard Admin requesting the deleted user list should receive deleted
-    Tourists, but deleted Superadmins must be completely obscured.
-    """
-    # 1. ARRANGE: Create users and soft-delete some of them
-    admin = User(
-        cedula="999999",
-        email="admin101@test.com",
-        first_name="Marisol",
-        last_name="Gutierrez",
-        password_hash="x",
-        role=UserRole.admin,
-        is_active=True,
-        data_consent=True,
+async def test_admin_deleted_directory_hides_deleted_superadmins(
+    client, persist_user, make_auth_headers
+):
+    """An admin's recycle bin lists deleted tourists, never deleted superadmins."""
+    admin = await persist_user(role=UserRole.admin)
+    deleted_tourist = await persist_user(
+        role=UserRole.tourist, is_active=False, deleted_at=datetime.now(UTC)
     )
-    deleted_tourist = User(
-        cedula="888888",
-        email="tourist102@test.com",
-        first_name="Antonio",
-        last_name="Delgado",
-        password_hash="x",
-        role=UserRole.tourist,
-        is_active=False,
-        data_consent=True,
-        deleted_at=datetime.now(UTC),
-    )
-    deleted_super = User(
-        cedula="777777",
-        email="super103@test.com",
-        first_name="Jose",
-        last_name="Flores",
-        password_hash="x",
-        role=UserRole.superadmin,
-        is_active=False,
-        data_consent=True,
-        deleted_at=datetime.now(UTC),
-    )
+    await persist_user(role=UserRole.superadmin, is_active=False, deleted_at=datetime.now(UTC))
 
-    db_session.add_all([admin, deleted_tourist, deleted_super])
-    await db_session.commit()
+    response = await client.get("/usuarios/admin/eliminados", headers=make_auth_headers(admin))
 
-    admin_token = create_access_token(data={"sub": admin.email, "role": admin.role.value})
-
-    # 2. ACT: Admin fetches deleted user directory
-    response = await client.get(
-        "/usuarios/admin/eliminados", headers={"Authorization": f"Bearer {admin_token}"}
-    )
-
-    # 3. ASSERT
     assert response.status_code == 200
-    data = response.json()
-    cedulas_returned = [user["cedula"] for user in data]
-
-    assert "888888" in cedulas_returned  # Tourist is visible
-    assert "777777" not in cedulas_returned  # Superadmin is mathematically obscured
+    body = response.json()
+    assert [u["cedula"] for u in body] == [deleted_tourist.cedula]
 
 
-async def test_recuperar_usuario_exitoso(client, db_session):
-    """
-    Validates the Helpdesk recovery pattern: An Admin can recover a Tourist's account.
-    Asserts that the recovered account transitions to an inactive state by default.
-    """
-    # 1. ARRANGE: Create Admin and a soft-deleted Tourist
-    admin = User(
-        cedula="111111",
-        email="admin201@test.com",
-        first_name="Andres",
-        last_name="Angarita",
-        password_hash="x",
-        role=UserRole.admin,
-        is_active=True,
-        data_consent=True,
-    )
-    tourist = User(
-        cedula="222222",
-        email="tourist202@test.com",
-        first_name="Tulio",
-        last_name="Torres",
-        password_hash="x",
-        role=UserRole.tourist,
-        is_active=False,
-        data_consent=True,
-        deleted_at=datetime.now(UTC),
+async def test_admin_recovers_tourist_as_inactive(
+    client, db_session, persist_user, make_auth_headers
+):
+    """An admin can recover a deleted tourist; the account comes back inactive."""
+    admin = await persist_user(role=UserRole.admin)
+    tourist = await persist_user(
+        role=UserRole.tourist, is_active=False, deleted_at=datetime.now(UTC)
     )
 
-    db_session.add_all([admin, tourist])
-    await db_session.commit()
-
-    admin_token = create_access_token(data={"sub": admin.email, "role": admin.role.value})
-
-    # 2. ACT: Admin recovers Tourist
     response = await client.patch(
-        f"/usuarios/{tourist.cedula}/recuperar", headers={"Authorization": f"Bearer {admin_token}"}
+        f"/usuarios/{tourist.cedula}/recuperar", headers=make_auth_headers(admin)
     )
 
-    # 3. ASSERT
     assert response.status_code == 200
-    assert response.json()["success"] is True
+    body = response.json()
+    assert {"success", "message"} <= set(body)
+    assert body["success"] is True
+    assert isinstance(body["message"], str)
 
     await db_session.refresh(tourist)
     assert tourist.deleted_at is None
-    assert tourist.is_active is False  # Strict security rule enforced
+    assert tourist.is_active is False
 
 
-async def test_recuperar_usuario_violacion_jerarquia(client, db_session):
-    """
-    Validates hierarchical precedence rules during recovery: An Admin MUST NOT
-    be able to recover the account of a soft-deleted Superadmin (403 Forbidden).
-    """
-    # 1. ARRANGE: Create Admin and a soft-deleted Superadmin
-    admin = User(
-        cedula="111111",
-        email="admin301@test.com",
-        first_name="Arnulfo",
-        last_name="Anzoátegui",
-        password_hash="x",
-        role=UserRole.admin,
-        is_active=True,
-        data_consent=True,
-    )
-    superadmin = User(
-        cedula="222222",
-        email="super302@test.com",
-        first_name="Sandra",
-        last_name="Sanchez",
-        password_hash="x",
-        role=UserRole.superadmin,
-        is_active=False,
-        data_consent=True,
-        deleted_at=datetime.now(UTC),
+async def test_admin_recovering_superadmin_returns_403_without_mutation(
+    client, db_session, persist_user, make_auth_headers
+):
+    """An admin cannot recover a deleted superadmin: 403 and the account stays deleted."""
+    admin = await persist_user(role=UserRole.admin)
+    superadmin = await persist_user(
+        role=UserRole.superadmin, is_active=False, deleted_at=datetime.now(UTC)
     )
 
-    db_session.add_all([admin, superadmin])
-    await db_session.commit()
-
-    admin_token = create_access_token(data={"sub": admin.email, "role": admin.role.value})
-
-    # 2. ACT: Admin attempts to recover Superadmin
     response = await client.patch(
-        f"/usuarios/{superadmin.cedula}/recuperar",
-        headers={"Authorization": f"Bearer {admin_token}"},
+        f"/usuarios/{superadmin.cedula}/recuperar", headers=make_auth_headers(admin)
     )
 
-    # 3. ASSERT
     assert response.status_code == 403
-    assert "jerarquía" in response.json()["detail"].lower()
+    body = response.json()
+    assert set(body) == {"detail"}
+    assert isinstance(body["detail"], str)
+
+    await db_session.refresh(superadmin)
+    assert superadmin.deleted_at is not None
 
 
-async def test_crear_administrador_violacion_jerarquia(client, db_session):
-    """
-    Validates that standard Admins cannot provision new administrative accounts (403 Forbidden).
-    """
-    # 1. ARRANGE: Create standard Admin
-    admin = User(
-        cedula="111111",
-        email="admin401@test.com",
-        first_name="Amelio",
-        last_name="Ardiles",
-        password_hash="x",
-        role=UserRole.admin,
-        is_active=True,
-        data_consent=True,
-    )
-    db_session.add(admin)
-    await db_session.commit()
-
-    admin_token = create_access_token(data={"sub": admin.email, "role": admin.role.value})
+async def test_admin_provisioning_admin_returns_403_without_row(
+    client, db_session, persist_user, make_auth_headers
+):
+    """A standard admin cannot provision an admin account: 403 and no new row."""
+    admin = await persist_user(role=UserRole.admin)
 
     new_admin_payload = {
         "cedula": "222222",
@@ -597,37 +376,24 @@ async def test_crear_administrador_violacion_jerarquia(client, db_session):
         "is_active": True,
     }
 
-    # 2. ACT: Standard Admin tries to create another Admin
     response = await client.post(
-        "/usuarios/admin",
-        json=new_admin_payload,
-        headers={"Authorization": f"Bearer {admin_token}"},
+        "/usuarios/admin", json=new_admin_payload, headers=make_auth_headers(admin)
     )
 
-    # 3. ASSERT
     assert response.status_code == 403
-    assert "superusuario" in response.json()["detail"].lower()
+    body = response.json()
+    assert set(body) == {"detail"}
+    assert isinstance(body["detail"], str)
+
+    count = await db_session.execute(select(func.count()).select_from(User))
+    assert count.scalar_one() == 1
 
 
-async def test_crear_administrador_exitoso(client, db_session):
-    """
-    Validates that a Superadmin can successfully provision new administrative accounts.
-    """
-    # 1. ARRANGE: Create Superadmin
-    superadmin = User(
-        cedula="666666",
-        email="super501@test.com",
-        first_name="Federico",
-        last_name="Perez",
-        password_hash="x",
-        role=UserRole.superadmin,
-        is_active=True,
-        data_consent=True,
-    )
-    db_session.add(superadmin)
-    await db_session.commit()
-
-    super_token = create_access_token(data={"sub": superadmin.email, "role": superadmin.role.value})
+async def test_superadmin_provisions_admin_account(
+    client, db_session, persist_user, make_auth_headers
+):
+    """A superadmin can provision a new, active admin account."""
+    superadmin = await persist_user(role=UserRole.superadmin)
 
     new_admin_payload = {
         "cedula": "555555",
@@ -641,16 +407,19 @@ async def test_crear_administrador_exitoso(client, db_session):
         "is_active": True,
     }
 
-    # 2. ACT: Superadmin creates an Admin
     response = await client.post(
-        "/usuarios/admin",
-        json=new_admin_payload,
-        headers={"Authorization": f"Bearer {super_token}"},
+        "/usuarios/admin", json=new_admin_payload, headers=make_auth_headers(superadmin)
     )
 
-    # 3. ASSERT
     assert response.status_code == 201
     data = response.json()
     assert data["role"] == "admin"
     assert data["cedula"] == "555555"
     assert data["is_active"] is True
+
+    result = await db_session.execute(select(User).where(User.cedula == "555555"))
+    created = result.scalar_one()
+    await db_session.refresh(created)
+    assert created.role == UserRole.admin
+    assert created.is_active is True
+    assert created.deleted_at is None

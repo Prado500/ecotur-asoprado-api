@@ -1,5 +1,5 @@
 import itertools
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import create_autospec, patch
 
 import pytest
 import pytest_asyncio
@@ -9,6 +9,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.api.dependencies import get_storage_client
 from app.core.security import create_access_token
+from app.core.storage import AzureStorageClient
 from app.db.database import Base, get_db
 from app.main import app
 from app.models.user import User, UserRole
@@ -48,20 +49,33 @@ async def setup_database():
 
 @pytest_asyncio.fixture
 async def db_session():
-    """Returns test database session"""
+    """
+    Yields the test's own database session, for arranging data and reading state.
+
+    The app never receives this session: each request gets its own (see client).
+    """
     async with TestingSessionLocal() as session:
         yield session
 
 
 @pytest_asyncio.fixture
-async def client(db_session):
+async def client():
     """
-    Overwrites non-testable `get_db` API dependency over the SQLite session for testing.
-    Runs an async HTTP client (httpx) aiming to this FastAPI app.
+    Runs an async HTTP client (httpx) against the app, with one session per request.
+
+    The get_db override opens a fresh TestingSessionLocal session for each request
+    and closes it afterwards, apart from db_session, as get_db does in production
+    (ADR-0011). Every test follows two rules:
+
+    1. Commit before the request: data the test arranges is committed before the
+       client is called (persist_user already does it).
+    2. Refresh after: any object the test already holds is re-read with
+       `await db_session.refresh(obj)` after the request.
     """
 
     async def override_get_db():
-        yield db_session
+        async with TestingSessionLocal() as session:
+            yield session
 
     app.dependency_overrides[get_db] = override_get_db
 
@@ -75,37 +89,56 @@ async def client(db_session):
 def override_azure_storage_client():
     """
     Overwrites the AzureStorageClient dependency globally for all tests.
-    Ensures that no test attempts to instantiate the real cloud client,
-    preventing missing environment variable errors and avoiding real HTTP egress.
+
+    No test instantiates the real cloud client, so there is no real HTTP egress.
+    The double is autospecced on the adapter: it is an AzureStorageClient instance,
+    it has no attribute the adapter lacks, and a call off a method's signature
+    raises TypeError, so renaming or re-signing an adapter method breaks the tests.
     """
-    mock_client = MagicMock()
+    mock_client = create_autospec(AzureStorageClient, instance=True)
 
-    # Mocking environment variables bound to the client
-    mock_client.temporal_container_name = "temp-ecotur-images"
-    mock_client.container_name = "ecotur-images"
-
-    # Mocking I/O Coroutines
-    mock_client.upload_image = AsyncMock(
-        return_value="https://ecoturasopradocdn2026.blob.core.windows.net/temp-ecotur-images/fake_image.jpg"
+    # I/O coroutines
+    mock_client.upload_image.return_value = (
+        "https://ecoturasopradocdn2026.blob.core.windows.net/temp-ecotur-images/fake_image.jpg"
     )
-    mock_client.delete_image = AsyncMock(return_value=None)
+    mock_client.delete_image.return_value = None
 
     # Simulating Azure's Copy & Delete promotion behavior dynamically
     async def mock_promote(url: str) -> str:
         return url.replace("temp-ecotur-images", "ecotur-images")
 
-    mock_client.promote_to_permanent = AsyncMock(side_effect=mock_promote)
+    mock_client.promote_to_permanent.side_effect = mock_promote
 
     # URL classification by prefix, mirroring the real adapter
     cdn_prefix = "https://ecoturasopradocdn2026.blob.core.windows.net/"
-    mock_client.is_temporal_url = lambda url: url.startswith(f"{cdn_prefix}temp-ecotur-images/")
-    mock_client.is_permanent_url = lambda url: url.startswith(f"{cdn_prefix}ecotur-images/")
+    mock_client.is_temporal_url.side_effect = lambda url: url.startswith(
+        f"{cdn_prefix}temp-ecotur-images/"
+    )
+    mock_client.is_permanent_url.side_effect = lambda url: url.startswith(
+        f"{cdn_prefix}ecotur-images/"
+    )
 
     app.dependency_overrides[get_storage_client] = lambda: mock_client
 
     yield
 
     app.dependency_overrides.pop(get_storage_client, None)
+
+
+@pytest.fixture(autouse=True)
+def mock_send_email():
+    """
+    Replaces the verification email dispatch in the user router for every test.
+
+    No test opens an SMTP connection. The double is autospecced on
+    send_verification_email, so a call off its signature raises TypeError when
+    awaited. Tests that check the dispatch request this fixture by name.
+
+    Yields:
+        The autospecced stand-in for send_verification_email.
+    """
+    with patch("app.api.routers.user.send_verification_email", autospec=True) as mock:
+        yield mock
 
 
 # ==========================================
