@@ -11,7 +11,7 @@
       "Salvaguarda E: antes del commit de E, git hash-object app/services/user_access_policy.py == git rev-parse HEAD:app/services/user_access_policy.py; si algún método editara el archivo, se restaura byte a byte."
     ]
   },
-  "current_target": "Auditoria",
+  "current_target": null,
   "phases": {
     "Fase_A": {
       "status": "completed",
