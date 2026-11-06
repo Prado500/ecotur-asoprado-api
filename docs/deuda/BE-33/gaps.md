@@ -170,3 +170,121 @@ No comprobado:
 - La sonda HTTP cubre `/usuarios/mi-perfil` y `/usuarios/verificar-email`, no cada ruta que depende de `get_current_user`.
 - Los candidatos citados no están en el repo: solo se midieron en la copia.
 - Este bloque se limita a la fase C: la "Verificación final" completa corresponde a la fase D.
+
+## Auditoría Fase D — 2026-11-06
+
+**Veredicto: PASS (0 bloqueantes, 8 opcionales).** Commit de fase `c60ad12` (padre `0f9e178`), progreso `862e85e`, rama `item/be-33`, árbol limpio antes de escribir este bloque. Es la última fase: incluye la "Verificación final" completa.
+
+Compuerta re-ejecutada con `./venv/Scripts/python.exe scripts/check.py`, exit 1:
+
+```text
+=== RESUMEN ===
+  ✔ ruff format --check
+  ✘ ruff check
+  ✘ mypy
+  ✔ import-linter
+  ✔ docs (coherencia)
+  ✔ pytest + cobertura
+
+Compuerta NO superada: ruff check, mypy
+```
+
+```text
+57 files already formatted
+Found 9 errors.
+Found 5 errors in 4 files (checked 35 source files)
+Contracts: 4 kept, 0 broken.
+app\api\dependencies.py                       53      1      6      0  98.31%   63
+TOTAL                                        943     23    138     19  96.11%
+438 passed, 5 warnings in 16.23s
+```
+
+Contra la línea base de `verificacion.md`: pytest 416 → 438, cobertura 94.82 % → 96.11 %, ruff 53 → 9, mypy 10 → 5, 4 KEPT. Los ocho I001 de `app/` y el de `tests/test_user_service.py:3` y los cinco `str | None` son lo que el plan deja en rojo.
+
+Contraste con el plan, medido:
+
+- **Mensaje de commit:** comparado por programa contra `plan.md`, con `<MODELO EJECUTOR>` sustituido por `Claude Opus 5.5`: idéntico, 888 caracteres.
+- **Alcance y `numstat`:** solo los 3 archivos de la fase; `42 10`, `1 1` y `126 0`. `862e85e` solo toca el handoff y `progress.json`.
+- **Cambios exactos:** los 4 bloques de CSS y los 3 del cuerpo aparecen en `email.py` con el texto y la sangría del plan. El comando de W293 sobre una copia del padre da `3 fixed`, y `database.py` queda con el mismo SHA-256 que en `c60ad12`.
+- **Tests:** los 6 de la tabla existen y pasan. Sobre el `email.py` del padre también dan `6 passed`, como pide el plan. La mutación del plan (`href="#"`) da `1 failed, 5 passed`.
+- **Decisión 2:** ruff solo da I001 l.1 en `email.py` y `database.py`, y 0 en `tests/test_email.py`; mypy da `database.py:11` y 0 líneas `^tests`. `email.py` al 100 %.
+- **`progress.json`:** JSON válido; fase `completed` con hash real; `current_target` en `Auditoria`; `last_handoff` presente; `edit_rules` igual que al crearse. El diff de `862e85e` cambia solo esos campos.
+
+Verificación final sobre `862e85e`:
+
+| V | Resultado | Esperado |
+|---|---|---|
+| V1 | `All checks passed!` | igual |
+| V2 | `Found 9 errors.`, los 9 I001: 8 en `app/` l.1 y `tests/test_user_service.py:3` | igual |
+| V3 | 0 líneas | igual |
+| V4 | `security.py:71`, `:87`, `database.py:11`, `user_service.py:124`, `dependencies.py:95`; `Found 5 errors in 4 files` | igual |
+| V5 | 0 líneas; 3 líneas (`dependencies.py:96`, `user_service.py:134,135`) | igual |
+| V6 | `first()` l.75; `scalar_one()` l.26 y l.97 | igual |
+| V7 | 4 `from err` y 4 `as err`, 2 y 2 por archivo | igual |
+| V8 | 0, 0, 0, y 4 `noqa` UP042 | igual |
+| V9 | salida idéntica a la tabla del plan (`diff` sin diferencias); `email.py code=same strings=whitespace-only` | igual |
+| V10 | 13 archivos; `numstat` de `app/` igual a los criterios de cada fase | igual |
+| V11 | 5, 9 y 6 funciones; `22 passed`; 0 líneas `^tests` | igual |
+| V12 | exit 1 solo por `ruff check` y `mypy`; 438; 96.11 %; 4 KEPT; Missing `63`; `email.py` al 100 %; `57 files` | igual, con E1 |
+
+Única diferencia con el texto del plan: `plan.md:590` dice 56 archivos formateados y salen 57. E1 lo corrige y lo explica. V3 y V4 filtran una sola corrida de mypy guardada en un archivo: el filtro es el del plan.
+
+Cuerpo renderizado entre `0f9e178` y `c60ad12`, con las dos versiones cargadas desde copias y el envío sustituido por un doble:
+
+- Con espacios colapsados, **idéntico**: mismo SHA-256 y la misma secuencia de 252 tokens, así que ningún salto añadió ni quitó una separación. También coinciden el texto visible, el CSS, los atributos colapsados, los `href` sin colapsar, los 2 enlaces, el asunto, los destinatarios y el `subtype`.
+- En bytes cambia: 2608 → 3092 bytes y 43 → 75 líneas.
+- **Dos atributos `style` contienen ahora un salto de línea; ninguno lo tenía antes:** `<a>`: `'color: #ffffff !important;\n                        text-decoration: none;'`; `<p>`: `'font-size: 12px; color: #006875;\n                    word-break: break-all;'`.
+- El MIME construido en local con `MailMsg`, sin enviar nada, va en `text/html` y base64; decodificado es igual al cuerpo, saltos incluidos.
+
+Frontera con A4 desde `bab25c2`:
+
+- **I001:** el mismo conjunto de 9, por archivo y línea (`diff` entre `bab25c2` y `HEAD` sin diferencias).
+- **`str | None`:** los mismos 5, salvo `dependencies.py:92` → `:95`, que la decisión 2 prevé.
+- **Imports:** idénticos, en texto y línea, en los 10 archivos.
+- **`email.py`:** `conf`, `fast_mail` y `load_dotenv` idénticos; l.1-29 y el bloque desde `MessageSchema` hasta el envío, sin cambios.
+- **`database.py`:** l.7-12 idénticas; solo cambia la l.16 (W293).
+- **`jwt.decode`:** mismo texto en `dependencies.py` (l.92 → l.95) y `user_service.py:124`.
+- **Sin cambios:** `pyproject.toml`, `alembic/`, `.azure-pipelines/`, `security.py`, `conftest.py` y `docs/backlog.md`. De `tests/` solo hay 3 archivos añadidos.
+
+Hallazgos:
+
+- [OPCIONAL] — Fase D — `body.count(VERIFICATION_LINK) == 2` demuestra dos apariciones, no que la segunda sea texto plano, como dice el nombre del test. Quitar o cambiar el segundo enlace muere (L2, L3), y una tercera copia también (L6). Moverlo a un comentario HTML (L4) o a un atributo `data-link` (L5) sobrevive a la suite. Un test candidato con `handle_data` mata L2 a L5 en la copia. Ocultarlo con `display: none` (L20) sobrevive a todo. Destino sugerido: BE-32 — `tests/test_email.py:73-77`; L4, L5 y L20: `6 passed` y `438 passed`.
+- [OPCIONAL] — Fase D — La suite no fija lo que hace visible el botón ni el segundo `style`. `anchor["class"] == "btn"` fija un solo lado: renombrar el selector `.btn` del CSS (L15) sobrevive, y deja texto blanco sin fondo. También sobreviven dejar el `<a>` sin texto (L14), cambiar una regla por otra vacía con el mismo número de llaves (C10) y borrar el `style` del `<p>` (L17), uno de los dos que la fase partió. La tabla del plan no lo pedía. Hoy lo cubren V9 y la revisión visual pendiente, pero ninguna de las dos queda en la suite. Destino sugerido: BE-32 — `tests/test_email.py:84,87,125`; `app/core/email.py:57,90,94`; L14, L15, L17 y C10: `6 passed` y `438 passed`.
+- [OPCIONAL] — Fase D — `isinstance(message.subject, str)` es vacua. Medida aparte en 68 mutantes, no falla por su razón en ninguno: `subject=None` (S3) y `subject=123` (S4) lanzan `ValidationError` antes de capturar el mensaje, porque el esquema declara `subject: str`. Solo se dispara en D5, por un `AttributeError` sobre una lista, y ahí el test real ya ha caído en l.67. La pide el plan (`plan.md:457`) y el handoff lo declara. La que actúa es l.69 (S1, S2) — `tests/test_email.py:68`; `venv/Lib/site-packages/fastapi_mail/schemas.py:46`.
+- [OPCIONAL] — Fase D — `assert_awaited_once_with(message)` compara el argumento consigo mismo, porque `message` se captura de esa misma llamada. Enviar una copia con otro asunto (D8) sobrevive. No es vacua: mata la doble llamada (D1) y un argumento extra (D3), y D3 es lo único que aporta sobre `assert_awaited_once()`, deducido porque D3 hace una sola llamada. El handoff lo declara — `tests/test_email.py:52,66`; D8: `6 passed` y `438 passed`.
+- [OPCIONAL] — Fase D — `_send_and_capture` depende de que el mensaje se pase por posición. `send_message(message=message)` (D4), con el mismo comportamiento, pone en rojo 4 tests con `IndexError`. Es una falsa alarma ante un refactor, no un falso verde. Destino sugerido: BE-32 — `tests/test_email.py:52`.
+- [OPCIONAL] — Fase D — El argumento "HTML y CSS colapsan esos espacios, también dentro de `style`" y el "No text or attribute changes" del commit son inexactos en la parte de HTML. `html.parser` conserva el salto y la sangría en el valor de los dos atributos. Lo que puede hacerlos equivalentes es que CSS ignore esos espacios al leer las declaraciones. Eso no se midió en ningún cliente de correo, y es justo lo que la revisión visual debe mirar en el botón y en el enlace de texto. El código no cambia; el cuerpo de `c60ad12` no se reescribe (AGENTS §9). Destino sugerido: precisarlo en la descripción del PR — `docs/deuda/BE-33/plan.md:66`; cuerpo de `c60ad12`; `app/core/email.py:89-90,94-95`.
+- [OPCIONAL] — Fase D — Los precedentes de `current_target = "Auditoria"` son reales, pero `docs/CONTEXT.md` los registra como defecto de flujo. `ab26fb4` (BE-02), `2a1ee41` (BE-15) y `9971898` (AF-05) lo dejaron así; David lo puso en `null` a mano en BE-02 (`a222217`) y BE-15 (`1f547a8`), y AF-05 sigue en `Auditoria`. El handoff no menciona esa nota. Su razón es correcta: con `null`, `read_progress` daría el ítem por ejecutado antes de la auditoría. Pero contradice lo que pide la nota de `CONTEXT`, y esa contradicción la tiene que resolver David. Destino sugerido: `null` a mano al cerrar BE-33 y aclarar cuándo se pone — `docs/deuda/BE-33/handoff-Fase_D.md:288-289`; `docs/CONTEXT.md:292`; `.claude/agents/fase-ejecutor.md:55`; `scripts/check_docs.py:471-477`.
+- [OPCIONAL] — Fase D — `--estado` mostraba `última auditoría: con gaps` porque solo busca `PASS` en la última línea de `gaps.md`, y la de BE-33 era una viñeta de "No comprobado". No lee veredictos ni bloqueantes. El mismo efecto tienen A9, AF-05, BE-01 y SEC1, con veredictos PASS y 0 bloqueantes. Es deuda conocida (AF-02 punto 3), que solo recoge ese efecto. Medido con `--root` sobre carpetas de prueba: un `gaps.md` con `[BLOQUEANTE]` y última línea `no es PASS` da PASS; con una línea en blanco final da `con gaps`; vacío lanza `IndexError`, aunque `estado()` promete devolver siempre 0. Destino sugerido: AF-02 — `scripts/check_docs.py:523-526`; `docs/backlog.md:163`; `docs/CONTEXT.md:294`.
+
+Evaluación de los 6 tests contra AGENTS §5 y `test-sanitizer`, con 68 mutantes de `email.py` sobre una copia desechable: 52 muertos y 16 vivos en el archivo. Cada aserción se midió también por separado, con una versión del test que no se detiene en el primer fallo. Reparto: 2 de camino feliz, 2 de fallo y 2 de borde. Solo se dobla SMTP, con `autospec`, que actúa: un argumento fuera de firma (D7) da `TypeError`. Ninguna aserción lee texto en español: `"María José"` es entrada del test. Con un guardián sobre `Connection.__aenter__`, que sí salta si se envía sin doble, la suite completa da `SMTP_ATTEMPTS=0`.
+
+| Test | Lo que lo mata | Lo que no demuestra |
+|---|---|---|
+| `dispatches_one_html_message_...` | destinatario fijo, extra, duplicado o vacío (R1, R2, R3, R5), `plain` (T1), asunto vacío (S1, S2), doble envío (D1), sin `await` (D2), argumento extra (D3) | nombre visible con la misma dirección (R4), asunto en blanco (S5), hallazgos 3 y 4 |
+| `body_carries_the_link_...` | `href` (L1, L16), segundo enlace (L2, L3, L6), ruta y token (L8, L9), ancla extra (L7), `class` (L10, L11), `style` (L12, L13, L19) | hallazgos 1 y 2 |
+| `smtp_failure_propagates` | tragarse el error (E1), envolverlo (E2), error nuevo (E3), reintento (E4) | nada que señalar |
+| `invalid_recipient_...` | tragarse `ValidationError` (V1), sin validar (V2), envío previo de respaldo (V4, solo por `assert_not_called`) | nada que señalar: el error sale de `('recipients', 0)` |
+| `compound_first_name_verbatim` | primera palabra (N1), mayúsculas (N2), sin acentos (N5), nombre omitido o fijo (N6, N7) | `.title()` (N3) y `html.escape` (N4): sin efecto hoy, porque `UserCreate` ya aplica `.title()` y rechaza `<b>x</b>` y `A&B` |
+| `css_braces_are_rendered_unescaped` | ver abajo | qué reglas son (C9, C10) |
+
+Los vivos que no son hallazgo: L18 y C7 solo cambian espacios y deben sobrevivir, y T3 es equivalente porque Pydantic convierte `"html"` en el enum. Las aserciones de mock de l.99 y l.107 no llevan argumentos, y no hace falta: l.99 es la única que mata el reintento (E4), l.107 la única que mata V4, y los argumentos de la llamada los fija el test de envío. `style is not None` (l.86) estrecha el tipo para mypy y actúa ante un `style` sin valor (L19).
+
+**`body.count("{") == 9`: caracterización legítima, sin hallazgo.** La tabla del plan la exige (`plan.md:462`). Protege el riesgo real de esta fase: perder una llave de una regla sigue siendo un f-string válido, y lo detectan el conteo (C3, C4) y nada más en el archivo original. Es insensible a los espacios (C7, L18 viven), que es lo que la fase necesita. Su fragilidad existe: añadir una regla legítima (C1) o un bloque `@media` (C8) la pone en rojo. El coste es actualizar un número, y a cambio avisa de que cambió la estructura del CSS, que ningún otro test mira. La alternativa, `count("{") == count("}")`, candidata medida en la copia, evita esas dos falsas alarmas y mata C3 y C4, pero deja vivo C2 (borrar una regla). `"{{" not in body` y `"}}" not in body` fallan en C5, C6 y C11, pero nunca solas: en los tres cae también un conteo. No son vacuas; solo un mutante del todo compensado las necesitaría, y ese no se midió.
+
+Pendiente de David antes de `/pr`, sin ser incumplimiento de la fase:
+
+- **Revisión visual del correo (E0, punto 3).** Ningún agente la hizo y esta auditoría tampoco. Se declara en "cómo se probó" del PR. Conviene mirar el botón y el enlace de texto, los dos elementos cuyo `style` tiene ahora un salto de línea.
+- `current_target` a `null` al cerrar el ítem (hallazgo 7).
+
+No comprobado:
+
+- Ningún cliente de correo ni navegador pintó el HTML, y no se envió ningún correo.
+- La salida del hook de edición y el `git fetch origin` del arranque ocurrieron en la sesión del ejecutor. `origin/develop` y el `merge-base` valen `bab25c2` en la referencia local, sin refrescar en esta auditoría.
+- El orden "tests antes de editar" del handoff no se puede reconstruir. Lo que se midió es que los 6 tests pasan sobre el `email.py` del padre.
+- Las mutaciones, el renderizado y las sondas corrieron con variables ficticias sobre copias, con SQLite en memoria. La compuerta sí corrió en el repo.
+- De los 16 vivos, 13 se corrieron contra la suite completa (`438 passed` en todos); L18, C7 y T3 solo contra el archivo.
+- En la medición aparte, si `pytest.raises` no salta, l.98 también cuenta como fallo: sus cifras incluyen ese arrastre. Los candidatos citados no están en el repo.
+- Lo dicho sobre N3 y N4 se midió solo con `UserCreate`. `UserUpdate` declara el mismo patrón y validador, leído y no medido; otras vías de escritura de `first_name` no se revisaron.
+
+Esta línea final deja que `--estado` lea el resultado (hallazgo 8). Veredicto Fase D: **PASS (0 bloqueantes, 8 opcionales)**.

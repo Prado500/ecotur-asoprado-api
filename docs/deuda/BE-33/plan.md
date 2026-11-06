@@ -673,3 +673,12 @@ son distintos.** Intercambiar los textos sobrevive a la suite y no puede detecta
 campo `code` en la respuesta (decisión de contrato con dueño: P2). Intercambiar las ramas sí sería detectable con un test
 candidato que el auditor midió en copia; va a BE-32 con los demás opcionales de C. El plan no se reescribe: esta enmienda
 corrige la lectura de esa fila.
+
+**E4 — 6 nov 2026, 13:00 (David, tras la auditoría de D): la decisión 8 y el cuerpo de `c60ad12` dicen "No text or
+attribute changes"; para HTML no es exacto.** Dos atributos `style` (el botón y el enlace de respaldo) conservan un salto
+de línea dentro de su valor; lo que los hace equivalentes es que CSS ignora ese espacio, y eso no se midió en ningún
+cliente de correo. El cuerpo, con espacios colapsados, tiene el mismo SHA-256 (auditoría de D). El commit no se reescribe
+(AGENTS §9); la descripción del PR lo aclara junto con E2, y la revisión visual de E0 (punto 3) es la única medición de
+render. Opcionales 1–5 de la auditoría de D → BE-32; opcional 8 (`--estado` solo lee la última línea de `gaps.md`; falso
+PASS con `[BLOQUEANTE]`; `IndexError` con archivo vacío) → AF-02 punto 3, que ya existe; `first_name` interpolado sin
+escapar en `email.py:81` (hoy protegido solo por el patrón de `UserCreate`/`UserUpdate`) → nota al backlog en el cierre.
