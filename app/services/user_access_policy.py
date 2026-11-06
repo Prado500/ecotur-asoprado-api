@@ -8,8 +8,9 @@ class UserAccessPolicy:
     """Encapsulates the pure authorization rules governing user-account operations.
 
     All guarded mutations follow a hierarchical dominance invariant over role
-    ranks with self-operation parity: an actor may always act on their own
-    account, while third-party operations require a strictly higher rank.
+    ranks: an actor may act on their own account, while third-party operations
+    require a strictly higher rank. One exception: nobody changes their own
+    role, superadmins included.
     Failures are raised as AuthorizationError domain exceptions so the service
     layer remains transport-agnostic.
     """
@@ -37,9 +38,12 @@ class UserAccessPolicy:
             )
 
     def assert_can_update(self, actor: User, target: User, update_dict: dict) -> None:
-        """Enforces update invariants: self-update parity or strictly higher rank,
-        plus fail-safe guards blocking role mutations for non-superadmins and
-        is_active mutations for tourists.
+        """Enforces the invariants of a partial update on a user account.
+
+        The target must be the actor's own account or one of strictly lower rank.
+        Fail-safe guards then reject the role key for non-superadmins and on any
+        self-update, and the is_active key for tourists. The role guards read the
+        key, not its value: resending the current role is rejected too.
 
         Args:
             actor (User): The authenticated user attempting the mutation.
@@ -61,6 +65,9 @@ class UserAccessPolicy:
             raise AuthorizationError(
                 "Violación de jerarquía: Solo un superadministrador puede modificar roles."
             )
+
+        if is_self_update and "role" in update_dict:
+            raise AuthorizationError("Violación de jerarquía: No puede modificar su propio rol.")
 
         if "is_active" in update_dict and actor.role == UserRole.tourist:
             raise AuthorizationError(

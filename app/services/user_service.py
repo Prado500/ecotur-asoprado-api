@@ -245,10 +245,10 @@ class UserService:
         """Executes a partial update on a user entity enforcing hierarchical ABAC.
 
         Authorization follows the same mathematical dominance rule used by
-        account deletion: self-updates are always permitted, while third-party
+        account deletion: an actor may edit their own account, while third-party
         updates require the actor's role rank to be strictly greater than the
-        target's role rank. Fail-safe invariants additionally block role
-        mutations for non-superadmins and is_active mutations for tourists.
+        target's role rank. Fail-safe invariants additionally block the role key
+        for non-superadmins and on any self-update, and is_active for tourists.
 
         Args:
             target_cedula (str): The primary identifier of the account to update.

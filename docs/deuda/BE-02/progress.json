@@ -1,0 +1,14 @@
+{
+  "plan_file": "docs/deuda/BE-02/plan.md",
+  "current_target": null,
+  "phases": {
+    "Fase_A": {
+      "status": "completed",
+      "commit": "f55313c",
+      "description": "Self-update guard on the role key in assert_can_update, three docstrings and 19 test cases (10 RED). Target: 415 passed, ruff 53, mypy 10, coverage >= 94.81 %."
+    }
+  },
+  "allowed_statuses": ["pending", "partial", "completed"],
+  "last_handoff": "Fase_A completada (f55313c): guarda de auto-edición de rol, 3 docstrings y 19 casos; RED 10 failed, 9 passed; 415 passed, 94.82 %, ruff 53, mypy 10, 4 KEPT; compuerta en exit 1 solo por el rojo heredado. Sigue /auditar BE-02.",
+  "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
+}
