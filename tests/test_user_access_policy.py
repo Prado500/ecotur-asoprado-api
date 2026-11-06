@@ -181,6 +181,18 @@ class TestAssertCanUpdate:
         with pytest.raises(AuthorizationError):
             policy.assert_can_update(superadmin, twin, {"role": "tourist"})
 
+    def test_be02_twin_by_cedula_with_profile_fields_is_self_update(self, policy, make_user):
+        """Freezes that "self" means same cedula, not same instance or same email.
+
+        A distinct instance with the actor's cedula must still be treated as a
+        self-update: profile fields pass. If identity were compared by object or
+        by email, the hierarchy guard (superadmin vs superadmin) would raise.
+        """
+        superadmin = make_user(role=UserRole.superadmin)
+        twin = make_user(role=UserRole.superadmin, cedula=superadmin.cedula)
+
+        policy.assert_can_update(superadmin, twin, {"first_name": "Updated"})
+
     def test_be02_superadmin_self_update_profile_fields_is_allowed(self, policy, make_user):
         superadmin = make_user(role=UserRole.superadmin)
 

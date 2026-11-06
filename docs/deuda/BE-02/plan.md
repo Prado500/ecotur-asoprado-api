@@ -212,6 +212,15 @@ git diff --numstat c6422ed HEAD -- app/services/user_access_policy.py app/servic
 ./venv/Scripts/python.exe scripts/check.py
 ```
 
+## Enmiendas aprobadas
+
+- **E1 (5 nov 2026, 19:00, tras la auditoría de la fase A; texto de David: "tú corrige el test").** Opcional 3 de
+  `gaps.md`: `test_be02_self_role_guard_identifies_the_actor_by_cedula` no fija lo que su nombre promete (con `actor is
+  target` o comparación por email, el gemelo cae en la guarda de jerarquía y lanza la misma excepción). Retoque de test,
+  sin tocar `app/`: se añade `test_be02_twin_by_cedula_with_profile_fields_is_self_update` (gemelo con la cédula del
+  actor y `{"first_name": …}` **no** lanza), que mata M14 y M15. Opcional 2 (orden de las guardas) va a BE-32 por
+  decisión de David; opcional 1 (`current_target` → `null`) lo hace David a mano al cerrar el ítem.
+
 ## Residuales
 
 1. **Texto de ADR-0005 frente a su aplicación.** El ADR y los dos rituales piden cero en archivos tocados; la verificación
