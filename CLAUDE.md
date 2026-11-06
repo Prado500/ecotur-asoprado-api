@@ -10,7 +10,7 @@
   message con las skills `commit-author` y `pr-author`).
 - **Hooks** (`.claude/settings.json`): tras cada edición de un `.py`, `ruff format` + `ruff check --fix`
   sobre ese archivo; si quedan errores, se te devuelven para que los corrijas antes de seguir.
-  La compuerta completa (`python scripts/check.py`) la corren `fase-ejecutor` y `handoff-auditor`.
+  La compuerta completa (`./venv/Scripts/python.exe scripts/check.py`, AGENTS §6) la corren `fase-ejecutor` y `handoff-auditor`.
 - **Permisos** (`.claude/settings.json`): `git push/pull/merge/rebase/checkout`, `rm -rf` y la lectura de
   `.env` están denegados. Es la versión ejecutable de la sección 9 de AGENTS.md.
 - **Skills** (`.claude/skills/`): `test-sanitizer`, `commit-author`, `pr-author`, `5-whys`, `senior-security`.

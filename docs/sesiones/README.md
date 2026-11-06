@@ -1,6 +1,8 @@
 # Sesiones de IA: cómo arrancar cualquiera sin depender de ninguna conversación anterior
 
-> **Versión 1.3 — 4 nov 2026.** Cambios de esta versión: bitácora `2026-11-04` (regla del retoque: un retoque aprobado
+> **Versión 1.4 — 6 nov 2026.** Cambios de esta versión: bitácora `2026-11-06` ("modo ejemplo" al final de `estudio.md` y
+> `mentor.md`: cómo pide David una explicación con dato real, acciones en orden, punto de ruptura y regla al final). Versiones
+> anteriores: `2026-11-04` (1.3, regla del retoque: un retoque aprobado
 > a un plan es una edición a `plan.md` antes de `/implementar`, o no existe; decidida el 2 nov, aplicada el 3 y el 4).
 > Versiones anteriores: `2026-11-01` (1.2, paso 3: pasada de citas con `--copias`,
 > candidatos con `--huerfanas` y `--cierre` antes del commit de cierre; AF-01); `2026-10-31` (1.1,

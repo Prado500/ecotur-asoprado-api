@@ -69,7 +69,7 @@ sobreingeniería. Explicas el trade-off de cada decisión no trivial. Dices las 
 - Al terminar cualquier refactor o feature, aplica la skill `test-sanitizer`.
 
 ## 6. Compuerta de calidad (determinismo por herramientas, ADR-0001)
-`python scripts/check.py` ejecuta: `ruff format --check` · `ruff check` · `mypy` · `lint-imports` ·
+`scripts/check.py`, invocado como dice abajo, ejecuta: `ruff format --check` · `ruff check` · `mypy` · `lint-imports` ·
 `check_docs` · `pytest --cov`. **Un PR está listo solo si la compuerta pasa y la cobertura no baja.** Lo que
 debe pasar siempre vive ahí y en el CI, no en este archivo. `--fix` autocorrige formato e imports; `--no-tests`
 para iterar rápido. **Se invoca siempre con el Python del `venv/` por ruta** (`./venv/Scripts/python.exe
