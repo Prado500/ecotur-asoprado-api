@@ -1,10 +1,10 @@
 {
   "plan_file": "docs/deuda/AF-02/plan.md",
-  "current_target": "Fase_A",
+  "current_target": "Fase_B",
   "phases": {
     "Fase_A": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "dc57ac0",
       "description": "--estado reads the verdict from the last audit block of gaps.md (never a traceback): 88 new cases, 16 mutants. Target: 526 passed, ruff 9, mypy 5."
     },
     "Fase_B": {
@@ -14,6 +14,6 @@
     }
   },
   "allowed_statuses": ["pending", "partial", "completed"],
-  "last_handoff": "Estado inicial.",
+  "last_handoff": "Fase_A (dc57ac0): 526 passed, 96.11 %, 4 kept, ruff 9, mypy 5; 16 de 16 mutantes muertos (MA13 da 46, plan 48); los 9 gaps.md reales en PASS. Ver handoff-Fase_A.md.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
