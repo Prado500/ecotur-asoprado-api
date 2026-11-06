@@ -570,6 +570,198 @@ def test_estado_on_real_repo_be01(capsys: pytest.CaptureFixture[str]) -> None:
     assert check_docs.STATE_UNREADABLE not in line
 
 
+# --- --estado: verdict of the last audit block of gaps.md ----------------------------------
+
+_BLOCK = "## Auditoría Fase A — 2026-11-01\n\n"
+_PASS_LINE = "Veredicto: PASS (0 bloqueantes, 1 opcional)."
+_GAPS_LINE = "Veredicto: GAPS (1 bloqueantes, 0 opcionales)."
+
+_REAL_VERDICT_SHAPES = [
+    "**Veredicto: {v} (0 bloqueantes, 4 opcionales).**",  # A9:84, BE-33:176
+    "Veredicto: **{v} (0 bloqueantes, 4 opcionales)**. Commit auditado `bd9b8c7`.",  # AF-05:5
+    "Veredicto: {v} (0 bloqueantes, 2 opcionales). Compuerta re-ejecutada.",  # BE-01:34, S1, SEC1
+    "Veredicto Fase D: {v} (0 bloqueantes, 3 opcionales).",  # AF-01:177
+    "Veredicto Fase A: **{v} (0 bloqueantes, 3 opcionales)**.",  # BE-02:58
+    "- **Veredicto:** {v} (0 bloqueantes, 5 opcionales). F es la última fase.",  # BE-15:575
+]
+_CONTRACT_SHAPES = [
+    "**Veredicto Fase X: {v} (0 bloqueantes, 2 opcionales).**",
+    "**Veredicto Fase D-bis: {v} (1 bloqueantes, 2 opcionales).**",
+]
+_NOT_VERDICTS = [
+    "- [OPCIONAL] — Fase D — un gaps.md con [BLOQUEANTE] y última línea no es PASS",  # BE-33:258
+    "- [OPCIONAL] — Fase C — No es bloqueante porque el test existe y pasa",  # BE-33:141
+    '  bloqueante: el plan dicta "se conservan" (`plan.md:370-372`).',  # BE-15:368
+    '  bloqueante: D1 pidió un ADR "corto" y enumeró su contenido sin evidencia',  # BE-15:688
+    "- [BLOQUEANTE] — Fase A — sin corregir — x.py:1",
+    "- [BLOQUEANTE] — Fase A — corregido — x.py:1 RESUELTO (abc1234)",
+    "Línea final (hallazgo 8). Veredicto Fase D: **GAPS (1 bloqueantes)**.",  # BE-33:290
+    "Línea final (hallazgo 8). Veredicto Fase D: **PASS (0 bloqueantes)**.",  # BE-33:290
+    "- Veredicto de cierre: el ítem está listo para el PR del bloque: PASS",  # BE-15:737
+    "Veredicto: BYPASS del guard",
+    "Veredicto: PASSWORD_RESET sin test",
+    "Veredicto: pass",
+    "BYPASS del guard",
+    "no es PASS",
+]
+_REAL_AUDITED_ITEMS = ["A9", "AF-01", "AF-05", "BE-01", "BE-02", "BE-15", "BE-33", "S1", "SEC1"]
+
+
+def _last_audit(tmp_path: Path, content: str) -> str:
+    path = tmp_path / "gaps.md"
+    path.write_text(content, encoding="utf-8")
+    verdict: str = check_docs.read_last_audit(path)
+    return verdict
+
+
+def _audit_state(verdict: str) -> str:
+    state: str = check_docs.STATE_AUDIT.format(verdict=check_docs.AUDIT_LABELS[verdict])
+    return state
+
+
+@pytest.mark.parametrize("shape", _REAL_VERDICT_SHAPES + _CONTRACT_SHAPES)
+@pytest.mark.parametrize(("word", "expected"), [("PASS", "pass"), ("GAPS", "gaps")])
+def test_read_last_audit_accepts_each_verdict_shape(
+    tmp_path: Path, shape: str, word: str, expected: str
+) -> None:
+    assert _last_audit(tmp_path, _BLOCK + shape.format(v=word) + "\n") == expected
+
+
+@pytest.mark.parametrize("finding", _NOT_VERDICTS)
+@pytest.mark.parametrize(
+    ("verdict_line", "expected"),
+    [("", "no_verdict"), (_PASS_LINE + "\n", "pass"), (_GAPS_LINE + "\n", "gaps")],
+    ids=["alone", "after-pass", "after-gaps"],
+)
+def test_read_last_audit_never_takes_a_finding_for_a_verdict(
+    tmp_path: Path, finding: str, verdict_line: str, expected: str
+) -> None:
+    assert _last_audit(tmp_path, _BLOCK + verdict_line + finding + "\n") == expected
+
+
+@pytest.mark.parametrize(
+    ("first", "last", "expected"),
+    [
+        (_PASS_LINE, _GAPS_LINE, "gaps"),
+        (_GAPS_LINE, _PASS_LINE, "pass"),
+        (_PASS_LINE, "Sin línea de cierre.", "no_verdict"),
+        ("Sin línea de cierre.", _PASS_LINE, "pass"),
+    ],
+    ids=["pass-then-gaps", "gaps-then-pass", "pass-then-no-line", "no-line-then-pass"],
+)
+def test_read_last_audit_reads_only_the_last_block(
+    tmp_path: Path, first: str, last: str, expected: str
+) -> None:
+    second_block = "## Auditoría Fase B — 2026-11-02\n\n"
+    content = f"{_BLOCK}{first}\n\n{second_block}{last}\n"
+    assert _last_audit(tmp_path, content) == expected
+
+
+@pytest.mark.parametrize(
+    ("body", "expected"),
+    [
+        (f"{_GAPS_LINE}\n{_PASS_LINE}\n", "gaps"),
+        (f"{_PASS_LINE}\n{_GAPS_LINE}\n", "pass"),
+        (f"### Hallazgos\n\n- [OPCIONAL] — x\n\n### Cierre\n\n{_PASS_LINE}\n", "pass"),
+        (f"{_PASS_LINE}\n\n## Notas\n\nSin línea de cierre.\n", "pass"),
+    ],
+    ids=["gaps-then-pass", "pass-then-gaps", "after-subheadings", "before-other-heading"],
+)
+def test_read_last_audit_first_verdict_of_the_block_wins(
+    tmp_path: Path, body: str, expected: str
+) -> None:
+    assert _last_audit(tmp_path, _BLOCK + body) == expected
+
+
+@pytest.mark.parametrize(
+    ("content", "expected"),
+    [
+        (f"# GAPS — BE-15\n\n{_BLOCK}{_PASS_LINE}\n", "pass"),
+        (f"# GAPS — BE-15\n\n{_BLOCK}Sin línea de cierre.\n", "no_verdict"),
+        (f"{_GAPS_LINE}\n\n{_BLOCK}{_PASS_LINE}\n", "pass"),
+        (f"# GAPS — BE-15\n\n{_PASS_LINE}\n", "no_verdict"),
+    ],
+    ids=["title-then-pass", "title-then-no-line", "gaps-before-block", "no-block-at-all"],
+)
+def test_read_last_audit_ignores_text_outside_blocks(
+    tmp_path: Path, content: str, expected: str
+) -> None:
+    assert _last_audit(tmp_path, content) == expected
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [b"", b"\n", b"  \n\n", b"## Auditor\xeda Fase A\n"],
+    ids=["empty", "newline", "blank", "not-utf8"],
+)
+def test_read_last_audit_empty_or_not_utf8_is_unreadable(tmp_path: Path, raw: bytes) -> None:
+    path = tmp_path / "gaps.md"
+    path.write_bytes(raw)
+    assert check_docs.read_last_audit(path) == "unreadable"
+
+
+def test_read_last_audit_unopenable_path_is_unreadable(tmp_path: Path) -> None:
+    path = tmp_path / "gaps.md"
+    path.mkdir()
+    assert check_docs.read_last_audit(path) == "unreadable"
+
+
+@pytest.mark.parametrize(
+    ("item", "next_block"),
+    [("A9", "## Auditoría Fase B"), ("AF-01", "## Auditoría Fase D")],
+    ids=["A9-phase-A", "AF-01-phase-C"],
+)
+def test_read_last_audit_real_block_without_verdict(
+    tmp_path: Path, item: str, next_block: str
+) -> None:
+    text = (ROOT / f"docs/deuda/{item}/gaps.md").read_text(encoding="utf-8")
+    cut, separator, _ = text.partition(next_block)
+    assert separator == next_block
+    assert _last_audit(tmp_path, cut) == "no_verdict"
+
+
+def test_estado_prints_every_item_and_never_raises(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root = make_repo(
+        tmp_path,
+        {
+            "docs/deuda/A/gaps.md": f"{_BLOCK}{_PASS_LINE}\n",
+            "docs/deuda/B/gaps.md": "",
+            "docs/deuda/D/gaps.md": f"{_BLOCK}Sin línea de cierre.\n",
+            "docs/deuda/E/gaps.md": f"{_BLOCK}{_GAPS_LINE}\n",
+            "docs/deuda/F/verificacion.md": "x\n",
+        },
+    )
+    not_utf8 = root / "docs/deuda/C/gaps.md"
+    not_utf8.parent.mkdir(parents=True)
+    not_utf8.write_bytes(b"\xff\xfe")
+
+    assert check_docs.main(["--estado", "--root", str(root)]) == 0
+
+    captured = capsys.readouterr()
+    assert captured.err == ""
+    lines = captured.out.splitlines()
+    assert [ln.split(":", 1)[0] for ln in lines] == ["A", "B", "C", "D", "E", "F"]
+    verdicts = ["pass", "unreadable", "unreadable", "no_verdict", "gaps"]
+    for line, verdict in zip(lines[:5], verdicts, strict=True):
+        assert line.endswith(_audit_state(verdict))
+    assert check_docs.STATE_AUDIT.format(verdict="") not in lines[5]
+
+
+@pytest.mark.parametrize("item", _REAL_AUDITED_ITEMS)
+def test_estado_on_real_gaps_files(item: str, capsys: pytest.CaptureFixture[str]) -> None:
+    assert check_docs.read_last_audit(ROOT / f"docs/deuda/{item}/gaps.md") == "pass"
+    assert _estado_line(ROOT, item, capsys).endswith(_audit_state("pass"))
+
+
+def test_audit_labels_cover_every_verdict_without_repeating() -> None:
+    labels = check_docs.AUDIT_LABELS
+    assert set(labels) == {"pass", "gaps", "no_verdict", "unreadable"}
+    assert len(set(labels.values())) == 4
+    assert labels["pass"] == "PASS"
+
+
 # --- git helpers: real functions over a mocked process boundary (no process is spawned) ---
 
 

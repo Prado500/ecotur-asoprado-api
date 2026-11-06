@@ -22,7 +22,8 @@ Comandos informativos (exit 0 siempre; excluyentes entre sí y con la pasada blo
   R9. `--huerfanas`: candidatos a hecho duro (fecha, `N %`, `N tests`, `N h`, `N m`) en líneas sin
       ninguna cita, fuera de las secciones dueñas (CONTEXT §0, §2, §4, §6; PLAN §3, §6, §7) y de
       las líneas de versión. Ruidoso por diseño: lo revisa la sesión que cierra.
-  `--estado`: vista derivada de cada ítem de `docs/deuda/`; `progress.json` se lee como JSON.
+  `--estado`: vista derivada de cada ítem de `docs/deuda/`; `progress.json` se lee como JSON y
+      `gaps.md` por la línea de veredicto de su último bloque `## Auditoría Fase`.
 
 Reglas de cierre (solo con `--cierre`: dependen de git y de la fecha de hoy, así que la compuerta
 por defecto no las corre y sigue siendo determinista, ADR-0001):
@@ -483,6 +484,55 @@ STATE_RUNNING = "en ejecución (objetivo: {target})"
 STATE_UNREADABLE = "progress.json ilegible"
 """What ``--estado`` prints for each ``Progress.state``; ``{target}`` is ``?`` when unknown."""
 
+AUDIT_BLOCK_RE = re.compile(r"^## Auditoría Fase ")
+"""Heading of an audit block: ``handoff-auditor`` adds one per audit to the item's ``gaps.md``."""
+
+VERDICT_RE = re.compile(
+    r"^(?:- )?(?:\*\*)?Veredicto(?: Fase [^:*]+)?:(?:\*\*)? (?:\*\*)?(PASS|GAPS)\b"
+)
+"""Verdict line, anchored at its start: a finding that merely mentions a verdict is not one."""
+
+AuditVerdict = Literal["pass", "gaps", "no_verdict", "unreadable"]
+
+STATE_AUDIT = "última auditoría: {verdict}"
+AUDIT_LABELS: dict[AuditVerdict, str] = {
+    "pass": "PASS",
+    "gaps": "con gaps",
+    "no_verdict": "sin veredicto",
+    "unreadable": "ilegible",
+}
+"""What ``--estado`` prints for each ``AuditVerdict``."""
+
+
+def read_last_audit(path: Path) -> AuditVerdict:
+    """Read the verdict of the last audit block of a ``gaps.md``.
+
+    Only the first verdict line of the last ``## Auditoría Fase`` block counts: findings are never
+    read, so a mention of ``[BLOQUEANTE]`` or of an old ``PASS`` cannot change the result.
+
+    Args:
+        path: Path of the ``gaps.md`` file.
+
+    Returns:
+        ``pass`` or ``gaps`` from the verdict line; ``no_verdict`` if the file has no block or its
+        last block has no verdict line; ``unreadable`` if it is blank or cannot be read as UTF-8.
+    """
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError, ValueError:  # ValueError covers UnicodeDecodeError
+        return "unreadable"
+    if not text.strip():
+        return "unreadable"
+    lines = text.splitlines()
+    starts = [n for n, line in enumerate(lines) if AUDIT_BLOCK_RE.match(line)]
+    if not starts:
+        return "no_verdict"
+    for line in lines[starts[-1] + 1 :]:
+        m = VERDICT_RE.match(line)
+        if m:
+            return "pass" if m.group(1) == "PASS" else "gaps"
+    return "no_verdict"
+
 
 def estado(root: Path) -> int:
     """Print the derived (never stored) state of each item of ``docs/deuda/``.
@@ -494,7 +544,9 @@ def estado(root: Path) -> int:
         root: Repository root.
 
     Returns:
-        Always 0: the view is informative.
+        0: the view is informative and an unreadable ``gaps.md`` is reported, never raised. The one
+        declared exception: if the operating system prevents reading a ``progress.json`` (no
+        permission, locked), the view ends with a traceback and exit 1.
     """
     base = root / "docs/deuda"
     if not base.exists():
@@ -520,10 +572,7 @@ def estado(root: Path) -> int:
             parts.append("handoffs: " + ", ".join(handoffs))
         gaps = d / "gaps.md"
         if gaps.exists():
-            txt = gaps.read_text(encoding="utf-8")
-            parts.append(
-                "última auditoría: " + ("PASS" if "PASS" in txt.splitlines()[-1] else "con gaps")
-            )
+            parts.append(STATE_AUDIT.format(verdict=AUDIT_LABELS[read_last_audit(gaps)]))
         print(f"{d.name}: " + (" → ".join(parts) if parts else "carpeta vacía"))
     return 0
 
