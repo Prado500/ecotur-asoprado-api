@@ -1,0 +1,29 @@
+{
+  "plan_file": "docs/deuda/BE-33/plan.md",
+  "current_target": "null",
+  "phases": {
+    "Fase_A": {
+      "status": "completed",
+      "commit": "6a3489d",
+      "description": "Docstring summaries in the audit and user data layer (3 files, 4 D205). Target: 416 passed, ruff 49, mypy 10."
+    },
+    "Fase_B": {
+      "status": "completed",
+      "commit": "b9a8907",
+      "description": "save_service uses scalar_one(), plus style fixes in service_repository.py, with 5 test cases (2 RED). Target: 421 passed, ruff 41, mypy 9."
+    },
+    "Fase_C": {
+      "status": "completed",
+      "commit": "0c076b4",
+      "description": "JWT errors chained with from err, token annotations, TokenData.email, policy and user-service texts, with 11 test cases (4 RED). Target: 432 passed, ruff 20, mypy 5."
+    },
+    "Fase_D": {
+      "status": "completed",
+      "commit": "c60ad12",
+      "description": "Verification email HTML wrapped at existing spaces and W293 in database.py, with 6 characterization cases. Target: 438 passed, ruff 9, mypy 5."
+    }
+  },
+  "allowed_statuses": ["pending", "partial", "completed"],
+  "last_handoff": "Fase_D completada en c60ad12: HTML del correo partido en sus espacios y W293, con 6 casos de caracterización (V9 email.py code=same strings=whitespace-only); 438 passed, 96.11 %, ruff 9, mypy 5, 4 KEPT, exit 1 solo por ruff check y mypy. Revisión visual del correo pendiente de David. Sigue /auditar BE-33 Fase_D. Ver handoff-Fase_D.md.",
+  "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
+}

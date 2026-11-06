@@ -43,8 +43,9 @@ class UserRepository:
         return True
 
     async def soft_delete_user(self, cedula: str) -> User | None:
-        """Applies logical deletion by stamping the current UTC time on deleted_at
-        and defensively deactivating the user to instantly revoke access.
+        """Applies logical deletion by stamping the current UTC time on deleted_at.
+
+        It also deactivates the user defensively, which revokes access instantly.
         """
         stmt = select(User).where(
             User.cedula == cedula,

@@ -13,7 +13,7 @@ engine = create_async_engine(
 """
  Handling of asynchronous requests according to concurrency levels
  defined during requirements gathering.
- 
+
 """
 AsyncSessionLocal = async_sessionmaker(
     bind=engine,

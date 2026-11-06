@@ -77,10 +77,13 @@ def get_service_service(
 async def get_current_user(
     token: str = Depends(oauth2_scheme), user_repo: UserRepository = Depends(get_user_repository)
 ) -> User:
-    """Decodes the given JWT token, verifies payload consistency, lifespan status (unexpired or expired)
-    and user enabling (only active users are allowed).
+    """Decodes the given JWT token and resolves the active user it identifies.
 
-    It's injected with a UserRepository instance for user-state consulting against the persistence layer.
+    Verifies payload consistency, lifespan status (unexpired or expired) and user enabling
+    (only active users are allowed).
+
+    It's injected with a UserRepository instance for user-state consulting against the
+    persistence layer.
     """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -90,34 +93,35 @@ async def get_current_user(
 
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email: str = payload.get("sub")
+        email: str | None = payload.get("sub")
         if email is None:
             raise credentials_exception
 
         token_data = TokenData(email=email)
-    except jwt.ExpiredSignatureError:
+    except jwt.ExpiredSignatureError as err:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Su sesión ha expirado. Por favor, inicie sesión nuevamente.",
             headers={"WWW-Authenticate": "Bearer"},
-        )
-    except jwt.InvalidTokenError:
-        raise credentials_exception
+        ) from err
+    except jwt.InvalidTokenError as err:
+        raise credentials_exception from err
 
     # UserRepository is delegated to run the query
-    usuario = await user_repo.get_non_deleted_user_by_email(token_data.email)
+    user = await user_repo.get_non_deleted_user_by_email(token_data.email)
 
-    if usuario is None or not usuario.is_active:
+    if user is None or not user.is_active:
         raise credentials_exception
 
-    return usuario
+    return user
 
 
 async def get_current_admin_user(current_user: User = Depends(get_current_user)) -> User:
     """Validates if the provided user possesses administrative privileges.
 
     This method acts as a Role-Based Access Control (RBAC) gatekeeper
-    to prevent unauthorized access to resources that should only be available for admin or superadmin users.
+    to prevent unauthorized access to resources that should only be available for admin or
+    superadmin users.
 
     Args:
     current_user (User): The user entity extracted from the current JWT session.

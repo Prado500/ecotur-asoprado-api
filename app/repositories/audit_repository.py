@@ -24,8 +24,9 @@ class AuditRepository:
         entity_name: str | None = None,
         entity_id: str | None = None,
     ) -> list[AuditLog]:
-        """Retrieves the audit logs utilizing explicit pagination (limit/offset)
-        and optional dynamic equality filters to prevent Over-fetching.
+        """Retrieves the audit logs using explicit pagination and optional filters.
+
+        Pagination (limit/offset) and the dynamic equality filters prevent over-fetching.
         """
         stmt = select(AuditLog)
 
