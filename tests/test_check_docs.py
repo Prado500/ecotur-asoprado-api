@@ -7,7 +7,7 @@ import json
 import subprocess
 import sys
 from collections.abc import Callable
-from datetime import date
+from datetime import UTC, date, datetime
 from pathlib import Path
 from unittest.mock import call, create_autospec
 
@@ -570,6 +570,198 @@ def test_estado_on_real_repo_be01(capsys: pytest.CaptureFixture[str]) -> None:
     assert check_docs.STATE_UNREADABLE not in line
 
 
+# --- --estado: verdict of the last audit block of gaps.md ----------------------------------
+
+_BLOCK = "## Auditoría Fase A — 2026-11-01\n\n"
+_PASS_LINE = "Veredicto: PASS (0 bloqueantes, 1 opcional)."
+_GAPS_LINE = "Veredicto: GAPS (1 bloqueantes, 0 opcionales)."
+
+_REAL_VERDICT_SHAPES = [
+    "**Veredicto: {v} (0 bloqueantes, 4 opcionales).**",  # A9:84, BE-33:176
+    "Veredicto: **{v} (0 bloqueantes, 4 opcionales)**. Commit auditado `bd9b8c7`.",  # AF-05:5
+    "Veredicto: {v} (0 bloqueantes, 2 opcionales). Compuerta re-ejecutada.",  # BE-01:34, S1, SEC1
+    "Veredicto Fase D: {v} (0 bloqueantes, 3 opcionales).",  # AF-01:177
+    "Veredicto Fase A: **{v} (0 bloqueantes, 3 opcionales)**.",  # BE-02:58
+    "- **Veredicto:** {v} (0 bloqueantes, 5 opcionales). F es la última fase.",  # BE-15:575
+]
+_CONTRACT_SHAPES = [
+    "**Veredicto Fase X: {v} (0 bloqueantes, 2 opcionales).**",
+    "**Veredicto Fase D-bis: {v} (1 bloqueantes, 2 opcionales).**",
+]
+_NOT_VERDICTS = [
+    "- [OPCIONAL] — Fase D — un gaps.md con [BLOQUEANTE] y última línea no es PASS",  # BE-33:258
+    "- [OPCIONAL] — Fase C — No es bloqueante porque el test existe y pasa",  # BE-33:141
+    '  bloqueante: el plan dicta "se conservan" (`plan.md:370-372`).',  # BE-15:368
+    '  bloqueante: D1 pidió un ADR "corto" y enumeró su contenido sin evidencia',  # BE-15:688
+    "- [BLOQUEANTE] — Fase A — sin corregir — x.py:1",
+    "- [BLOQUEANTE] — Fase A — corregido — x.py:1 RESUELTO (abc1234)",
+    "Línea final (hallazgo 8). Veredicto Fase D: **GAPS (1 bloqueantes)**.",  # BE-33:290
+    "Línea final (hallazgo 8). Veredicto Fase D: **PASS (0 bloqueantes)**.",  # BE-33:290
+    "- Veredicto de cierre: el ítem está listo para el PR del bloque: PASS",  # BE-15:737
+    "Veredicto: BYPASS del guard",
+    "Veredicto: PASSWORD_RESET sin test",
+    "Veredicto: pass",
+    "BYPASS del guard",
+    "no es PASS",
+]
+_REAL_AUDITED_ITEMS = ["A9", "AF-01", "AF-05", "BE-01", "BE-02", "BE-15", "BE-33", "S1", "SEC1"]
+
+
+def _last_audit(tmp_path: Path, content: str) -> str:
+    path = tmp_path / "gaps.md"
+    path.write_text(content, encoding="utf-8")
+    verdict: str = check_docs.read_last_audit(path)
+    return verdict
+
+
+def _audit_state(verdict: str) -> str:
+    state: str = check_docs.STATE_AUDIT.format(verdict=check_docs.AUDIT_LABELS[verdict])
+    return state
+
+
+@pytest.mark.parametrize("shape", _REAL_VERDICT_SHAPES + _CONTRACT_SHAPES)
+@pytest.mark.parametrize(("word", "expected"), [("PASS", "pass"), ("GAPS", "gaps")])
+def test_read_last_audit_accepts_each_verdict_shape(
+    tmp_path: Path, shape: str, word: str, expected: str
+) -> None:
+    assert _last_audit(tmp_path, _BLOCK + shape.format(v=word) + "\n") == expected
+
+
+@pytest.mark.parametrize("finding", _NOT_VERDICTS)
+@pytest.mark.parametrize(
+    ("verdict_line", "expected"),
+    [("", "no_verdict"), (_PASS_LINE + "\n", "pass"), (_GAPS_LINE + "\n", "gaps")],
+    ids=["alone", "after-pass", "after-gaps"],
+)
+def test_read_last_audit_never_takes_a_finding_for_a_verdict(
+    tmp_path: Path, finding: str, verdict_line: str, expected: str
+) -> None:
+    assert _last_audit(tmp_path, _BLOCK + verdict_line + finding + "\n") == expected
+
+
+@pytest.mark.parametrize(
+    ("first", "last", "expected"),
+    [
+        (_PASS_LINE, _GAPS_LINE, "gaps"),
+        (_GAPS_LINE, _PASS_LINE, "pass"),
+        (_PASS_LINE, "Sin línea de cierre.", "no_verdict"),
+        ("Sin línea de cierre.", _PASS_LINE, "pass"),
+    ],
+    ids=["pass-then-gaps", "gaps-then-pass", "pass-then-no-line", "no-line-then-pass"],
+)
+def test_read_last_audit_reads_only_the_last_block(
+    tmp_path: Path, first: str, last: str, expected: str
+) -> None:
+    second_block = "## Auditoría Fase B — 2026-11-02\n\n"
+    content = f"{_BLOCK}{first}\n\n{second_block}{last}\n"
+    assert _last_audit(tmp_path, content) == expected
+
+
+@pytest.mark.parametrize(
+    ("body", "expected"),
+    [
+        (f"{_GAPS_LINE}\n{_PASS_LINE}\n", "gaps"),
+        (f"{_PASS_LINE}\n{_GAPS_LINE}\n", "pass"),
+        (f"### Hallazgos\n\n- [OPCIONAL] — x\n\n### Cierre\n\n{_PASS_LINE}\n", "pass"),
+        (f"{_PASS_LINE}\n\n## Notas\n\nSin línea de cierre.\n", "pass"),
+    ],
+    ids=["gaps-then-pass", "pass-then-gaps", "after-subheadings", "before-other-heading"],
+)
+def test_read_last_audit_first_verdict_of_the_block_wins(
+    tmp_path: Path, body: str, expected: str
+) -> None:
+    assert _last_audit(tmp_path, _BLOCK + body) == expected
+
+
+@pytest.mark.parametrize(
+    ("content", "expected"),
+    [
+        (f"# GAPS — BE-15\n\n{_BLOCK}{_PASS_LINE}\n", "pass"),
+        (f"# GAPS — BE-15\n\n{_BLOCK}Sin línea de cierre.\n", "no_verdict"),
+        (f"{_GAPS_LINE}\n\n{_BLOCK}{_PASS_LINE}\n", "pass"),
+        (f"# GAPS — BE-15\n\n{_PASS_LINE}\n", "no_verdict"),
+    ],
+    ids=["title-then-pass", "title-then-no-line", "gaps-before-block", "no-block-at-all"],
+)
+def test_read_last_audit_ignores_text_outside_blocks(
+    tmp_path: Path, content: str, expected: str
+) -> None:
+    assert _last_audit(tmp_path, content) == expected
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [b"", b"\n", b"  \n\n", b"## Auditor\xeda Fase A\n"],
+    ids=["empty", "newline", "blank", "not-utf8"],
+)
+def test_read_last_audit_empty_or_not_utf8_is_unreadable(tmp_path: Path, raw: bytes) -> None:
+    path = tmp_path / "gaps.md"
+    path.write_bytes(raw)
+    assert check_docs.read_last_audit(path) == "unreadable"
+
+
+def test_read_last_audit_unopenable_path_is_unreadable(tmp_path: Path) -> None:
+    path = tmp_path / "gaps.md"
+    path.mkdir()
+    assert check_docs.read_last_audit(path) == "unreadable"
+
+
+@pytest.mark.parametrize(
+    ("item", "next_block"),
+    [("A9", "## Auditoría Fase B"), ("AF-01", "## Auditoría Fase D")],
+    ids=["A9-phase-A", "AF-01-phase-C"],
+)
+def test_read_last_audit_real_block_without_verdict(
+    tmp_path: Path, item: str, next_block: str
+) -> None:
+    text = (ROOT / f"docs/deuda/{item}/gaps.md").read_text(encoding="utf-8")
+    cut, separator, _ = text.partition(next_block)
+    assert separator == next_block
+    assert _last_audit(tmp_path, cut) == "no_verdict"
+
+
+def test_estado_prints_every_item_and_never_raises(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    root = make_repo(
+        tmp_path,
+        {
+            "docs/deuda/A/gaps.md": f"{_BLOCK}{_PASS_LINE}\n",
+            "docs/deuda/B/gaps.md": "",
+            "docs/deuda/D/gaps.md": f"{_BLOCK}Sin línea de cierre.\n",
+            "docs/deuda/E/gaps.md": f"{_BLOCK}{_GAPS_LINE}\n",
+            "docs/deuda/F/verificacion.md": "x\n",
+        },
+    )
+    not_utf8 = root / "docs/deuda/C/gaps.md"
+    not_utf8.parent.mkdir(parents=True)
+    not_utf8.write_bytes(b"\xff\xfe")
+
+    assert check_docs.main(["--estado", "--root", str(root)]) == 0
+
+    captured = capsys.readouterr()
+    assert captured.err == ""
+    lines = captured.out.splitlines()
+    assert [ln.split(":", 1)[0] for ln in lines] == ["A", "B", "C", "D", "E", "F"]
+    verdicts = ["pass", "unreadable", "unreadable", "no_verdict", "gaps"]
+    for line, verdict in zip(lines[:5], verdicts, strict=True):
+        assert line.endswith(_audit_state(verdict))
+    assert check_docs.STATE_AUDIT.format(verdict="") not in lines[5]
+
+
+@pytest.mark.parametrize("item", _REAL_AUDITED_ITEMS)
+def test_estado_on_real_gaps_files(item: str, capsys: pytest.CaptureFixture[str]) -> None:
+    assert check_docs.read_last_audit(ROOT / f"docs/deuda/{item}/gaps.md") == "pass"
+    assert _estado_line(ROOT, item, capsys).endswith(_audit_state("pass"))
+
+
+def test_audit_labels_cover_every_verdict_without_repeating() -> None:
+    labels = check_docs.AUDIT_LABELS
+    assert set(labels) == {"pass", "gaps", "no_verdict", "unreadable"}
+    assert len(set(labels.values())) == 4
+    assert labels["pass"] == "PASS"
+
+
 # --- git helpers: real functions over a mocked process boundary (no process is spawned) ---
 
 
@@ -580,12 +772,21 @@ def _completed(returncode: int, stdout: str) -> subprocess.CompletedProcess[str]
 @pytest.mark.parametrize(
     ("outcome", "expected"),
     [
-        (_completed(0, "2026-11-01\n"), date(2026, 11, 1)),
+        (_completed(0, "2026-11-01T10:00:00-05:00\n"), date(2026, 11, 1)),
+        (_completed(0, "2026-11-06T00:37:13Z\n"), date(2026, 11, 5)),
+        (_completed(0, "2026-11-06T00:37:13+00:00\n"), date(2026, 11, 5)),
         (_completed(128, ""), None),
         (_completed(0, ""), None),
         (FileNotFoundError(), None),
     ],
-    ids=["committed", "not-a-repo", "no-history", "git-missing"],
+    ids=[
+        "committed",
+        "utc-z-next-day",
+        "utc-offset-next-day",
+        "not-a-repo",
+        "no-history",
+        "git-missing",
+    ],
 )
 def test_git_last_commit_date(
     tmp_path: Path,
@@ -599,7 +800,7 @@ def test_git_last_commit_date(
     monkeypatch.setattr(subprocess, "run", run)
     assert check_docs.git_last_commit_date(tmp_path, "docs/PLAN.md") == expected
     run.assert_called_once_with(
-        ["git", "log", "-1", "--format=%cs", "--", "docs/PLAN.md"],
+        ["git", "log", "-1", "--format=%cI", "--", "docs/PLAN.md"],
         cwd=tmp_path,
         capture_output=True,
         text=True,
@@ -802,6 +1003,10 @@ def _plan_section_3(tables: str, year: int = 2026) -> str:
     )
 
 
+def _plan_versioned(tables: str, version: str) -> str:
+    return _plan_section_3(tables).replace(_version_line("31 oct 2026"), _version_line(version))
+
+
 def _run_r7(root: Path, today: date) -> list[str]:
     errors: list[str] = []
     check_docs.rule_closed_days_marked(root, errors, today=lambda: today)
@@ -910,6 +1115,118 @@ def test_r7_without_plan_version_reports_once(tmp_path: Path) -> None:
     assert errors[0].startswith("docs/PLAN.md: R7: ")
 
 
+_DEC_JAN_ROWS = "| Lun 28 dic | x | |\n| Mar 29 | y | |\n| Vie 1 ene | z | |\n"
+
+
+@pytest.mark.parametrize(
+    ("version", "rows", "today", "expected"),
+    [
+        ("31 dic 2026", _DEC_JAN_ROWS, date(2027, 1, 5), 3),
+        ("2 ene 2027", _DEC_JAN_ROWS, date(2027, 1, 5), 3),
+        ("2 ene 2027", "| Vie 23 oct | x | |\n| Lun 2 nov | y | |\n", date(2027, 1, 5), 2),
+        ("31 dic 2026", "| Lun 4 ene | x | |\n| Mar 5 | y | |\n", date(2026, 12, 31), 0),
+        ("30 nov 2026", "| Mar 1 dic | x | |\n", date(2026, 11, 30), 0),
+    ],
+    ids=[
+        "a-dec-version",
+        "b-jan-version",
+        "c-oct-nov-rows",
+        "d-future-january",
+        "e-future-december",
+    ],
+)
+def test_r7_year_is_the_nearest_to_the_version_line(
+    tmp_path: Path, version: str, rows: str, today: date, expected: int
+) -> None:
+    content = _plan_versioned(_TABLE_HEAD + rows, version)
+    errors = _run_r7(make_repo(tmp_path, {"docs/PLAN.md": content}), today)
+    assert len(errors) == expected
+    for error in errors:
+        assert error.startswith("docs/PLAN.md:")
+        assert ": R7: " in error
+
+
+@pytest.mark.parametrize(
+    ("version", "row", "today", "expected"),
+    [
+        ("1 jun 2028", "| Vie 1 dic | x | |\n", date(2028, 6, 2), 1),
+        ("2 ene 2028", "| Mar 29 feb | x | |\n", date(2028, 3, 1), 1),
+        ("1 jul 2026", "| Mar 29 feb | x | |\n", date(2028, 3, 1), 0),
+        ("31 oct 2026", "| Lun 31 nov | x | |\n", date(2027, 6, 1), 0),
+    ],
+    ids=["tie-goes-to-earlier-year", "leap-day-exists", "leap-day-in-no-year", "day-never-exists"],
+)
+def test_r7_year_tie_and_impossible_dates(
+    tmp_path: Path, version: str, row: str, today: date, expected: int
+) -> None:
+    content = _plan_versioned(_TABLE_HEAD + row, version)
+    errors = _run_r7(make_repo(tmp_path, {"docs/PLAN.md": content}), today)
+    assert len(errors) == expected
+
+
+# --- Project time zone: the only conversion, used by R6 and by R7's clock ------------------
+
+
+@pytest.mark.parametrize(
+    ("instant", "expected"),
+    [
+        (datetime(2026, 11, 7, 0, 30, tzinfo=UTC), date(2026, 11, 6)),
+        (datetime(2026, 11, 7, 4, 59, 59, tzinfo=UTC), date(2026, 11, 6)),
+        (datetime(2026, 11, 7, 5, 0, 0, tzinfo=UTC), date(2026, 11, 7)),
+    ],
+    ids=["utc-evening-is-the-day-before", "last-second-of-the-day", "first-second-of-the-day"],
+)
+def test_project_date(instant: datetime, expected: date) -> None:
+    assert check_docs.project_date(instant) == expected
+
+
+def _freeze_clock(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Fix the UTC clock at 19:30 on 1 Mar in Bogotá, far from any real run."""
+    monkeypatch.setattr(check_docs, "_utc_now", lambda: datetime(2030, 3, 2, 0, 30, tzinfo=UTC))
+
+
+def test_project_today_uses_the_project_zone(monkeypatch: pytest.MonkeyPatch) -> None:
+    _freeze_clock(monkeypatch)
+    assert check_docs.project_today() == date(2030, 3, 1)
+
+
+@pytest.mark.parametrize(
+    ("stamp", "expected"),
+    [
+        ("2026-11-06T00:37:13Z", 0),
+        ("2026-11-06T04:59:59Z", 0),
+        ("2026-11-06T05:00:00Z", 1),
+        ("2026-11-05T23:00:00-05:00", 0),
+        ("2026-11-06T00:30:00-05:00", 1),
+    ],
+    ids=[
+        "real-d7de2d6",
+        "utc-last-second-of-the-day",
+        "utc-first-second-of-the-next-day",
+        "bogota-same-day",
+        "bogota-next-day",
+    ],
+)
+def test_r6_compares_the_commit_date_in_the_project_zone(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, stamp: str, expected: int
+) -> None:
+    def fake_run(command: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        if command[1] == "status":
+            return _completed(0, "")
+        last = stamp if command[-1] == "docs/PLAN.md" else "2026-10-27T12:00:00-05:00"
+        return _completed(0, f"{last}\n")
+
+    monkeypatch.setattr(subprocess, "run", create_autospec(subprocess.run, side_effect=fake_run))
+    root = make_repo(tmp_path, {"docs/PLAN.md": _plan_with_version("5 nov 2026")})
+    errors: list[str] = []
+    warnings: list[str] = []
+    check_docs.rule_version_header(root, errors, warnings)
+    assert len(errors) == expected
+    for error in errors:
+        assert error.startswith("docs/PLAN.md:3: R6: ")
+    assert warnings == []
+
+
 # --- --cierre wires R6-R7; the default pass never runs git nor reads the clock -------------
 
 
@@ -941,8 +1258,23 @@ def test_cierre_flag_fails_on_unmarked_closed_day_and_keeps_warnings(
     assert out.count(f": R6: {check_docs.WARN_UNVERIFIABLE}") == len(scope)
     assert run.call_count == 2 * len(scope)
     run.assert_any_call(
-        ["git", "log", "-1", "--format=%cs", "--", "docs/PLAN.md"],
+        ["git", "log", "-1", "--format=%cI", "--", "docs/PLAN.md"],
         cwd=root,
         capture_output=True,
         text=True,
     )
+
+
+def test_cierre_r7_clock_is_the_project_zone(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _freeze_clock(monkeypatch)
+    run = create_autospec(subprocess.run, side_effect=FileNotFoundError)
+    monkeypatch.setattr(subprocess, "run", run)
+    row = "| Jue 28 feb | x | |"
+    content = _plan_versioned(_TABLE_HEAD + f"{row}\n| Vie 1 mar | y | |\n", "1 mar 2030")
+    root = make_repo(tmp_path, {"docs/PLAN.md": content})
+    assert check_docs.main(["--cierre", "--root", str(root)]) == 1
+    out = capsys.readouterr().out
+    assert out.count(": R7: ") == 1
+    assert f"docs/PLAN.md:{content.splitlines().index(row) + 1}: R7: " in out

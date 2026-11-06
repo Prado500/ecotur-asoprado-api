@@ -1,6 +1,6 @@
 {
   "plan_file": "docs/deuda/AF-05/plan.md",
-  "current_target": "Auditoria",
+  "current_target": null,
   "phases": {
     "Fase_A": {
       "status": "completed",

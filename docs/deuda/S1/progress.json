@@ -1,6 +1,6 @@
 {
   "plan_file": "docs/deuda/S1/plan.md",
-  "current_target": "cierre",
+  "current_target": null,
   "phases": {
     "Fase_A": {
       "status": "completed",
