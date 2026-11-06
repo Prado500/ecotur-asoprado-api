@@ -15,17 +15,13 @@ class AuditLogBase(BaseModel):
 
 
 class AuditLogCreate(AuditLogBase):
-    """DTO utilized internally by the Service Layer to dispatch
-    records to the Audit Repository.
-    """
+    """DTO the Service Layer uses internally to dispatch records to the Audit Repository."""
 
     pass
 
 
 class AuditLogResponse(AuditLogBase):
-    """DTO utilized to serialize backend audit data outward to the
-    frontend administrative dashboards.
-    """
+    """DTO that serializes backend audit data for the frontend administrative dashboards."""
 
     id: int
     timestamp: datetime
