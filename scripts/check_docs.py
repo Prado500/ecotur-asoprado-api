@@ -16,7 +16,8 @@ Reglas bloqueantes (todas deterministas, todas con exit code):
   R5. La fecha de entrega más cercana (±40 caracteres) a "entrega", "deadline" o "fecha límite"
       en PLAN, backlog y sesiones es la de CONTEXT §2 y la línea lleva la cita `(CONTEXT §2)`.
 
-Comandos informativos (exit 0 siempre; excluyentes entre sí y con la pasada bloqueante):
+Comandos informativos (exit 0, salvo la excepción declarada en `estado()`: un `progress.json` que
+el sistema no deja leer; excluyentes entre sí y con la pasada bloqueante):
   R8. `--copias [DUEÑO]`: cada cita de forma fija del alcance, por archivo y línea; con DUEÑO, solo
       las citas cuyo interior empieza por ese texto (`CONTEXT §2`, `ADR-0008`, `backlog`).
   R9. `--huerfanas`: candidatos a hecho duro (fecha, `N %`, `N tests`, `N h`, `N m`) en líneas sin
@@ -27,11 +28,13 @@ Comandos informativos (exit 0 siempre; excluyentes entre sí y con la pasada blo
 
 Reglas de cierre (solo con `--cierre`: dependen de git y de la fecha de hoy, así que la compuerta
 por defecto no las corre y sigue siendo determinista, ADR-0001):
-  R6. La línea de versión (ADR-0007) de cada archivo del alcance no es anterior a su último commit;
-      un archivo sin línea de versión es error solo si su último commit es posterior al 28 oct
-      2026. Cambios sin commitear o git no disponible son avisos, nunca error.
-  R7. Toda fila de PLAN §3 con fecha anterior a hoy lleva en `Cierre` la marca `[✔◐✘] N`. El mes
-      se hereda dentro de cada tabla y el año sube cuando el mes retrocede.
+  R6. La línea de versión (ADR-0007) de cada archivo del alcance no es anterior a su último commit,
+      con el día del commit en el huso del proyecto; un archivo sin línea de versión es error solo
+      si su último commit es posterior al 28 oct 2026. Cambios sin commitear o git no disponible
+      son avisos, nunca error.
+  R7. Toda fila de PLAN §3 con fecha anterior a hoy (en el huso del proyecto) lleva en `Cierre` la
+      marca `[✔◐✘] N`. El mes se hereda dentro de cada tabla; el año de cada fila es el que deja su
+      fecha más cerca de la línea de versión de PLAN.
 
 Uso:
   python scripts/check_docs.py                  reglas bloqueantes (exit 1 si hay errores)
@@ -52,7 +55,7 @@ import re
 import subprocess
 import sys
 from collections.abc import Callable
-from datetime import date
+from datetime import UTC, date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Literal, NamedTuple
 
@@ -577,20 +580,48 @@ def estado(root: Path) -> int:
     return 0
 
 
+PROJECT_TZ = timezone(timedelta(hours=-5), "America/Bogota")
+"""The project's time zone: Colombia is on a fixed UTC-5, without daylight saving."""
+
+
+def project_date(instant: datetime) -> date:
+    """Return the calendar day of an instant in the project's time zone.
+
+    R6 and R7 compare days, and a machine or a committer in UTC is on the next day from
+    19:00 in Bogotá. Both rules go through here, whatever the machine's zone is.
+
+    Args:
+        instant: A timezone-aware instant.
+
+    Returns:
+        Its date in the project's time zone.
+    """
+    return instant.astimezone(PROJECT_TZ).date()
+
+
+def _utc_now() -> datetime:
+    return datetime.now(UTC)
+
+
+def project_today() -> date:
+    """Return today's date in the project's time zone (R7's clock)."""
+    return project_date(_utc_now())
+
+
 def git_last_commit_date(root: Path, rel: str) -> date | None:
-    """Return the date of the last commit that touched a file (``git log -1 --format=%cs``).
+    """Return the project-zone day of a file's last commit (``git log -1 --format=%cI``).
 
     Args:
         root: Repository root; git runs there.
         rel: Path relative to ``root``.
 
     Returns:
-        The committer date, or ``None`` if git is missing, fails (not a repository) or the file
-        has no history (untracked, shallow clone).
+        The commit's day in the project's time zone, or ``None`` if git is missing, fails (not a
+        repository) or the file has no history (untracked, shallow clone).
     """
     try:
         result = subprocess.run(
-            ["git", "log", "-1", "--format=%cs", "--", rel],
+            ["git", "log", "-1", "--format=%cI", "--", rel],
             cwd=root,
             capture_output=True,
             text=True,
@@ -600,7 +631,7 @@ def git_last_commit_date(root: Path, rel: str) -> date | None:
     out = result.stdout.strip()
     if result.returncode != 0 or not out:
         return None
-    return date.fromisoformat(out)
+    return project_date(datetime.fromisoformat(out))
 
 
 def git_is_dirty(root: Path, rel: str) -> bool | None:
@@ -723,18 +754,41 @@ def _cells(line: str) -> list[str]:
     return [c.strip() for c in line.strip().strip("|").split("|")]
 
 
-def _dated_rows(lines: list[tuple[int, str]], start_year: int) -> list[tuple[int, str, date, str]]:
+def _date_near(month: int, day: int, anchor: date) -> date | None:
+    """Date of a day and month in the year that leaves it nearest to ``anchor``.
+
+    A tie (possible only across a 29 Feb, about six months away) takes the earlier year: the row
+    counts as past and R7 demands its mark, while the later year would hide it as future.
+
+    Args:
+        month: Month number.
+        day: Day of the month.
+        anchor: The date the year is inferred from.
+
+    Returns:
+        The nearest valid date among the anchor's year and its two neighbours, or ``None`` if the
+        day does not exist in any of them.
+    """
+    candidates: list[date] = []
+    for year in (anchor.year - 1, anchor.year, anchor.year + 1):
+        try:
+            candidates.append(date(year, month, day))
+        except ValueError:
+            continue
+    return min(candidates, key=lambda c: abs((c - anchor).days), default=None)
+
+
+def _dated_rows(lines: list[tuple[int, str]], anchor: date) -> list[tuple[int, str, date, str]]:
     """Rows of the tables that have a ``Cierre`` column, with their date and ``Cierre`` cell.
 
-    The first line of each table is its header and resets month and year: the month is inherited
-    from the last row that names it, and the year starts at ``start_year`` and goes up when the
-    month goes back. Rows without a date (``(se fecha …)``, separator) or before any month is
-    named are skipped, and so is an impossible date.
+    The first line of each table is its header and resets the month, which is inherited from the
+    last row that names it. Each row takes the year nearest to ``anchor`` (``_date_near``). Rows
+    without a date (``(se fecha …)``, separator) or before any month is named are skipped, and so
+    is an impossible date.
     """
     rows: list[tuple[int, str, date, str]] = []
     close_idx: int | None = None
     month: int | None = None
-    year = start_year
     in_table = False
     for n, line in lines:
         if not line.startswith("|"):
@@ -744,33 +798,29 @@ def _dated_rows(lines: list[tuple[int, str]], start_year: int) -> list[tuple[int
         if not in_table:
             in_table = True
             close_idx = cells.index("Cierre") if "Cierre" in cells else None
-            month, year = None, start_year
+            month = None
             continue
         m = DAY_CELL_RE.match(cells[0])
         if close_idx is None or m is None:
             continue
         if m.group(3):
-            named = _MONTHS.index(m.group(3)) + 1
-            if month is not None and named < month:
-                year += 1
-            month = named
+            month = _MONTHS.index(m.group(3)) + 1
         if month is None:
             continue
-        try:
-            day = date(year, month, int(m.group(2)))
-        except ValueError:
+        day = _date_near(month, int(m.group(2)), anchor)
+        if day is None:
             continue
         rows.append((n, line, day, cells[close_idx] if close_idx < len(cells) else ""))
     return rows
 
 
 def rule_closed_days_marked(
-    root: Path, errors: list[str], *, today: Callable[[], date] = date.today
+    root: Path, errors: list[str], *, today: Callable[[], date] = project_today
 ) -> None:
     """R7 (``--cierre``): every PLAN §3 row dated before today carries its closing mark.
 
     The mark is ``[✔◐✘] N`` in the ``Cierre`` column (ADR-0008 point 6); today's row needs none
-    yet. The year of the first row is the year of PLAN's version line.
+    yet. Each row takes the year nearest to PLAN's version line (``_date_near``).
 
     Args:
         root: Repository root.
@@ -783,7 +833,7 @@ def rule_closed_days_marked(
         errors.append(f"{rel}: R7: sin línea de versión: el año de PLAN §3 no se puede inferir")
         return
     now = today()
-    for n, line, day, close in _dated_rows(lines_inside(root, rel, {"3"}), version.when.year):
+    for n, line, day, close in _dated_rows(lines_inside(root, rel, {"3"}), version.when):
         if day < now and not CLOSE_MARK_RE.match(close):
             errors.append(_error(rel, n, "R7", "fila de PLAN §3 cerrada sin marca en Cierre", line))
 

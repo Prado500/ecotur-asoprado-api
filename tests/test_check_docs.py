@@ -7,7 +7,7 @@ import json
 import subprocess
 import sys
 from collections.abc import Callable
-from datetime import date
+from datetime import UTC, date, datetime
 from pathlib import Path
 from unittest.mock import call, create_autospec
 
@@ -772,12 +772,21 @@ def _completed(returncode: int, stdout: str) -> subprocess.CompletedProcess[str]
 @pytest.mark.parametrize(
     ("outcome", "expected"),
     [
-        (_completed(0, "2026-11-01\n"), date(2026, 11, 1)),
+        (_completed(0, "2026-11-01T10:00:00-05:00\n"), date(2026, 11, 1)),
+        (_completed(0, "2026-11-06T00:37:13Z\n"), date(2026, 11, 5)),
+        (_completed(0, "2026-11-06T00:37:13+00:00\n"), date(2026, 11, 5)),
         (_completed(128, ""), None),
         (_completed(0, ""), None),
         (FileNotFoundError(), None),
     ],
-    ids=["committed", "not-a-repo", "no-history", "git-missing"],
+    ids=[
+        "committed",
+        "utc-z-next-day",
+        "utc-offset-next-day",
+        "not-a-repo",
+        "no-history",
+        "git-missing",
+    ],
 )
 def test_git_last_commit_date(
     tmp_path: Path,
@@ -791,7 +800,7 @@ def test_git_last_commit_date(
     monkeypatch.setattr(subprocess, "run", run)
     assert check_docs.git_last_commit_date(tmp_path, "docs/PLAN.md") == expected
     run.assert_called_once_with(
-        ["git", "log", "-1", "--format=%cs", "--", "docs/PLAN.md"],
+        ["git", "log", "-1", "--format=%cI", "--", "docs/PLAN.md"],
         cwd=tmp_path,
         capture_output=True,
         text=True,
@@ -994,6 +1003,10 @@ def _plan_section_3(tables: str, year: int = 2026) -> str:
     )
 
 
+def _plan_versioned(tables: str, version: str) -> str:
+    return _plan_section_3(tables).replace(_version_line("31 oct 2026"), _version_line(version))
+
+
 def _run_r7(root: Path, today: date) -> list[str]:
     errors: list[str] = []
     check_docs.rule_closed_days_marked(root, errors, today=lambda: today)
@@ -1102,6 +1115,118 @@ def test_r7_without_plan_version_reports_once(tmp_path: Path) -> None:
     assert errors[0].startswith("docs/PLAN.md: R7: ")
 
 
+_DEC_JAN_ROWS = "| Lun 28 dic | x | |\n| Mar 29 | y | |\n| Vie 1 ene | z | |\n"
+
+
+@pytest.mark.parametrize(
+    ("version", "rows", "today", "expected"),
+    [
+        ("31 dic 2026", _DEC_JAN_ROWS, date(2027, 1, 5), 3),
+        ("2 ene 2027", _DEC_JAN_ROWS, date(2027, 1, 5), 3),
+        ("2 ene 2027", "| Vie 23 oct | x | |\n| Lun 2 nov | y | |\n", date(2027, 1, 5), 2),
+        ("31 dic 2026", "| Lun 4 ene | x | |\n| Mar 5 | y | |\n", date(2026, 12, 31), 0),
+        ("30 nov 2026", "| Mar 1 dic | x | |\n", date(2026, 11, 30), 0),
+    ],
+    ids=[
+        "a-dec-version",
+        "b-jan-version",
+        "c-oct-nov-rows",
+        "d-future-january",
+        "e-future-december",
+    ],
+)
+def test_r7_year_is_the_nearest_to_the_version_line(
+    tmp_path: Path, version: str, rows: str, today: date, expected: int
+) -> None:
+    content = _plan_versioned(_TABLE_HEAD + rows, version)
+    errors = _run_r7(make_repo(tmp_path, {"docs/PLAN.md": content}), today)
+    assert len(errors) == expected
+    for error in errors:
+        assert error.startswith("docs/PLAN.md:")
+        assert ": R7: " in error
+
+
+@pytest.mark.parametrize(
+    ("version", "row", "today", "expected"),
+    [
+        ("1 jun 2028", "| Vie 1 dic | x | |\n", date(2028, 6, 2), 1),
+        ("2 ene 2028", "| Mar 29 feb | x | |\n", date(2028, 3, 1), 1),
+        ("1 jul 2026", "| Mar 29 feb | x | |\n", date(2028, 3, 1), 0),
+        ("31 oct 2026", "| Lun 31 nov | x | |\n", date(2027, 6, 1), 0),
+    ],
+    ids=["tie-goes-to-earlier-year", "leap-day-exists", "leap-day-in-no-year", "day-never-exists"],
+)
+def test_r7_year_tie_and_impossible_dates(
+    tmp_path: Path, version: str, row: str, today: date, expected: int
+) -> None:
+    content = _plan_versioned(_TABLE_HEAD + row, version)
+    errors = _run_r7(make_repo(tmp_path, {"docs/PLAN.md": content}), today)
+    assert len(errors) == expected
+
+
+# --- Project time zone: the only conversion, used by R6 and by R7's clock ------------------
+
+
+@pytest.mark.parametrize(
+    ("instant", "expected"),
+    [
+        (datetime(2026, 11, 7, 0, 30, tzinfo=UTC), date(2026, 11, 6)),
+        (datetime(2026, 11, 7, 4, 59, 59, tzinfo=UTC), date(2026, 11, 6)),
+        (datetime(2026, 11, 7, 5, 0, 0, tzinfo=UTC), date(2026, 11, 7)),
+    ],
+    ids=["utc-evening-is-the-day-before", "last-second-of-the-day", "first-second-of-the-day"],
+)
+def test_project_date(instant: datetime, expected: date) -> None:
+    assert check_docs.project_date(instant) == expected
+
+
+def _freeze_clock(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Fix the UTC clock at 19:30 on 1 Mar in Bogotá, far from any real run."""
+    monkeypatch.setattr(check_docs, "_utc_now", lambda: datetime(2030, 3, 2, 0, 30, tzinfo=UTC))
+
+
+def test_project_today_uses_the_project_zone(monkeypatch: pytest.MonkeyPatch) -> None:
+    _freeze_clock(monkeypatch)
+    assert check_docs.project_today() == date(2030, 3, 1)
+
+
+@pytest.mark.parametrize(
+    ("stamp", "expected"),
+    [
+        ("2026-11-06T00:37:13Z", 0),
+        ("2026-11-06T04:59:59Z", 0),
+        ("2026-11-06T05:00:00Z", 1),
+        ("2026-11-05T23:00:00-05:00", 0),
+        ("2026-11-06T00:30:00-05:00", 1),
+    ],
+    ids=[
+        "real-d7de2d6",
+        "utc-last-second-of-the-day",
+        "utc-first-second-of-the-next-day",
+        "bogota-same-day",
+        "bogota-next-day",
+    ],
+)
+def test_r6_compares_the_commit_date_in_the_project_zone(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, stamp: str, expected: int
+) -> None:
+    def fake_run(command: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        if command[1] == "status":
+            return _completed(0, "")
+        last = stamp if command[-1] == "docs/PLAN.md" else "2026-10-27T12:00:00-05:00"
+        return _completed(0, f"{last}\n")
+
+    monkeypatch.setattr(subprocess, "run", create_autospec(subprocess.run, side_effect=fake_run))
+    root = make_repo(tmp_path, {"docs/PLAN.md": _plan_with_version("5 nov 2026")})
+    errors: list[str] = []
+    warnings: list[str] = []
+    check_docs.rule_version_header(root, errors, warnings)
+    assert len(errors) == expected
+    for error in errors:
+        assert error.startswith("docs/PLAN.md:3: R6: ")
+    assert warnings == []
+
+
 # --- --cierre wires R6-R7; the default pass never runs git nor reads the clock -------------
 
 
@@ -1133,8 +1258,23 @@ def test_cierre_flag_fails_on_unmarked_closed_day_and_keeps_warnings(
     assert out.count(f": R6: {check_docs.WARN_UNVERIFIABLE}") == len(scope)
     assert run.call_count == 2 * len(scope)
     run.assert_any_call(
-        ["git", "log", "-1", "--format=%cs", "--", "docs/PLAN.md"],
+        ["git", "log", "-1", "--format=%cI", "--", "docs/PLAN.md"],
         cwd=root,
         capture_output=True,
         text=True,
     )
+
+
+def test_cierre_r7_clock_is_the_project_zone(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _freeze_clock(monkeypatch)
+    run = create_autospec(subprocess.run, side_effect=FileNotFoundError)
+    monkeypatch.setattr(subprocess, "run", run)
+    row = "| Jue 28 feb | x | |"
+    content = _plan_versioned(_TABLE_HEAD + f"{row}\n| Vie 1 mar | y | |\n", "1 mar 2030")
+    root = make_repo(tmp_path, {"docs/PLAN.md": content})
+    assert check_docs.main(["--cierre", "--root", str(root)]) == 1
+    out = capsys.readouterr().out
+    assert out.count(": R7: ") == 1
+    assert f"docs/PLAN.md:{content.splitlines().index(row) + 1}: R7: " in out
