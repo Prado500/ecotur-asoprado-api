@@ -34,15 +34,42 @@ async def send_verification_email(email_to: EmailStr, first_name: str, token: st
     <head>
         <meta charset="utf-8">
         <style>
-            body {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #F7F9FB; margin: 0; padding: 0; }}
-            .container {{ max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #E2E8F0; }}
+            body {{
+                font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+                background-color: #F7F9FB;
+                margin: 0;
+                padding: 0;
+            }}
+            .container {{
+                max-width: 600px;
+                margin: 40px auto;
+                background-color: #ffffff;
+                border-radius: 8px;
+                overflow: hidden;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+                border: 1px solid #E2E8F0;
+            }}
             .header {{ background-color: #006875; padding: 32px; text-align: center; }}
             .header h1 {{ color: #ffffff; margin: 0; font-size: 24px; letter-spacing: 1px; }}
             .content {{ padding: 40px 32px; color: #3B494C; line-height: 1.6; }}
             .content h2 {{ color: #191C1E; font-size: 20px; margin-top: 0; }}
             .btn-container {{ text-align: center; margin: 40px 0; }}
-            .btn {{ background-color: #006C49; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block; }}
-            .footer {{ background-color: #F2F4F6; padding: 24px; text-align: center; font-size: 12px; color: #6B7A7D; }}
+            .btn {{
+                background-color: #006C49;
+                color: #ffffff;
+                padding: 14px 32px;
+                text-decoration: none;
+                border-radius: 6px;
+                font-weight: bold;
+                display: inline-block;
+            }}
+            .footer {{
+                background-color: #F2F4F6;
+                padding: 24px;
+                text-align: center;
+                font-size: 12px;
+                color: #6B7A7D;
+            }}
         </style>
     </head>
     <body>
@@ -52,15 +79,20 @@ async def send_verification_email(email_to: EmailStr, first_name: str, token: st
             </div>
             <div class="content">
                 <h2>¡Hola, {first_name}!</h2>
-                <p>Gracias por unirte a Ecotur Asoprado. Estás a un solo paso de descubrir las mejores experiencias bioculturales que tenemos para ti desde Prado, Tolima.</p>
-                <p>Para garantizar la seguridad de tu cuenta y activar tu acceso, por favor verifica tu dirección de correo electrónico haciendo clic en el siguiente botón:</p>
-                
+                <p>Gracias por unirte a Ecotur Asoprado. Estás a un solo paso de descubrir las
+                mejores experiencias bioculturales que tenemos para ti desde Prado, Tolima.</p>
+                <p>Para garantizar la seguridad de tu cuenta y activar tu acceso, por favor
+                verifica tu dirección de correo electrónico haciendo clic en el siguiente botón:</p>
+
                 <div class="btn-container">
-                    <a href="{verification_link}" class="btn" style="color: #ffffff !important; text-decoration: none;">Verificar mi Cuenta</a>
+                    <a href="{verification_link}" class="btn"
+                        style="color: #ffffff !important;
+                        text-decoration: none;">Verificar mi Cuenta</a>
                 </div>
-                
+
                 <p>Si el botón no funciona, copia y pega este enlace en tu navegador:</p>
-                <p style="font-size: 12px; color: #006875; word-break: break-all;">{verification_link}</p>
+                <p style="font-size: 12px; color: #006875;
+                    word-break: break-all;">{verification_link}</p>
                 <p><i>Este enlace expirará en 15 minutos.</i></p>
             </div>
             <div class="footer">
