@@ -590,3 +590,15 @@ total cambia; `progress.json` queda en `Fase_A`.
 5. **570 líneas:** aceptadas hoy como "plan que dicta" (precedente BE-33). Si en el cierre hay una razón de peso o una
    fuente (no solo la letra de AGENTS §8) para volver a "plan de una página", se delibera entonces.
 6. **Mes heredado** (residual del plan): a AF-08 con los puntos 1, 5, "6" y `reconfigure`, en el cierre.
+
+**E1 — 6 nov 2026, 17:25 (David, tras la auditoría de A): la fase B corrige también la docstring del módulo,
+`scripts/check_docs.py:19`.** "Comandos informativos (exit 0 siempre …)" pasa a "(exit 0, salvo la excepción declarada en
+`estado()`: un `progress.json` que el sistema no deja leer)". Una línea de texto en un archivo que la fase B ya edita; no
+cambia conteos ni tests. Hallazgo 1 de la auditoría de A. Los demás opcionales de A: 4 (veredicto heredado si el
+encabezado del último bloque no se reconoce: `Fase_B`, sin tilde, `###`) → el contrato de `handoff-auditor.md` fija el
+encabezado exacto `## Auditoría Fase <X> — <AAAA-MM-DD>` además de la línea de veredicto (David, rama de AF-07, también
+en `.opencode/agent/handoff-auditor.md`), y la tolerancia del parser (`^##+ Auditor[ií]a Fase[ _]`) va a AF-08 como
+punto propio; 2 (dos líneas nuevas en español en la docstring del módulo) → aceptadas, el encabezado ya está en español;
+3, 5–8 (lecturas límite sin caso real) y 9–10 (partes de las regex sin fijar) → AF-08; 11–12 (cifras de la sonda) → sin
+acción; 13 (`CONTEXT.md:294`, `backlog.md:165`) → cierre; 14 (`progress.json:13` "Needs David's answer to P1") → el
+orquestador avisa al ejecutor de B que P1 está resuelta (E0.1); la regla de edición reserva ese archivo al ejecutor.
