@@ -1,7 +1,7 @@
 # PLAN — BE-33: Saldar los residuales de ruff y mypy de `app/` que no dependen de A4
 
 > Fuente: `docs/deuda/BE-33/verificacion.md` (parcial, con adenda de once puntos del 6 nov). Base develop: `bab25c2`.
-> Estado: **pendiente de aprobación de David.**
+> Estado: **aprobado por David (6 nov 2026, 10:22; E0 en "Enmiendas aprobadas").**
 
 ## Resumen para aprobación
 
