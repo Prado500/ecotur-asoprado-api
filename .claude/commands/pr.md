@@ -8,7 +8,7 @@ sin commitear, detente y dímelo.
 
 Aplica la skill `pr-author` sobre esos commits: título imperativo en Conventional Commits, descripción con
 las secciones Por qué / Organización por commits / Cómo se probó (incluye la salida literal del RESUMEN de
-`python scripts/check.py` si la corrí en la rama) / Residuales / Referencias (ADR, ítems del backlog), y el
+`./venv/Scripts/python.exe scripts/check.py` si la corrí en la rama) / Residuales / Referencias (ADR, ítems del backlog), y el
 mensaje de merge siguiendo el patrón del repo (`Merge pull request #N from <rama> - <título>`).
 Estrategia: merge commit (los commits de este repo son atómicos por diseño); recomienda squash solo si los
 commits de la rama no son atómicos, y di por qué.

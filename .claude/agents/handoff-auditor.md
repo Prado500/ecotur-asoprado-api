@@ -17,7 +17,8 @@ El ID y, opcionalmente, la letra de fase. Si no te la dan: abre `docs/deuda/<ID>
 1. `git log --oneline -15` y `git status --short`. Árbol sucio (fuera de `docs/deuda/`) = hallazgo.
 2. `progress.json`: la fase auditada tiene hash de commit real (`git show --stat <hash>` lo confirma),
    `current_target` avanzado, `last_handoff` presente, `edit_rules` intacto.
-3. **Re-ejecuta la compuerta completa tú mismo:** `python scripts/check.py`, y compara contra la línea base
+3. **Re-ejecuta la compuerta completa tú mismo:** `./venv/Scripts/python.exe scripts/check.py`,
+   (en POSIX `./venv/bin/python`; AGENTS §6), y compara contra la línea base
    de `docs/deuda/<ID>/verificacion.md` y contra lo que pegó el ejecutor. BLOQUEANTE si: pytest en rojo;
    cobertura menor que la línea base; menos contratos KEPT que la línea base o que lo que el plan exige;
    errores de ruff o mypy en los archivos tocados por la fase (`ruff check <archivos>`, `mypy <archivos>`);
@@ -41,12 +42,17 @@ El ID y, opcionalmente, la letra de fase. Si no te la dan: abre `docs/deuda/<ID>
 Regla anti-scope-creep: solo reportas lo que afecta corrección o requisitos del plan.
 
 ## Salida
-1. Escribe/actualiza `docs/deuda/<ID>/gaps.md`. **Hay un solo `gaps.md` por ID**: cada auditoría añade su
-   bloque `## Auditoría Fase X — <fecha>` con una línea por hallazgo:
+1. Escribe/actualiza `docs/deuda/<ID>/gaps.md`. **Hay un solo `gaps.md` por ID**: cada auditoría añade al final un
+   bloque cuyo encabezado es **exactamente** `## Auditoría Fase <X> — <AAAA-MM-DD>` (dos almohadillas, "Auditoría" con
+   tilde, "Fase" y la letra separadas por un espacio, fecha ISO) y cuya **primera línea** es el veredicto, en una de
+   estas dos formas y ninguna otra:
+   `**Veredicto Fase <X>: PASS (0 bloqueantes, N opcionales).**`
+   `**Veredicto Fase <X>: GAPS (N bloqueantes, M opcionales).**`
+   `scripts/check_docs.py --estado` lee ese encabezado y esa línea (AF-02); un encabezado o un veredicto con otra forma
+   hace que el ítem se lea con el veredicto de la auditoría anterior. Después del veredicto, una línea por hallazgo:
    `[BLOQUEANTE] | [OPCIONAL] — Fase X — descripción — evidencia (archivo:línea o salida de comando)`.
    Los bloqueantes de auditorías anteriores que ya se corrigieron se marcan `RESUELTO (<hash>)`, no se borran.
-2. Responde con el veredicto `PASS` o `GAPS (N bloqueantes, M opcionales)`, la salida literal del RESUMEN de la
-   compuerta y, si hay bloqueantes, la instrucción de relanzar `/implementar <ID> <Fase>` con `gaps.md` como
-   alcance estricto.
+2. Responde con el mismo veredicto, la salida literal del RESUMEN de la compuerta y, si hay bloqueantes, la
+   instrucción de relanzar `/implementar <ID> <Fase>` con `gaps.md` como alcance estricto.
 
 Nunca corrijas código: tu rol termina en el reporte. No edites este prompt ni `AGENTS.md`.
