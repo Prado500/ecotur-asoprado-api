@@ -666,3 +666,10 @@ antes respondía éxito con una fila de auditoría; ahora lanza `NoResultFound` 
 sigue en 500, sin medir en la sonda. El cuerpo de `b9a8907` repite el texto del plan y no se reescribe (AGENTS §9); la
 descripción del PR lo aclara. Los opcionales 1–4 de la auditoría de B y el `Raises` sin `StaleDataError` van a BE-32
 (aserciones por debajo de AGENTS §5), no a la fase C, cuyos totales están dictados. Ficha corregida el mismo día.
+
+**E3 — 6 nov 2026, 12:05 (David, tras la auditoría de C): la fila de `test_expired_and_corrupt_tokens_get_distinct_details`
+(tabla de tests de la fase C, l.353) prometía "ramas no intercambiadas"; lo que el test demuestra es que los dos `detail`
+son distintos.** Intercambiar los textos sobrevive a la suite y no puede detectarse sin leer el texto (AGENTS §5) o sin un
+campo `code` en la respuesta (decisión de contrato con dueño: P2). Intercambiar las ramas sí sería detectable con un test
+candidato que el auditor midió en copia; va a BE-32 con los demás opcionales de C. El plan no se reescribe: esta enmienda
+corrige la lectura de esa fila.

@@ -94,3 +94,79 @@ No comprobado:
 - Las mediciones de mutación y de la sonda corrieron sobre SQLite en memoria con variables ficticias. `StaleDataError` no se midió en PostgreSQL ni `update_package_details` (l.347) con la fila ausente.
 
 Durante la auditoría, `docs/aprendizaje/fichas/BE-33.md` apareció modificado; David lo commiteó en `6301ca5`, y el árbol estaba limpio antes de escribir este bloque. No es hallazgo de la fase: ni `b9a8907` ni `09601ee` lo tocan.
+
+## Auditoría Fase C — 2026-11-06
+
+**Veredicto: PASS (0 bloqueantes, 6 opcionales).** Commit de fase `0c076b4` (padre `7f8a103`), progreso `3c85e13`, rama `item/be-33`, árbol limpio antes de escribir este bloque.
+
+Compuerta re-ejecutada con `./venv/Scripts/python.exe scripts/check.py`, exit 1:
+
+```text
+=== RESUMEN ===
+  ✔ ruff format --check
+  ✘ ruff check
+  ✘ mypy
+  ✔ import-linter
+  ✔ docs (coherencia)
+  ✔ pytest + cobertura
+
+Compuerta NO superada: ruff check, mypy
+```
+
+```text
+56 files already formatted
+Found 20 errors.
+Found 5 errors in 4 files (checked 35 source files)
+Contracts: 4 kept, 0 broken.
+app\api\dependencies.py                       53      1      6      0  98.31%   63
+TOTAL                                        943     27    138     19  95.74%
+432 passed, 5 warnings in 11.79s
+```
+
+Contraste con el plan, medido:
+
+- **Mensaje de commit:** comparado por programa contra `plan.md`, con `<MODELO EJECUTOR>` sustituido por `Claude Opus 5.5`: idéntico, 1186 caracteres.
+- **Alcance y `numstat`:** solo los 5 archivos de la fase; `16 12`, `3 2`, `19 13`, `15 9` y `166 0`. `3c85e13` solo toca el handoff y `progress.json`.
+- **Decisión 2:** ruff solo da I001 l.1 en `dependencies.py` y `user_service.py`, y 0 en los otros tres; mypy da `dependencies.py:95` y `user_service.py:124`, y 0 líneas `^tests`. Totales: I001 9, E501 8, W293 3.
+- **V5, V7 y V8:** 0 y 3 líneas; 4 y 4; `usuario` y `email: str | None` en 0, y los 4 `noqa` UP042.
+- **V9, extraído de `plan.md`:** `code=same` en `user_access_policy.py` y `strings=exact` en los diez archivos. `code=changed` solo en los cuatro que el plan espera.
+- **RED real:** el test nuevo sobre el `app/` de `7f8a103` da `4 failed, 7 passed`, en las líneas 143 y 165 (`__cause__`).
+- **Mutación del plan (401 → 403):** `7 failed, 4 passed`.
+- **`progress.json`:** JSON válido; fase `completed` con hash real; `current_target` en `Fase_D`; `last_handoff` presente; `edit_rules` intacto.
+- **`/openapi.json` entre `7f8a103` y `0c076b4`:** una sola diferencia, `/components/schemas/TokenResponse/description`. `properties` idénticas; `TokenData` no aparece. Es lo que el plan espera.
+- **Respuestas HTTP:** 21 casos de token en `/usuarios/mi-perfil` y `/usuarios/verificar-email`, con estado, `WWW-Authenticate` y cuerpo idénticos entre padre y commit. Incluye `sub` nulo, entero y vacío, tras el cambio de `TokenData.email`.
+
+Hallazgos:
+
+- [OPCIONAL] — Fase C — `plan.md:353` promete más de lo que el test demuestra. La columna "Cubre" dice "ramas no intercambiadas", pero el test solo prueba que los dos `detail` son distintos. Intercambiar los textos (D1) e intercambiar las ramas (D2) sobreviven a la suite completa. No es bloqueante porque el test existe, pasa y cumple la columna "Esperado" ("`detail` distintos"), y el ejecutor lo declaró. D1 no se puede detectar sin leer el texto (AGENTS §5) o sin un código de error nuevo. D2 sí: un test candidato que exige `detail` de token corrupto igual al de usuario desconocido lo mata, y D1 lo sigue pasando. Destino sugerido: corregir la columna con una enmienda y llevar el candidato a BE-32 — `docs/deuda/BE-33/plan.md:353`; `tests/test_token_failure_paths.py:93-98`; D1 y D2: `11 passed` y `432 passed`; candidato bajo D2: `1 failed, 1 passed`.
+- [OPCIONAL] — Fase C — En `verify_email_account`, la pérdida de `from err` se detecta en cada rama (U2, U3, U4, U5), pero ningún test distingue sus mensajes. Intercambiarlos (U1), responder a un token vencido con el mensaje de corrupto (U6) e invertir los `except` (U7) sobreviven a la suite completa. Las mutaciones equivalentes en `get_current_user` (D3, D4) sí mueren. Un candidato con `str(expired) != str(corrupt)` mata U6 y U7, no U1. La tabla del plan no lo exigía. Destino sugerido: BE-32 — `app/services/user_service.py:125-132`; `tests/test_user_service.py:254-281`; U1, U6 y U7: `11 passed` y `432 passed`.
+- [OPCIONAL] — Fase C — Ningún test de la suite rechaza un token firmado con otra clave. Hoy el comportamiento es correcto: 401 en la ruta protegida y 400 en la verificación. Pero con `verify_signature` apagado y `verify_exp` encendido, la suite sigue en verde (D20 y U14) mientras un token falsificado recibe 200 en ambas rutas. La brecha es anterior a la fase y el plan no la pedía, pero es la de mayor riesgo de esta lista: un fallo de autenticación pasaría inadvertido. Destino sugerido: BE-32 o fila propia con prioridad — `app/api/dependencies.py:95`; `app/services/user_service.py:124`; D20 y U14: `11 passed` y `432 passed`; sonda: `forged_access_token 401 → 200`, `forged_verification_token 400 → 200`.
+- [OPCIONAL] — Fase C — Ningún test fija que el token de un usuario con borrado lógico se rechace por `deleted_at`. Si la búsqueda incluye a los borrados (D17), la suite sigue en verde y ese usuario, activo, recibe 200. `soft_delete_user` también pone `is_active = False`, así que ese estado no se alcanza por la ruta normal. Destino sugerido: BE-32 — `app/api/dependencies.py:111`; `app/repositories/user_repository.py:61-62`; D17: `11 passed` y `432 passed`; sonda: `soft_deleted_active_user 401 → 200`.
+- [OPCIONAL] — Fase C — `test_valid_token_on_protected_route_returns_the_user` y `test_token_for_unknown_user_returns_401` corren con 1 y 0 usuarios, así que no distinguen "el usuario que nombra el token" de "el único usuario". Si la búsqueda ignora `sub` (D11), el archivo da `11 passed`. La suite completa sí lo detecta (`11 failed`, en `test_auth.py`, `test_user_access_policy.py` y `test_user_response.py`), de modo que la propiedad está protegida; lo que queda corto es el docstring "the active user it names" — `tests/test_token_failure_paths.py:63-72,110-116`.
+- [OPCIONAL] — Fase C — `user_repo.activate_user.assert_not_called()` aporta poco en el caso `expired`. `_expired_token` no lleva `scope`, y la aserción de causa va antes: con la expiración apagada (U9) el test cae en la l.165, y con expiración y `scope` apagados (U13), en `DID NOT RAISE` (l.162). Solo la alcanza un mutante que active antes de lanzar (U8). Sin esa línea, U8 pasa el archivo (`11 passed`) y la suite lo sigue detectando (`1 failed`) por `tests/test_user_service.py:281`. No es vacua, pero sí redundante. Destino sugerido: BE-32 — `tests/test_token_failure_paths.py:33-35,165-166`.
+
+Evaluación de los 9 tests (11 casos) contra AGENTS §5 y `test-sanitizer`, con 29 mutantes sobre una copia desechable, cada uno contra el archivo y contra la suite completa, y 4 dirigidos (D21 a D24) solo contra el archivo. Reparto: 1 feliz, 3 de fallo y 3 de borde, más 4 casos de causa.
+
+| Test | Lo que lo mata | Lo que no demuestra |
+|---|---|---|
+| `valid_token_..._returns_the_user` | `is_active` invertido (D23, `401 == 200`), otra `cedula` en el usuario devuelto (D24) | quién es el usuario con una sola fila: D11 |
+| `expired_token_..._returns_401` | expiración apagada (D12), sin cabecera (D13), 403 (D16) | nada que señalar |
+| `corrupt_token_..._returns_401` | sin cabecera (D14), 403 (D16) | "never reaches the user lookup": lo prueba el test de causa (D15) |
+| `expired_and_corrupt_..._distinct_details` | mismo `detail` (D3), `except` invertidos (D4), D12 | el intercambio: D1 y D2 |
+| `token_without_subject_returns_401` | sin la guarda de `sub` (D8, `ValidationError`), D14, D16 | nada que señalar |
+| `token_for_unknown_user_returns_401` | sin `user is None` (D9, `AttributeError`), D14, D16 | con la tabla vacía: D11 |
+| `token_for_inactive_user_returns_401` | sin `is_active` (D10), D14, D16 | nada que señalar |
+| `get_current_user_chains_...` (2) | sin `from err` (D5, D6, D7), repositorio consultado antes (D15), D16 | nada que señalar |
+| `verify_email_chains_...` (2) | sin `from err` (U2, U3, U4, U5), activar antes de lanzar (U8), U9, U13 | el texto (U1, U6, U7) y `activate_user`: hallazgo 6 |
+
+Las aserciones de `_assert_bearer_401` actúan: `set(body)` mata un manejador que añade una clave (D22), `isinstance` mata un `detail` que no es `str` (D21) y la cabecera mata D13 y D14. `user_repo.mock_calls == []` tampoco es vacua: sin ella, D15 sobrevive a la suite (`432 passed`). Ningún test afirma sobre texto en español.
+
+Sin hallazgo: el doble de `UserRepository` no es infraestructura externa (AGENTS §5), pero `plan.md:346` lo dicta y `tests/test_user_service.py:65` es el precedente. El fixture local `user_repo` duplica ese mismo archivo, y el plan prohíbe tocar `conftest.py`.
+
+No comprobado:
+
+- La salida del hook de edición, la edición paralela y el `git fetch origin` del arranque ocurrieron en la sesión del ejecutor. `origin/develop` y el `merge-base` valen `bab25c2` en la referencia local, sin refrescar en esta auditoría.
+- Las mutaciones, la sonda HTTP y `/openapi.json` corrieron con variables ficticias sobre copias desechables. Las de HTTP y tests usaron SQLite en memoria, no PostgreSQL.
+- La sonda HTTP cubre `/usuarios/mi-perfil` y `/usuarios/verificar-email`, no cada ruta que depende de `get_current_user`.
+- Los candidatos citados no están en el repo: solo se midieron en la copia.
+- Este bloque se limita a la fase C: la "Verificación final" completa corresponde a la fase D.
