@@ -1,7 +1,7 @@
 # ADR-0012 — Frontera de autorización: el rol se decide en el guard, el dato en la política, y toda ruta protegida tiene un test de rechazo
 
-- **Estado:** propuesto (borrador del Mentor, 6 nov 2026, a partir de `docs/deuda/A2/verificacion.md`); pasa a aceptado con la aprobación de David
-- **Propuesta:** sesión Mentor (6 nov 2026) · **Aprobada:** David (fecha al aprobar)
+- **Estado:** Aceptado (borrador del Mentor, 6 nov 2026, a partir de `docs/deuda/A2/verificacion.md`)
+- **Propuesta:** sesión Mentor (6 nov 2026) · **Aprobada:** David (6 nov 2026)
 - **Ubicación en el repo:** `docs/adr/0012-frontera-de-autorizacion-guard-y-politica.md`
 - **Origen:** backlog A2 ("tres estrategias de autorización incompatibles", auditoría del 21 sep); `docs/deuda/A2/verificacion.md`
   (parcial, 6 nov); AGENTS §3 ("Autorización centralizada") y §7 (decisión no trivial → ADR). Relación: ADR-0003 (errores de
