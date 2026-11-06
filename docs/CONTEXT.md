@@ -5,9 +5,11 @@
 > Vive en `docs/CONTEXT.md`. Regla de oro: **el contexto vive en archivos versionados, no en la
 > memoria de un chat.** Cada sesión nueva arranca leyendo esto.
 >
-> **Versión 3.5 — 4 nov 2026.** Cambios de esta versión: bitácora `2026-11-04` (§0: fila de las fichas de estudio por
-> ítem; §6: fila de ADR-0011; §8 tras BE-07 desmentida y BE-15 hecho, con la lista de pendientes de flujo al día).
-> Versiones anteriores: `2026-11-03` (3.4: §4: modelos en estilo 2.0 y dominio
+> **Versión 3.6 — 5 nov 2026.** Cambios de esta versión: bitácora `2026-11-05` (§6: filas del 5 nov, bloque
+> `B-GHOST-ADMIN`, I001 no autocorregible hasta A4, rol propio bloqueado por clave; §8 tras BE-02 hecho, `B-TESTS`
+> deslizado al viernes y A4 adelantado; pendientes de flujo al día: `unfixable` hecho, AF-07 con fila).
+> Versiones anteriores: `2026-11-04` (3.5: §0: fila de las fichas de estudio por ítem; §6: fila de ADR-0011; §8 tras
+> BE-07 desmentida y BE-15 hecho, con la lista de pendientes de flujo al día); `2026-11-03` (3.4: §4: modelos en estilo 2.0 y dominio
 > unificado con ADR; `import-linter` medido de verdad en local desde AF-05; §6: fila de ADR-0010; §8 tras `B-S1`, AF-05 y
 > AF-04); `2026-11-02` (3.3: §4: medición de calidad citada a PLAN §6 en
 > vez de copiada tres veces, CI con la compuerta; §5: `check.py` ya corre en el CI; §8 tras `B-FORMATO`, `B-CI` y `B-HIGIENE`);
@@ -235,6 +237,10 @@ la Web App la hala al reiniciar. Operación: 2 clics.
 | 1 nov | Addenda a ADR aceptados: sección fechada y firmada al final; puede aclarar, corregir una omisión, afinar un criterio o decir cómo se cumple un punto; no puede cambiar la decisión ni el alcance (eso es ADR nuevo); tres addenda son señal de superseder. Segundo addendum de ADR-0008 el mismo día: R6 y R7 de `check_docs.py` corren solo con `--cierre`. | **ADR-0009**, ADR-0008 (addendum 1 nov), `CONTEXT.md` §0 | Cap. de metodología (cómo evolucionan las decisiones registradas) |
 | 3 nov | Dominio unificado y estilo de modelos: los modelos SQLAlchemy son las entidades (retroactivo: práctica desde `20486ad`, citada en AGENTS §3 sin ADR); todo modelo en estilo 2.0, nulabilidad solo por la anotación, tipo SQL explícito donde el tipo Python no lo determina, `Enum` con `name=`, relaciones anotadas, registro explícito con test; un refactor de modelos se prueba con `alembic check` antes y después (M0 = M1). | **ADR-0010**, AGENTS §3 (PR de AF-04) | Cap. de diseño (modelo de datos) y de resultados (mypy 44 → 10 sin tocar el esquema) |
 | 4 nov | La app y el test usan sesiones distintas en la suite: `get_db` se sustituye por una sesión nueva por petición, aparte de la `db_session` del test, sobre la misma conexión SQLite (`StaticPool`); dos reglas al escribir tests, "commit antes de la petición" y "refresh después"; límite aceptado: aislamiento de sesión, no de transacción (aislamiento real exige Postgres, BE-31). | **ADR-0011**, AGENTS §5 (PR de cierre del 4 nov) | Cap. de pruebas (la suite puede detectar un `commit()` olvidado antes del UoW de `B-RESERVAS`) |
+| 5 nov | Nadie cambia su propio rol, superadmin incluido: la política bloquea la **clave** `role` en toda auto-edición (403), no su valor; crear usuarios con rol es otro camino. Confirmada por el flujo (BE-02). | `docs/deuda/BE-02/` (verificación con adenda, plan), `app/services/user_access_policy.py` | Cap. de diseño (autorización) |
+| 5 nov | Los "rincones" que una verificación mide fuera de su alcance no se arreglan de paso: cada uno recibe fila; los cinco de BE-02 forman el bloque `B-GHOST-ADMIN` (que ningún jurado pueda dejar la plataforma sin administrador). | `docs/backlog.md` (BE-34..BE-38), `PLAN.md` §2b | Cap. de metodología (gestión de deuda) |
+| 5 nov | I001 se reporta pero no se autocorrige (`unfixable = ["I001"]` en `pyproject.toml`) hasta que A4 centralice la configuración: reordenar imports de `app/` cambia el orden de carga. Cierra la opción abierta el 2 nov; sustituye la edición por Bash para esquivar el hook (S1). | `pyproject.toml`, `(bitácora 2026-11-05)` | Cap. de metodología (compuerta) |
+| 5 nov | Lo rojo de la compuerta debe tener dueño en el backlog: una cifra en PLAN §6 es medición, no trabajo. BE-33 recoge lo manual sin dueño de `B-FORMATO`; A4 lo que depende de configuración. | `docs/backlog.md` (BE-33), `docs/aprendizaje/fichas/BE-33.md` | Cap. de metodología (gestión de deuda) |
 | pendiente | Pagos: puerto `PaymentGateway`, `WompiAdapter`, `FakeAdapter`, webhook idempotente. | ADR de pagos (`B-PAGOS`, tomará el siguiente número libre) | Cap. de diseño (secuencia de pago) y arquitectura |
 
 ## 7. Preguntas abiertas
@@ -249,26 +255,28 @@ la Web App la hala al reiniciar. Operación: 2 clics.
 
 ## 8. Próximo paso
 
-Dónde estamos (estado al cierre de la bitácora `2026-11-04`): **BE-15 hecho** (seis fases + D-bis, todas PASS, en
-`bloque/b-tests`, PR abierto con el cierre; medición en `(PLAN §6)`): dobles con `autospec`, fábricas en uso, aserciones
-por código y estructura, regresiones B2/B3 demostradas con mutantes de un solo cambio, sesión de la app distinta de la
-del test (**ADR-0011**). **BE-07 desmentida por el flujo** (sin código; `docs/deuda/BE-07/`). Filas nuevas: BE-31
-(índice parcial y SQLite, `Decidir en B-RESERVAS`), BE-32 (residuales de BE-15), FE-14 (cliente sube antes del 422).
-Compuerta global sigue en rojo (ADR-0005 vigente hasta el cierre del bloque). Presupuesto de Bogotá `(PLAN §3)`: colchón
-de 1 m intacto; el miércoles se alargó en horas por decisión de David.
+Dónde estamos (estado al cierre de la bitácora `2026-11-05`): **BE-02 hecho** (confirmada por el flujo, una fase, PR #80;
+regla "nadie cambia su propio rol" por clave; `docs/deuda/BE-02/`). **BE-33 nueva** en `B-TESTS`: los residuales de ruff y
+mypy de `app/` sin dueño (lo manual de `B-FORMATO`); con A4 son la compuerta en verde. **`B-GHOST-ADMIN` nuevo** `(PLAN §2b)`
+con BE-34..BE-38, los cinco rincones de la verificación de BE-02, por fechar. **AF-07 nueva** (comando literal en seis
+sitios; lo edita David). `unfixable = ["I001"]` en `pyproject.toml` hasta A4. Notas de BE-03, B1–B5, D1 y S1 cerradas
+tras re-verificación contra el código. **`B-TESTS` deslizado y declarado** `(PLAN §3)`: `m3` no existió; el colchón del
+viernes se gasta en el bloque. Compuerta global sigue en rojo (ADR-0005 vigente; excepción declarada en el plan de BE-02
+para dos archivos, caduca con BE-33 + A4). Medición en `(PLAN §6)`.
 
-1. **Siguiente: `B-TESTS m3`** (día y hora en `(PLAN §3)`; composición en `(PLAN §2b)`): `/deuda-verificar BE-02` **antes
-   de planear** (misma fuente que BE-07; puede estar desmentida); A2 (`Decidir`: guard + política por endpoint); BE-32 si
-   cabe. `m4`: AF-02 (puntos 2 y 3), compuerta medida en `develop`, `--soft` fuera del YAML si queda en verde. Antes de
-   todo: mezclar el PR de BE-15 y, en el PR de cierre de David, las dos reglas de ADR-0011 a AGENTS §5 y
-   `deuda-verificador.md` l.34/l.75 con el Python del venv por ruta (AGENTS §6).
+1. **Siguiente: el último día de Bogotá** `(PLAN §3)`, por decisión de David (bitácora `2026-11-05`, 18:48): mañana BE-33, A2, AF-02
+   (puntos 2 y 3) y BE-32, **todos completos** (BE-32 decide `tests/` en `mypy.files`: el Mentor recomienda que sí);
+   AF-07 si no se hizo el jueves; tarde A4 (adelantado de `B-PAGOS`; `/deuda-verificar` y `/deuda-planear` primero;
+   al cerrar, retirar `unfixable I001` y aplicar I001) y cierre; compuerta medida en `develop`, `--soft` fuera si verde
+   y ADR-0005 marcado superado; si sobra, halar de `B-FUTURO` en orden. Si no se mezcla, el día siguiente `(PLAN §3)`. Pendiente de
+   BE-02 para su nota: confirmar contra el frontend que ninguna otra pantalla envía `role` en un `PATCH`.
 2. **Ritual de cierre:** paso 3 con `python scripts/check_docs.py --copias "<dueño>"` por dueño tocado y `--cierre` antes
-   del commit de cierre (README de sesiones, paso 3). La regla "retoque aprobado = edición a `plan.md` (o a la adenda de
-   `verificacion.md`) antes de `/implementar`, o no existe" ya está en el README (llevada el 4 nov; aplicada ese día con
-   una adenda y tres enmiendas E1–E3).
-3. **Semana de Bogotá** `(PLAN §3)`: `B-TESTS m3`–`m4` (jue) → cierre de Bogotá con PR a `staging`, dump de staging para
-   `B-RESERVAS m2` y mudanza. Antes del PR a `staging`: `CORS_ORIGINS` en las tres Web Apps y prueba del frontend de
-   `develop` `(docs/deuda/SEC1/)`. Al cierre del último día trabajado de la semana: fechar la semana de Prado.
+   del commit de cierre (README de sesiones, paso 3). La regla del retoque está en el README; el 5 nov se aplicó tras
+   una auditoría (E1 de BE-02: retoque de test, sección "Enmiendas aprobadas" de `plan.md`).
+3. **Cierre de Bogotá** `(PLAN §3)`: sujeto al replan del viernes (David no viaja el sábado). Antes del PR a `staging`:
+   `CORS_ORIGINS` en las tres Web Apps y prueba del frontend de `develop` `(docs/deuda/SEC1/)`; el síntoma del 5 nov (el
+   navegador envía `OPTIONS` y nunca el `POST` desde Flutter web) encaja con SEC1 y se confirma ahí. Después: dump de
+   staging para `B-RESERVAS m2`, mudanza, fechar la semana de Prado y `B-GHOST-ADMIN`.
 4. Prado y régimen final: orden y presupuestos en PLAN §3; secuencias en §2b. `B-RESERVAS m1` decide BE-31
    (`sqlite_where` espejo en el `Index`).
 5. Pendientes de flujo (no urgentes, con dueño; pasan a filas `AF-0x` cuando se decida atacarlos): YAML estricto en
@@ -279,12 +287,11 @@ de 1 m intacto; el miércoles se alargó en horas por decisión de David.
    por excepción declarada de un día); conectar la carpeta del
    repo antes del primer mensaje; deny list de plumbing de git (`commit-tree`, `update-ref`, `replace`, `filter-branch`,
    `reset`) y AGENTS §9 "reescribir historia por cualquier medio" `(bitácora 2026-11-02)`; `.github/pull_request_template.md`
-   diverge de la skill `pr-author` (copia sin dueño); hook `ruff_on_edit.py` con `--ignore I001` y `unfixable` en
-   `pyproject` **solo si** un ítem toca `app/api/dependencies.py` antes de A4 `(bitácora 2026-11-02)`; el auditor
+   diverge de la skill `pr-author` (copia sin dueño); `unfixable = ["I001"]` en `pyproject.toml` **hecho** el 5 nov (BE-02; se retira al cerrar A4); el auditor
    commitea `gaps.md` con el prefijo `docs(item-<id>):` como el resto (el 4 nov lo hizo David a mano siete veces); el ejecutor pone
-   `current_target` en `null` al terminar la última fase (hoy `"Auditoria"`, y `--estado` lo lee como "en ejecución");
+   `current_target` en `null` al terminar la última fase (BE-15 y BE-02 lo dejaron en `"Auditoria"`; David lo pone a mano);
    el planificador, al añadir una fase por enmienda, también la añade a `progress.json` y fija `current_target` (E3 no lo
-   hizo; lo hizo el Mentor); `--estado` lee `PASS` solo en la última línea de `gaps.md` (AF-02 punto 3). Ya con fila: AF-02 `(backlog)`; AF-06 en `B-FUTURO`.
+   hizo; lo hizo el Mentor); `--estado` lee `PASS` solo en la última línea de `gaps.md` (AF-02 punto 3). Ya con fila: AF-02 y AF-07 `(backlog)`; AF-06 en `B-FUTURO`.
 
 ## 9. Sesiones de IA
 Cualquier sesión (ingeniería, documento, estudio, mentor) arranca con los prompts de `docs/sesiones/` y el ritual
