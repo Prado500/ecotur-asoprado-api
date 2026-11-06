@@ -1,10 +1,10 @@
 {
   "plan_file": "docs/deuda/BE-33/plan.md",
-  "current_target": "Fase_A",
+  "current_target": "Fase_B",
   "phases": {
     "Fase_A": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "6a3489d",
       "description": "Docstring summaries in the audit and user data layer (3 files, 4 D205). Target: 416 passed, ruff 49, mypy 10."
     },
     "Fase_B": {
@@ -24,6 +24,6 @@
     }
   },
   "allowed_statuses": ["pending", "partial", "completed"],
-  "last_handoff": "Estado inicial. Plan pendiente de aprobación de David.",
+  "last_handoff": "Fase_A completada en 6a3489d: 4 D205 retirados en 3 archivos; 416 passed, 94.82 %, ruff 49, mypy 10, 4 KEPT, exit 1 solo por ruff check y mypy. Ver handoff-Fase_A.md.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
