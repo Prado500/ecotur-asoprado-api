@@ -1,6 +1,6 @@
 {
   "plan_file": "docs/deuda/BE-33/plan.md",
-  "current_target": "Fase_C",
+  "current_target": "Fase_D",
   "phases": {
     "Fase_A": {
       "status": "completed",
@@ -13,8 +13,8 @@
       "description": "save_service uses scalar_one(), plus style fixes in service_repository.py, with 5 test cases (2 RED). Target: 421 passed, ruff 41, mypy 9."
     },
     "Fase_C": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "0c076b4",
       "description": "JWT errors chained with from err, token annotations, TokenData.email, policy and user-service texts, with 11 test cases (4 RED). Target: 432 passed, ruff 20, mypy 5."
     },
     "Fase_D": {
@@ -24,6 +24,6 @@
     }
   },
   "allowed_statuses": ["pending", "partial", "completed"],
-  "last_handoff": "Fase_B completada en b9a8907: save_service con scalar_one() y 8 errores de ruff y 1 de mypy retirados; 421 passed, 94.82 %, ruff 41, mypy 9, 4 KEPT, exit 1 solo por ruff check y mypy. Ver handoff-Fase_B.md.",
+  "last_handoff": "Fase_C completada en 0c076b4: raise from err en las cuatro ramas JWT, anotaciones y TokenData.email corregidas, textos de usuario idénticos (V9 strings=exact); 432 passed, 95.74 %, ruff 20, mypy 5, 4 KEPT, exit 1 solo por ruff check y mypy. Ver handoff-Fase_C.md.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
