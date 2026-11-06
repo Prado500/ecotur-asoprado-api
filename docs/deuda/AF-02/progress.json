@@ -1,6 +1,6 @@
 {
   "plan_file": "docs/deuda/AF-02/plan.md",
-  "current_target": "Fase_B",
+  "current_target": null,
   "phases": {
     "Fase_A": {
       "status": "completed",
@@ -8,12 +8,12 @@
       "description": "--estado reads the verdict from the last audit block of gaps.md (never a traceback): 88 new cases, 16 mutants. Target: 526 passed, ruff 9, mypy 5."
     },
     "Fase_B": {
-      "status": "pending",
-      "commit": null,
-      "description": "R7 year nearest to the version line; R6 and R7 in the project's time zone: 21 new cases, 5 edited, 15 mutants. Needs David's answer to P1. Target: 547 passed, ruff 9, mypy 5."
+      "status": "completed",
+      "commit": "19d4efa",
+      "description": "R7 year nearest to the version line; R6 and R7 in the project's time zone: 21 new cases, 5 edited, 15 mutants. P1 resolved: B1, fixed offset (E0.1). Target: 547 passed, ruff 9, mypy 5."
     }
   },
   "allowed_statuses": ["pending", "partial", "completed"],
-  "last_handoff": "Fase_A (dc57ac0): 526 passed, 96.11 %, 4 kept, ruff 9, mypy 5; 16 de 16 mutantes muertos (MA13 da 46, plan 48); los 9 gaps.md reales en PASS. Ver handoff-Fase_A.md.",
+  "last_handoff": "Fase_B (19d4efa): 547 passed, 96.11 %, 4 kept, ruff 9, mypy 5; 15 de 15 mutantes muertos; --cierre de 3 a 2 errores R6 (sale docs/CONTEXT.md:8), R7 sin cambios; E1 aplicada. Ver handoff-Fase_B.md.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
