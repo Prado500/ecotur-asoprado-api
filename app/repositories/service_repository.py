@@ -12,10 +12,11 @@ class ServiceRepository:
         self.db = db
 
     async def create_service(self, service: TouristService) -> TouristService:
-        """Creates a new TouristService entity"""
+        """Creates a new TouristService entity."""
         self.db.add(service)
         await self.db.commit()
-        # The freshest db registry, in which all the tourist service's images are properly linked to their corresponding service, is retrieved.
+        # The freshest db registry, in which all the tourist service's images are properly
+        # linked to their corresponding service, is retrieved.
         stmt = (
             select(TouristService)
             .options(selectinload(TouristService.images))
@@ -25,7 +26,7 @@ class ServiceRepository:
         return result.scalar_one()
 
     async def get_all_active_services(self) -> list[TouristService]:
-        """Returns a list of active TouristService entities (is_active = True)"""
+        """Returns a list of active TouristService entities (is_available = True)."""
         stmt = (
             select(TouristService)
             .options(selectinload(TouristService.images))
@@ -35,7 +36,7 @@ class ServiceRepository:
         return list(result.scalars().all())
 
     async def get_inactive_services(self) -> list[TouristService]:
-        """Returns a list of inactive TouristService entities (is_active = False)"""
+        """Returns a list of inactive TouristService entities (is_available = False)."""
         stmt = (
             select(TouristService)
             .options(selectinload(TouristService.images))
@@ -45,7 +46,7 @@ class ServiceRepository:
         return list(result.scalars().all())
 
     async def get_deleted_services(self) -> list[TouristService]:
-        """Returns a list of deleted TouristService entities"""
+        """Returns a list of deleted TouristService entities."""
         stmt = (
             select(TouristService)
             .options(selectinload(TouristService.images))
@@ -57,8 +58,10 @@ class ServiceRepository:
     async def get_service_by_id(
         self, service_id: int, include_deleted: bool = False
     ) -> TouristService | None:
-        """Returns a TouristService based on its id. if no 2nd-positional argument is given, it will bring only non-deleted
-        tourist services. Otherwise, it will retrieve a package even if it was soft-deleted.
+        """Returns a TouristService based on its id.
+
+        If no 2nd-positional argument is given, it will bring only non-deleted tourist services.
+        Otherwise, it will retrieve a package even if it was soft-deleted.
         """
         stmt = (
             select(TouristService)
@@ -72,7 +75,18 @@ class ServiceRepository:
         return result.scalars().first()
 
     async def save_service(self, service: TouristService) -> TouristService:
-        """Commits changes to an existing service and refreshes relationships"""
+        """Commits changes to an existing service and refreshes relationships.
+
+        Args:
+            service (TouristService): The tracked entity whose changes are committed.
+
+        Returns:
+            TouristService: The committed row, with its images loaded.
+
+        Raises:
+            NoResultFound: The row is gone. It was just committed and nothing deletes rows
+                physically, so this is a broken invariant, not a business case.
+        """
         await self.db.commit()
         stmt = (
             select(TouristService)
@@ -80,4 +94,4 @@ class ServiceRepository:
             .where(TouristService.id == service.id)
         )
         result = await self.db.execute(stmt)
-        return result.scalars().first()
+        return result.scalar_one()
