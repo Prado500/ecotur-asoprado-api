@@ -69,3 +69,11 @@ verificación de A2 (6 nov) midió dónde no se cumple y, sobre todo, que **nadi
 
 `docs/deuda/A2/verificacion.md` (6 nov 2026): inventario de 22 rutas, mapa de ficheros, mutantes M1–M8 sobre copia
 desechable (`259 passed` en M1–M4, M6 y M7; `1 failed` en M5; `3 failed` en M8), línea base `86256b2`.
+
+## Addendum — 6 nov 2026 (David, sesión Mentor; bitácora `2026-11-06`)
+
+Precisión a "Alternativas consideradas", punto 1, y al Contexto: el enmascaramiento entre guard y re-chequeo explica
+por qué `tests/test_audit.py:49` sigue verde bajo M4, M5 y M7 **por separado** (cada capa cubre a la otra; M5 solo hace
+caer un test unitario de `AuditService`), y vale solo para `GET /auditoria/`. En las otras 13 rutas con guard admin M7
+sobrevive por una razón más simple: no existe ningún test de rechazo. Las dos razones refuerzan el punto 4 de la
+decisión; nada de la decisión cambia. Detectado por el orquestador al redactar la descripción del PR de `item/a2`.
