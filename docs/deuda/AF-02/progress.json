@@ -1,0 +1,19 @@
+{
+  "plan_file": "docs/deuda/AF-02/plan.md",
+  "current_target": "Fase_A",
+  "phases": {
+    "Fase_A": {
+      "status": "pending",
+      "commit": null,
+      "description": "--estado reads the verdict from the last audit block of gaps.md (never a traceback): 88 new cases, 16 mutants. Target: 526 passed, ruff 9, mypy 5."
+    },
+    "Fase_B": {
+      "status": "pending",
+      "commit": null,
+      "description": "R7 year nearest to the version line; R6 and R7 in the project's time zone: 21 new cases, 5 edited, 15 mutants. Needs David's answer to P1. Target: 547 passed, ruff 9, mypy 5."
+    }
+  },
+  "allowed_statuses": ["pending", "partial", "completed"],
+  "last_handoff": "Estado inicial.",
+  "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
+}
