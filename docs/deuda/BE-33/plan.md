@@ -657,3 +657,12 @@ conjunto ni total cambia; `progress.json` queda como está, `current_target: "Fa
 Desviaciones de la adenda (3, 4, 9, 11) aceptadas con los motivos de la tabla "Dónde el plan se aparta de tu adenda".
 Nota de flujo, no del plan: la sonda (copia de `HEAD` fuera del repo para medir los textos del plan) se registra en la
 bitácora como pendiente de flujo; no bloquea.
+
+**E2 — 6 nov 2026, 11:35 (David, tras la auditoría de B): la justificación de la decisión 4 y el punto 2 del análisis
+(l.80-81) quedan corregidos por la medición del auditor; el código y la decisión no cambian.** Con la fila borrada desde
+otra sesión y un cambio pendiente, `commit()` lanza `StaleDataError` antes de llegar a `first()` o `scalar_one()`, igual
+antes y después de la fase (toggle con cambio, `soft_delete`, `recover`). Solo el toggle sin cambio neto alcanza la rama:
+antes respondía éxito con una fila de auditoría; ahora lanza `NoResultFound` con cero. `update_package_details` (l.347)
+sigue en 500, sin medir en la sonda. El cuerpo de `b9a8907` repite el texto del plan y no se reescribe (AGENTS §9); la
+descripción del PR lo aclara. Los opcionales 1–4 de la auditoría de B y el `Raises` sin `StaleDataError` van a BE-32
+(aserciones por debajo de AGENTS §5), no a la fase C, cuyos totales están dictados. Ficha corregida el mismo día.
