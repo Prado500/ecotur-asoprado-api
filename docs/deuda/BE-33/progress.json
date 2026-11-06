@@ -1,0 +1,29 @@
+{
+  "plan_file": "docs/deuda/BE-33/plan.md",
+  "current_target": "Fase_A",
+  "phases": {
+    "Fase_A": {
+      "status": "pending",
+      "commit": null,
+      "description": "Docstring summaries in the audit and user data layer (3 files, 4 D205). Target: 416 passed, ruff 49, mypy 10."
+    },
+    "Fase_B": {
+      "status": "pending",
+      "commit": null,
+      "description": "save_service uses scalar_one(), plus style fixes in service_repository.py, with 5 test cases (2 RED). Target: 421 passed, ruff 41, mypy 9."
+    },
+    "Fase_C": {
+      "status": "pending",
+      "commit": null,
+      "description": "JWT errors chained with from err, token annotations, TokenData.email, policy and user-service texts, with 11 test cases (4 RED). Target: 432 passed, ruff 20, mypy 5."
+    },
+    "Fase_D": {
+      "status": "pending",
+      "commit": null,
+      "description": "Verification email HTML wrapped at existing spaces and W293 in database.py, with 6 characterization cases. Target: 438 passed, ruff 9, mypy 5."
+    }
+  },
+  "allowed_statuses": ["pending", "partial", "completed"],
+  "last_handoff": "Estado inicial. Plan pendiente de aprobación de David.",
+  "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
+}
