@@ -43,7 +43,7 @@ class RegistrationResult(NamedTuple):
 
 
 class UserService:
-    """Encapsulates business logic and rules, validations, and the operational logic of User entity."""
+    """Encapsulates the business rules, validations and operational logic of the User entity."""
 
     def __init__(
         self,
@@ -122,15 +122,17 @@ class UserService:
         """
         try:
             payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        except jwt.ExpiredSignatureError:
+        except jwt.ExpiredSignatureError as err:
             raise InvalidVerificationTokenError(
                 "El enlace de verificación ha expirado. Por favor solicite uno nuevo."
-            )
-        except jwt.InvalidTokenError:
-            raise InvalidVerificationTokenError("Token de verificación inválido o corrupto.")
+            ) from err
+        except jwt.InvalidTokenError as err:
+            raise InvalidVerificationTokenError(
+                "Token de verificación inválido o corrupto."
+            ) from err
 
-        email: str = payload.get("sub")
-        scope: str = payload.get("scope")
+        email: str | None = payload.get("sub")
+        scope: str | None = payload.get("scope")
 
         if email is None or scope != "email_verification":
             raise InvalidVerificationTokenError("Token de verificación inválido.")
@@ -214,7 +216,10 @@ class UserService:
 
         return {
             "success": True,
-            "message": f"La cuenta vinculada a {soft_deleted_user.email}, con C.C. {target_cedula} ha sido eliminada exitosamente.",
+            "message": (
+                f"La cuenta vinculada a {soft_deleted_user.email}, con C.C. {target_cedula} "
+                "ha sido eliminada exitosamente."
+            ),
         }
 
     async def get_all_registered_users(self, current_user: User) -> list[User]:
@@ -334,7 +339,8 @@ class UserService:
 
         Raises:
             NotFoundError: 404 Not Found if the user is not in the recycle bin.
-            AuthorizationError: 403 Forbidden if a standard admin attempts to recover a higher-tier account.
+            AuthorizationError: 403 Forbidden if a standard admin attempts to recover a
+                higher-tier account.
         """
         target_user = await self.user_repo.get_user_by_cedula(target_cedula, include_deleted=True)
 

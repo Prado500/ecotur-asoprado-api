@@ -3,7 +3,8 @@ from pydantic import BaseModel
 
 class TokenResponse(BaseModel):
     """Schema responsible for the standard server response after a successful login operation.
-    Complies with the OAuth2 standard
+
+    Complies with the OAuth2 standard.
     """
 
     access_token: str
@@ -18,5 +19,5 @@ class TokenData(BaseModel):
     within the get_current_user() endpoint access control function.
     """
 
-    email: str | None = None
+    email: str
     role: str | None = None

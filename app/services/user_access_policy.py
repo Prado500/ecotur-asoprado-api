@@ -18,8 +18,9 @@ class UserAccessPolicy:
     _ROLE_RANK = {UserRole.tourist: 0, UserRole.admin: 1, UserRole.superadmin: 2}
 
     def assert_can_delete(self, actor: User, target: User) -> None:
-        """Enforces the deletion invariant: self-deletion parity or strictly
-        higher rank over the target.
+        """Enforces the deletion invariant on a user account.
+
+        The actor must delete their own account or strictly outrank the target.
 
         Args:
             actor (User): The authenticated user attempting the deletion.
@@ -34,7 +35,8 @@ class UserAccessPolicy:
 
         if not is_self_deletion and not actor_outranks_target:
             raise AuthorizationError(
-                "Privilegios insuficientes o violación de jerarquía. No tiene autorización para eliminar esta cuenta."
+                "Privilegios insuficientes o violación de jerarquía. "
+                "No tiene autorización para eliminar esta cuenta."
             )
 
     def assert_can_update(self, actor: User, target: User, update_dict: dict) -> None:
@@ -71,12 +73,14 @@ class UserAccessPolicy:
 
         if "is_active" in update_dict and actor.role == UserRole.tourist:
             raise AuthorizationError(
-                "Privilegios insuficientes. No tiene permisos para modificar el estado de la cuenta."
+                "Privilegios insuficientes. "
+                "No tiene permisos para modificar el estado de la cuenta."
             )
 
     def assert_can_recover(self, actor: User, target: User) -> None:
-        """Enforces recovery precedence: standard admins cannot restore accounts
-        of equal or higher tier.
+        """Enforces recovery precedence over soft-deleted accounts.
+
+        Standard admins cannot restore accounts of equal or higher tier.
 
         Args:
             actor (User): The authenticated administrator executing the recovery.
@@ -92,8 +96,9 @@ class UserAccessPolicy:
             )
 
     def assert_can_provision_admin(self, actor: User) -> None:
-        """Enforces provisioning governance: only superadmins may create
-        administrative accounts.
+        """Enforces provisioning governance over administrative accounts.
+
+        Only superadmins may create them.
 
         Args:
             actor (User): The authenticated user attempting the provisioning.
@@ -103,12 +108,14 @@ class UserAccessPolicy:
         """
         if actor.role != UserRole.superadmin:
             raise AuthorizationError(
-                "Violación de jerarquía: Solo un Superusuario puede aprovisionar cuentas administrativas."
+                "Violación de jerarquía: "
+                "Solo un Superusuario puede aprovisionar cuentas administrativas."
             )
 
     def assert_is_admin_plus(self, actor: User) -> None:
-        """Enforces the administrative-tier rule: only admins and superadmins may
-        proceed with the guarded operation (e.g. reading the audit trail).
+        """Enforces the administrative-tier rule on a guarded operation.
+
+        Only admins and superadmins may proceed (e.g. reading the audit trail).
 
         The rule inspects nothing beyond the actor role, so it stays reusable
         for any operation restricted to administrative tiers.
@@ -126,8 +133,7 @@ class UserAccessPolicy:
             )
 
     def can_see(self, viewer_role: UserRole, subject_role: UserRole) -> bool:
-        """Determines whether a viewer role may see a subject role in directory
-        listings.
+        """Determines whether a viewer role may see a subject role in directory listings.
 
         Args:
             viewer_role (UserRole): Role of the authenticated actor requesting
