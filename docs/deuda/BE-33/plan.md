@@ -640,6 +640,9 @@ enlaces son de referencia y no se consultaron hoy.
 **E0 — 6 nov 2026, 10:22 (David, sesión Mentor): plan aprobado; las cinco decisiones abiertas, resueltas.** Ninguna fase,
 conjunto ni total cambia; `progress.json` queda como está, `current_target: "Fase_A"`.
 
+**E1 — 6 nov 2026, 11:00 (David, tras la auditoría de A):** V12 espera `57 files already formatted`, no 56:
+`.claude/hooks/notify_sound.py` (`7d02d14`, ajeno a BE-33) entró después de la base. 56 sería un fallo; 57 es lo correcto.
+
 1. **Cuatro fases**, como recomienda el plan (un commit `docs` no mezcla un `fix`; la A es la menor).
 2. **Tests de `__cause__`** se mantienen: son el único RED real de la fase C; los HTTP de 401 son de caracterización y su no
    vacuidad la prueba la mutación controlada 401 → 403.
