@@ -1,6 +1,6 @@
 {
   "plan_file": "docs/deuda/BE-32/plan.md",
-  "current_target": "Fase_C",
+  "current_target": "Fase_D",
   "phases": {
     "Fase_A": {
       "status": "completed",
@@ -13,8 +13,8 @@
       "description": "tests/ into mypy.files plus the other 5 BE-32 mypy errors and the tests I001 (5 files). Target: 547 passed, ruff 8, mypy 9 (A4 at test_user_service.py:104,198,275,293)."
     },
     "Fase_C": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "5979b07",
       "description": "Suite hygiene: select from sqlalchemy, Spanish comment, Yields on 4 conftest fixtures, R7 ids (5 files). Target: 547 passed, ruff 8, mypy 9."
     },
     "Fase_D": {
@@ -44,6 +44,6 @@
     }
   },
   "allowed_statuses": ["pending", "partial", "completed"],
-  "last_handoff": "Fase_B d8848db: tests/ in mypy.files, 5 BE-32 errors and the tests I001 fixed (I001 also needed the alias import split; deviation in handoff); gate as row B (ruff 8, mypy 9 in 5 files / 53 checked, A4 at 104/198/275/293, 547 passed, 96.11 %). See handoff-Fase_B.md.",
+  "last_handoff": "Fase_C 5979b07: select from sqlalchemy (2 files), Spanish comment translated, Yields on the 4 conftest generator fixtures, 4 R7 ids renamed; gate as row C (ruff 8, mypy 9 in 5 files / 53 checked, A4 at 104/198/275/293, 547 passed, 96.11 %). The ids RED grep was 3 lines, not 2 (plan miscount; see handoff). See handoff-Fase_C.md.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
