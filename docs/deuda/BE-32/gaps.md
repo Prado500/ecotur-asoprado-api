@@ -492,3 +492,82 @@ Consolidado para el cierre del ítem (opcionales y notas de A a H; ninguno bloqu
     - `call_args.args[0]` en `test_services.py:220,487` → sin fila.
     - El D2 «→ BE-xx» que nadie llevó a su fila → nota en AF-08.
     - D8 (E0 punto 9), igual que D1/U1.
+
+## Auditoría Fase I — 2026-11-07
+
+**Veredicto Fase I: PASS (0 bloqueantes, 2 opcionales).**
+
+[OPCIONAL] — Fase I — El hallazgo 2 de H sigue abierto por decisión, no por omisión. El título y el primer párrafo de `91af6e8` dan a entender que D8 está resuelto, y D8 sigue vivo. E3 eligió la opción b: no reescribir el commit y declararlo en la descripción del PR y en el mensaje de merge (skill `pr-author`). La fase I no podía cerrarlo. Queda como tarea de quien abra el PR — evidencia: `plan.md:789-792`; `git show -s --format=%B 91af6e8`; D8 re-medido hoy con resolución comprobada: `6 passed` / `548 passed` en `ad9a7ce` y en `21e0142`.
+[OPCIONAL] — Fase I — Las notas de cierre que el plan manda fuera del ítem no son de ninguna fase y esta auditoría no las verifica: BE-31 (`replace(tzinfo=None)`, `StaleDataError` sin test), la fila A4 (`jwt.encode` con `SECRET_KEY` en 105/203/280/298), AF-08 (el D2 «→ BE-xx») y la fe de erratas de D17 en BE-33. Hay que llevarlas al backlog antes de mezclar o en el mismo PR — evidencia: `plan.md:668-677` y la tabla de Residuales de E3 (`plan.md:844-854`).
+
+Puntos juzgados sin hallazgo:
+
+- **Árbol e historial.** `git status --short` está limpio. `21e0142` toca solo `tests/test_email.py` (`3 insertions(+), 4 deletions(-)`) y `7ceab79` toca solo `handoff-Fase_I.md` y `progress.json`. Entre `91af6e8` y `ad9a7ce` no cambia nada en `tests/` ni en `app/`, así que los números de línea de E3 («líneas de `91af6e8`») valen sobre `ad9a7ce`. `git diff --check ad9a7ce 21e0142` no da salida.
+- **Los 3 cambios de `tests/test_email.py`, letra a letra.**
+  - (1) `assert send_message.await_count == 1` va entre `assert exc_info.value is error` y `call = send_message.await_args`. Las tres líneas siguientes no cambian (E3, cambio 1).
+  - (2) El docstring del test del cuerpo es el de E3 (cambio 2), en una sola línea.
+  - (3) El docstring de `_BodyCollector` es el de E4 punto 1, no el de E3.
+  - Columnas, medidas con `len()` sobre `git show 21e0142:tests/test_email.py`: `:31` = **96**, `:94` = **97**, `:126` = **40**. Ninguna línea del archivo pasa de 100.
+  - El diff tiene tres hunks y no toca ninguna otra línea del archivo. `ruff check` da `All checks passed!` y `ruff format --check` da `1 file already formatted`. mypy da `Success: no issues found in 1 source file`. `grep -c "await_count == 1" tests/test_email.py` da `1`.
+- **RED de D205 con el comando de E4** (`ruff check --isolated --select D205,D415 --line-length 100`), sobre copias de `git archive` en el scratchpad:
+  - `ad9a7ce`: `D205 1 blank line required between summary line and description` en `tests/test_email.py:94:5`, `Found 1 error.`, exit 1.
+  - `21e0142`: `All checks passed!`, exit 0.
+  - En el árbol de trabajo da también `All checks passed!`.
+- **Mutantes R1 y D8, re-medidos en dos copias desechables** (`git archive ad9a7ce` y `git archive 21e0142`).
+  - Método: el script vive en un directorio aparte de las copias. Aplica cada mutante sobre `app/core/email.py` por contenido, exigiendo una sola coincidencia, y lo restaura byte a byte con `assert`. Corre `python -m pytest <objetivo> -q --no-cov -p no:cacheprovider` con cwd en la copia y variables de entorno ficticias.
+  - R1 lleva `from fastapi_mail.errors import ConnectionErrors` (E4 punto 3), el `try` y el reintento en el `except ConnectionErrors`.
+  - Resolución comprobada de dos formas:
+    - Un plugin de pytest (`-p resolvecheck`) imprime `app.core.email.__file__` tras la colección: `...\scratchpad\c_before\app\core\email.py` y `...\c_after\app\core\email.py`.
+    - Un mutante de control antepone `raise RuntimeError("COPY_EMAIL_IMPORTED")` al `email.py` de la copia, y la colección rompe en las dos copias con ese error.
+  - Al final, `cmp` contra el repo da idéntico en las dos copias y el árbol de trabajo no se tocó.
+
+  | Mutante | Archivo `ad9a7ce` | Archivo `21e0142` | Suite `ad9a7ce` | Suite `21e0142` |
+  |---|---|---|---|---|
+  | sin mutante | `6 passed` | `6 passed` | `548 passed, 5 warnings` | `548 passed, 5 warnings` |
+  | R1 | `6 passed` | `1 failed, 5 passed` (`test_smtp_failure_propagates - assert 2 == 1`) | `548 passed, 5 warnings` | `1 failed, 547 passed, 5 warnings` (el mismo) |
+  | D8 | `6 passed` | `6 passed` (vivo, E0) | `548 passed, 5 warnings` | `548 passed, 5 warnings` |
+
+  Las cifras coinciden con la tabla de la fase I (E3 + E4) y con `handoff-Fase_I.md:115-120`.
+- **El riesgo de la instalación editable no afecta a las mediciones de A a H.**
+  - Cómo funciona el finder: `__editable___ecotur_asoprado_api_0_2_0_finder.py:74-76` hace `sys.meta_path.append`, así que queda detrás del `PathFinder`. Una entrada de `sys.path` gana siempre. `pythonpath = "."` (`pyproject.toml:45`) pone la raíz de la copia en `sys.path` bajo pytest, incluso si se lanza con `-I`.
+  - Dónde estuvo el fallo: solo en la comprobación externa del ejecutor (`python -I -c "import app.core.email"`, sin cwd en `sys.path`). Las corridas de pytest no lo tuvieron.
+  - Las mediciones anteriores lo confirman. Cada proceso resuelve el paquete `app` una sola vez, y todos sus submódulos salen de ese mismo `__path__`. Basta con que un mutante de `app/` muera en una corrida para probar que esa corrida importaba la copia.
+    - En H, D4, L4, L5, L14, L15, L17 y C10 murieron en el mismo `email.py` que D8.
+    - En G, D2 (`dependencies.py`) y U6/U7 (`user_service.py`) murieron en los mismos archivos que D1/U1.
+  - Así que D8, D1 y U1 están vivos de verdad, no por una mala importación. D8 queda además re-medido hoy con la resolución comprobada.
+- **El commit `21e0142` coincide con el dictado de la fase I** (`plan.md:829-842`). El `diff` del cuerpo contra el plan, con `<MODELO EJECUTOR>` → `Claude Opus 5.5`, no da salida. E4 deja el commit sin cambios.
+  - La frase «the collector says it records every text node, <style> included, not only visible text» describe bien el texto final de E4. Ese texto conserva literalmente «every text node» y «<style> included» (el de E3 decía «<style> text included»).
+  - «not only visible text» marca la diferencia con el docstring anterior («each visible text node»), que ya no dice «visible».
+  - El modelo de una sola ranura (`handle_data` registra solo el texto no vacío con una etiqueta abierta) ya está en la tabla de Residuales de E3 (`plan.md:853`). No se vuelve a contar.
+- **`progress.json`.**
+  - Tiene 9 fases, todas `completed`, y `git cat-file -t` da `commit` para los 9 hashes (`e7c814d`, `d8848db`, `5979b07`, `8eb71d4`, `11f2f17`, `8b2cfe2`, `dd88bf8`, `91af6e8`, `21e0142`).
+  - `current_target` es `null` y la `description` de `Fase_H` es la de E3, carácter a carácter. `last_handoff` es nuevo y cuadra con el handoff.
+  - `edit_rules` es idéntico al de `92fc622`, y el JSON es válido.
+  - `scripts/check_docs.py --estado` da `BE-32: verificado → planeado → ejecutado (todas las fases); pendiente de PR o mezclado → handoffs: Fase_A … Fase_I → última auditoría: PASS`.
+- **`git diff fd144ad -- app/`** contiene solo el elemento `StaleDataError` del `Raises:` de `app/repositories/service_repository.py`: 3 líneas añadidas y ninguna borrada (`1 file changed, 3 insertions(+)`).
+- **Compuerta reejecutada en HEAD `7ceab79`: exit 1, igual a la fila H.**
+  - Formato: `57 files already formatted`.
+  - ruff: `Found 8 errors.`, los 8 I001 `:1:1` de `app\`. No hay ninguna línea de `tests\`.
+  - mypy: `Found 9 errors in 5 files (checked 53 source files)`. Son el conjunto de A4: `app\db\database.py:11`, `app\core\security.py:71` y `:87`, `app\services\user_service.py:124`, `app\api\dependencies.py:95`, y las cuatro de `tests\test_user_service.py` (`:105`, `:203`, `:280`, `:298`). Las cuatro de tests leen `SECRET_KEY`.
+  - Además: `Contracts: 4 kept, 0 broken.`, docs coherentes, `548 passed, 5 warnings` y `TOTAL 943 23 138 19 96.11%`.
+- **Verificación final sobre HEAD: los 16 patrones en su valor**, leyendo el 10 como `3 insertions(+)` (E2).
+  - 1 = `0`; 1b = `0`.
+  - 2 = `0`, `3`, y `test_auth.py:1` / `test_user_access_policy.py:0`.
+  - 3 = `All checks passed!` y `8` I001.
+  - 4 = `0`; 5 = `0`.
+  - 6 = `94:files = [...,"tests"]` y `Found 9 errors in 5 files (checked 53 source files)`.
+  - 7 = `tests\conftest.py:86 override_get_db`; 8 = `1`.
+  - 9b-B = `1`; 9b-C = `1`, `1`, `3`; 9b-D = `0`.
+  - 9c = `3`, `1`, `2`; 9d = `0`.
+  - 10 = `1 file changed, 3 insertions(+)`.
+  - 11 = exit 1 por ruff check y mypy, 4 kept, 548 passed, 96.11 %.
+  - Fase I: `await_count == 1` = `1`.
+- **Opcionales de H que cierra este tramo.**
+  - 1 (R1): lo cierra `21e0142`.
+  - 3 (D205): lo cierra `21e0142`.
+  - 5 (docstring de `_BodyCollector`): lo cierra `21e0142`; el modelo de una ranura queda en Residuales.
+  - 6 (`description` de `Fase_H`): lo cierra `7ceab79`.
+  - 4 (Residuales sin consolidar): lo cierra E3, en `6a0817f`.
+  - Sigue abierto el 2 (el commit de `91af6e8`), que es el primer opcional de este bloque.
+
+Cierre del ítem: las 9 fases (A–I) tienen auditoría PASS y no queda ningún bloqueante abierto. El ítem queda listo para PR, con los dos opcionales de este bloque como tareas del PR.
