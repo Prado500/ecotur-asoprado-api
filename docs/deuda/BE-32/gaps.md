@@ -387,3 +387,108 @@ Puntos juzgados sin hallazgo:
   `handoff-Fase_G.md` y `progress.json`. El árbol está limpio.
 - No es la última fase: la «Verificación final» completa queda para H. Se adelantaron los patrones 1b (`0`), 9b-C
   (`1`, `1`, `3`) y 9c (`3`, `1`, `2`). El patrón 1 da `1` (`tests/test_email.py:99`), que es de la fase H.
+
+## Auditoría Fase H — 2026-11-07
+
+**Veredicto Fase H: PASS (0 bloqueantes, 6 opcionales).**
+
+[OPCIONAL] — Fase H — E0 punto 4 debilita `test_smtp_failure_propagates`. La `:99` de la base (`send_message.assert_awaited_once()`) fijaba el «after a single attempt» que el docstring sigue prometiendo. Las tres líneas que la sustituyen leen `await_args`, que es la **última** llamada, y no cuentan cuántas hubo. Un reintento tras el fallo SMTP moría antes de la fase y ahora sobrevive. El ejecutor copió E0 punto 4 letra a letra, y apartarse habría sido un bloqueante: el defecto es del plan, no de la fase. Destino: que David decida antes del PR (enmienda E3 o retoque de cierre). Basta añadir `assert send_message.await_count == 1`, o cerrar con `send_message.assert_awaited_once_with(message)` tras la lectura — evidencia: mutante R1, del auditor, en `app/core/email.py:114`: `try: await fast_mail.send_message(message)` / `except Exception: await fast_mail.send_message(message)`. En la copia `e89a2b0`: archivo `1 failed, 5 passed`, suite `1 failed, 547 passed` (`test_smtp_failure_propagates`). En la copia `91af6e8`: archivo `6 passed`, suite `548 passed, 5 warnings`. `plan.md:737-744`; `tests/test_email.py:119-130`.
+[OPCIONAL] — Fase H — El título del commit («…and the message actually sent») y su primer párrafo dan a entender que D8 queda resuelto, y D8 sigue vivo. El párrafo cuenta «…and a copy of the message sent instead of the one built» entre los correos rotos que los tests dejaban pasar. El mensaje coincide con el dictado tras E0 punto 7: el `diff` contra `plan.md:594-614` solo muestra el párrafo de la captura, la última línea y `<MODELO EJECUTOR>` → `Claude Opus 5.5`. E0 punto 7 deja el título sin cambiar de forma expresa y no toca el primer párrafo. Es engañoso, pero OPCIONAL: apartarse del texto dictado habría sido un bloqueante, y la historia no se reescribe (`rebase` está prohibido). Destino: la descripción del PR y el mensaje de merge (skill `pr-author`), que dirán que E0 declaró D8 inmatable. El ejecutor lo declaró — evidencia: `git show -s --format=%B 91af6e8`; `plan.md:748-751`; `handoff-Fase_H.md:281-286`. D8 re-medido: `6 passed` / `548 passed`, antes y después.
+[OPCIONAL] — Fase H — El docstring de `test_body_carries_the_link_in_the_button_and_as_plain_text` es el texto dictado letra a letra (`plan.md:566`), pero con el resumen partido en dos líneas («…; the button» / «has text.»). En una sola línea mide 101 columnas (medido). La regla de corte del plan (`plan.md:148-149`) se refiere a bloques de código y a `ruff format`, que no parte docstrings. E2 cubrió la continuación de un elemento `Raises:`, que Google Style admite, no un resumen partido. Rompe la convención de AGENTS §4: con la convención `google`, ruff da `D205 1 blank line required between summary line and description` en `tests\test_email.py:94:5`. La compuerta no lo ve porque `tests/**` ignora `D` (`pyproject.toml:85`). Había un ajuste mínimo: sin «the » ante «button», la línea mide 97 columnas, a costa de cambiar una palabra dictada. Destino: cierre — evidencia: `ruff check tests/test_email.py --select D205,D415 --isolated --config 'lint.pydocstyle.convention="google"'`; `handoff-Fase_H.md:277-280`.
+[OPCIONAL] — Fase H — La fila de Residuales de E0 punto 9 (D8) no está en la tabla `## Residuales` del plan (`plan.md:668-677`: 6 filas, ninguna de D8). Vive en la propia enmienda (`plan.md:754-755`) y en `handoff-Fase_H.md:292-302`, que la reproduce con la medición. El ejecutor no edita el plan, así que no es un hallazgo contra la fase. Las notas de E2 (BE-31, «this id's of two») tampoco se pasaron a esa tabla. Destino: al cerrar, consolidar en un solo sitio los Residuales del plan, D8 (E0 punto 9), las notas de E2 y los opcionales de A a H.
+[OPCIONAL] — Fase H — `_BodyCollector` es el que dicta el plan (`plan.md:544-548`): una sola etiqueta abierta, que `handle_endtag` pone a `None`. Mata L4, L5, L14 y L17. Ese modelo de una sola ranura falla en cerrado: con etiquetas anidadas o vacías no deja pasar ningún mutante, pero da rojos falsos ante refactors legítimos. El texto que sigue a un hijo ya cerrado se pierde (`<p style="s"><i>x</i>LINK</p>` → `[('i', {}, 'x')]`). El texto que sigue a una etiqueta vacía se le atribuye a ella (`<p style="s"><br>LINK</p>` → `('br', …)`). Un botón `<a><span>Btn</span></a>` cuenta 0 textos en `a`. El docstring de la clase («each visible text node») tampoco es exacto: también registra el CSS de `<style>`. Destino: cierre, o quien retoque el archivo (una pila de etiquetas). Hoy no hace falta, porque el cuerpo real no anida nada ni en el `<a>` ni en el `<p>` del enlace — evidencia: sonda del auditor sobre la clase extraída de `91af6e8:tests/test_email.py`; `app/core/email.py:88-95`.
+[OPCIONAL] — Fase H — La `description` de `Fase_H` en `progress.json` sigue anunciando «built-vs-sent message (… D8 …)», que es el diseño anterior a E0. E0 la dejó sin cambios («`progress.json`: sin cambios», `plan.md:756`), y `edit_rules` no permite tocarla fuera de la sesión de la fase. `last_handoff` sí es exacto («D8 6 passed before and after (alive, E0)»). Es informativo — evidencia: `docs/deuda/BE-32/progress.json`, `Fase_H.description`.
+
+Puntos juzgados sin hallazgo:
+
+- **E0, punto a punto, contra el diff de `91af6e8` (`tests/test_email.py`, `44 insertions(+), 11 deletions(-)`).**
+  (1) No hay `built_messages` ni `patch.object(email_module, "MessageSchema", …)`. El único doble es `send_message`, con
+  `autospec=True`. (2) `_send_and_capture(send_message, first_name=FIRST_NAME)` lee `call = send_message.await_args` y
+  `call.args[0] if call.args else call.kwargs["message"]`, letra a letra. Su docstring no cambia y sigue siendo cierto.
+  (3) `test_dispatches_…` recibe solo `send_message`, conserva `send_message.assert_awaited_once_with(message)` y borra el
+  `isinstance`. Su docstring no cambia. (4) `test_smtp_failure_propagates` lleva las tres líneas dictadas, letra a letra
+  (ver el primer opcional). (5) `test_body_renders_…` y `test_css_braces_…` siguen recibiendo `send_message`. (6) La tabla
+  de mutantes se revisa abajo. (7) El commit, en el segundo opcional. (8) El patrón 9b-D da `0`. (9) Los Residuales, en
+  el cuarto opcional.
+  Lo que E0 no toca de H está, y es lo dictado: `import re`; `_BodyCollector` con `anchors`, `texts` y un docstring de una
+  línea por método; el `Yields:` de `send_message`; las aserciones L14, L2–L5 y L17 del test del cuerpo; los dos
+  `re.search` y el docstring del test de CSS. `p_style` se lee con `.get("style")`, así que L17 falla en `is not None` y
+  no con un `KeyError`. El plan no dicta la forma.
+- **Las aserciones nuevas no leen texto en español.** El texto del botón se cuenta (`len(...) == 1`), no se lee. El enlace
+  es `VERIFICATION_LINK`, que construye el test. Los estilos son CSS de la plantilla, no texto humano.
+- **Los `re.search` de CSS** son los de `plan.md:570-571`, letra a letra. `\.btn\s*\{` no casa con `.btn-container {`,
+  porque detrás de `.btn` va `-`, así que L15 (`.button {{`) muere. `\{\s*\}` casa con `.btn { }`, así que C10 muere,
+  aunque el recuento de llaves siga en 9.
+- **Mutantes, re-medidos en dos copias desechables** del scratchpad (`git archive e89a2b0` y `git archive 91af6e8`).
+  `app/` es idéntico en las dos, y en `tests/` solo difiere `test_email.py`. `app.core.email` resuelve a cada copia.
+  Cada mutante se aplica por contenido, con una sola coincidencia exigida, y se restaura byte a byte con `assert`. Al final,
+  `cmp` contra el repo da idéntico en el `email.py` de las dos copias. El árbol de trabajo no se tocó (`git status`
+  limpio). Se corrió con `--no-cov -p no:cacheprovider` y variables de entorno ficticias.
+  - Antes (`e89a2b0`): sin mutante, `6 passed` / `548 passed`. L4, L5, L14, L15, L17, C10 y D8 dan `6 passed` en el
+    archivo; en la suite, L14, C10 y D8 dan `548 passed`. D4: `4 failed, 2 passed` (`IndexError`) / `4 failed, 544 passed`.
+    L2 y L3: `1 failed, 5 passed` (body).
+  - Después (`91af6e8`): sin mutante, `6 passed` / `548 passed`. L4, L5, L14 y L17: `1 failed, 5 passed` (body). L15 y C10:
+    `1 failed, 5 passed` (css). En la suite, L14 y C10 dan `1 failed, 547 passed`. D8: `6 passed` / `548 passed`, sigue
+    vivo, como dice E0 punto 6. D4: `6 passed` / `548 passed`. L2 y L3: `1 failed, 5 passed`.
+  - Las cifras coinciden una a una con `handoff-Fase_H.md:89-101` y con la tabla del plan corregida por E0 punto 6.
+- **Compuerta de la fila H, reejecutada en HEAD `92fc622`: exit 1.** `57 files already formatted`. ruff da
+  `Found 8 errors.`: los 8 I001 `:1:1` de `app\` (`api\dependencies.py`, `api\routers\audit.py`, `core\email.py`,
+  `db\database.py`, `repositories\user_repository.py`, `schemas\audit.py`, `services\audit_service.py`,
+  `services\user_service.py`). mypy da `Found 9 errors in 5 files (checked 53 source files)`: `app\db\database.py:11`,
+  `app\core\security.py:71` y `:87`, `app\services\user_service.py:124`, `app\api\dependencies.py:95`, y en
+  `tests\test_user_service.py` las líneas `:105`, `:203`, `:280` y `:298`, que son los 4 `[arg-type]` `str | None` de
+  `SECRET_KEY` (el conjunto de A4). Además: `Contracts: 4 kept, 0 broken.`, docs coherentes, `548 passed, 5 warnings`
+  (los 5 `StarletteDeprecationWarning`) y `TOTAL 943 23 138 19 96.11%`, igual que la línea base. En el archivo tocado,
+  `ruff check` da `All checks passed!`, `ruff format --check` da `1 file already formatted` y mypy da
+  `Success: no issues found in 1 source file`. `git diff --check e89a2b0 91af6e8` no da salida.
+- **Verificación final sobre HEAD: los 16 patrones en su valor**, leyendo el 10 como `3 insertions(+)` (E2).
+  - 1 = `0`; 1b = `0`.
+  - 2 = `0`, `3`, y `test_auth.py:1` / `test_user_access_policy.py:0`.
+  - 3 = `All checks passed!` y `8` I001, ninguno fuera de `app`.
+  - 4 = `0`; 5 = `0`.
+  - 6 = `94:files = [...,"tests"]` y `Found 9 errors in 5 files (checked 53 source files)`.
+  - 7 = `tests\conftest.py:86 override_get_db`; 8 = `1`.
+  - 9b-B = `1`; 9b-C = `1`, `1`, `3`; 9b-D = `0`.
+  - 9c = `3`, `1`, `2` (`test_user_service.py:274` y `:292`); 9d = `0`.
+  - 10 = `1 file changed, 3 insertions(+)`.
+  - 11 = exit 1 por ruff check y mypy, 4 kept, 548 passed, 96.11 %.
+
+  `git diff fd144ad -- app/` contiene solo el elemento `StaleDataError` del `Raises:` de `service_repository.py`: 3
+  líneas añadidas y ninguna borrada.
+- **`progress.json`.** Las 8 fases están `completed` y cada hash existe (`git cat-file -t` da 8 `commit`). `Fase_H` apunta
+  a `91af6e8` y `current_target` es `null`. `last_handoff` es nuevo y exacto, `edit_rules` no cambia y el JSON es válido.
+  `92fc622` toca solo `handoff-Fase_H.md` y `progress.json`. `scripts/check_docs.py --estado` da
+  `BE-32: … ejecutado (todas las fases); pendiente de PR o mezclado`.
+
+Consolidado para el cierre del ítem (opcionales y notas de A a H; ninguno bloquea el PR):
+
+1. A. El RED de herramienta estaba mal contado: da `3`, no `2`, por la línea `note:` de mypy. El error es solo del plan.
+2. A. Aviso CRLF→LF en `progress.json`: informativo, el blob está en LF.
+3. B. Para quitar el I001 hubo que separar el alias `UserRole as SchemaUserRole` (`test_user_service.py:27`), y el cuerpo
+   del commit no lo menciona. La traza está en el handoff de B.
+4. C. El RED de los ids estaba mal contado: son 3 líneas, no 2. El error es solo del plan.
+5. D. El criterio pedía el patrón 1 en 0, pero la línea que quedaba era de H. Hoy da `0`: lo resolvió H.
+6. E. La tabla de G1 del handoff midió un estado intermedio. Re-medida sobre `11f2f17`, es conforme.
+7. F. El patrón 10 son 3 líneas, no 2; lo recoge E2.
+8. F. `replace(tzinfo=None)` en `tests/test_service_repository.py:96` solo vale en SQLite → nota en BE-31. La auditoría
+   de F propone una alternativa portable.
+9. F. Docstring «this id's of two» (`tests/test_service_repository.py:51`) → «…and of the two rows, the one returned has
+   this id.».
+10. G. La cifra de suite de D17 en la tabla del plan es falsa: D17 ya moría en el login, por `test_auth.py`. Hay que
+    corregir también la cifra de BE-33.
+11. G. El docstring de `_bearer` está obsoleto (`tests/test_token_failure_paths.py:45`) → «Builds the Authorization
+    header for any raw token string.».
+12. H. `test_smtp_failure_propagates` ya no fija «single attempt», y el mutante R1 queda vivo. Lo dictó E0 punto 4.
+13. H. El commit `91af6e8` sugiere que D8 está resuelto. Hay que aclararlo en la descripción del PR y en el merge.
+14. H. El resumen del docstring del test del cuerpo está partido en dos líneas (D205 con la convención `google`).
+15. H. La fila D8 de E0 punto 9 no está en la tabla de Residuales del plan. Hay que consolidarla con las notas de E2.
+16. H. `_BodyCollector` tiene una sola ranura y falla en cerrado ante el anidamiento. Su docstring de clase no es exacto.
+17. H. La `description` de `Fase_H` en `progress.json` es la anterior a E0.
+18. Residuales del plan (`plan.md:668-677`), sin cambios:
+    - D1/U1 siguen vivos → P3 (códigos de error estables).
+    - `StaleDataError` no tiene test → BE-31.
+    - `jwt.encode` con `SECRET_KEY` → nota en A4 (líneas 105/203/280/298).
+    - Enlace oculto por una regla CSS de clase → revisión visual.
+    - `call_args.args[0]` en `test_services.py:220,487` → sin fila.
+    - El D2 «→ BE-xx» que nadie llevó a su fila → nota en AF-08.
+    - D8 (E0 punto 9), igual que D1/U1.
