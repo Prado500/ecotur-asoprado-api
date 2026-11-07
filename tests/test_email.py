@@ -28,7 +28,7 @@ VERIFICATION_LINK = f"{BASE_URL}/usuarios/verificar-email?token={TOKEN}"
 
 
 class _BodyCollector(HTMLParser):
-    """Collects every <a> tag's attributes and each visible text node with its tag."""
+    """Collects each <a> tag's attributes and every text node with its tag, <style> included."""
 
     def __init__(self) -> None:
         super().__init__()
@@ -91,9 +91,7 @@ async def test_dispatches_one_html_message_to_the_recipient(send_message: Any) -
 
 
 async def test_body_carries_the_link_in_the_button_and_as_plain_text(send_message: Any) -> None:
-    """The link is the button's href and, once, visible text in a styled <p>; the button
-    has text.
-    """
+    """The link is the button's href and, once, visible text in a styled <p>; button has text."""
     body = _body_of(await _send_and_capture(send_message))
 
     assert body.count(VERIFICATION_LINK) == 2
@@ -125,6 +123,7 @@ async def test_smtp_failure_propagates(send_message: Any) -> None:
         await send_verification_email(RECIPIENT, FIRST_NAME, TOKEN, BASE_URL)
 
     assert exc_info.value is error
+    assert send_message.await_count == 1
     call = send_message.await_args
     message: MessageSchema = call.args[0] if call.args else call.kwargs["message"]
     assert [recipient.email for recipient in message.recipients] == [RECIPIENT]
