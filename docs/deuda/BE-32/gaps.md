@@ -70,3 +70,55 @@ Puntos juzgados sin hallazgo:
   `338bc40` toca solo `handoff-Fase_B.md` y `progress.json`, con el mensaje del protocolo. Árbol limpio.
 - **Handoff:** pega el RED, el RESUMEN y las cifras de la compuerta, que coinciden con las de esta auditoría (salvo el
   tiempo de pytest). La nota del hook (F401 borra `from typing import Any` si se añade antes que su uso) es informativa.
+
+## Auditoría Fase C — 2026-11-07
+
+**Veredicto Fase C: PASS (0 bloqueantes, 1 opcional).**
+
+[OPCIONAL] — Fase C — El RED de los ids está mal contado en el plan. `grep -cE "year-by-monotony|year-resets-per-table|year-jump" tests/test_check_docs.py` da `3` antes, no `2` («2 líneas, 4 ids»). Los 4 ids viven en 3 líneas, y el propio plan cita `:1039` y `:1089-1090`, que son 3. Es una imprecisión del comando del plan, como la de la fase A, no un fallo de la fase: el objetivo (`0`) y los 4 renombrados coinciden, y el ejecutor lo declaró en el handoff — evidencia: `git show 5979b07^:tests/test_check_docs.py | grep -nE "year-by-monotony|year-resets-per-table|year-jump"` → `1039:` (dos ids), `1089:`, `1090:`; en HEAD el mismo `grep -cE` da `0`; `plan.md:237-239,250`; `verificacion.md` («ids de `test_check_docs.py` … → `:1039,1089-1090`»); `handoff-Fase_C.md`, "Desviaciones y dudas" 1.
+
+Puntos juzgados sin hallazgo:
+
+- **Lista `ids=` de `test_r7_flags_closed_row_without_mark` en una línea por elemento (`+8 −3`):** es admisible. El plan dice
+  que «el corte de línea es el que deje `ruff format` (100 columnas)» (`plan.md:148-149`). En una sola línea, la lista con
+  los nombres nuevos mide 110 columnas, así que `ruff format` la abre con coma final. `ruff format --check tests/` →
+  `18 files already formatted`. El contenido de la lista es el del plan: mismos 4 ids y en el mismo orden.
+- **Nombres de los ids:** son los 4 que dicta el plan, letra a letra (`plan.md:237-239`). Describen bien cada caso según
+  `_date_near` (`scripts/check_docs.py:757`, «year that leaves it nearest to `anchor`»), con la versión del plan del test el
+  31 oct 2026:
+  `year-nearest-to-version` (2 ene sin marca, hoy 5 ene 2027: el año más cercano a la versión es 2027, la fila es pasada
+  y R7 la marca); `year-nearest-in-each-table` (tras una tabla que cruza a enero, el `2 nov` de la tabla siguiente vuelve
+  a 2026; el año no se arrastra entre tablas); `new-year-rows-marked` (31 dic y 2 ene marcados, aceptados);
+  `new-year-row-in-future` (2 ene sin marca, hoy 31 dic 2026: la fila es de 2027, futura, aceptada). `--collect-only`
+  lista los 4 ids nuevos; `pytest tests/test_check_docs.py -q` → `257 passed`, igual que antes (handoff).
+- **`tests\conftest.py:85 override_get_db` sigue en el patrón AST de `Yields:`:** el plan lo excluye a propósito; no es un
+  residuo. Fase C, "Fuera de alcance": «`override_get_db` (función anidada)» (`plan.md:253-254`). Patrón 7 de la
+  verificación: «Queda fuera `override_get_db` (`conftest.py:76`), que es una función anidada y no un fixture público».
+  La adenda 3 (`verificacion.md:291`) pide `Yields:` en `conftest.py:34`, `:89` y `test_email.py:43`, además de los dos
+  de la fila (`:51`, `:62`), y no en `:76`. La verificación final del plan (`plan.md:643-645`) espera exactamente esa
+  línea como única salida: `tests\conftest.py:86 override_get_db`. La 85 de hoy (76 + 9 de los tres `Yields:` de encima)
+  pasa a 86 con el `from datetime import timedelta` de la fase G (`plan.md:76-77,451`). El AST da hoy
+  `tests\conftest.py:85 override_get_db` y `tests\test_email.py:43 send_message`, que es de la fase H. Las 4 líneas que
+  pide el criterio de aceptación (34, 51, 62, 89) ya no salen.
+- **Comentario en `test_audit.py:22`, no en `:21`:** el plan lo cita como «`:21` en la base», y en `fd144ad` está en la 21.
+  La fase B añadió `from typing import Any` en la línea 1, así que en `5979b07^` el comentario estaba en la 22. El diff lo
+  cambia por el texto dictado, letra a letra. El patrón 5 de la verificación final da `0`.
+- **Commit `5979b07`:** el mensaje es idéntico al de `plan.md:257-272`, con `<MODELO EJECUTOR>` → `Claude Opus 5.5`. El
+  `diff` solo difiere en el salto final que añade `git log --format=%B`. Toca exactamente los 5 archivos de la fase
+  (`5 files changed, 23 insertions(+), 6 deletions(-)`). Todos los "Cambios exactos" están en el diff:
+  `from sqlalchemy import select` en `test_services.py:15` y `test_user_access_policy.py:14`; el comentario; los 4 ids; y
+  los 4 `Yields:` con línea en blanco, 3 líneas cada uno y el texto del plan letra a letra. No cambia ninguna aserción.
+  `git diff --stat fd144ad -- app/` sale vacío.
+- **RED → 0:** `grep -rn "sqlalchemy.future" tests/` → `0`; patrón 5 (comentario en español) → `0`; ids → `0`.
+- **Compuerta (fila C), reejecutada en HEAD `755fa3e`, exit 1:** `57 files already formatted` · ruff `Found 8 errors.`
+  (solo los 8 I001 `:1:1` de `app/`) · mypy `Found 9 errors in 5 files (checked 53 source files)` (`app\db\database.py:11`,
+  `app\core\security.py:71`, `:87`, `app\services\user_service.py:124`, `app\api\dependencies.py:95`,
+  `tests\test_user_service.py:104`, `:198`, `:275`, `:293`) · `Contracts: 4 kept, 0 broken.` · `547 passed, 5 warnings` ·
+  `96.11%`. Las 4 líneas de `tests/` son las de `SECRET_KEY` (104 y 198 en `jwt.decode`, 275 y 293 en `SECRET_KEY,`): el
+  conjunto de A4, sin moverse, porque la fase no toca ese archivo. Coincide con la fila C, con la línea base y con el
+  handoff, salvo el tiempo de pytest.
+- **Archivos tocados:** `ruff check` sobre los 5 → `All checks passed!`. `mypy` sobre los 5 solo imprime los 5 de `app/` que
+  sigue por las importaciones (A4), ninguno en `tests\`.
+- **`progress.json`:** `Fase_C` está `completed` con `5979b07`, un commit real. `current_target` = `Fase_D`, `last_handoff`
+  existe y declara la desviación del RED, y `edit_rules` no cambia respecto a `bcb7271`. Quedan 8 fases y el JSON es
+  válido. El commit `755fa3e` toca solo `handoff-Fase_C.md` y `progress.json`, con el mensaje del protocolo. Árbol limpio.
