@@ -1,6 +1,6 @@
 {
   "plan_file": "docs/deuda/BE-32/plan.md",
-  "current_target": "Fase_F",
+  "current_target": "Fase_G",
   "phases": {
     "Fase_A": {
       "status": "completed",
@@ -28,8 +28,8 @@
       "description": "Three HTTP copies removed from test_user_access_policy.py, cedula assertion moved to test_auth.py, guard-order unit test (G1). Target: 545 passed, ruff 8, mypy 9."
     },
     "Fase_F": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "8b2cfe2",
       "description": "save_service tests with a neighbour row and exact deleted_at (M5, M10); StaleDataError in Raises (docstring only in app/). Target: 545 passed, ruff 8, mypy 9."
     },
     "Fase_G": {
@@ -44,6 +44,6 @@
     }
   },
   "allowed_statuses": ["pending", "partial", "completed"],
-  "last_handoff": "Fase_E 11f2f17: three HTTP copies removed from test_user_access_policy.py, the cedula assertion moved to test_auth.py, guard-order unit test added; G1 survives before (file 77 passed, suite 547 passed) and dies after (1 failed, 77 passed; suite 1 failed, 547 passed); gate as row E (ruff 8, mypy 9 in 5 files / 53 checked, A4 at 105/203/280/298, 4 kept, 545 passed, 96.11 % before and after). See handoff-Fase_E.md.",
+  "last_handoff": "Fase_F 8b2cfe2: neighbour row in the two save_service tests that return a row and exact deleted_at; StaleDataError in Raises (docstring only, 3 lines, not 2: the dictated text does not fit in 2 at 100 columns). Copy = committed tree (545 passed): M5 5 passed -> 2 failed, 3 passed (MultipleResultsFound); M10 5 passed -> 1 failed, 4 passed; gate as row F (ruff 8, mypy 9 in 5 files / 53 checked, A4 at 105/203/280/298, 4 kept, 545 passed, 96.11 %). See handoff-Fase_F.md.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
