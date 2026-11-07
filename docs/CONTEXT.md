@@ -7,7 +7,7 @@
 >
 > **Versión 3.8 — 7 nov 2026.** Cambios de esta versión: bitácora `2026-11-07` (§4: `tests/` dentro de mypy desde BE-32;
 > §5: contrato del auditor y `current_target` cumplidos por los agentes en BE-32; §6: cinco filas del 7 nov; §8 reescrito tras
-> BE-32 saldada en rama y A4 sin empezar, con la apertura de la semana siguiente como primer paso). Sin cambio de premisas:
+> BE-32 hecho (PR #85) y A4 sin empezar, con la apertura de la semana siguiente como primer paso). Sin cambio de premisas:
 > la capacidad declarada por David el 7 nov se aplica a §2 el día que se fecha la semana `(bitácora 2026-11-07)`.
 > Versiones anteriores: `2026-11-06` (3.7: bitácora `2026-11-06` (§2: Bogotá un día más, mudanza por
 > confirmar —ajuste de un día dentro del mismo régimen; si David lo considera cambio de premisa, 4.0—; §4: compuerta en rojo
@@ -178,7 +178,7 @@ por el equipo humano"**. → El flujo agéntico es parte de la metodología decl
   de `(PLAN §6)` y no se copia aquí. Tooling desde el 24 oct: `ruff`, `mypy`, `import-linter`, `pytest-cov`, unidos
   en `scripts/check.py` (AGENTS §6); desde el 6 nov (BE-33, PR #81) la compuerta global sigue en rojo solo por lo que tiene dueño
   en A4 (8 I001 y 5 `str | None`) y BE-32 (1 I001); rige el trinquete de ADR-0005 hasta que A4 y BE-32 cierren `B-TESTS`. Desde el 3 nov (AF-05) la compuerta local busca `lint-imports` en el
-  directorio de scripts del intérprete y sale en rojo si no está: un "4 KEPT" ya no puede ser un paso que no corrió. Los tests de `scripts/check_docs.py` corren en la suite pero fuera de la cobertura. **Desde BE-32 (7 nov, en rama con PR abierto) mypy mide también `tests/`**: `pyproject.toml` `files` incluye `"tests"`, la suite propia quedó en 0 errores y los 4 que mypy reporta ahí son `SECRET_KEY` de A4; además 0 aserciones de mock sin argumentos y 3 copias HTTP menos `(backlog BE-32)`. El diagnóstico de la suite (mocks sin
+  directorio de scripts del intérprete y sale en rojo si no está: un "4 KEPT" ya no puede ser un paso que no corrió. Los tests de `scripts/check_docs.py` corren en la suite pero fuera de la cobertura. **Desde BE-32 (7 nov, PR #85) mypy mide también `tests/`**: `pyproject.toml` `files` incluye `"tests"`, la suite propia quedó en 0 errores y los 4 que mypy reporta ahí son `SECRET_KEY` de A4; además 0 aserciones de mock sin argumentos y 3 copias HTTP menos `(backlog BE-32)`. El diagnóstico de la suite (mocks sin
   `spec`, setup duplicado, aserciones sobre texto, sesión ≠ `get_db`, huecos B2/B3/B4) es la fila
   §9/BE-15 del backlog y se corrige en `B-TESTS`.
 - **Deuda y features:** inventario completo con decisión por ítem en `docs/backlog.md`.
@@ -277,18 +277,16 @@ la Web App la hala al reiniciar. Operación: 2 clics.
 ## 8. Próximo paso
 
 Dónde estamos (estado al cierre de la bitácora `2026-11-07`): **AF-07 hecho** (PR #84, `fd144ad`; el contrato del auditor
-funcionó a la primera). **BE-32 saldada en `item/be-32`, PR abierto** (nueve fases A–I, nueve auditorías PASS; `tests/`
-dentro de `mypy.files`; 547 → 548 tests; ruff 8 y mypy 9, todo del conjunto de A4; cifras en `(backlog BE-32)` y
-`(PLAN §6)`); pasa a `Hecho` al mezclar. **A4, la medición final en `develop` y la retirada de `--soft`** no empezaron:
-BE-32 ocupó el día. Filas nuevas: AF-10; notas en BE-31, BE-33, A4, AF-08. La verificación de A4 debe medirse sobre
-`develop` con BE-32 mezclada (sus líneas en `tests/` son `test_user_service.py:105,203,280,298`).
+funcionó a la primera). **BE-32 hecho** (PR #85, `08c3a3d`; nueve fases A–I, nueve auditorías PASS; `tests/` dentro de
+`mypy.files`; 547 → 548 tests; ruff 8 y mypy 9, todo del conjunto de A4; cifras en `(backlog BE-32)` y `(PLAN §6)`). **A4, la medición final en `develop` y la retirada de `--soft`** no empezaron:
+BE-32 ocupó el día. Filas nuevas: AF-10; notas en BE-31, BE-33, A4, AF-08. La verificación de A4 se mide sobre
+`develop` = `08c3a3d` (sus líneas en `tests/` son `test_user_service.py:105,203,280,298`).
 
 1. **Siguiente: la próxima sesión abre planificando la semana** `(PLAN §3)`, con la capacidad que David declaró el 7 nov
    `(bitácora 2026-11-07)`: fechar la semana, actualizar §2 (versión mayor si David lo considera cambio de premisa) y las
-   tablas de régimen de PLAN §3; fechar `B-GHOST-ADMIN` y `B-GUARD-TESTS`. Antes o después de eso, mezclar el PR de
-   `item/be-32` (CI verde con `--soft`; merge commit) y pasar BE-32 a `Hecho` en el backlog.
+   tablas de régimen de PLAN §3; fechar `B-GHOST-ADMIN` y `B-GUARD-TESTS`. `develop` = `08c3a3d` al abrir.
 2. **A4** (adelantado de `B-PAGOS`): primero los dos tests de firma (precondición, fila A4), `/deuda-verificar` sobre
-   `develop` con BE-32 mezclada, `/deuda-planear`, fases; al cerrar, `unfixable I001` fuera e I001 aplicado; compuerta
+   `develop`, `/deuda-planear`, fases; al cerrar, `unfixable I001` fuera e I001 aplicado; compuerta
    medida en `develop`; `--soft` fuera del YAML si verde y ADR-0005 marcado superado. Luego el cierre de Bogotá (CORS en
    las tres Web Apps, prueba del frontend, PR a `staging`, dump para `B-RESERVAS m2`) y lo que PLAN §3 fije.
    Pendientes chicos: nota de BE-02 (ninguna otra pantalla envía `role` en un `PATCH`); correo real en Gmail web y
