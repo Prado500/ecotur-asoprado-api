@@ -1,6 +1,6 @@
 {
   "plan_file": "docs/deuda/BE-32/plan.md",
-  "current_target": null,
+  "current_target": "Fase_I",
   "phases": {
     "Fase_A": {
       "status": "completed",
@@ -41,9 +41,18 @@
       "status": "completed",
       "commit": "91af6e8",
       "description": "Email tests: visible link, button text, p style, CSS rules, built-vs-sent message (L4, L5, L14, L15, L17, C10, D8, D4). Target: 548 passed, ruff 8, mypy 9."
+    },
+    "Fase_I": {
+      "status": "pending",
+      "commit": null,
+      "description": "E3: assert await_count == 1 in test_smtp_failure_propagates (mutant R1), one-line summary docstring (D205), exact _BodyCollector docstring; Fase_H description updated. Target: 548 passed, ruff 8, mypy 9."
     }
   },
-  "allowed_statuses": ["pending", "partial", "completed"],
+  "allowed_statuses": [
+    "pending",
+    "partial",
+    "completed"
+  ],
   "last_handoff": "Fase_H 91af6e8: _BodyCollector (visible text with its tag), p style, one text node in the button, no empty CSS rule and .btn defined, capture by position or keyword (E0), isinstance on subject removed, Yields on send_message. Copy = committed tree (548): file 6 passed before; L4/L5/L14/L17 1 failed (body), L15/C10 1 failed (css), D4 4 failed -> 6 passed, D8 6 passed before and after (alive, E0), L2/L3 1 failed both. Gate as row H (ruff 8, mypy 9 in 5 files / 53 checked, A4 at 105/203/280/298, 4 kept, 548 passed, 96.11 %). Final verification: every pattern at its expected value (pattern 1 = 0; pattern 10 = 3 insertions per E2). Last phase: current_target null. See handoff-Fase_H.md.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }

@@ -775,3 +775,83 @@ fase F ocupa **3 líneas**, no 2 (ningún corte en 2 líneas cabe en 100 columna
 único cambio en `app/` y es solo docstring. Ninguna otra cifra cambia. Para el cierre del ítem, no para las fases:
 `replace(tzinfo=None)` en `tests/test_service_repository.py:96` solo vale en SQLite → nota en BE-31; el docstring de `:51`
 («this id's of two») → Residuales con la redacción del auditor («and of the two rows, the one returned has this id»).
+
+### E3 — 7 nov 2026, 16:38 (David, sesión Mentor; tras la auditoría de la fase H)
+
+Texto literal de David: «con relación al grupo 1: hacemos todo. en 3 escojo b. grupo 2: entra todo en fase I.» y «dale,
+haz eso».
+
+**Por qué existe.** La auditoría de H (`gaps.md`, Fase H, hallazgo 1) midió que **E0 punto 4 debilitó
+`test_smtp_failure_propagates`**: la base afirmaba `send_message.assert_awaited_once()` (una sola llamada); E0 la cambió
+por leer `send_message.await_args` (la última llamada) y afirmar los destinatarios, así que un reintento tras el fallo
+SMTP (mutante **R1** del auditor) pasa inadvertido: en `e89a2b0` moría (`1 failed`), en `91af6e8` vive (`548 passed`),
+y el docstring sigue prometiendo "after a single attempt". El error es de la enmienda (sesión Mentor), no del ejecutor.
+Se corrige dentro de BE-32 con una fase más, **I**, y se recogen en ella los tres cosméticos del mismo archivo (hallazgos
+3, 5 y 6 de H). El hallazgo 2 de H (el título y el primer párrafo del commit `91af6e8` hablan de D8 como resuelto) **no
+se corrige reescribiendo el commit** (decisión de David, opción b, precedente `b9a8907` del 6 nov): se declara en la
+descripción del PR y en el mensaje de merge.
+
+### Fase I — Cierre de `test_email.py`: una sola llamada SMTP, docstrings exactos, `progress.json`
+- **Archivos:** `tests/test_email.py` (y `docs/deuda/BE-32/progress.json`, que el ejecutor edita por protocolo).
+- **Cambios exactos** (líneas de `91af6e8`):
+  1. `test_smtp_failure_propagates`, tras la línea 127 (`assert exc_info.value is error`) y antes de la 128
+     (`call = send_message.await_args`), insertar:
+     ```python
+         assert send_message.await_count == 1
+     ```
+     Las líneas 128-130 se conservan. (No cuenta para el patrón 1 de la Verificación final: no es `assert_*()` vacío.)
+  2. Docstring de `test_body_carries_the_link_in_the_button_and_as_plain_text` (`:94-96`, tres líneas) → una sola línea:
+     ```python
+         """The link is the button's href and, once, visible text in a styled <p>; button has text."""
+     ```
+     (97 columnas; resume en una línea como pide Google Style; con `--select D` ya no da D205.)
+  3. Docstring de `_BodyCollector` (`:31`) →
+     ```python
+         """Collects every <a> tag's attributes and each text node with its tag, <style> text included."""
+     ```
+  4. `progress.json`: la `description` de `Fase_H` pasa a
+     `"Email tests: visible link, button text, p style, CSS rules, capture by position or keyword (L4, L5, L14, L15,
+     L17, C10, D4; D8 alive per E0). Target: 548 passed, ruff 8, mypy 9."`; `Fase_I` → `completed` con su commit;
+     `current_target` → `null`.
+- **Tests (RED primero, copia desechable de `app/core/email.py`):**
+
+  | Mutante | Cambio | Antes (archivo) | Después (archivo) |
+  |---|---|---|---|
+  | R1 | `email.py:114`: `await fast_mail.send_message(message)` → `try: await fast_mail.send_message(message)` / `except ConnectionErrors: await fast_mail.send_message(message)` (reintento; el segundo intento vuelve a fallar con el mismo `side_effect`) | 6 passed | `1 failed, 5 passed` (`test_smtp_failure_propagates`, por `await_count == 2`) |
+  | D8 | enviar `message.model_copy(update={"subject": "x"})` | 6 passed | 6 passed (vivo, E0) |
+
+  `ruff check --select D205,D415 tests/test_email.py` → `All checks passed!` (antes: 1 D205 en `:94`).
+- **Criterio de aceptación:** compuerta igual a la fila H (ruff 8 · mypy 9 en 5 archivos, 53 fuentes, A4 en
+  105/203/280/298 · 4 kept · **548 passed** · ≥ 96,11 %); `grep -c "await_count == 1" tests/test_email.py` → 1; la
+  Verificación final completa sigue en sus 16 valores (patrón 1 = 0; patrón 10 = `3 insertions(+)` por E2).
+- **Fuera de alcance de esta fase:** cualquier otra línea de `tests/test_email.py`; `app/core/email.py`; D8.
+- **Commit:**
+  ```text
+  test(email): pin the single SMTP attempt and tighten two docstrings
+
+  Phase H replaced assert_awaited_once() with a capture of the last await,
+  so a retry after an SMTP failure would have gone unnoticed (mutant R1:
+  the suite stayed green). The failure test now also asserts
+  await_count == 1, which the docstring already promised.
+
+  Two docstrings are made exact: the body test's summary fits one line
+  (D205), and the collector says it records every text node, <style>
+  included, not only visible text.
+
+  Co-Authored-By: <MODELO EJECUTOR> <noreply@anthropic.com>
+  ```
+
+**Tabla `## Residuales`: filas que E0 y E2 debieron añadir y no añadieron** (se leen como parte de esa tabla):
+
+| Hallazgo | Evidencia | Destino sugerido |
+|---|---|---|
+| D8 (enviar una copia del mensaje con otro asunto) sigue vivo: matarlo exige suplantar la clase `MessageSchema` dentro de `email.py`. Declarado inmatable por E0 (decisión de David no analizada, "flip de moneda"); se revisa al estudiar BE-32 | fase H, tabla de mutantes; E0 | Con D1 y U1: fila P3 opcional si algún día entra un código de error estable |
+| `assert saved.deleted_at == deleted_at.replace(tzinfo=None)` solo vale en SQLite; en Postgres la igualdad daría `False` sin error | `tests/test_service_repository.py:96`; auditoría F | Nota en BE-31 (alternativa portable del auditor de F: `saved.deleted_at.replace(tzinfo=saved.deleted_at.tzinfo or UTC) == deleted_at`) |
+| Docstring «…the row returned is this id's of two» se lee mal | `tests/test_service_repository.py:51` | Redacción del auditor de F: «and of the two rows, the one returned has this id»; con el próximo PR que toque el archivo |
+| Docstring de `_bearer` dice «a token the factories cannot produce» y desde G recibe tokens de `make_token` | `tests/test_token_failure_paths.py:45` | Con el próximo PR que toque el archivo |
+| `user_repo.create_user.assert_awaited_once_with(created_user)` compara el argumento consigo mismo (el servicio devuelve el retorno del doble, no el objeto creado) | `tests/test_user_service.py:334`; auditoría D | `side_effect` identidad y comparar con lo devuelto; sin fila |
+| `_BodyCollector` recuerda una sola etiqueta abierta: con etiquetas anidadas daría rojos falsos (nunca pases falsos) | `tests/test_email.py:30-50`; auditoría H | Sin fila; vale para la plantilla actual |
+| `BE-33/gaps.md:144` decía que D17 sobrevivía en la suite; ya moría por `test_auth.py::test_self_soft_delete_keeps_row_and_blocks_login` desde `bf22982` | auditoría G | Fe de erratas en la bitácora del 7 nov y nota en la fila BE-33; `BE-33/gaps.md` no se edita |
+
+`progress.json`: fase nueva `Fase_I` (`pending`, `commit: null`), `current_target` → `"Fase_I"` (lo fija esta enmienda,
+regla del retoque; el ejecutor de I lo pone en `null` al terminar).
