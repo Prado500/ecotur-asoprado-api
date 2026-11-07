@@ -86,6 +86,9 @@ class ServiceRepository:
         Raises:
             NoResultFound: The row is gone. It was just committed and nothing deletes rows
                 physically, so this is a broken invariant, not a business case.
+            StaleDataError: The commit flushed a pending change to a row that another session had
+                already deleted (the UPDATE matched no row): the same broken invariant, caught
+                earlier.
         """
         await self.db.commit()
         stmt = (

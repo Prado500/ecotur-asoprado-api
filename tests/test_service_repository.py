@@ -48,8 +48,9 @@ async def _persist(db_session: AsyncSession, package: TouristService) -> Tourist
 async def test_save_service_commits_pending_changes_and_returns_the_row(
     db_session: AsyncSession, repo: ServiceRepository
 ) -> None:
-    """The pending change is committed: a rollback afterwards cannot undo it."""
+    """The pending change survives a later rollback, and the row returned is this id's of two."""
     package = await _persist(db_session, _package())
+    await _persist(db_session, _package(name="Paquete Vecino De Prueba"))
     package.is_available = False
 
     saved = await repo.save_service(package)
@@ -71,7 +72,7 @@ async def test_save_service_raises_when_the_row_never_existed(
 async def test_save_service_raises_when_the_row_was_physically_deleted(
     db_session: AsyncSession, repo: ServiceRepository
 ) -> None:
-    """A row removed behind the entity's back raises instead of returning None."""
+    """A row deleted from the table before the call raises instead of returning None."""
     package = await _persist(db_session, _package())
     await db_session.execute(delete(TouristService).where(TouristService.id == package.id))
     await db_session.commit()
@@ -83,14 +84,16 @@ async def test_save_service_raises_when_the_row_was_physically_deleted(
 async def test_save_service_returns_a_soft_deleted_row(
     db_session: AsyncSession, repo: ServiceRepository
 ) -> None:
-    """A soft-deleted row still exists, so saving it does not count as a missing row."""
+    """A soft-deleted row still exists, so saving it returns it with its own deletion date."""
     deleted_at = datetime(2026, 1, 15, 12, 0, tzinfo=UTC)
     package = await _persist(db_session, _package(deleted_at=deleted_at))
+    await _persist(db_session, _package(name="Paquete Vecino De Prueba"))
 
     saved = await repo.save_service(package)
 
     assert saved.id == package.id
-    assert saved.deleted_at is not None
+    # SQLite returns the column without its time zone.
+    assert saved.deleted_at == deleted_at.replace(tzinfo=None)
 
 
 async def test_save_service_returns_the_row_with_its_images_loaded(
