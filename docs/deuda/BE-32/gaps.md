@@ -192,3 +192,68 @@ Puntos juzgados sin hallazgo:
 - **AGENTS §5:** los dobles siguen con autospec. Ninguna aserción nueva lee texto en español: los valores (`"1005911792"`,
   `"5555555555"`, nombres de fichero, MIME) son entradas del propio test. No es la última fase, así que no toca la
   "Verificación final".
+
+## Auditoría Fase E — 2026-11-07
+
+**Veredicto Fase E: PASS (0 bloqueantes, 1 opcional).**
+
+[OPCIONAL] — Fase E — La tabla de G1 del handoff y el `last_handoff` de `progress.json` no miden el estado commiteado, sino uno intermedio: los tests de `a861358` (el archivo, con las 3 copias, tiene 77 casos; la suite, 547) más el test nuevo copiado encima. De ahí sale «después» `1 failed, 77 passed` / `1 failed, 547 passed` (78 y 548 casos), y no 75 y 545. La salida literal del handoff sí lo dice («después, suite (copia con el test nuevo y aún con las 3 copias HTTP)»), pero la cabecera de la tabla y `last_handoff` lo presentan sin esa salvedad. No afecta al criterio de aceptación: el plan no da cifras para G1, solo «sin el test nuevo, el archivo y la suite pasan enteros; con él, `1 failed` (el test nuevo) y el resto passed» (`plan.md:373-375`). Medir con las copias aún presentes muestra además que ninguna de ellas mataba G1. Re-medido sobre `11f2f17` en una copia desechable, con resultado conforme al plan: sin mutar, `75 passed` / `545 passed, 5 warnings`; G1 sin el test nuevo (`--deselect`), `74 passed, 1 deselected` / `544 passed, 1 deselected, 5 warnings`; G1 con él, `1 failed, 74 passed` / `1 failed, 544 passed, 5 warnings`, y el único FAILED es `TestAssertCanUpdate::test_role_guard_for_non_superadmins_runs_before_the_self_role_guard` (`tests\test_user_access_policy.py:220`, la aserción `==`) — evidencia: `handoff-Fase_E.md`, «RED: mutante G1» (tabla y salida literal); `progress.json` `last_handoff`; la re-medición de esta auditoría (`git archive 11f2f17 | tar -x` en el scratchpad).
+
+Puntos juzgados sin hallazgo:
+
+- **Las tres copias borradas** son exactamente las de la adenda 4 y de `plan.md:33-34,348-349`. En `a861358` (y en `fd144ad`)
+  están en `test_user_access_policy.py:314` (`test_patch_hierarchy_violation_returns_403_detail`), `:384`
+  (`test_admin_cannot_provision_admin_account_403_and_no_db_mutation`) y `:412` (`test_admin_update_tourist_persists_mutation`).
+  El diff borra esas tres funciones enteras y nada más de la sección HTTP. Comparación con sus pares de `test_auth.py`:
+  - Patch a superadmin. La copia afirmaba `403`, `"detail" in json()` y `first_name == "John"` (un literal).
+    `test_admin_patching_superadmin_returns_403_without_mutation` (`test_auth.py:262`) afirma `403`,
+    `set(body) == {"detail"}`, `isinstance(detail, str)`, `refresh` y `first_name == original_first_name`. El par es más
+    fuerte.
+  - Admin que da de alta a un admin. La copia afirmaba `403`, `"detail" in` y una sola fila, la del admin.
+    `test_admin_provisioning_admin_returns_403_without_row` (`:361`) ya afirmaba `set(body) == {"detail"}` y `isinstance`,
+    y ahora hereda `len(users) == 1` y `users[0].cedula == admin.cedula`. Queda más fuerte que la copia.
+  - Admin que corrige el email de un turista. La copia afirmaba `200`, el email en el cuerpo, `refresh` y el email
+    persistido. `test_admin_updates_tourist_email_and_persists_it` (`:242`) afirma lo mismo, así que la fuerza es igual.
+  Los tres pares recorren las mismas rutas y el mismo camino de `app/`, y la cobertura no se mueve (ver abajo).
+- **Aserción heredada (`test_auth.py:388-390`).** Sustituye `select(func.count()).select_from(User)` +
+  `scalar_one() == 1` por las tres líneas dictadas en `plan.md:345-347`, iguales a las de la copia
+  (`a861358:tests/test_user_access_policy.py:407-409`). `func` sigue usándose en `test_auth.py:67` y `select` en `:47`,
+  `:67`, `:388` y `:421`, así que `from sqlalchemy import func, select` (`:6`) no cambia. En `test_user_access_policy.py`,
+  `User` queda sin uso y el import pasa a `from app.models.user import UserRole`, como dicta el plan. El hook lo quitó
+  (F401), y el handoff lo declara. `select` sigue usándose ahí (`:448` y siguientes, sobre `AuditLog`).
+- **Test G1** (`test_user_access_policy.py:201-221`, al final de `TestAssertCanUpdate`, justo antes de
+  `class TestAssertCanRecover`). Docstring y cuerpo son literales a `plan.md:353-371`. Lo único que cambia es la firma, que
+  `ruff format` parte en tres líneas, como el plan permite. Mata el mutante sin leer texto: compara `.detail` con
+  `.detail` (`==` entre «admin, su propio rol» y «admin, rol de otro»; `!=` contra «superadmin, su propio rol»). Con G1, el
+  primer caso cae en la guarda de auto-rol y falla el `==` (`:220`). La re-medición lo confirma. Que falle prueba también
+  que `make_user` da cédulas distintas a `admin` y `tourist`: si fueran iguales, los dos casos serían auto-update y el
+  mutante sobreviviría.
+- **Mutante aplicado** (`scratchpad/tools/mutate_g1.py`): `assert` por contenido de que `:66` es la guarda
+  `actor.role != UserRole.superadmin` y `:71` la de `is_self_update and "role"`. Después intercambia `:66-69` y `:71-72`.
+  `app.services.user_access_policy.__file__` resolvía a la copia. Después: `git status --short` vacío y
+  `git diff --quiet -- app` con exit 0 en el repo.
+- **Cobertura y `app/`.** Compuerta reejecutada: `TOTAL 943 23 138 19 96.11%`, igual que la línea base y que la fila D
+  (`a861358`, con las copias). Como los totales de líneas y ramas sin cubrir son idénticos, borrar las copias no
+  descubrió nada. `git diff --stat fd144ad -- app/` sale vacío (0 líneas de diff), así que la fase F será la primera en
+  tocar `app/`.
+- **Compuerta (fila E), reejecutada en HEAD `0ba3050`, exit 1:** `57 files already formatted` · ruff `Found 8 errors.`
+  (solo los 8 I001 `:1:1` de `app\`: `api\dependencies.py`, `api\routers\audit.py`, `core\email.py`, `db\database.py`,
+  `repositories\user_repository.py`, `schemas\audit.py`, `services\audit_service.py`, `services\user_service.py`) ·
+  mypy `Found 9 errors in 5 files (checked 53 source files)`, con los 5 de `app/` y `tests\test_user_service.py:105`,
+  `:203`, `:280` y `:298` (el conjunto de A4 de la decisión 5 y E0-P2, ni uno más) · `Contracts: 4 kept, 0 broken.` ·
+  docs coherentes · `545 passed, 5 warnings` · cobertura 96.11 %. Coincide con la fila E (`plan.md:143`) y con lo que
+  pegó el ejecutor, salvo el tiempo de pytest. En los archivos tocados: `ruff check` da `All checks passed!` y
+  `ruff format --check` da `2 files already formatted`. mypy sobre los dos da
+  `Found 5 errors in 4 files (checked 2 source files)`: todos de `app/`, que entra por import, y ninguno en los archivos
+  tocados. `git diff --check` no da salida.
+- **Criterio de aceptación** (`plan.md:376-380`): 547 − 3 + 1 = 545. Los greps del criterio dan: copias en la política,
+  `0`; pares en `test_auth.py`, `3`; cédula heredada, `tests/test_auth.py:1` y `tests/test_user_access_policy.py:0`;
+  patrón 8 (G1), `1`.
+- **Commit `11f2f17`:** el mensaje es idéntico a `plan.md:384-399`, con `<MODELO EJECUTOR>` → `Claude Opus 5.5`. Solo
+  difiere el salto final de `git log --format=%B`. Toca exactamente los 2 archivos de la fase
+  (`2 files changed, 26 insertions(+), 71 deletions(-)`).
+- **`progress.json`:** `Fase_E` está `completed` con `11f2f17`, un commit real. `current_target` = `Fase_F`, existe
+  `last_handoff`, `edit_rules` no cambia y el JSON es válido. El commit `0ba3050` toca solo `handoff-Fase_E.md` y
+  `progress.json`. El árbol está limpio.
+- **AGENTS §5:** el test nuevo usa `make_user` y `policy`, no usa mocks, está en inglés y con docstring, y no lee texto en
+  español. No es la última fase, así que no toca la "Verificación final".
