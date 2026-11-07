@@ -855,3 +855,23 @@ descripción del PR y en el mensaje de merge.
 
 `progress.json`: fase nueva `Fase_I` (`pending`, `commit: null`), `current_target` → `"Fase_I"` (lo fija esta enmienda,
 regla del retoque; el ejecutor de I lo pone en `null` al terminar).
+
+### E4 — 7 nov 2026, 17:00 (David, sesión Mentor; el ejecutor de I se detuvo sin commitear, árbol limpio en `493cafc`)
+
+Corrige tres errores de E3 (sesión Mentor), medidos por el ejecutor de I con el intérprete del venv:
+
+1. **Cambio 3 de la fase I.** El docstring dictado para `_BodyCollector` mide 101 columnas (E501; ruff pasaría de 8 a 9).
+   Texto definitivo, 96 columnas:
+   ```python
+       """Collects each <a> tag's attributes and every text node with its tag, <style> included."""
+   ```
+2. **RED de D205.** `pyproject.toml:86` ignora las reglas `D` en `tests/**`, así que el comando de E3 da
+   `All checks passed!` antes y después. El RED se mide con
+   `./venv/Scripts/python.exe -m ruff check --isolated --select D205,D415 --line-length 100 tests/test_email.py`:
+   antes `D205` en `:94`, después `All checks passed!`.
+3. **Mutante R1.** `app/core/email.py` no importa `ConnectionErrors`; la copia mutada añade
+   `from fastapi_mail.errors import ConnectionErrors` junto al reintento. Es método, no cambio del mutante.
+
+Lo demás de E3 (cambios 1, 2 y 4, criterio de aceptación, commit, Residuales) no cambia. Medición previa del ejecutor
+sobre el árbol de trabajo (por confirmar sobre el commit): R1 `1 failed, 5 passed` / suite `1 failed, 547 passed`
+(`assert 2 == 1`); D8 `6 passed` (vivo, E0). `progress.json`: sin cambios (`Fase_I` `pending`, `current_target` `Fase_I`).
