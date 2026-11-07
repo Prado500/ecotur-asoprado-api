@@ -4,6 +4,7 @@ from unittest.mock import create_autospec, patch
 
 import pytest
 from azure.core.exceptions import HttpResponseError, ServiceRequestError
+from azure.storage.blob import ContentSettings
 from azure.storage.blob.aio import BlobClient, BlobServiceClient, ContainerClient
 
 import app.core.storage as storage_module
@@ -89,11 +90,9 @@ async def test_upload_image_happy_path_stores_with_uuid_name(doubles):
     url = await doubles.client.upload_image(staged)
 
     assert url == doubles.source_blob.url
-    doubles.source_blob.upload_blob.assert_awaited_once()
-    args, kwargs = doubles.source_blob.upload_blob.await_args
-    assert args == (b"bytes",)
-    assert kwargs["overwrite"] is True
-    assert kwargs["content_settings"].content_type == "image/jpeg"
+    doubles.source_blob.upload_blob.assert_awaited_once_with(
+        b"bytes", overwrite=True, content_settings=ContentSettings(content_type="image/jpeg")
+    )
     blob_name = doubles.temp_container.get_blob_client.call_args.args[0]
     assert blob_name.endswith(".png")
     assert len(blob_name) == len(".png") + 36
@@ -156,7 +155,7 @@ async def test_promote_happy_path_copies_synchronously_then_deletes(doubles):
 
     assert result == doubles.dest_blob.url
     doubles.dest_blob.start_copy_from_url.assert_awaited_once_with(url, requires_sync=True)
-    doubles.source_blob.delete_blob.assert_awaited_once()
+    doubles.source_blob.delete_blob.assert_awaited_once_with()
 
 
 async def test_promote_pending_copy_does_not_delete_source(doubles):
@@ -186,7 +185,7 @@ async def test_delete_image_deletes_blob_by_name(doubles):
     await doubles.client.delete_image(f"{PERM_URL}/abc.jpg")
 
     doubles.perm_container.get_blob_client.assert_called_once_with("abc.jpg")
-    doubles.dest_blob.delete_blob.assert_awaited_once()
+    doubles.dest_blob.delete_blob.assert_awaited_once_with()
 
 
 async def test_delete_image_swallows_sdk_failure(doubles):
@@ -195,4 +194,4 @@ async def test_delete_image_swallows_sdk_failure(doubles):
 
     await doubles.client.delete_image(f"{PERM_URL}/abc.jpg")
 
-    doubles.dest_blob.delete_blob.assert_awaited_once()
+    doubles.dest_blob.delete_blob.assert_awaited_once_with()

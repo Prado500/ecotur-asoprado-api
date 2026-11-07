@@ -85,7 +85,6 @@ class TestAuditServiceAuthorization:
             await service.retrieve_audit_history(current_user=tourist)
 
         audit_repo.get_all_audit_logs.assert_not_called()
-        audit_repo.get_all_audit_logs.assert_not_awaited()
 
     async def test_admin_calls_repo_exactly_once_with_expected_args(self, audit_repo, make_user):
         admin = make_user(role=UserRole.admin)
