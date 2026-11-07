@@ -1,10 +1,10 @@
 {
   "plan_file": "docs/deuda/BE-32/plan.md",
-  "current_target": "Fase_A",
+  "current_target": "Fase_B",
   "phases": {
     "Fase_A": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "e7c814d",
       "description": "Email double in test_fixtures_contract.py typed through an Any local (2 mypy errors). Target: 547 passed, ruff 9, mypy 5; mypy tests 16 -> 14."
     },
     "Fase_B": {
@@ -44,6 +44,6 @@
     }
   },
   "allowed_statuses": ["pending", "partial", "completed"],
-  "last_handoff": "Estado inicial.",
+  "last_handoff": "Fase_A e7c814d: Any local in test_fixtures_contract.py; gate as row A (ruff 9, mypy 5, 547 passed, 96.11 %); mypy tests 16 -> 14. See handoff-Fase_A.md.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
