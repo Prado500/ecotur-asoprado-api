@@ -1,4 +1,5 @@
 import itertools
+from datetime import timedelta
 from unittest.mock import create_autospec, patch
 
 import pytest
@@ -207,12 +208,15 @@ def make_token():
     Centralized factory that signs a real JWT access token for a given User.
 
     Returns:
-        Callable[[User], str]: Factory producing a signed bearer token with
-        the user's email and role as claims.
+        Callable[..., str]: Factory producing a signed bearer token with
+        the user's email and role as claims; expires_delta overrides the
+        default lifespan, and a negative one yields an already expired token.
     """
 
-    def _make_token(user: User) -> str:
-        return create_access_token(data={"sub": user.email, "role": user.role.value})
+    def _make_token(user: User, *, expires_delta: timedelta | None = None) -> str:
+        return create_access_token(
+            data={"sub": user.email, "role": user.role.value}, expires_delta=expires_delta
+        )
 
     return _make_token
 
