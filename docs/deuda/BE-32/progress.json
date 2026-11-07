@@ -1,0 +1,49 @@
+{
+  "plan_file": "docs/deuda/BE-32/plan.md",
+  "current_target": "Fase_A",
+  "phases": {
+    "Fase_A": {
+      "status": "pending",
+      "commit": null,
+      "description": "Email double in test_fixtures_contract.py typed through an Any local (2 mypy errors). Target: 547 passed, ruff 9, mypy 5; mypy tests 16 -> 14."
+    },
+    "Fase_B": {
+      "status": "pending",
+      "commit": null,
+      "description": "tests/ into mypy.files plus the other 5 BE-32 mypy errors and the tests I001 (5 files). Target: 547 passed, ruff 8, mypy 9 (A4 at test_user_service.py:104,198,275,293)."
+    },
+    "Fase_C": {
+      "status": "pending",
+      "commit": null,
+      "description": "Suite hygiene: select from sqlalchemy, Spanish comment, Yields on 4 conftest fixtures, R7 ids (5 files). Target: 547 passed, ruff 8, mypy 9."
+    },
+    "Fase_D": {
+      "status": "pending",
+      "commit": null,
+      "description": "Ten mock assertions with arguments and two redundant assert_not_awaited removed (4 files). Target: 547 passed, ruff 8, mypy 9 (A4 at 105,203,280,298)."
+    },
+    "Fase_E": {
+      "status": "pending",
+      "commit": null,
+      "description": "Three HTTP copies removed from test_user_access_policy.py, cedula assertion moved to test_auth.py, guard-order unit test (G1). Target: 545 passed, ruff 8, mypy 9."
+    },
+    "Fase_F": {
+      "status": "pending",
+      "commit": null,
+      "description": "save_service tests with a neighbour row and exact deleted_at (M5, M10); StaleDataError in Raises (docstring only in app/). Target: 545 passed, ruff 8, mypy 9."
+    },
+    "Fase_G": {
+      "status": "pending",
+      "commit": null,
+      "description": "Token failure tests: D2, U6/U7, D17 new; neighbour accounts (D11); make_token with expires_delta. Target: 548 passed, ruff 8, mypy 9."
+    },
+    "Fase_H": {
+      "status": "pending",
+      "commit": null,
+      "description": "Email tests: visible link, button text, p style, CSS rules, built-vs-sent message (L4, L5, L14, L15, L17, C10, D8, D4). Target: 548 passed, ruff 8, mypy 9."
+    }
+  },
+  "allowed_statuses": ["pending", "partial", "completed"],
+  "last_handoff": "Estado inicial.",
+  "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
+}
