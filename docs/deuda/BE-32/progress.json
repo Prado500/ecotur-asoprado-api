@@ -1,6 +1,6 @@
 {
   "plan_file": "docs/deuda/BE-32/plan.md",
-  "current_target": "Fase_D",
+  "current_target": "Fase_E",
   "phases": {
     "Fase_A": {
       "status": "completed",
@@ -18,8 +18,8 @@
       "description": "Suite hygiene: select from sqlalchemy, Spanish comment, Yields on 4 conftest fixtures, R7 ids (5 files). Target: 547 passed, ruff 8, mypy 9."
     },
     "Fase_D": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "8eb71d4",
       "description": "Ten mock assertions with arguments and two redundant assert_not_awaited removed (4 files). Target: 547 passed, ruff 8, mypy 9 (A4 at 105,203,280,298)."
     },
     "Fase_E": {
@@ -44,6 +44,6 @@
     }
   },
   "allowed_statuses": ["pending", "partial", "completed"],
-  "last_handoff": "Fase_C 5979b07: select from sqlalchemy (2 files), Spanish comment translated, Yields on the 4 conftest generator fixtures, 4 R7 ids renamed; gate as row C (ruff 8, mypy 9 in 5 files / 53 checked, A4 at 104/198/275/293, 547 passed, 96.11 %). The ids RED grep was 3 lines, not 2 (plan miscount; see handoff). See handoff-Fase_C.md.",
+  "last_handoff": "Fase_D 8eb71d4: ten mock assertions now carry their arguments, two redundant assert_not_awaited removed; MU1, MU2, MS1, MS2 and MR1 measured as the plan table says; gate as row D (ruff 8, mypy 9 in 5 files / 53 checked, A4 at 105/203/280/298, 547 passed, 96.11 %). Pattern 1 gives 1 line (test_email.py:99, phase H), not 0 (plan miscount; see handoff). See handoff-Fase_D.md.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
