@@ -257,3 +257,57 @@ Puntos juzgados sin hallazgo:
   `progress.json`. El árbol está limpio.
 - **AGENTS §5:** el test nuevo usa `make_user` y `policy`, no usa mocks, está en inglés y con docstring, y no lee texto en
   español. No es la última fase, así que no toca la "Verificación final".
+
+## Auditoría Fase F — 2026-11-07
+
+**Veredicto Fase F: PASS (0 bloqueantes, 3 opcionales).**
+
+[OPCIONAL] — Fase F — El criterio de aceptación pide que «el `git diff` de `app/` se limita a esas 2 líneas de docstring» (`plan.md:426`), y el patrón 10 de la verificación final espera `1 file changed, 2 insertions(+)` (`plan.md:663`). El diff real tiene **3** líneas, y el corte a 3 era necesario. El texto dictado (173 caracteres) no cabe en 2 líneas con sangrías de 12 y 16 a 100 columnas: con el corte del plan, la segunda línea mide 103 (E501, que está activo: `pyproject.toml:60,66`), y ningún corte por espacio deja las dos líneas en ≤ 100 (prueba exhaustiva de todos los cortes: 0 válidos). El contenido es el dictado letra a letra: unido, el texto de `service_repository.py:89-91` es `==` al de `plan.md:416-417`. Aplica la regla general del plan: «los bloques de código dictan el contenido exacto; el corte de línea es el que deje `ruff format` (100 columnas)» (`plan.md:148-149`). En rigor el corte no lo impone `ruff format`, que no rehace docstrings, sino E501 de `ruff check`, pero el espíritu de la regla es ese. Es un error de medida del plan, no una desviación del ejecutor, y no exige enmienda para dar PASS a F. Para que la auditoría de H no lo lea como un apartamiento, el patrón 10 debe leerse `1 file changed, 3 insertions(+)`; David decide si lo deja escrito como E2 o como nota de cierre. El ejecutor lo declaró en «Desviaciones y dudas», punto 1. Una errata menor del handoff: el texto mide 173 caracteres, no 174; la conclusión no cambia — evidencia: `git diff --stat fd144ad -- app/` → `1 file changed, 3 insertions(+)`; anchos de `service_repository.py:89-91` = 97/94/24; el corte del plan da 97/103.
+
+[OPCIONAL] — Fase F — `assert saved.deleted_at == deleted_at.replace(tzinfo=None)` (`tests/test_service_repository.py:96`) es correcta hoy, pero solo en SQLite. La columna es `DateTime(timezone=True)` (`app/models/service.py:45`). En Postgres con asyncpg, un `timestamptz` vuelve como `datetime` *aware* (`2026-01-15 12:00+00:00`), y en Python `==` entre un *aware* y un *naive* devuelve `False` sin lanzar excepción. Con BE-31 (suite sobre Postgres) el test fallaría aunque `save_service` fuera correcto. No es un hallazgo contra la fase: el plan dicta esa aserción y ese comentario letra a letra (`plan.md:411-412`), la suite corre solo en SQLite (ADR-0011) y el comentario `# SQLite returns the column without its time zone.` deja la dependencia a la vista. Destino: nota en la fila BE-31. Alternativa portable, que también mata M10: `assert saved.deleted_at is not None` seguido de `assert saved.deleted_at.replace(tzinfo=saved.deleted_at.tzinfo or UTC) == deleted_at`. Con SQLite, al *naive* se le pone UTC, que es lo que se guardó. Con Postgres, el *aware* se deja como está y se comparan instantes — evidencia: `tests/test_service_repository.py:95-96`; `app/models/service.py:45`; `docs/backlog.md:69` (BE-31).
+
+[OPCIONAL] — Fase F — El docstring nuevo de `test_save_service_commits_pending_changes_and_returns_the_row` («…and the row returned is this id's of two.», `tests/test_service_repository.py:51`) es el dictado letra a letra (`plan.md:407`), pero se lee mal. «this id's» es un posesivo elíptico sin sustantivo y «of two» queda colgando: se entiende solo si ya se sabe que hay una fila vecina. Una redacción más clara sería «…and of the two rows, the one returned has this id.». Cambiarlo ahora sería apartarse del plan, así que queda para el cierre o para quien retoque el archivo — evidencia: `tests/test_service_repository.py:51`; `plan.md:407`.
+
+Puntos juzgados sin hallazgo:
+
+- **`app/` en todo el ítem (decisión 7).** `git diff fd144ad -- app/` contiene solo el hunk `@@ -86,6 +86,9 @@` de
+  `app/repositories/service_repository.py`: tres líneas `+` dentro de `Raises:`, tras `NoResultFound`, y ninguna línea de
+  código. `grep -c "StaleDataError" app/repositories/service_repository.py` = `1` (patrón 9b-B).
+- **Tests literales al plan.** Cada cadena dictada aparece tal cual: la vecina
+  `await _persist(db_session, _package(name="Paquete Vecino De Prueba"))` 2 veces (las dos pruebas que devuelven fila,
+  después de `package`); los 3 docstrings, el comentario de SQLite y la aserción exacta, 1 vez cada uno. El test de
+  borrado físico solo cambia de docstring. Las vecinas usan las fábricas locales `_package`/`_persist`; no hay dobles
+  nuevos. Nada en español salvo el dato de la vecina, que no se afirma.
+- **M5 y M10 se matan sin leer texto.** M5 muere por la excepción `MultipleResultsFound` de `scalar_one()` (tipo, no
+  mensaje). M10 muere por la igualdad de `datetime`. Ninguna aserción lee un `detail` ni un texto en español.
+- **Tabla de mutantes re-medida sobre `8b2cfe2`.** Copia `git archive 8b2cfe2 | tar -x` en el scratchpad (`cmp` idéntico
+  con `8b2cfe2:` para los 2 archivos de la fase). Mutantes por contenido dentro de `save_service`; restauración byte a byte
+  comprobada con `assert`; el árbol de trabajo no se tocó. Coincide con el handoff cifra a cifra:
+  - archivo, después: sin mutar `5 passed`; M5 `2 failed, 3 passed` (`…commits_pending_changes_and_returns_the_row` y
+    `…returns_a_soft_deleted_row`); M10 `1 failed, 4 passed` (`…returns_a_soft_deleted_row`).
+  - suite, después: `545 passed, 5 warnings`; M5 `2 failed, 543 passed, 5 warnings`; M10 `4 failed, 541 passed, 5 warnings`.
+  - antes (copia de `2af510a`): archivo `5 passed` sin mutar, con M5 y con M10, igual que la columna «Antes» del plan;
+    suite: M5 `545 passed`, M10 `3 failed, 542 passed, 5 warnings`.
+  - **M10 ya lo detectaba la suite antes de la fase**, con 3 tests de `test_services.py`:
+    `test_deactivate_and_activate_package`, `test_soft_delete_and_recover` y
+    `test_update_package_concurrent_reconciliation`. La fase añade que el archivo del repositorio lo detecta por sí
+    mismo. Lo declara el handoff (punto 2).
+  - Las cifras de M5 y M10 son las del estado commiteado (545 casos). Desaparece la salvedad del opcional de la fase E.
+- **Compuerta (fila F), reejecutada en HEAD `3607798`, exit 1.** `57 files already formatted`; ruff `Found 8 errors.`,
+  solo los 8 I001 `:1:1` de `app\` (`api\dependencies.py`, `api\routers\audit.py`, `core\email.py`, `db\database.py`,
+  `repositories\user_repository.py`, `schemas\audit.py`, `services\audit_service.py`, `services\user_service.py`), sin
+  `service_repository.py`. mypy `Found 9 errors in 5 files (checked 53 source files)`: `app\db\database.py:11`,
+  `app\core\security.py:71` y `:87`, `app\services\user_service.py:124`, `app\api\dependencies.py:95` y
+  `tests\test_user_service.py:105`, `:203`, `:280` y `:298`, los 4 `[arg-type]` `str | None` de `SECRET_KEY`. Es el
+  conjunto de A4, ni uno más. Además: `Contracts: 4 kept, 0 broken.`, docs coherentes, `545 passed, 5 warnings`,
+  `TOTAL 943 23 138 19 96.11%` (igual que la línea base). Coincide con la fila F (`plan.md:144`) y con lo que pegó el
+  ejecutor. En los archivos tocados: `ruff check` da `All checks passed!` y `ruff format --check` da
+  `2 files already formatted`. mypy da 1 error, `app\db\database.py:11` (A4, entra por import), y ninguno en ellos.
+  `git diff --check 2af510a 8b2cfe2` no da salida.
+- **Commit `8b2cfe2`.** El mensaje es idéntico a `plan.md:431-445`, con `<MODELO EJECUTOR>` → `Claude Opus 5.5`. Toca
+  exactamente los 2 archivos de la fase (`2 files changed, 10 insertions(+), 4 deletions(-)`).
+- **`progress.json`.** `Fase_F` está `completed` con `8b2cfe2`, un commit real. `current_target` = `Fase_G`, el
+  `last_handoff` es nuevo y declara las 3 líneas, `edit_rules` no cambia y el JSON es válido. `3607798` toca solo
+  `handoff-Fase_F.md` y `progress.json`. El árbol está limpio.
+- No es la última fase: la «Verificación final» completa queda para H. Los patrones 9b-B (`1`) y 10 (`3 insertions`,
+  ver el primer opcional) se adelantaron aquí.

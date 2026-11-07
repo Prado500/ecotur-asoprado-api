@@ -766,3 +766,12 @@ a: D (`AuditAction` en `test_user_service.py`, `ContentSettings` en `test_storag
 `UTC`, `datetime`, `timedelta`, `MakeToken` en `test_token_failure_paths.py`) y H (`re` en `test_email.py`). Lo
 observaron el ejecutor de B (handoff, "Desviaciones y dudas", punto 2) y el de C de BE-33. No cambia ningún "Cambios
 exactos", ninguna cifra ni ningún mensaje de commit. `progress.json`: sin cambios.
+
+### E2 — 7 nov 2026, 14:50 (David, sesión Mentor; tras la auditoría de la fase F)
+
+**Patrón 10 de la Verificación final:** el docstring `Raises:` de `app/repositories/service_repository.py` dictado por la
+fase F ocupa **3 líneas**, no 2 (ningún corte en 2 líneas cabe en 100 columnas, medido por el auditor de F). La línea
+`git diff --stat fd144ad -- app/    # 1 file changed, 2 insertions(+)` se lee como **`3 insertions(+)`**. Sigue siendo el
+único cambio en `app/` y es solo docstring. Ninguna otra cifra cambia. Para el cierre del ítem, no para las fases:
+`replace(tzinfo=None)` en `tests/test_service_repository.py:96` solo vale en SQLite → nota en BE-31; el docstring de `:51`
+(«this id's of two») → Residuales con la redacción del auditor («and of the two rows, the one returned has this id»).
