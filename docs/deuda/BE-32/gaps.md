@@ -311,3 +311,79 @@ Puntos juzgados sin hallazgo:
   `handoff-Fase_F.md` y `progress.json`. El árbol está limpio.
 - No es la última fase: la «Verificación final» completa queda para H. Los patrones 9b-B (`1`) y 10 (`3 insertions`,
   ver el primer opcional) se adelantaron aquí.
+
+## Auditoría Fase G — 2026-11-07
+
+**Veredicto Fase G: PASS (0 bloqueantes, 2 opcionales).**
+
+[OPCIONAL] — Fase G — La cifra de suite de D17 en la tabla del plan (`suite: 1 failed`) parte de una premisa falsa: D17 ya moría en la suite antes de la fase, por el camino del login. La tabla define sus cifras **por archivo**: el encabezado dice «el archivo tiene 11 casos antes y 14 después», y todas las celdas «Antes» son `11 passed`, la cuenta del archivo. Solo D17 (y U8) añaden una nota de suite. Las celdas de archivo coinciden todas. La nota de suite de D17 sale de `docs/deuda/BE-33/gaps.md:144` («`432 passed`»), pero `test_auth.py::test_self_soft_delete_keeps_row_and_blocks_login` (`bf22982`, ancestro de `948f539`) ya lo detectaba en el login: `tests/test_auth.py:167-168`, porque con D17 `authenticate_user` encuentra la fila borrada y responde `AccountNotActiveError`, no 401. Lo que la fase añade es la detección por `get_current_user`, que ningún otro test cubre. El mensaje de commit dictado («a lookup that ignored deleted_at survived») solo es exacto para ese camino. Ni el ejecutor ni la implementación se apartaron del plan, y el ejecutor lo declaró (handoff, «Desviaciones y dudas» 1). No es bloqueante. Destino: nota de cierre (enmienda o Residuales), corrigiendo también la cifra de BE-33 — evidencia: re-medido en el scratchpad (`git archive` de `b070f55` y `dd88bf8`): D17 antes, archivo `11 passed`, suite `1 failed, 544 passed` (`test_auth.py::test_self_soft_delete_keeps_row_and_blocks_login`); después, archivo `1 failed, 13 passed`, suite `2 failed, 546 passed` (ese test y `test_token_for_soft_deleted_active_user_returns_401`); `plan.md:501,508`.
+[OPCIONAL] — Fase G — El docstring de `_bearer` («Builds the Authorization header for a token the factories cannot produce.», `tests/test_token_failure_paths.py:45`) ha quedado obsoleto. `test_expired_token_on_protected_route_returns_401` le pasa ahora un token de la fábrica `make_token` (`:93`). El plan no dicta ese docstring, así que cambiarlo en esta fase habría sido apartarse del alcance. El ejecutor lo declaró (handoff, punto 3). Destino: cierre, o la próxima fase que toque el archivo. Una redacción posible: «Builds the Authorization header for any raw token string.» — evidencia: `tests/test_token_failure_paths.py:45,93`.
+
+Puntos juzgados sin hallazgo:
+
+- **Los 3 tests nuevos son el texto dictado.** `test_corrupt_token_gets_the_same_detail_as_an_unknown_user` (`:114-123`) es el bloque
+  de `plan.md:468-478` letra a letra. Cumple la adenda 2 (`verificacion.md:284-288`): está junto al de `:93-98` (hoy
+  `test_expired_and_corrupt_tokens_get_distinct_details`, `:106-111`, que se conserva), usa
+  `create_access_token(data={"sub": "ghost@test.com"})` y compara las dos respuestas con `==`.
+  `test_token_for_soft_deleted_active_user_returns_401` (`:158-166`) tiene la firma, el docstring, el
+  `persist_user(deleted_at=datetime(2026, 1, 15, 12, 0, tzinfo=UTC))` y el `_assert_bearer_401` dictados, y va tras el de
+  usuario inactivo. `test_verify_email_expired_and_corrupt_tokens_get_distinct_errors` (`:203-212`) es `plan.md:490-500`
+  letra a letra. Ninguna aserción lee texto en español: `==`/`!=` entre `json()["detail"]` o entre `.detail` de dos
+  excepciones, más el contrato estructural de `_assert_bearer_401` (401, `WWW-Authenticate`, `set(body) == {"detail"}`,
+  `isinstance(..., str)`). El archivo tiene `14 tests collected`.
+- **Cuentas vecinas (D11).** `await persist_user()` está antes de `user = await persist_user()` en el test de token válido
+  (`:77`) y antes de la petición en el de usuario desconocido (`:139`), que recibe `persist_user: PersistUser`, como dictan
+  `plan.md:463,479-480`. `persist_user` llama a `make_user`, y este saca `cedula` y `email` de un contador global
+  (`_USER_FACTORY_COUNTER = itertools.count()`, `tests/conftest.py:162,187-190`): sin argumentos, cada usuario es único y no
+  choca con `ghost@test.com`. D11 en el archivo: `2 failed, 12 passed` (los dos tests), igual que la tabla.
+- **`make_token` (P5).** `_make_token(user: User, *, expires_delta: timedelta | None = None) -> str` y la llamada con
+  `expires_delta=expires_delta` son exactamente lo de `plan.md:451-456`. No hay claims libres. `from datetime import timedelta`
+  está tras `import itertools`. El elemento `Returns:` es el texto dictado. `make_auth_headers` sigue llamando a
+  `make_token(user)`. `grep -c "expires_delta" tests/conftest.py` = `3`; `grep -c "make_token(user, expires_delta="` = `1`.
+- **El borrado de `:166` y el docstring recortado.** Los dicta `plan.md:486-487`, y el docstring nuevo es el dictado. La
+  garantía queda en `tests/test_user_service.py:287` (`activate_user.assert_not_awaited()` en
+  `test_verify_email_expired_token_raises_invalid_verification_token`) y, para el corrupto, en `:267`. El plan cita
+  `:281` (`plan.md:85`), que es la línea de la base de BE-33. Las fases B y D movieron 6 líneas, igual que A4 pasó de 274 a 280.
+  La forma de U8 que aplicó el ejecutor (activar con el `sub` del token, en la rama `ExpiredSignatureError`, antes del
+  `raise`) es la de BE-33: `docs/deuda/BE-33/gaps.md:146` la describe en el caso `expired`. Re-medido: antes, archivo
+  `1 failed, 10 passed` (`…chains_the_jwt_error_as_cause[expired]`) y suite `2 failed, 543 passed`; después, archivo
+  `14 passed` y suite `1 failed, 547 passed` (`test_user_service.py::test_verify_email_expired_token_raises_invalid_verification_token`).
+  Coincide con la fila U8 del plan.
+- **Ni `_expired_token()` sin parámetros ni `_user_service` son refactors de paso.** Los dicta `plan.md:459-462`: el
+  primero, sin parámetro y con el docstring dictado; el segundo, con el `UserService(...)` de la antigua `:156-160`, usado por
+  los dos tests que el plan nombra. El docstring de una línea de `_user_service` no estaba dictado, pero AGENTS §4 lo exige
+  y sigue la forma de los demás helpers del archivo. Tampoco son de paso `MakeToken` ni la importación
+  `UTC, datetime, timedelta` (`plan.md:458`).
+- **Tabla de mutantes re-medida.** Dos copias desechables en el scratchpad, `git archive b070f55` y `git archive dd88bf8`
+  (el `diff --stat` entre sus `tests/` es exactamente los 2 archivos de la fase), con `app` resuelto a cada copia. Mutantes
+  aplicados por contenido (1 coincidencia exigida), restaurados byte a byte y comprobados con `assert`. El árbol de trabajo
+  no se tocó. `-p no:cacheprovider --no-cov`, variables de entorno ficticias.
+  - antes (`b070f55`): sin mutar, `11 passed` / `545 passed`. D2, U6 y U7: `11 passed` / `545 passed`. D17: `11 passed` /
+    `1 failed, 544 passed` (`test_auth.py::test_self_soft_delete_keeps_row_and_blocks_login`). D11: `11 passed` /
+    `1 failed, 544 passed` (`test_auth.py::test_admin_directory_hides_superadmins`).
+  - después (`dd88bf8`): sin mutar, `14 passed` / `548 passed`. D2: `1 failed, 13 passed` / `1 failed, 547 passed`
+    (`corrupt_token_gets_the_same_detail_as_an_unknown_user`). U6 y U7: `1 failed, 13 passed` / `1 failed, 547 passed`
+    (`verify_email_expired_and_corrupt_tokens_get_distinct_errors`). D17: `1 failed, 13 passed` / `2 failed, 546 passed`.
+    D11: `2 failed, 12 passed` / `3 failed, 545 passed`.
+  - Coincide cifra a cifra con el handoff (`handoff-Fase_G.md:96-173`). Las celdas de archivo coinciden con la tabla del plan.
+    La única nota de suite que no coincide es la de D17 (primer opcional). La tabla no da cifra de suite para D11. BE-33
+    medía `11 failed` en la suite; hoy son 1 antes y 3 después. Lo que la tabla pide se cumple: el archivo lo mata por sí mismo.
+- **Compuerta (fila G), reejecutada en HEAD `ed47aef`, exit 1.** `57 files already formatted`. ruff: `Found 8 errors.`,
+  solo los 8 I001 `:1:1` de `app\` (`api\dependencies.py`, `api\routers\audit.py`, `core\email.py`, `db\database.py`,
+  `repositories\user_repository.py`, `schemas\audit.py`, `services\audit_service.py`, `services\user_service.py`). mypy:
+  `Found 9 errors in 5 files (checked 53 source files)`. Son `app\db\database.py:11`, `app\core\security.py:71` y `:87`,
+  `app\services\user_service.py:124`, `app\api\dependencies.py:95` y `tests\test_user_service.py:105`, `:203`, `:280`,
+  `:298`. Los cuatro de tests son `[arg-type]` `str | None`, y su contenido es `jwt.decode(result.verification_token, SECRET_KEY, …)`,
+  `jwt.decode(result.access_token, SECRET_KEY, …)`, `SECRET_KEY,` y `SECRET_KEY,`: el conjunto de A4, ni uno más. Además:
+  `Contracts: 4 kept, 0 broken.`, docs coherentes, `548 passed, 5 warnings`, `TOTAL 943 23 138 19 96.11%` (= línea base).
+  En los archivos tocados, `ruff check` da `All checks passed!`, y mypy no da ningún error en ellos (los 5 que salen son de
+  `app/` y entran por import). `git diff --check b070f55 dd88bf8` no da salida.
+- **Commit `dd88bf8`.** El mensaje es idéntico a `plan.md:519-538`, con `<MODELO EJECUTOR>` → `Claude Opus 5.5` (`diff`
+  vacío salvo el salto final de `%B`). Toca exactamente los 2 archivos de la fase (`2 files changed, 68 insertions(+),
+  18 deletions(-)`). `app/` no cambia: `git diff --stat fd144ad -- app/` sigue en `1 file changed, 3 insertions(+)` (E2).
+  `override_get_db` sigue en `tests/conftest.py:86`. E1 se respetó: ninguna importación perdida (F401) y ruff está limpio.
+- **`progress.json`.** `Fase_G` está `completed` con `dd88bf8`, un commit real. `current_target` = `Fase_H`. El `last_handoff`
+  es nuevo y declara la desviación de D17. `edit_rules` no cambia y el JSON es válido. `ed47aef` toca solo
+  `handoff-Fase_G.md` y `progress.json`. El árbol está limpio.
+- No es la última fase: la «Verificación final» completa queda para H. Se adelantaron los patrones 1b (`0`), 9b-C
+  (`1`, `1`, `3`) y 9c (`3`, `1`, `2`). El patrón 1 da `1` (`tests/test_email.py:99`), que es de la fase H.
