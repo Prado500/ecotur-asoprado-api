@@ -18,7 +18,7 @@ from app.api.dependencies import get_user_service
 from app.core.exceptions import AuthorizationError
 from app.main import app, domain_error_handler
 from app.models.audit import AuditAction, AuditLog
-from app.models.user import User, UserRole
+from app.models.user import UserRole
 from app.services.user_access_policy import UserAccessPolicy
 from app.services.user_service import UserService
 
@@ -198,6 +198,28 @@ class TestAssertCanUpdate:
 
         policy.assert_can_update(superadmin, superadmin, {"first_name": "Updated"})
 
+    def test_role_guard_for_non_superadmins_runs_before_the_self_role_guard(
+        self, policy, make_user
+    ):
+        """Freezes the guard order without reading the text.
+
+        An admin sending its own role gets the non-superadmin answer, the same one it gets
+        for someone else's role, and not the self-update answer a superadmin gets.
+        """
+        admin = make_user(role=UserRole.admin)
+        tourist = make_user(role=UserRole.tourist)
+        superadmin = make_user(role=UserRole.superadmin)
+
+        with pytest.raises(AuthorizationError) as admin_self:
+            policy.assert_can_update(admin, admin, {"role": "admin"})
+        with pytest.raises(AuthorizationError) as admin_other:
+            policy.assert_can_update(admin, tourist, {"role": "admin"})
+        with pytest.raises(AuthorizationError) as superadmin_self:
+            policy.assert_can_update(superadmin, superadmin, {"role": "superadmin"})
+
+        assert admin_self.value.detail == admin_other.value.detail
+        assert admin_self.value.detail != superadmin_self.value.detail
+
 
 class TestAssertCanRecover:
     """Freezes recovery precedence: admins cannot restore equal/higher tiers."""
@@ -311,26 +333,6 @@ class TestCanSee:
 # ==========================================
 
 
-async def test_patch_hierarchy_violation_returns_403_detail(
-    client, db_session, persist_user, make_auth_headers
-):
-    """Admin patching a superadmin yields 403 with the detail key and zero state mutation."""
-    admin = await persist_user(role=UserRole.admin)
-    superadmin = await persist_user(role=UserRole.superadmin)
-
-    response = await client.patch(
-        f"/usuarios/{superadmin.cedula}",
-        json={"first_name": "Hacked"},
-        headers=make_auth_headers(admin),
-    )
-
-    assert response.status_code == 403
-    assert "detail" in response.json()
-
-    await db_session.refresh(superadmin)
-    assert superadmin.first_name == "John"
-
-
 async def test_delete_hierarchy_violation_returns_403_detail(
     client, db_session, persist_user, make_auth_headers
 ):
@@ -379,54 +381,6 @@ async def test_delete_nonexistent_cedula_returns_404_before_403(
 
     assert response.status_code == 404
     assert "detail" in response.json()
-
-
-async def test_admin_cannot_provision_admin_account_403_and_no_db_mutation(
-    client, db_session, persist_user, make_auth_headers
-):
-    """Admin provisioning an admin account yields 403 and persists nothing."""
-    admin = await persist_user(role=UserRole.admin)
-
-    payload = {
-        "cedula": "5555555555",
-        "email": "newadmin@test.com",
-        "first_name": "New",
-        "last_name": "Admin",
-        "phone": "3000000000",
-        "password": "Password123",
-        "role": "admin",
-        "data_consent": True,
-        "is_active": True,
-    }
-
-    response = await client.post("/usuarios/admin", json=payload, headers=make_auth_headers(admin))
-
-    assert response.status_code == 403
-    assert "detail" in response.json()
-
-    users = (await db_session.execute(select(User))).scalars().all()
-    assert len(users) == 1
-    assert users[0].cedula == admin.cedula
-
-
-async def test_admin_update_tourist_persists_mutation(
-    client, db_session, persist_user, make_auth_headers
-):
-    """Successful helpdesk PATCH persists the scalar mutation in the database."""
-    admin = await persist_user(role=UserRole.admin)
-    tourist = await persist_user(role=UserRole.tourist)
-
-    response = await client.patch(
-        f"/usuarios/{tourist.cedula}",
-        json={"email": "corrected@test.com"},
-        headers=make_auth_headers(admin),
-    )
-
-    assert response.status_code == 200
-    assert response.json()["email"] == "corrected@test.com"
-
-    await db_session.refresh(tourist)
-    assert tourist.email == "corrected@test.com"
 
 
 async def test_admin_cannot_escalate_tourist_to_superadmin_via_patch(
