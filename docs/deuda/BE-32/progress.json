@@ -1,6 +1,6 @@
 {
   "plan_file": "docs/deuda/BE-32/plan.md",
-  "current_target": "Fase_I",
+  "current_target": null,
   "phases": {
     "Fase_A": {
       "status": "completed",
@@ -40,11 +40,11 @@
     "Fase_H": {
       "status": "completed",
       "commit": "91af6e8",
-      "description": "Email tests: visible link, button text, p style, CSS rules, built-vs-sent message (L4, L5, L14, L15, L17, C10, D8, D4). Target: 548 passed, ruff 8, mypy 9."
+      "description": "Email tests: visible link, button text, p style, CSS rules, capture by position or keyword (L4, L5, L14, L15, L17, C10, D4; D8 alive per E0). Target: 548 passed, ruff 8, mypy 9."
     },
     "Fase_I": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "21e0142",
       "description": "E3: assert await_count == 1 in test_smtp_failure_propagates (mutant R1), one-line summary docstring (D205), exact _BodyCollector docstring; Fase_H description updated. Target: 548 passed, ruff 8, mypy 9."
     }
   },
@@ -53,6 +53,6 @@
     "partial",
     "completed"
   ],
-  "last_handoff": "Fase_H 91af6e8: _BodyCollector (visible text with its tag), p style, one text node in the button, no empty CSS rule and .btn defined, capture by position or keyword (E0), isinstance on subject removed, Yields on send_message. Copy = committed tree (548): file 6 passed before; L4/L5/L14/L17 1 failed (body), L15/C10 1 failed (css), D4 4 failed -> 6 passed, D8 6 passed before and after (alive, E0), L2/L3 1 failed both. Gate as row H (ruff 8, mypy 9 in 5 files / 53 checked, A4 at 105/203/280/298, 4 kept, 548 passed, 96.11 %). Final verification: every pattern at its expected value (pattern 1 = 0; pattern 10 = 3 insertions per E2). Last phase: current_target null. See handoff-Fase_H.md.",
+  "last_handoff": "Fase_I 21e0142: await_count == 1 in test_smtp_failure_propagates, one-line body docstring (97 cols), _BodyCollector docstring per E4 (96 cols); Fase_H description per E3. Copies: before = ad9a7ce, after = ad9a7ce + phase file (cmp == 21e0142): R1 6 passed / 548 passed -> 1 failed, 5 passed / 1 failed, 547 passed (assert 2 == 1); D8 6 passed both (alive, E0). ruff --isolated D205,D415: D205 at :94 -> All checks passed!. Gate as row H (ruff 8 I001 app/, mypy 9 in 5 files / 53 checked, A4 at 105/203/280/298, 4 kept, 548 passed, 96.11 %). Final verification at every expected value (pattern 1 = 0; pattern 10 = 3 insertions per E2). Last phase: current_target null. See handoff-Fase_I.md.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
