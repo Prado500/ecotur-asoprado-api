@@ -1,6 +1,6 @@
 {
   "plan_file": "docs/deuda/BE-32/plan.md",
-  "current_target": "Fase_G",
+  "current_target": "Fase_H",
   "phases": {
     "Fase_A": {
       "status": "completed",
@@ -33,8 +33,8 @@
       "description": "save_service tests with a neighbour row and exact deleted_at (M5, M10); StaleDataError in Raises (docstring only in app/). Target: 545 passed, ruff 8, mypy 9."
     },
     "Fase_G": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "dd88bf8",
       "description": "Token failure tests: D2, U6/U7, D17 new; neighbour accounts (D11); make_token with expires_delta. Target: 548 passed, ruff 8, mypy 9."
     },
     "Fase_H": {
@@ -44,6 +44,6 @@
     }
   },
   "allowed_statuses": ["pending", "partial", "completed"],
-  "last_handoff": "Fase_F 8b2cfe2: neighbour row in the two save_service tests that return a row and exact deleted_at; StaleDataError in Raises (docstring only, 3 lines, not 2: the dictated text does not fit in 2 at 100 columns). Copy = committed tree (545 passed): M5 5 passed -> 2 failed, 3 passed (MultipleResultsFound); M10 5 passed -> 1 failed, 4 passed; gate as row F (ruff 8, mypy 9 in 5 files / 53 checked, A4 at 105/203/280/298, 4 kept, 545 passed, 96.11 %). See handoff-Fase_F.md.",
+  "last_handoff": "Fase_G dd88bf8: D2 (corrupt == unknown-user detail), U6/U7 (expired != corrupt verification detail) and D17 (soft-deleted active user 401) tests added, neighbour accounts for D11, make_token with expires_delta, :166 removed. Copy = committed tree (548): file 11 -> 14 cases; D2/U6/U7/D17 1 failed, D11 2 failed, D1/U1/U8 14 passed (U8 still 1 failed in the suite). Deviation: D17 suite is 2 failed, not 1 (test_auth.py already killed it before the phase). Gate as row G (ruff 8, mypy 9 in 5 files / 53 checked, A4 at 105/203/280/298, 4 kept, 548 passed, 96.11 %); override_get_db at conftest.py:86. See handoff-Fase_G.md.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
