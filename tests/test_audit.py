@@ -19,7 +19,7 @@ async def test_audit_trail_creation_and_retrieval(client, persist_user, make_aut
     superadmin = await persist_user(role=UserRole.superadmin)
     headers = make_auth_headers(superadmin)
 
-    # 1. Sustituimos el multipart/form-data por un JSON puro que cumple con ServiceCreate
+    # 1. Create a package with a plain JSON payload that satisfies ServiceCreate
     json_payload = {
         "name": "Paquete De Auditoria Test",
         "category": "otro",

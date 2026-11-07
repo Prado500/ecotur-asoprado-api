@@ -11,7 +11,7 @@ from datetime import UTC, datetime
 from unittest.mock import create_autospec
 
 import pytest
-from sqlalchemy.future import select
+from sqlalchemy import select
 from starlette.requests import Request
 
 from app.api.dependencies import get_user_service

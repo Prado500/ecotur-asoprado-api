@@ -12,7 +12,7 @@ from typing import Any
 from unittest.mock import create_autospec
 
 import pytest
-from sqlalchemy.future import select
+from sqlalchemy import select
 
 from app.api.dependencies import get_storage_client
 from app.core.exceptions import (

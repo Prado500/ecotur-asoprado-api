@@ -37,6 +37,9 @@ async def setup_database():
     and after each test (to perform database table deletion).
 
     It guarantees each test counts on a clean database.
+
+    Yields:
+        None: control passes to the test while the tables exist.
     """
     async with engine_test.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -53,6 +56,9 @@ async def db_session():
     Yields the test's own database session, for arranging data and reading state.
 
     The app never receives this session: each request gets its own (see client).
+
+    Yields:
+        AsyncSession: the test's own session; it closes when the test ends.
     """
     async with TestingSessionLocal() as session:
         yield session
@@ -71,6 +77,9 @@ async def client():
        client is called (persist_user already does it).
     2. Refresh after: any object the test already holds is re-read with
        `await db_session.refresh(obj)` after the request.
+
+    Yields:
+        AsyncClient: the client bound to the app; the overrides are cleared on exit.
     """
 
     async def override_get_db():
@@ -94,6 +103,9 @@ def override_azure_storage_client():
     The double is autospecced on the adapter: it is an AzureStorageClient instance,
     it has no attribute the adapter lacks, and a call off a method's signature
     raises TypeError, so renaming or re-signing an adapter method breaks the tests.
+
+    Yields:
+        None: the double stays installed until the test ends.
     """
     mock_client = create_autospec(AzureStorageClient, instance=True)
 
