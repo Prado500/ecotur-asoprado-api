@@ -122,3 +122,73 @@ Puntos juzgados sin hallazgo:
 - **`progress.json`:** `Fase_C` está `completed` con `5979b07`, un commit real. `current_target` = `Fase_D`, `last_handoff`
   existe y declara la desviación del RED, y `edit_rules` no cambia respecto a `bcb7271`. Quedan 8 fases y el JSON es
   válido. El commit `755fa3e` toca solo `handoff-Fase_C.md` y `progress.json`, con el mensaje del protocolo. Árbol limpio.
+
+## Auditoría Fase D — 2026-11-07
+
+**Veredicto Fase D: PASS (0 bloqueantes, 1 opcional).**
+
+[OPCIONAL] — Fase D — El criterio de aceptación del plan pide 0 en el patrón 1, pero el propio plan deja fuera la línea que queda. `grep -rnE "\.assert_(called|awaited)(_once)?\(\)" tests/ --include=*.py` da `1` (`tests/test_email.py:99: send_message.assert_awaited_once()`), no `0`. La base tiene 11 (`git grep … fd144ad -- tests/`: 10 en los 4 archivos de la fase más `test_email.py:99`). El plan saca esa línea del alcance de D («`test_email.py:99` (fase H)»), el commit que dicta dice «Ten assertions», y la "Verificación final" pone el 0 tras H, donde E0 punto 4 cambia `:99`. Por tanto, el error es del criterio del plan, no de la fase. Ninguna de las 10 aserciones de la fase sigue sin argumentos, y el ejecutor lo dejó declarado — evidencia: `plan.md:315-318`, `plan.md:323`, `plan.md:623-624`, `plan.md:737-744`; `handoff-Fase_D.md`, "Desviaciones y dudas" 1. El patrón 1b da `0`, como pide el plan.
+
+Puntos juzgados sin hallazgo:
+
+- **Líneas +1 (`:122→:123`, `:219→:220`, `:486→:487`, `test_audit.py:87→:88`):** no hay desviación. El plan escribe
+  «Cambios exactos (líneas de la base)» (`plan.md:277`), y en `fd144ad` cada línea citada tiene el contenido citado:
+  `test_user_service.py:122` `assert_not_awaited()`, `test_services.py:219` y `:486` `upload_image.assert_awaited_once()`,
+  `test_audit.py:87` `assert_not_awaited()`. En `eb68510` (antes de D) las mismas líneas están en la +1, por el
+  `from typing import Any` de la fase B en esos tres archivos. `test_storage.py` (92/159/189/198) no se movió porque B no
+  lo tocó. El diff cambia exactamente esas líneas.
+- **Tabla de mutantes, reproducida entera** en una copia desechable (`git archive 8eb71d4 app tests pyproject.toml` en
+  el scratchpad, con variables de entorno ficticias). `app.__file__` apuntaba a la copia. Script
+  `scratchpad/mut_run.py`: cada mutante se aplica con un `assert` sobre el texto original y luego se restaura. "Antes" =
+  los 4 archivos de `eb68510`, "después" = los de `8eb71d4`. Sin mutar: `73 passed` en los dos casos. Resultados:
+  MU1 `19 passed` → `1 failed, 18 passed` (`test_register_tourist_returns_registration_result`); MU2 `19 passed` →
+  `1 failed, 18 passed` (`test_create_administrative_account_provisions_admin`); MS1 `18 passed` → `1 failed, 17 passed`
+  (`test_promote_happy_path_copies_synchronously_then_deletes`); MS2 `18 passed` → `2 failed, 16 passed`
+  (`test_delete_image_deletes_blob_by_name`, `test_delete_image_swallows_sdk_failure`); MR1 `1 failed, 35 passed` (503)
+  → `2 failed, 34 passed` (503 y `test_upload_images_non_image_returns_415`). Coincide fila a fila con el plan
+  (`plan.md:307-313`) y con el handoff. Después, `git status --short` sale vacío y `git diff --quiet -- app` sale con 0.
+- **Los tres `delete_blob.assert_awaited_once_with()` vacíos:** son los que dicta el plan (`plan.md:303`). No son vacuos,
+  porque `_with()` exige que la llamada no lleve argumentos y `app/core/storage.py:154` y `:202` llaman a
+  `delete_blob()` sin ellos. Matan MS1 y MS2 (medido arriba). El doble es `create_autospec(BlobServiceClient, …)`
+  (`tests/test_storage.py:59`), así que el mutante con `delete_snapshots=` respeta la firma y solo falla la aserción.
+- **`test_services.py`:** conserva `staged = ….call_args.args[0]` + `isinstance(staged, StagedImage)` y borra las
+  aserciones campo a campo (3 en el 503, 1 en el 415), como dicta `plan.md:291-295` («se quedan :220-221 … se borran
+  :222-224»; «se quedan :487-488 y se borra :489»). El `StagedImage(...)` posicional sigue el orden de campos de la
+  `NamedTuple` (`filename`, `content_type`, `content`; `app/core/storage.py:16`, `app/api/routers/service.py:75-78`).
+  Las capturas por posición que quedan (`:223`, `:489`) son las de los Residuales del plan; allí se citan como `220,487`
+  (líneas de antes de D) y el handoff ya da las nuevas.
+- **`create_user.assert_awaited_once_with(created_user)` con `created_user = call_args.args[0]`**
+  (`test_user_service.py:330,335`): compara el argumento consigo mismo, así que solo fija que hubo una llamada y con un
+  único argumento posicional. Es el texto que dicta el plan (`plan.md:288`). Lo que importa son los campos (`:331-333`)
+  y `log_transaction`. No es un hallazgo.
+- **`ContentSettings(content_type="image/jpeg")`:** compara por igualdad real, ni tautológica ni frágil. En la versión
+  instalada (azure-storage-blob 12.30.0), `DictMixin.__eq__` devuelve `isinstance(other, self.__class__) and
+  self.__dict__ == other.__dict__`. Medido: `== ContentSettings(content_type="image/jpeg")` → `True`;
+  `== …("image/png")` → `False`; `== …("image/jpeg", cache_control="x")` → `False`. `__dict__` contiene los 6 campos
+  (`content_type`, `content_encoding`, `content_language`, `content_md5`, `content_disposition`, `cache_control`), así
+  que la aserción también falla si `storage.py:127` empieza a rellenar otro campo. No es frágil: los dos lados salen del
+  mismo constructor de la misma versión.
+- **Edición de `test_storage.py` con `sed`, sin hook:** los 4 archivos tocados están limpios.
+  `ruff format --check` → `4 files already formatted`; `ruff check` → `All checks passed!`;
+  `git diff --check 8eb71d4^ 8eb71d4` → sin salida; `git ls-files --eol` → `i/lf w/lf` en los 4. `mypy` sobre los 4 →
+  `Found 9 errors in 5 files (checked 4 source files)`, todos de A4 (los 5 de `app/` entran por los imports).
+- **Conjunto de A4 por contenido y línea (decisión 5, E0-P2):** `tests\test_user_service.py:105`
+  `jwt.decode(result.verification_token, SECRET_KEY, …)`, `:203` `jwt.decode(result.access_token, SECRET_KEY, …)`,
+  `:280` y `:298` `SECRET_KEY,`. Son las líneas de la columna «Tras D» (`plan.md:40-45`). Ni sobra ni falta un error.
+- **Commit `8eb71d4`:** el mensaje es idéntico a `plan.md:321-339`, con `<MODELO EJECUTOR>` → `Claude Opus 5.5`. Solo
+  difiere el salto final de `git log --format=%B`. Toca exactamente los 4 archivos de la fase
+  (`4 files changed, 29 insertions(+), 20 deletions(-)`); `app/` y `pyproject.toml` no cambian. Están todos los
+  "Cambios exactos": `AuditAction` entre `app.core.security` y `app.models.user`; `create_user` y `log_transaction` con
+  argumentos en los dos tests, con coma final y `changes={"role": "admin"}`; el `assert_not_awaited` redundante borrado
+  en `test_user_service.py` y en `test_audit.py`; `ContentSettings` entre `azure.core.exceptions` y
+  `azure.storage.blob.aio`; `upload_blob` con la forma dictada; los 3 `delete_blob`.
+- **Compuerta (fila D), reejecutada en HEAD `872e0ae`, exit 1:** `57 files already formatted` · ruff `Found 8 errors.`
+  (solo los 8 I001 `:1:1` de `app/`) · mypy `Found 9 errors in 5 files (checked 53 source files)` ·
+  `Contracts: 4 kept, 0 broken.` · docs coherentes · `547 passed, 5 warnings` · `TOTAL 943 23 138 19 96.11%`. Coincide
+  con la fila D, con la línea base (cobertura 96.11 %) y con lo que pegó el ejecutor, salvo el tiempo de pytest.
+- **`progress.json`:** `Fase_D` está `completed` con `8eb71d4`, un commit real. `current_target` = `Fase_E`,
+  `last_handoff` existe y declara la desviación del patrón 1, y `edit_rules` no cambia. El JSON es válido. El commit
+  `872e0ae` toca solo `handoff-Fase_D.md` y `progress.json`. Árbol limpio.
+- **AGENTS §5:** los dobles siguen con autospec. Ninguna aserción nueva lee texto en español: los valores (`"1005911792"`,
+  `"5555555555"`, nombres de fichero, MIME) son entradas del propio test. No es la última fase, así que no toca la
+  "Verificación final".
