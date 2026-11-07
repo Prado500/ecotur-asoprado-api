@@ -53,12 +53,13 @@ async def test_storage_double_mirrors_the_cdn_url_rules():
 
 async def test_email_dispatch_double_is_autouse_and_autospecced(mock_send_email: Any):
     """The router's email dispatch is the autouse double, and it keeps the real signature."""
-    assert user_router.send_verification_email is mock_send_email
+    double: Any = user_router.send_verification_email
+    assert double is mock_send_email
 
     with pytest.raises(TypeError):
-        await mock_send_email(recipient="x")
+        await double(recipient="x")
 
-    mock_send_email.assert_not_called()
+    double.assert_not_called()
 
 
 def test_email_dispatch_is_patched_without_requesting_the_fixture():

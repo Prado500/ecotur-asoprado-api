@@ -1,6 +1,7 @@
 """Unit and integration tests for the transport-agnostic UserService contract."""
 
-from datetime import datetime, timedelta, UTC
+from datetime import UTC, datetime, timedelta
+from typing import Any
 from unittest.mock import create_autospec
 
 import jwt
@@ -15,15 +16,16 @@ from app.core.exceptions import (
     NotFoundError,
 )
 from app.core.security import ALGORITHM, SECRET_KEY, create_verification_token, get_password_hash
+from app.models.audit import AuditAction
 from app.models.user import UserRole
 from app.repositories.user_repository import UserRepository
 from app.schemas.user import (
     UserCreate,
     UserCreateByAdmin,
     UserLogin,
-    UserRole as SchemaUserRole,
     UserUpdate,
 )
+from app.schemas.user import UserRole as SchemaUserRole
 from app.services.audit_service import AuditService
 from app.services.user_access_policy import UserAccessPolicy
 from app.services.user_service import RegistrationResult, UserService
@@ -60,13 +62,13 @@ def _admin_payload(**overrides) -> UserCreateByAdmin:
 
 
 @pytest.fixture
-def user_repo() -> UserRepository:
+def user_repo() -> Any:
     """Provides a strict autospec'd UserRepository so signature drift fails tests."""
     return create_autospec(UserRepository, instance=True)
 
 
 @pytest.fixture
-def audit_service() -> AuditService:
+def audit_service() -> Any:
     """Provides a strict autospec'd AuditService so signature drift fails tests."""
     return create_autospec(AuditService, instance=True)
 
@@ -107,8 +109,13 @@ async def test_register_tourist_returns_registration_result(user_repo, audit_ser
     user_repo.get_user_by_email_or_cedula.assert_awaited_once_with(
         email="turista@example.com", cedula="1005911792"
     )
-    user_repo.create_user.assert_awaited_once()
-    audit_service.log_transaction.assert_awaited_once()
+    user_repo.create_user.assert_awaited_once_with(result.user)
+    audit_service.log_transaction.assert_awaited_once_with(
+        entity_name="User",
+        entity_id="1005911792",
+        action=AuditAction.CREATE,
+        performed_by="1005911792",
+    )
 
 
 async def test_register_tourist_duplicate_raises_already_exists(user_repo, user_service, make_user):
@@ -119,7 +126,6 @@ async def test_register_tourist_duplicate_raises_already_exists(user_repo, user_
         await user_service.register_tourist(_tourist_payload())
 
     user_repo.create_user.assert_not_called()
-    user_repo.create_user.assert_not_awaited()
 
 
 # ==========================================
@@ -325,8 +331,14 @@ async def test_create_administrative_account_provisions_admin(
     assert created_user.role == UserRole.admin
     assert created_user.cedula == "5555555555"
     assert created_user.is_active is True
-    user_repo.create_user.assert_awaited_once()
-    audit_service.log_transaction.assert_awaited_once()
+    user_repo.create_user.assert_awaited_once_with(created_user)
+    audit_service.log_transaction.assert_awaited_once_with(
+        entity_name="User",
+        entity_id="5555555555",
+        action=AuditAction.CREATE,
+        performed_by=actor.cedula,
+        changes={"role": "admin"},
+    )
 
 
 async def test_create_administrative_account_duplicate_raises_already_exists(

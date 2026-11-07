@@ -8,10 +8,11 @@ Role-Based Access Control (RBAC).
 
 from datetime import UTC, datetime
 from decimal import Decimal
+from typing import Any
 from unittest.mock import create_autospec
 
 import pytest
-from sqlalchemy.future import select
+from sqlalchemy import select
 
 from app.api.dependencies import get_storage_client
 from app.core.exceptions import (
@@ -135,7 +136,7 @@ async def test_update_package_details(client, admin_headers, test_package, db_se
     Asserts that scalar properties (like name and capacity) are updated properly
     and that relational arrays (images) can be overwritten safely.
     """
-    update_payload = {
+    update_payload: dict[str, Any] = {
         "name": "Paquete Modificado Exitosamente",
         "max_capacity": 25,
         "image_urls": [
@@ -216,12 +217,11 @@ async def test_upload_images_storage_outage_returns_503(client, admin_headers):
     assert response.status_code == 503
     assert "detail" in response.json()
 
-    failing_client.upload_image.assert_awaited_once()
+    failing_client.upload_image.assert_awaited_once_with(
+        StagedImage("test_image.jpg", "image/jpeg", b"fake_binary_payload")
+    )
     staged = failing_client.upload_image.call_args.args[0]
     assert isinstance(staged, StagedImage)
-    assert staged.filename == "test_image.jpg"
-    assert staged.content_type == "image/jpeg"
-    assert staged.content == b"fake_binary_payload"
 
 
 async def test_toggle_nonexistent_package_returns_404(client, admin_headers):
@@ -483,10 +483,11 @@ async def test_upload_images_non_image_returns_415(client, admin_headers, storag
 
     assert response.status_code == 415
     assert isinstance(response.json()["detail"], str)
-    storage_double.upload_image.assert_awaited_once()
+    storage_double.upload_image.assert_awaited_once_with(
+        StagedImage("notes.bin", "application/octet-stream", b"binary")
+    )
     staged = storage_double.upload_image.call_args.args[0]
     assert isinstance(staged, StagedImage)
-    assert staged.content_type == "application/octet-stream"
 
 
 # ==========================================

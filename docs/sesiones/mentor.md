@@ -24,4 +24,16 @@ frase, en el orden en que ocurre, sin saltos; (3) el punto exacto donde se rompe
 la regla general en una frase y "¿claro así?". Prohibido: usar el nombre de la cosa como explicación, dos conceptos en
 un párrafo, o citar un documento en vez de mostrar el dato. La misma frase sirve en `/duda` de Claude Code.
 
-> **Versión 1.0 — 6 nov 2026.** Primera numerada según ADR-0007 (hasta hoy el archivo era anterior al 28 oct y no la necesitaba); cambios de esta versión: bitácora `2026-11-06` (modo ejemplo). Historia anterior: escrito el 26 oct 2026.
+**Modo ejemplo por defecto y respuesta fija tras cada auditoría (decidido el 7 nov, bitácora `2026-11-07`).** Desde esa fecha el
+modo ejemplo no hay que pedirlo: toda respuesta de la sesión parte de un dato real con su número de línea, fila o commit; está
+prohibido nombrar un esfuerzo, un tamaño o una cantidad con una etiqueta sin desplegarla ("A4 es S–M", "~15 puntos"): se
+escribe el dato (qué archivos, qué líneas, cuántas y cuáles). Tras cada auditoría del flujo, la sesión responde en tres líneas
+fijas antes de cualquier otra cosa: (1) `verificacion.md`: se toca / no se toca (la adenda vive ahí y solo tiene sentido
+antes de planear); (2) `plan.md`: se toca (E*n*, por qué) / no se toca (las enmiendas viven ahí, después de aprobar); (3) commits
+que hay que hacer antes de la siguiente fase, con el mensaje en un archivo para `git commit -F` (el shell de David no
+interpreta heredoc). Una enmienda que dicta código se mide antes de escribirse (columnas con el intérprete, el RED con la
+configuración real del repo): el 7 nov E0 y E3 llevaban cuatro errores de dictado que el flujo tuvo que corregir.
+
+> **Versión 2.0 — 7 nov 2026.** Cambia una regla del rol (modo ejemplo pasa de opcional a obligatorio; tres líneas fijas tras
+> cada auditoría; medir antes de dictar): bitácora `2026-11-07`. Versiones anteriores: 1.0 — 6 nov 2026, bitácora `2026-11-06`
+> (modo ejemplo).

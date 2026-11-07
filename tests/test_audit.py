@@ -1,3 +1,4 @@
+from typing import Any
 from unittest.mock import create_autospec
 
 import pytest
@@ -18,7 +19,7 @@ async def test_audit_trail_creation_and_retrieval(client, persist_user, make_aut
     superadmin = await persist_user(role=UserRole.superadmin)
     headers = make_auth_headers(superadmin)
 
-    # 1. Sustituimos el multipart/form-data por un JSON puro que cumple con ServiceCreate
+    # 1. Create a package with a plain JSON payload that satisfies ServiceCreate
     json_payload = {
         "name": "Paquete De Auditoria Test",
         "category": "otro",
@@ -67,7 +68,7 @@ class TestAuditServiceAuthorization:
     """Freezes the service-level authorization delegation to UserAccessPolicy."""
 
     @pytest.fixture
-    def audit_repo(self) -> AuditRepository:
+    def audit_repo(self) -> Any:
         """Provides a strict autospec'd AuditRepository so signature drift fails tests."""
         return create_autospec(AuditRepository, instance=True)
 
@@ -84,7 +85,6 @@ class TestAuditServiceAuthorization:
             await service.retrieve_audit_history(current_user=tourist)
 
         audit_repo.get_all_audit_logs.assert_not_called()
-        audit_repo.get_all_audit_logs.assert_not_awaited()
 
     async def test_admin_calls_repo_exactly_once_with_expected_args(self, audit_repo, make_user):
         admin = make_user(role=UserRole.admin)

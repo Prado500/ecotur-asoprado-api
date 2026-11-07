@@ -1036,7 +1036,12 @@ def _run_r7(root: Path, today: date) -> list[str]:
         ),
         (_TABLE_HEAD + "| Lun 2 nov | z |\n", date(2026, 11, 3), "| Lun 2 nov | z |"),
     ],
-    ids=["past-row-unmarked", "year-by-monotony", "year-resets-per-table", "missing-cierre-cell"],
+    ids=[
+        "past-row-unmarked",
+        "year-nearest-to-version",
+        "year-nearest-in-each-table",
+        "missing-cierre-cell",
+    ],
 )
 def test_r7_flags_closed_row_without_mark(
     tmp_path: Path, tables: str, today: date, row: str
@@ -1086,8 +1091,8 @@ def test_r7_closing_mark_shape(tmp_path: Path, mark: str, flagged: bool) -> None
     ids=[
         "bogota-table-today",
         "closed-days-table-today",
-        "year-jump-marked",
-        "year-jump-future-row",
+        "new-year-rows-marked",
+        "new-year-row-in-future",
         "unscheduled-row",
         "month-resets-per-table",
         "no-cierre-column",

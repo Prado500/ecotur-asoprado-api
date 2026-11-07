@@ -385,8 +385,9 @@ async def test_admin_provisioning_admin_returns_403_without_row(
     assert set(body) == {"detail"}
     assert isinstance(body["detail"], str)
 
-    count = await db_session.execute(select(func.count()).select_from(User))
-    assert count.scalar_one() == 1
+    users = (await db_session.execute(select(User))).scalars().all()
+    assert len(users) == 1
+    assert users[0].cedula == admin.cedula
 
 
 async def test_superadmin_provisions_admin_account(
