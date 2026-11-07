@@ -754,3 +754,15 @@ Resolución de los puntos P1–P6, en el orden del plan:
   9. Residuales: fila nueva «D8 (enviar una copia del mensaje con otro asunto) sigue vivo: matarlo exige suplantar la
      clase `MessageSchema` dentro de `email.py`; declarado inmatable por E0, como D1 y U1».
 - `progress.json`: sin cambios (8 fases, `current_target` = `Fase_A`).
+
+### E1 — 7 nov 2026, 11:55 (David, sesión Mentor; tras la auditoría de la fase B)
+
+Texto literal de David: «super claro. ahora si, entonces todo aprobado. ve al plan con e1».
+
+**Orden de edición en las fases C–H.** El hook `PostToolUse` de `.claude/settings.json` corre `ruff check --fix` sobre
+cada archivo guardado (`.claude/hooks/ruff_on_edit.py:28`), y F401 borra un import que todavía no tiene uso. Por eso el
+ejecutor escribe **primero la línea que usa el nombre nuevo y después su `import`** (o ambas en la misma edición). Afecta
+a: D (`AuditAction` en `test_user_service.py`, `ContentSettings` en `test_storage.py`), G (`timedelta` en `conftest.py`;
+`UTC`, `datetime`, `timedelta`, `MakeToken` en `test_token_failure_paths.py`) y H (`re` en `test_email.py`). Lo
+observaron el ejecutor de B (handoff, "Desviaciones y dudas", punto 2) y el de C de BE-33. No cambia ningún "Cambios
+exactos", ninguna cifra ni ningún mensaje de commit. `progress.json`: sin cambios.
