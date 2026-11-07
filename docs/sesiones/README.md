@@ -1,6 +1,8 @@
 # Sesiones de IA: cómo arrancar cualquiera sin depender de ninguna conversación anterior
 
-> **Versión 1.4 — 6 nov 2026.** Cambios de esta versión: bitácora `2026-11-06` ("modo ejemplo" al final de `estudio.md` y
+> **Versión 1.5 — 7 nov 2026.** Cambios de esta versión: bitácora `2026-11-07` (paso 3: la batería de `check_docs.py` la ejecuta
+> Claude Code con un prompt fijo y la sesión que cierra revisa la salida, AF-10; `mentor.md` 2.0: modo ejemplo obligatorio y tres
+> líneas fijas tras cada auditoría). Versiones anteriores: `2026-11-06` (1.4, bitácora `2026-11-06` ("modo ejemplo" al final de `estudio.md` y
 > `mentor.md`: cómo pide David una explicación con dato real, acciones en orden, punto de ruptura y regla al final). Versiones
 > anteriores: `2026-11-04` (1.3, regla del retoque: un retoque aprobado
 > a un plan es una edición a `plan.md` antes de `/implementar`, o no existe; decidida el 2 nov, aplicada el 3 y el 4).
@@ -52,7 +54,9 @@ porque cada uno alimenta al siguiente:
    Nada de esto recae en David salvo esa decisión. Lo que `check_docs.py` pueda verificar, lo verifica; lo demás es
    responsabilidad de la sesión que hizo el cambio. **Antes del commit de cierre: `python scripts/check_docs.py --cierre`**
    (encabezados de versión no anteriores al último commit, ADR-0007; filas pasadas de PLAN §3 con marca). Son las dos
-   reglas que dependen de `git` y del día, y por eso no corren en la compuerta (ADR-0008, addendum del 1 nov).
+   reglas que dependen de `git` y del día, y por eso no corren en la compuerta (ADR-0008, addendum del 1 nov). **Quién la ejecuta (desde el 7 nov):** Claude Code, con el prompt fijo de la bitácora `2026-11-07` (una vez por dueño con
+   cambios en `git status`, más `--huerfanas`, `--cierre` y `--estado`; salida literal, sin editar ni commitear), porque la sesión
+   Mentor no puede correr el venv del repo; la sesión que cierra revisa esa salida y decide. AF-10 convertirá el prompt en comando.
 4. **Commit** (y PR). Un archivo sin commitear no existe para una sesión que arranca con `git pull` en
    otra máquina o en otra rama.
 
