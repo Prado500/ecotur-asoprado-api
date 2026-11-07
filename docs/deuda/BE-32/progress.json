@@ -1,6 +1,6 @@
 {
   "plan_file": "docs/deuda/BE-32/plan.md",
-  "current_target": "Fase_B",
+  "current_target": "Fase_C",
   "phases": {
     "Fase_A": {
       "status": "completed",
@@ -8,8 +8,8 @@
       "description": "Email double in test_fixtures_contract.py typed through an Any local (2 mypy errors). Target: 547 passed, ruff 9, mypy 5; mypy tests 16 -> 14."
     },
     "Fase_B": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "d8848db",
       "description": "tests/ into mypy.files plus the other 5 BE-32 mypy errors and the tests I001 (5 files). Target: 547 passed, ruff 8, mypy 9 (A4 at test_user_service.py:104,198,275,293)."
     },
     "Fase_C": {
@@ -44,6 +44,6 @@
     }
   },
   "allowed_statuses": ["pending", "partial", "completed"],
-  "last_handoff": "Fase_A e7c814d: Any local in test_fixtures_contract.py; gate as row A (ruff 9, mypy 5, 547 passed, 96.11 %); mypy tests 16 -> 14. See handoff-Fase_A.md.",
+  "last_handoff": "Fase_B d8848db: tests/ in mypy.files, 5 BE-32 errors and the tests I001 fixed (I001 also needed the alias import split; deviation in handoff); gate as row B (ruff 8, mypy 9 in 5 files / 53 checked, A4 at 104/198/275/293, 547 passed, 96.11 %). See handoff-Fase_B.md.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
