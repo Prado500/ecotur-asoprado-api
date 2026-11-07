@@ -8,6 +8,7 @@ Role-Based Access Control (RBAC).
 
 from datetime import UTC, datetime
 from decimal import Decimal
+from typing import Any
 from unittest.mock import create_autospec
 
 import pytest
@@ -135,7 +136,7 @@ async def test_update_package_details(client, admin_headers, test_package, db_se
     Asserts that scalar properties (like name and capacity) are updated properly
     and that relational arrays (images) can be overwritten safely.
     """
-    update_payload = {
+    update_payload: dict[str, Any] = {
         "name": "Paquete Modificado Exitosamente",
         "max_capacity": 25,
         "image_urls": [

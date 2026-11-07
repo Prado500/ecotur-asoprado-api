@@ -232,7 +232,7 @@ async def persist_user(db_session, make_user):
     """
 
     async def _persist(**overrides) -> User:
-        user = make_user(**overrides)
+        user: User = make_user(**overrides)
         db_session.add(user)
         await db_session.commit()
         await db_session.refresh(user)

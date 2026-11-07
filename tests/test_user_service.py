@@ -1,6 +1,7 @@
 """Unit and integration tests for the transport-agnostic UserService contract."""
 
-from datetime import datetime, timedelta, UTC
+from datetime import UTC, datetime, timedelta
+from typing import Any
 from unittest.mock import create_autospec
 
 import jwt
@@ -21,9 +22,9 @@ from app.schemas.user import (
     UserCreate,
     UserCreateByAdmin,
     UserLogin,
-    UserRole as SchemaUserRole,
     UserUpdate,
 )
+from app.schemas.user import UserRole as SchemaUserRole
 from app.services.audit_service import AuditService
 from app.services.user_access_policy import UserAccessPolicy
 from app.services.user_service import RegistrationResult, UserService
@@ -60,13 +61,13 @@ def _admin_payload(**overrides) -> UserCreateByAdmin:
 
 
 @pytest.fixture
-def user_repo() -> UserRepository:
+def user_repo() -> Any:
     """Provides a strict autospec'd UserRepository so signature drift fails tests."""
     return create_autospec(UserRepository, instance=True)
 
 
 @pytest.fixture
-def audit_service() -> AuditService:
+def audit_service() -> Any:
     """Provides a strict autospec'd AuditService so signature drift fails tests."""
     return create_autospec(AuditService, instance=True)
 

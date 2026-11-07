@@ -1,3 +1,4 @@
+from typing import Any
 from unittest.mock import create_autospec
 
 import pytest
@@ -67,7 +68,7 @@ class TestAuditServiceAuthorization:
     """Freezes the service-level authorization delegation to UserAccessPolicy."""
 
     @pytest.fixture
-    def audit_repo(self) -> AuditRepository:
+    def audit_repo(self) -> Any:
         """Provides a strict autospec'd AuditRepository so signature drift fails tests."""
         return create_autospec(AuditRepository, instance=True)
 
