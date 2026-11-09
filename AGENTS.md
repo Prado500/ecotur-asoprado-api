@@ -74,7 +74,8 @@ sobreingeniería. Explicas el trade-off de cada decisión no trivial. Dices las 
 debe pasar siempre vive ahí y en el CI, no en este archivo. `--fix` autocorrige formato e imports; `--no-tests`
 para iterar rápido. **Se invoca siempre con el Python del `venv/` por ruta** (`./venv/Scripts/python.exe
 scripts/check.py` en Windows, `./venv/bin/python scripts/check.py` en POSIX), nunca `python` a secas: cada paso
-corre con `sys.executable` y busca sus herramientas en el directorio de scripts de ese intérprete (AF-05, 3 nov);
+corre con `sys.executable` e **importa** su herramienta de ese intérprete (`-m` para ruff, mypy y pytest; el entry point
+de import-linter con `-c`; AF-05, 3 nov; AF-12, 9 nov): ningún paso depende de un ejecutable de `venv/Scripts/`;
 con otro intérprete la compuerta sale en rojo, no mide otra cosa. Un paso nuevo se añade con un test que lo
 ejecuta **con su herramienta ausente** y comprueba que sale en rojo: un paso que "sale con 0 sin hacer nada" es
 el fallo que AF-05 corrigió.
@@ -90,6 +91,9 @@ el fallo que AF-05 corrigió.
 - Inventario: `docs/backlog.md` (IDs `BE-nn`, `FE-nn`, tags de auditoría `A1`, `S1`…).
 - Por cada ítem trabajado existe `docs/deuda/<ID>/` con `verificacion.md`, `plan.md`, `progress.json`,
   `handoff-<fase>.md`, `gaps.md`. **El estado del ítem es lo que existe en esa carpeta**; no hay índice aparte.
+  Una fila del backlog puede saldarse como fase del ítem de otra cuando la verificación de este la midió y comparten
+  archivos (BE-01 con P1 y A7; AF-12 con AF-13): la fila lo dice (`Hecho (PR #N, fase X de <ID>)`), la carpeta es una y
+  el PR es uno.
 - Etapas y quién las ejecuta (Claude Code: subagentes en `.claude/agents/`; comandos en `.claude/commands/`):
   1. `/deuda-verificar <ID>` → `deuda-verificador` confirma o desmiente contra **todo** el repo (grep global
      obligatorio antes de cualquier veredicto) y corre la compuerta como línea base.

@@ -178,8 +178,9 @@ por el equipo humano"**. → El flujo agéntico es parte de la metodología decl
 - **Tests y calidad:** pytest + mocks; la medición vigente (tests, cobertura, ruff, mypy, contratos) es la última columna
   de `(PLAN §6)` y no se copia aquí. Tooling desde el 24 oct: `ruff`, `mypy`, `import-linter`, `pytest-cov`, unidos
   en `scripts/check.py` (AGENTS §6); desde el 6 nov (BE-33, PR #81) la compuerta global sigue en rojo solo por lo que tiene dueño
-  en A4 (8 I001 y 5 `str | None`) y BE-32 (1 I001); rige el trinquete de ADR-0005 hasta que A4 y BE-32 cierren `B-TESTS`. Desde el 3 nov (AF-05) la compuerta local busca `lint-imports` en el
-  directorio de scripts del intérprete y sale en rojo si no está: un "4 KEPT" ya no puede ser un paso que no corrió. Los tests de `scripts/check_docs.py` corren en la suite pero fuera de la cobertura. **Desde BE-32 (7 nov, PR #85) mypy mide también `tests/`**: `pyproject.toml` `files` incluye `"tests"`, la suite propia quedó en 0 errores y los 4 que mypy reporta ahí son `SECRET_KEY` de A4; además 0 aserciones de mock sin argumentos y 3 copias HTTP menos `(backlog BE-32)`. El diagnóstico de la suite (mocks sin
+  en A4 (8 I001 y 5 `str | None`) y BE-32 (1 I001); rige el trinquete de ADR-0005 hasta que A4 y BE-32 cierren `B-TESTS`. Desde el 3 nov (AF-05) un paso cuya herramienta falta sale en rojo (un
+  "4 KEPT" ya no puede ser un paso que no corrió) y desde el 9 nov (AF-12) ningún paso depende de un ejecutable de `venv/Scripts/`:
+  import-linter corre por su entry point con el intérprete de la compuerta, como ruff, mypy y pytest con `-m`. Los tests de `scripts/check_docs.py` corren en la suite pero fuera de la cobertura. **Desde BE-32 (7 nov, PR #85) mypy mide también `tests/`**: `pyproject.toml` `files` incluye `"tests"`, la suite propia quedó en 0 errores y los 4 que mypy reporta ahí son `SECRET_KEY` de A4; además 0 aserciones de mock sin argumentos y 3 copias HTTP menos `(backlog BE-32)`. El diagnóstico de la suite (mocks sin
   `spec`, setup duplicado, aserciones sobre texto, sesión ≠ `get_db`, huecos B2/B3/B4) es la fila
   §9/BE-15 del backlog y se corrige en `B-TESTS`.
 - **Deuda y features:** inventario completo con decisión por ítem en `docs/backlog.md`.
