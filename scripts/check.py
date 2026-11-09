@@ -19,9 +19,8 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
-import sysconfig
 import time
-from collections.abc import Callable
+from importlib.util import find_spec
 from pathlib import Path
 
 PY = sys.executable
@@ -46,67 +45,49 @@ def _prepare_process() -> None:
     os.chdir(REPO_ROOT)
 
 
-# Console script names of import-linter: a Windows install has the .exe, a POSIX one the bare name.
-LINT_IMPORTS_NAMES: tuple[str, ...] = ("lint-imports.exe", "lint-imports")
+# What pip's lint-imports launcher runs (entry point importlinter.cli:lint_imports_command),
+# executed here by the gate's own interpreter instead (AF-12).
+LINT_IMPORTS_CODE = "from importlinter.cli import lint_imports_command; lint_imports_command()"
 
 
-def find_lint_imports(
-    scripts_dir: Path, is_file: Callable[[Path], bool] = Path.is_file
-) -> Path | None:
-    """Return the lint-imports console script installed in ``scripts_dir``, or None.
+def _lint_imports_cmd() -> list[str]:
+    """Build the import-linter step: the tool's entry point, or a stand-in that fails loudly.
 
-    Pure on purpose (the existence check is injected) so both platform names can be unit
-    tested on any OS. Only ``scripts_dir`` is searched, never the PATH: the contracts must be
-    checked by the import-linter of the interpreter that runs the gate (backlog AF-05).
+    The entry point runs with ``-c`` in the interpreter that runs the gate, like every other
+    step, instead of pip's console-script launcher: that launcher is a per-machine binary an
+    application control policy may block, and then the step cannot start at all (AF-12).
+    ``lint_imports_command`` exits with the contracts' result, so a broken contract is red.
 
-    Args:
-        scripts_dir: Where pip installs the running interpreter's console scripts
-            (``sysconfig.get_path("scripts")``: ``venv/Scripts`` on Windows, ``bin`` on POSIX).
-        is_file: Existence check; ``Path.is_file`` outside tests.
-
-    Returns:
-        The first path of ``LINT_IMPORTS_NAMES`` that exists in ``scripts_dir``, or None.
-    """
-    for name in LINT_IMPORTS_NAMES:
-        candidate = scripts_dir / name
-        if is_file(candidate):
-            return candidate
-    return None
-
-
-def _lint_imports_cmd(
-    scripts_dir: Path, is_file: Callable[[Path], bool] = Path.is_file
-) -> list[str]:
-    """Build the import-linter step: the console script, or a stand-in that fails loudly.
-
-    There is no module fallback: the package's cli module only defines the click command, so
-    running it exits 0 having checked nothing. When the script is missing, the stand-in
-    prints what to install and exits 1, so ``run()`` marks the step red with the same
-    exit-code rule as every other step.
-
-    Args:
-        scripts_dir: Directory searched by ``find_lint_imports``.
-        is_file: Existence check; ``Path.is_file`` outside tests.
+    When importlinter is not importable by this interpreter, the stand-in prints what to
+    install and exits 1, so ``run()`` marks the step red with the same exit-code rule as every
+    other step (AF-05: a missing tool is never an empty green).
 
     Returns:
         The command to run for the import-linter step.
     """
-    exe = find_lint_imports(scripts_dir, is_file)
-    if exe is not None:
-        return [str(exe)]
+    if find_spec("importlinter") is not None:
+        return [PY, "-c", LINT_IMPORTS_CODE]
     hint = (
-        f"lint-imports not found in {scripts_dir}; install the dev extras in this interpreter: "
+        f"importlinter is not importable by {PY}; install the dev extras in this interpreter: "
         f"{PY} -m pip install -e .[dev]"
     )
     return [PY, "-c", f"import sys; sys.exit({hint!r})"]
 
 
 def steps(no_tests: bool) -> list[tuple[str, list[str]]]:
+    """Return the gate's steps in execution order, each run by this interpreter (``PY``).
+
+    Args:
+        no_tests: Leave out the pytest step (``--no-tests``).
+
+    Returns:
+        ``(step name, command)`` pairs; every command starts with ``PY``.
+    """
     s: list[tuple[str, list[str]]] = [
         ("ruff format --check", [PY, "-m", "ruff", "format", "--check", "."]),
         ("ruff check", [PY, "-m", "ruff", "check", "."]),
         ("mypy", [PY, "-m", "mypy"]),
-        ("import-linter", _lint_imports_cmd(Path(sysconfig.get_path("scripts")))),
+        ("import-linter", _lint_imports_cmd()),
         ("docs (coherencia)", [PY, "scripts/check_docs.py"]),
     ]
     if not no_tests:

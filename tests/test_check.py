@@ -1,8 +1,9 @@
-"""Tests for scripts/check.py: the --soft policy of the quality gate (B-CI, ADR-0005) and the
-resolution of the lint-imports console script (AF-05).
+"""Tests for scripts/check.py: the --soft policy of the quality gate (B-CI, ADR-0005) and how the
+import-linter step is built (AF-05, AF-12).
 
-No real step (ruff, mypy, import-linter, pytest...) is ever executed here: the only subprocess
-is the stand-in command that the gate runs when lint-imports is missing.
+No real step (ruff, mypy, import-linter, pytest...) checks anything here. The only subprocesses
+are the stand-in command for a missing import-linter and the entry point under ``-S``, which
+fails at import before checking anything.
 """
 
 from __future__ import annotations
@@ -11,7 +12,7 @@ import importlib
 import io
 import subprocess
 import sys
-import sysconfig
+from importlib.metadata import entry_points
 from pathlib import Path
 from unittest.mock import create_autospec
 
@@ -137,12 +138,10 @@ class TestMainRejectsBadSoft:
         assert capsys.readouterr().out == ""
 
 
-class TestLintImportsResolution:
-    """The import-linter step runs the interpreter's own console script, or fails loudly."""
+class TestLintImportsStep:
+    """The import-linter step runs the tool's entry point in this interpreter, or fails loudly."""
 
-    BIN = Path("/fake/bin")
-
-    def test_step_resolves_from_scripts_dir_regardless_of_path(
+    def test_step_is_the_entry_point_regardless_of_path(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
         with_path = dict(check.steps(no_tests=True))["import-linter"]
@@ -150,42 +149,57 @@ class TestLintImportsResolution:
         monkeypatch.setenv("PATH", str(tmp_path))
         without_path = dict(check.steps(no_tests=True))["import-linter"]
 
-        assert "importlinter.cli" not in without_path
-        assert without_path[1:2] != ["-m"]
+        assert without_path == [check.PY, "-c", check.LINT_IMPORTS_CODE]
+        assert "importlinter.cli" in without_path[2]
         assert without_path == with_path
-        assert without_path == check._lint_imports_cmd(Path(sysconfig.get_path("scripts")))
 
-    @pytest.mark.parametrize("name", ["lint-imports.exe", "lint-imports"], ids=["windows", "posix"])
-    def test_finds_console_script_in_scripts_dir(self, name: str) -> None:
-        assert check.find_lint_imports(self.BIN, lambda p: p == self.BIN / name) == self.BIN / name
+    def test_code_calls_the_registered_console_script(self) -> None:
+        (script,) = entry_points(group="console_scripts", name="lint-imports")
 
-    def test_looks_only_inside_the_scripts_dir(self) -> None:
-        seen: list[Path] = []
+        assert (
+            f"from {script.module} import {script.attr}; {script.attr}()" == check.LINT_IMPORTS_CODE
+        )
 
-        def is_file(path: Path) -> bool:
-            seen.append(path)
-            return False
+    def test_missing_package_yields_failing_command_with_install_hint(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        asked: list[str] = []
 
-        assert check.find_lint_imports(self.BIN, is_file) is None
-        assert seen == [self.BIN / "lint-imports.exe", self.BIN / "lint-imports"]
+        def no_spec(name: str) -> None:
+            asked.append(name)
+            return None
 
-    def test_found_tool_is_invoked_directly(self) -> None:
-        cmd = check._lint_imports_cmd(self.BIN, lambda p: p.name == "lint-imports")
-        assert cmd == [str(self.BIN / "lint-imports")]
+        monkeypatch.setattr(check, "find_spec", no_spec)
 
-    def test_missing_tool_yields_failing_command_with_install_hint(self, tmp_path: Path) -> None:
-        cmd = check._lint_imports_cmd(tmp_path)
+        cmd = check._lint_imports_cmd()
 
+        assert asked == ["importlinter"]
         assert cmd[:2] == [check.PY, "-c"]
-        assert "importlinter.cli" not in " ".join(cmd)
+        assert check.LINT_IMPORTS_CODE not in cmd
         result = subprocess.run(cmd, capture_output=True, text=True, check=False)
         assert result.returncode == 1
         assert result.stdout == ""
-        assert str(tmp_path) in result.stderr
+        assert check.PY in result.stderr
         assert "-m pip install -e .[dev]" in result.stderr
 
-    def test_missing_tool_makes_the_gate_step_red(
-        self, tmp_path: Path, capfd: pytest.CaptureFixture[str]
+    def test_missing_package_makes_the_gate_step_red(
+        self, monkeypatch: pytest.MonkeyPatch, capfd: pytest.CaptureFixture[str]
     ) -> None:
-        assert check.run("import-linter", check._lint_imports_cmd(tmp_path)) is False
-        assert str(tmp_path) in capfd.readouterr().err
+        monkeypatch.setattr(check, "find_spec", lambda name: None)
+        cmd = dict(check.steps(no_tests=True))["import-linter"]
+
+        assert check.run("import-linter", cmd) is False
+        assert "-m pip install -e .[dev]" in capfd.readouterr().err
+
+    def test_entry_point_without_the_package_on_sys_path_is_red(
+        self, capfd: pytest.CaptureFixture[str]
+    ) -> None:
+        cmd = check._lint_imports_cmd()
+        # -S skips site-packages: importable when the command is built, not when it runs.
+        no_site = [cmd[0], "-S", *cmd[1:]]
+
+        assert "importlinter.cli" in cmd[2]
+        assert check.run("import-linter", no_site) is False
+        err = capfd.readouterr().err
+        assert "ModuleNotFoundError" in err
+        assert "importlinter" in err
