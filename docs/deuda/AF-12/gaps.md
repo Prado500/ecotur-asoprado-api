@@ -44,3 +44,81 @@ Puntos juzgados sin hallazgo:
 - **AGENTS:** docstrings Google en `_lint_imports_cmd` y `steps()`. Ninguna aserción sobre texto en español. Los tests no
   usan `Mock`: `find_spec` se sustituye con funciones puras vía `monkeypatch`, así que `spec=` no aplica. `check.py` está fuera
   de las capas de `import-linter`.
+
+## Auditoría Fase B — 2026-11-09
+
+**Veredicto Fase B: PASS (0 bloqueantes, 0 opcionales).**
+
+Sin hallazgos. El OPCIONAL de la fase A (import-linter con stdout a `NUL` en Windows) sigue igual y fuera de alcance. Esta
+auditoría guardó la compuerta en un fichero del scratchpad y nunca la redirigió a `/dev/null`.
+
+Puntos juzgados sin hallazgo:
+
+- **Compuerta re-ejecutada por el auditor** (`./venv/Scripts/python.exe scripts/check.py`, salida a fichero, exit 1, con RESUMEN):
+  `✔ ruff format --check`, `✘ ruff check` (`Found 8 errors.`), `✘ mypy` (`Found 9 errors in 5 files (checked 53 source files)`),
+  `✔ import-linter` (`Contracts: 4 kept, 0 broken.`), `✔ docs (coherencia)`, `✔ pytest + cobertura` (`549 passed, 5 warnings`,
+  `TOTAL 943 23 138 19 96.11%`), `Compuerta NO superada: ruff check, mypy`. Coincide con el criterio de aceptación
+  (`plan.md:365-369`) y con la línea base tras A (`gaps.md`, Auditoría Fase A): cobertura igual, 4 contratos KEPT, ruff/mypy sin
+  aumento, 546 + 3 = 549 (E0.2). `--soft ruff,mypy` → exit 0, `549 passed`, `Compuerta superada; tolerados en rojo: ruff check, mypy`.
+- **Archivos tocados:** `ruff check scripts/check.py tests/test_check.py` → `All checks passed!`; `ruff format --check` →
+  `2 files already formatted`; `mypy scripts/check.py tests/test_check.py` → `Success: no issues found in 2 source files`.
+- **Commit `5cbdec1`:** el mensaje es idéntico a `plan.md:377-398`. El `diff` del bloque del plan (sin la sangría) frente a
+  `git log -1 --format=%B` solo da el salto de línea final que añade git. `git show --stat` muestra solo `scripts/check.py` (27)
+  y `tests/test_check.py` (51).
+- **`run()` literal:** el `diff` de `plan.md:286-313` frente a `scripts/check.py:170-197` sale vacío. El `try/except OSError`
+  rodea solo a `subprocess.call` (`:186-189`), el aviso va a stderr (`:190`), el resultado es `FALLA (<tipo>)` (`:191`) y la
+  función devuelve `False` (`:192`). El diff de la fase no tiene hunks fuera de `run()`. `--fix` (`:211-212`), `steps()` y
+  `main()` no cambian. El docstring del módulo de tests coincide con `plan.md:318-324` (`diff` vacío). La clase
+  `TestRunReportsUnstartableStep` está después de `TestLintImportsStep` y lleva el docstring del plan (`tests/test_check.py:208-248`).
+- **TDD repetido por el auditor:** con `scripts/check.py` de `5cbdec1^` y los tests de la fase → `2 failed, 30 passed`
+  (tests 6 y 7, `FileNotFoundError: [WinError 2]`). El test 8 pasa: es la guarda. Con el código de la fase → `32 passed`.
+- **Mutaciones repetidas por el auditor** (helper `mut` de `plan.md:122`): MB1 → `2 failed, 30 passed` (6, 7); MB2 →
+  `1 failed, 31 passed` (8). `sha256sum -c` da OK en `scripts/check.py` y `tests/test_check.py` tras cada una.
+- **MB3 (desviación 1):** el guion literal sigue sin reproducir el bloqueo. Con el lanzador real, `✔ import-linter`, RESUMEN y
+  exit 1 por ruff/mypy, porque Smart App Control ya no bloquea. `plan.md:364` lo prevé, así que los tests 6 y 7 son la evidencia.
+  El auditor completó esa evidencia con tres pruebas, todas restauradas byte a byte (`sha256sum -c` OK y
+  `git status --short scripts/` vacío):
+  - **Variante del ejecutor repetida** (paso apuntado a `lint-imports-absent.exe`):
+    `check.py: cannot start …\venv\Scripts\lint-imports-absent.exe: [WinError 2] …`, `--- import-linter: FALLA
+    (FileNotFoundError)`, después `=== docs (coherencia) ===` y el RESUMEN con `✘ import-linter`, exit 1.
+  - **WinError 4551 simulado** (sin tocar archivos): `subprocess.call` sustituido en memoria por una función que lanza
+    `OSError(22, …, 'lint-imports.exe', 4551)`. `run()` da `check.py: cannot start lint-imports.exe: [WinError 4551] An
+    Application Control policy has blocked this file…`, `--- import-linter: FALLA (OSError)` y devuelve `False`. Es la forma
+    exacta que espera `plan.md:361`.
+  - **Conclusión:** el criterio "MB3 da el resultado esperado o queda anotada" se cumple.
+- **`progress.json`:** JSON válido. `Fase_B` está `completed` con `5cbdec1`, un hash real (`git cat-file -t` → `commit`);
+  `last_handoff` está presente y `edit_rules` intacto. El diff de `a2c38eb` toca solo `current_target`, `Fase_B.status`,
+  `Fase_B.commit` y `last_handoff`, los campos que permite `edit_rules`. `allowed_statuses` y las descripciones no cambian.
+  `current_target: null` es la convención de cierre: 12 `progress.json` de `docs/deuda/` la usan. El registro va en un commit
+  aparte (`a2c38eb`), que toca solo `progress.json` y `handoff-Fase_B.md`.
+- **Desviación 2 (paso 8 con `AGENTS.md`):** `git diff --stat 9d2b589 -- . ':(exclude)docs'` muestra `AGENTS.md | 6`,
+  `scripts/check.py | 96` y `tests/test_check.py | 123`. Desde `9d2b589`, el único commit que toca `AGENTS.md` es `3e47d99`
+  (`git log 9d2b589..HEAD -- AGENTS.md`), el commit de documentos de David. E0.6 (`plan.md:511-516`) lo adelantó a antes de B.
+  Ninguna fase tocó `AGENTS.md`, y la expectativa del paso 8 quedó desfasada por la enmienda.
+- **Verificación final completa (cierre del ítem; la repitió el auditor):**
+  - Paso 1: vacío.
+  - Paso 2: vacío y `tests/test_check.py:2`.
+  - Paso 3: `2/2 · 2/3 · 2/2 · 2/2`.
+  - Paso 4: `True`.
+  - Paso 5:
+    - El entry point en el venv da `Contracts: 4 kept, 0 broken.` y exit 0.
+    - En `C:/Python314` da `ModuleNotFoundError` y exit 1.
+    - `C:/Python314/python.exe scripts/check.py --no-tests` da `importlinter is not importable by C:\Python314\python.exe; …`
+      y `--- import-linter: FALLA (exit 1)`.
+  - Paso 6: sin el venv en el PATH, 4 KEPT y `--- import-linter: OK`.
+  - Paso 7: MA4 repetida → `Los servicios no conocen el transporte HTTP BROKEN`, `Contracts: 3 kept, 1 broken.`,
+    `--- import-linter: FALLA (exit 1)`, exit 1. `app/services/user_service.py` restaurado (`sha256sum -c` OK).
+  - Paso 8: ver desviación 2.
+  - Paso 9: `32 passed` · `Found 8 errors.` · `Found 9 errors in 5 files (checked 53 source files)`.
+  - Pasos 10 y 11: ver arriba.
+  - Paso 12: vacío (`grep` exit 1).
+  - **Conclusión:** la deuda (lanzador de pip en la compuerta, `OSError` que la aborta) no aparece en ningún rincón medido.
+    `scripts/check_docs.py --estado` → `AF-12: … ejecutado (todas las fases) … última auditoría: PASS`.
+- **Pendiente humano (no es una fase ni un hallazgo):** el ritual de cierre de E0.4/E0.2 y del párrafo de `plan.md:458-460`.
+  Incluye las filas AF-12/AF-13 de `docs/backlog.md:180-181` a `Hecho`, la fila AF-14 `Sale → B-FUTURO` y PLAN §6 548 → 549.
+  Queda también MD1, la revisión del log del CI en el PR.
+- **AGENTS:** `run()` tiene docstring Google. Los tests no afirman sobre texto en español: comprueban `is False`, el tipo
+  de excepción, el código de salida, la ruta y los marcadores `✘`/`✔` con el nombre del paso. No usan `Mock`:
+  `check.steps` se sustituye con una lambda vía `monkeypatch`, así que `spec=` no aplica. `chdir` se restaura con
+  `monkeypatch`. `check.py` está fuera de las capas de `import-linter`.
+- **Árbol:** `git status --short` limpio al empezar y al terminar la auditoría, salvo este `gaps.md`.
