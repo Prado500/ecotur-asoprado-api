@@ -168,12 +168,33 @@ def _soft_arg(argv: list[str]) -> str | None:
 
 
 def run(name: str, cmd: list[str]) -> bool:
+    """Run one gate step and print its outcome; a step that cannot start is a red step.
+
+    A command that cannot be started (missing, or blocked by an application control policy)
+    raises ``OSError`` from ``subprocess``; it is reported as a failure instead of aborting the
+    gate, so the remaining steps and the summary still run (AF-13).
+
+    Args:
+        name: Step name, as printed in the header and the summary.
+        cmd: Command to run; its exit code decides the outcome.
+
+    Returns:
+        True if the command ran and exited with 0, False otherwise.
+    """
     print(f"\n=== {name} ===", flush=True)
     t0 = time.perf_counter()
-    code = subprocess.call(cmd)
+    try:
+        code = subprocess.call(cmd)
+    except OSError as exc:
+        print(f"check.py: cannot start {cmd[0]}: {exc}", file=sys.stderr, flush=True)
+        outcome = f"FALLA ({type(exc).__name__})"
+        passed = False
+    else:
+        passed = code == 0
+        outcome = "OK" if passed else f"FALLA (exit {code})"
     dt = time.perf_counter() - t0
-    print(f"--- {name}: {'OK' if code == 0 else f'FALLA (exit {code})'} en {dt:.1f}s", flush=True)
-    return code == 0
+    print(f"--- {name}: {outcome} en {dt:.1f}s", flush=True)
+    return passed
 
 
 def main(argv: list[str]) -> int:

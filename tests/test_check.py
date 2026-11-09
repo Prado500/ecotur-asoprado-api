@@ -1,9 +1,9 @@
-"""Tests for scripts/check.py: the --soft policy of the quality gate (B-CI, ADR-0005) and how the
-import-linter step is built (AF-05, AF-12).
+"""Tests for scripts/check.py: the --soft policy of the quality gate (B-CI, ADR-0005), how the
+import-linter step is built (AF-05, AF-12) and how a step that cannot start is reported (AF-13).
 
 No real step (ruff, mypy, import-linter, pytest...) checks anything here. The only subprocesses
-are the stand-in command for a missing import-linter and the entry point under ``-S``, which
-fails at import before checking anything.
+are the stand-in command for a missing import-linter, the entry point under ``-S``, which fails
+at import before checking anything, and trivial ``-c`` commands for run() and main().
 """
 
 from __future__ import annotations
@@ -203,3 +203,46 @@ class TestLintImportsStep:
         err = capfd.readouterr().err
         assert "ModuleNotFoundError" in err
         assert "importlinter" in err
+
+
+class TestRunReportsUnstartableStep:
+    """A step whose command cannot start is a red step, not a crash of the gate (AF-13)."""
+
+    def test_unstartable_command_is_a_red_step(
+        self, tmp_path: Path, capfd: pytest.CaptureFixture[str]
+    ) -> None:
+        missing = tmp_path / "no-such-tool"
+
+        assert check.run("x", [str(missing)]) is False
+        out, err = capfd.readouterr()
+        assert any(
+            line.startswith("--- x: ") and "(FileNotFoundError)" in line
+            for line in out.splitlines()
+        )
+        assert str(missing) in err
+
+    def test_main_runs_later_steps_and_prints_summary(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capfd: pytest.CaptureFixture[str]
+    ) -> None:
+        # main() pins the cwd to the repo root; chdir through monkeypatch so it is restored.
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setattr(
+            check,
+            "steps",
+            lambda no_tests: [
+                ("unstartable", [str(tmp_path / "no-such-tool")]),
+                ("after", [check.PY, "-c", "pass"]),
+            ],
+        )
+
+        assert check.main([]) == 1
+        out = capfd.readouterr().out
+        assert "=== after ===" in out
+        assert "✘ unstartable" in out
+        assert "✔ after" in out
+
+    def test_command_that_runs_and_fails_reports_its_exit_code(
+        self, capfd: pytest.CaptureFixture[str]
+    ) -> None:
+        assert check.run("x", [check.PY, "-c", "import sys; sys.exit(3)"]) is False
+        assert "(exit 3)" in capfd.readouterr().out
