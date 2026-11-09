@@ -1,9 +1,13 @@
 # Ecotur-ASOPRADO — Plan de trabajo hasta la entrega
 
-> **Versión 2.7 — 7 nov 2026.** Cambios de esta versión: bitácora `2026-11-07` (§2b: `B-TESTS` con AF-07 y BE-32
+> **Versión 3.0 — 9 nov 2026.** Cambio de premisa: bitácora `2026-11-09` (la capacidad pasa a un solo régimen, Bogotá hasta
+> nuevo aviso, 11 m/semana `(CONTEXT §2)`: §3 funde "Régimen Prado" y "Régimen final" en una sola tabla con presupuesto
+> recalculado y la semana en curso fechada; §2b: `B-TESTS`, `B-GHOST-ADMIN` y `B-GUARD-TESTS` con la nota de fechado; §8: los
+> riesgos de Prado pasan a condicionales y entra el riesgo del documento después del corte de código). Versiones anteriores:
+> 2.7 — 7 nov 2026, bitácora `2026-11-07` (§2b: `B-TESTS` con AF-07 y BE-32
 > hechos, pendientes A4, medición y `--soft`; §3: marca del sábado y nota de estado, sin fechar la
-> semana siguiente por decisión de David; §6: medición al cierre del 7 nov sobre `item/be-32`, con `tests/` dentro de mypy).
-> Versiones anteriores: 2.6 — 6 nov 2026, bitácora `2026-11-06` (§2b: `B-TESTS` con BE-33, A2, AF-02 y AF-07
+> semana siguiente por decisión de David; §6: medición al cierre del 7 nov sobre `item/be-32`, con `tests/` dentro de mypy);
+> 2.6 — 6 nov 2026, bitácora `2026-11-06` (§2b: `B-TESTS` con BE-33, A2, AF-02 y AF-07
 > hechos y BE-32 pendiente; bloque nuevo `B-GUARD-TESTS` (BE-39, BE-40), por fechar; §3: marca del viernes, fila nueva del último día de
 > Bogotá (sábado de trabajo) y nota del presupuesto; §6: medición al cierre del 6 nov, todo lo rojo con dueño). Versiones
 > anteriores: 2.5 — 5 nov 2026, bitácora `2026-11-05` (§2b: `B-TESTS` recibe BE-33, los
@@ -23,8 +27,8 @@
 > (escritura; paso 0 copia ↔ dueño por sección; acordeón; domingos comodín; orden de sacrificio). Versiones anteriores:
 > `2026-10-28` (v1.7), `2026-10-27` (v1.6), `2026-10-26` (v1.5), `2026-10-25` (v1.4). Versionado según ADR-0007.
 >
-> **Premisas** (el plan se construye sobre ellas y no las repite): fecha y forma de entrega, capacidad de trabajo en
-> tres regímenes, regla de los domingos comodín y roles del equipo `(CONTEXT §2)`; lo que la propuesta compromete
+> **Premisas** (el plan se construye sobre ellas y no las repite): fecha y forma de entrega, capacidad de trabajo en un
+> solo régimen, reglas de los dos comodines (tarde del sábado, domingo) y roles del equipo `(CONTEXT §2)`; lo que la propuesta compromete
 > `(CONTEXT §3)`; alcance por el criterio de §1-D3. Progreso diario: `docs/bitacora/`; estado del proyecto y próximo
 > paso: `(CONTEXT §8)`; avance del plan: columna `Cierre` de §3.
 
@@ -68,7 +72,7 @@ toca. `[señal]` marca una media jornada que necesita red.
 | `B-CI` | `scripts/check.py` en `.azure-pipelines/ci-pipeline.yml`; `fail_under` y `precision` de cobertura | El CI ejecuta la compuerta con `--soft format,ruff,mypy` (tolerados en rojo hasta `B-TESTS`); piso de cobertura con holgura, no trinquete `(ADR-0005)` | **Hecho (PR #71)** |
 | `B-HIGIENE` | SEC1, A9 | Ítems XS/S de la auditoría por el flujo entero, en orden de severidad; el bloque tenía tope de 1 m y lo no hecho recibió decisión nueva el mismo día (todo en la celda de `B-FUTURO`, en orden de criticidad) | **Cerrado** (dos ítems en 1 m; la media jornada entera cupo dos ítems por el flujo, dato para dimensionar XS en Prado) |
 | `B-S1` | S1, Alembic (`env.py` importa `app.models`) | Modelos a `Mapped[]`/`mapped_column` antes de crear `Reservation`; mypy cae a casi cero | **Hecho (PR #74; ADR-0010).** Fue una sola jornada corta: tres fases en un PR, mypy 44 → 10; el resto del día fue a AF-05 y AF-04, de `B-TESTS` |
-| `B-TESTS` | BE-15 (= §9; huecos B2/B3/B4 dentro), BE-02, BE-33 (residuales de ruff y mypy de `app/` sin dueño; con A4 es la compuerta en verde), A2 (revisión), AF-02 (puntos 2 y 3), BE-32 (residuales de BE-15), AF-07 (comando literal en seis sitios; lo edita David). **Hechos:** BE-33 el viernes (PR #81, cuatro fases, ruff 53 → 9, mypy 10 → 5); A2 el viernes como decisión (ADR-0012, PR #82; su trabajo nació como BE-39/BE-40 en `B-GUARD-TESTS`); AF-02 el viernes (PR #83, puntos 2, 2b y 3); AF-07 el viernes en rama, mezclado esa noche (PR #84); **BE-32 el sábado** (PR #85; nueve fases, nueve PASS, `tests/` dentro de `mypy.files`; cifras en `(backlog BE-32)`); BE-02 el jueves (PR #80, confirmada por el flujo, una fase); BE-15 el miércoles (seis fases + D-bis, ADR-0011); BE-07 desmentida el miércoles, sin código; AF-03, AF-04 y AF-05 por adelantado el martes (días en §3). "La suite deja de depender de `.env`" es A4 (`B-PAGOS`), no de este bloque | Suite conforme a `AGENTS.md` §5 (lo que quede fuera, declarado en BE-32 con dueño); al cerrar, ADR-0005 caduca si la compuerta queda en verde y se **retira `--soft` del YAML del CI** (parte del entregable: CI duro) | m1–m2 BE-15 (hecho, con alargue en horas) · m3 `/deuda-verificar BE-02` antes de planear (misma fuente que BE-07), A2, BE-32 si cabe · m4 cierre; compuerta medida; `--soft` fuera; AF-02 (puntos 2 y 3) en PR propio (hecho). **Pendiente al cierre del sábado:** A4 (adelantado de `B-PAGOS`; no empezó: BE-32 ocupó el día), la medición final en `develop` y la retirada de `--soft`; se fechan al abrir la semana siguiente, en §3 |
+| `B-TESTS` | BE-15 (= §9; huecos B2/B3/B4 dentro), BE-02, BE-33 (residuales de ruff y mypy de `app/` sin dueño; con A4 es la compuerta en verde), A2 (revisión), AF-02 (puntos 2 y 3), BE-32 (residuales de BE-15), AF-07 (comando literal en seis sitios; lo edita David). **Hechos:** BE-33 el viernes (PR #81, cuatro fases, ruff 53 → 9, mypy 10 → 5); A2 el viernes como decisión (ADR-0012, PR #82; su trabajo nació como BE-39/BE-40 en `B-GUARD-TESTS`); AF-02 el viernes (PR #83, puntos 2, 2b y 3); AF-07 el viernes en rama, mezclado esa noche (PR #84); **BE-32 el sábado** (PR #85; nueve fases, nueve PASS, `tests/` dentro de `mypy.files`; cifras en `(backlog BE-32)`); BE-02 el jueves (PR #80, confirmada por el flujo, una fase); BE-15 el miércoles (seis fases + D-bis, ADR-0011); BE-07 desmentida el miércoles, sin código; AF-03, AF-04 y AF-05 por adelantado el martes (días en §3). "La suite deja de depender de `.env`" es A4 (`B-PAGOS`), no de este bloque | Suite conforme a `AGENTS.md` §5 (lo que quede fuera, declarado en BE-32 con dueño); al cerrar, ADR-0005 caduca si la compuerta queda en verde y se **retira `--soft` del YAML del CI** (parte del entregable: CI duro) | m1–m2 BE-15 (hecho, con alargue en horas) · m3 `/deuda-verificar BE-02` antes de planear (misma fuente que BE-07), A2, BE-32 si cabe · m4 cierre; compuerta medida; `--soft` fuera; AF-02 (puntos 2 y 3) en PR propio (hecho). **Pendiente:** A4 (adelantado de `B-PAGOS`; en su adenda, los dos tests de firma son la fase A del plan), la medición final en `develop` y la retirada de `--soft` (**CI duro**); fechados en §3. Lo que impida el verde al medir recibe fila ese día y `--soft` espera |
 | `B-RESERVAS` | BE-19, BE-13, BE-17, BE-18, A3 (solo en el código nuevo) | Módulo de reservas según ADR-0002 | m1 modelos 2.0 (`Package` ampliado, `PackageAvailabilityWindow`, `Reservation` con `Index(unique=True, postgresql_where=…)`), enums de estado, tests RED · m2 migración `--autogenerate` **revisada** con tres comprobaciones: `max_capacity → party_size` como `alter_column` (no drop/add), `WHERE` del índice parcial presente, migración corrida contra el dump de staging; repositorio `add()`/`flush()` sin `commit()` (A3) · m3 crear: guardia BE-13 (409), expiración perezosa en la misma transacción, `DateAlreadyReserved` desde `IntegrityError` → 409 · m4 cancelar; listar las mías (BE-17, paginado); disponibilidad por rango · m5 admin (listar, filtrar por estado) y métricas (BE-18, un endpoint de agregados) · m6 auditoría, `/pr` |
 | `B-PAGOS` | BE-16, ADR de pagos, A4 (adelantado al último día de Bogotá por decisión de David, bitácora `2026-11-05`; el día en §3), A5, BE-12 (ADR; código si cabe) | Puerto `PaymentGateway` de dos sentidos (iniciar pago; interpretar evento), `FakeAdapter` que aprueba por regla y puede notificar, ruta de webhook idempotente y transiciones de estado de la reserva: todo local, sin red; reservas, frontend y tests funcionan contra él. A4, A5 y BE-12 van aquí por ser configuración y trabajo local que cabe en las mismas mañanas, no por ser pagos | m1 ADR de pagos (puerto de dos sentidos, `FakeAdapter`, transiciones, idempotencia por id de transacción + estado) → aprobación · m2 `Settings` con pydantic-settings (A4) primero, con el conmutador Fake/Wompi en configuración; puerto + `FakeAdapter` + ruta de webhook + transiciones; flujo reserva → pago falso → evento falso → `confirmed`; tests con evento duplicado · m3 resto de m2; `echo`, `lifespan`, cliente Azure (A5); BE-12 (ADR; `session_version` si cabe) · m4 auditoría, `/pr`; PR `develop` → `staging`; **pre-aviso** al gerente con ventana para la usabilidad (§7) `[señal]` |
 | `B-WOMPI` | BE-27 | Adaptador real: crea la transacción/checkout en el sandbox, verifica la firma del evento y lo mapea al evento del puerto. Sin lógica de negocio; necesita red y URL pública; deslizable sin bloquear nada | m1 adaptador (transacción, checkout, firma, mapeo) con fixtures de eventos · m2 prueba en sandbox con tarjetas de prueba y webhook real a `staging` `[señal]` · m3 cierre, PR aparte; si el criterio de §7 se cumple entero, confirmación de la ventana al gerente |
@@ -80,32 +84,34 @@ toca. `[señal]` marca una media jornada que necesita red.
 | `B-DOCS-TEC` | UML, MER, OpenAPI, manual técnico, README | Anexos técnicos | m1–m2 UML desde código (componentes, secuencia de reserva y pago, casos de uso) · m3 MER · m4 OpenAPI como anexo · m5–m6 manual técnico de despliegue · m7 README y revisión de anexos · m8 colchón del bloque |
 | `B-TESIS` | Capítulos de arquitectura, metodología, resultados; integración con María Paula; entrega | El documento | m1–m3 arquitectura (desde los ADR) · m4–m6 metodología (Scrum + IA + flujo + lecciones; bitácoras como evidencia) · m7–m9 resultados (§6, caja negra, SUS, correcciones derivadas) · m10–m11 integración con María Paula · m12 `B-FUTURO` como capítulo · m13 conclusiones · m14 referencias · m15 primera lectura completa · m16–m17 correcciones · m18 formato, figuras, PDF · m19 segunda lectura · m20–m21 correcciones finales, checklist de entrega · m22 margen |
 | `B-MP-DOC` | Especificación de requisitos ampliada con historias de usuario (OE1); wireframes y diagramas de UX/UI completados (OE2); avances de metodología; manuales y documentación compartidos (OE4) | Trabajo de María Paula según el reparto acordado `(CONTEXT §2)`; David entrega las historias de usuario, revisa wireframes, diagramas y la narrativa de Scrum. Sin medias jornadas: su tiempo no se planifica aquí; lo que David revisa se paga con las `m` de `B-TESIS` (m10–m11, integración) | — (hitos de revisión por fechar en §3 cuando haya fecha de entrega) |
-| `B-GHOST-ADMIN` | BE-34 (bootstrap de superadmin), BE-35 (siempre queda un superadmin activo), BE-36 (recuperar y reactivar entre pares), BE-37 (`null` en opcionales → 422), BE-38 (auditoría de cambios reales) | Que ningún jurado pueda dejar la plataforma sin administrador: los cinco rincones que la verificación de BE-02 (5 nov) midió fuera de su alcance, todos casos de prueba de sustentación. Primero `/deuda-verificar` de cada uno por regla, aunque la verificación de BE-02 ya los midió | m1 BE-34 y BE-35 (las dos Altas: bootstrap y regla del último superadmin) · m2 BE-36, BE-37, BE-38 y cierre. **Por fechar en §3** (decisión de David al crear el bloque, 5 nov 17:24) |
-| `B-GUARD-TESTS` | BE-39 (un test de rechazo por ruta protegida, en RED con los mutantes M1–M7), BE-40 (aplicar la frontera de ADR-0012: re-chequeo de auditoría, guard de superadmin, una forma de inyectar identidad, comentarios) | Que la suite vigile la autorización: la verificación de A2 (6 nov) midió que ningún test depende del guard de rol (quitarlo deja la suite en verde). Tema nuevo, distinto de `B-GHOST-ADMIN` (reglas de dato). Primero `/deuda-verificar` de cada uno por regla, aunque la verificación de A2 ya los midió | m1 BE-39 (17 rutas, tests en RED, mutantes re-ejecutados) · m2 BE-40 y cierre. **Por fechar en §3** (decisión de David al crear el bloque, 6 nov 14:53) |
+| `B-GHOST-ADMIN` | BE-34 (bootstrap de superadmin), BE-35 (siempre queda un superadmin activo), BE-36 (recuperar y reactivar entre pares), BE-37 (`null` en opcionales → 422), BE-38 (auditoría de cambios reales) | Que ningún jurado pueda dejar la plataforma sin administrador: los cinco rincones que la verificación de BE-02 (5 nov) midió fuera de su alcance, todos casos de prueba de sustentación. Primero `/deuda-verificar` de cada uno por regla, aunque la verificación de BE-02 ya los midió | m1 BE-34 y BE-35 (las dos Altas: bootstrap y regla del último superadmin) · m2 BE-36, BE-37, BE-38 y cierre. Bloque creado el 5 nov; fechado en §3 el 9 nov con la razón de David: el día de la demostración ningún jurado puede degradarse ni dejar la plataforma sin superadmin |
+| `B-GUARD-TESTS` | BE-39 (un test de rechazo por ruta protegida, en RED con los mutantes M1–M7), BE-40 (aplicar la frontera de ADR-0012: re-chequeo de auditoría, guard de superadmin, una forma de inyectar identidad, comentarios) | Que la suite vigile la autorización: la verificación de A2 (6 nov) midió que ningún test depende del guard de rol (quitarlo deja la suite en verde). Tema nuevo, distinto de `B-GHOST-ADMIN` (reglas de dato). Primero `/deuda-verificar` de cada uno por regla, aunque la verificación de A2 ya los midió | m1 BE-39 (17 rutas, tests en RED, mutantes re-ejecutados) · m2 BE-40 y cierre. Bloque creado el 6 nov; fechado en §3 el 9 nov, justo después del CI duro y antes de `B-GHOST-ADMIN` |
 | `B-FUTURO` | Todo lo marcado "Sale" en el backlog. Lo que salió de `B-HIGIENE`, del más crítico al menos, para halar de vuelta en ese orden si se libera colchón: SEC2 · BE-26 · SEC3 · A6 · D5 · P2 (`detalle`→`detail`) · BE-25 · D2 · D3 · BE-24 · BE-23 · D4 · A8 · S5 · S2 · S6 · S7 · P3 · BE-09 · D6/S3. Lo demás: BE-10, BE-11 derivado, BE-14 tiempo real, BE-20, BE-21, BE-22, BE-29, FE-10 | Capítulo de trabajo futuro, con justificación por ítem | — |
 
 ---
 
 ## 3. Cronograma (acordeón)
 
-La secuencia de cada bloque vive en §2b y no se toca. Aquí se fecha **solo la semana en curso** de cada régimen; la
+La secuencia de cada bloque vive en §2b y no se toca. Aquí se fecha **solo la semana en curso**; la
 siguiente se fecha al cierre del último día trabajado de la semana, contando las medias jornadas perdidas (PLAN sube
 versión menor cada vez). Si una fila se desborda, se recorta alcance (§1-D3, orden en §8), nunca sueño ni el tiempo
 del documento. La columna `Cierre` lleva la marca del día (`✔` hecho, `◐` parcial, `✘` ningún bloque de la fila) con
 el número de la bitácora que lo cuenta; es una copia consciente de la bitácora `(ADR-0008)`.
 
-**Presupuesto de cada régimen:** `m` disponibles `(CONTEXT §2)` − secuencia restante = colchón, recalculado en cada
-fechado. Los domingos nunca entran en "disponibles"; un domingo comodín solo repaga déficit `(CONTEXT §2)`. Dos
-disparadores: **colchón negativo** → primero el comodín del domingo si está disponible; si no alcanza, el orden de
-sacrificio de §8 ese mismo día; **más de dos `m` perdidas en la primera semana de Prado** → mitigación de entorno (§8).
-Regla de red: commits locales siempre; push, PR y despliegues en la siguiente media jornada con señal (sin push no hay
-CI; hasta entonces `python scripts/check.py` local es la única compuerta).
+**Presupuesto:** `m` disponibles `(CONTEXT §2)` − secuencia restante = colchón, recalculado en cada
+fechado. Ni la tarde del sábado ni el domingo entran en "disponibles": la tarde del sábado es comodín que adelanta o
+repaga y se decide ese mismo sábado; el domingo solo repaga déficit y se decide al cierre `(CONTEXT §2)`. Disparador:
+**colchón negativo** → primero los comodines disponibles; si no alcanzan, el orden de sacrificio de §8 ese mismo día.
+Regla de red (vigente solo si David se muda, `(CONTEXT §2)`): commits locales siempre; push, PR y despliegues en la
+siguiente media jornada con señal (sin push no hay CI; hasta entonces la compuerta local es la única).
 
 **Hitos fijos (no se re-fechan):**
 
 - **Vie 18 dic, 18:00 — corte de código nuevo.** Después solo correcciones de usabilidad, bugs de caja negra y lo que
   un bloque ya abierto necesite para cerrar su PR. Se mueve solo hacia antes: si la reserva de punta a punta y la
   usabilidad ya están, las horas sobrantes van al documento; nunca hacia después. Lo que no esté → `B-FUTURO` (§1-D3).
+  Inclinación de David (9 nov, por formalizar al fechar la semana del 7 dic; riesgo en §8): declarar el corte el día
+  que `B-QA m21` cierre, tomando el 18 dic como tope y no como fecha, para que el documento reciba las `m` sobrantes.
 - **Lun 11 ene — entrega en línea** `(CONTEXT §2)`. El domingo anterior es margen, no día planificado.
 - **Reunión con María Paula**: hecha; `B-MP-DOC` definido en §2b y reparto en `(CONTEXT §2)`. Próxima reunión y entrega de las historias de usuario de David a ella: por fechar (se añaden aquí cuando tengan fecha).
 
@@ -123,7 +129,7 @@ CI; hasta entonces `python scripts/check.py` local es la única compuerta).
 | Vie 30 | `B-PAGOS`, `B-ORDEN` | ✘ 30 |
 | Sáb 31 | PLAN 2.0; `B-CHECK-DOCS` | ◐ 31 |
 
-### Régimen Bogotá `(CONTEXT §2)`: hasta la mudanza
+### Semana del 2 al 7 nov, bajo el plan de tres regímenes (cerrada; historia)
 
 **Presupuesto:** disponibles **10 m** (lun a vie: el sábado 31 ya está cerrado en la tabla de arriba, el sábado
 siguiente es la mudanza `(CONTEXT §2)`; los sábados sí cuentan en Prado y en el régimen final; domingos fuera).
@@ -145,29 +151,45 @@ con tres ítems menos. **Estado al cierre del viernes 6:** el colchón se gastó
 | Mié 4 | `B-TESTS m1`: BE-07 desmentida por el flujo (sin código); BE-15 verificado, planeado y fases A–C | `B-TESTS m2`: BE-15 fases D, E, D-bis y F, PR abierto con el cierre. Arranque real 08:30; pausa 16:00–17:28 (documento); el día se alargó en horas por decisión de David, sin gastar colchón | ✔ 4 |
 | Jue 5 | `B-TESTS m3` **no existió** (mañana: lectura, aclaraciones y PR #78 de cierre de BE-15; mediodía y tarde: mercado hasta las 16:30) | `B-TESTS m4` parcial: BE-02 verificado, planeado, una fase, auditado y mezclado (PR #80); BE-33..BE-38 y `B-GHOST-ADMIN` en el backlog; AF-07 nueva. **`B-TESTS` deslizado y declarado:** BE-33, A2, AF-02 (2 y 3), BE-32, AF-07, compuerta y `--soft` pasan al viernes | ◐ 5 |
 | Vie 6 | **Colchón gastado en `B-TESTS` (decisión de David, 5 nov 18:48):** BE-33, A2, AF-02 puntos 2 y 3, BE-32, **todos completos**; AF-07 si no se hizo el jueves | A4 (adelantado de `B-PAGOS`) y cierre; si sobra tiempo, halar de `B-FUTURO` en el orden en que salió de `B-HIGIENE`. Compuerta medida en `develop`; `--soft` fuera si verde (→ ADR-0005 superado). **Si no se alcanza a mezclar, sábado 7** (David no viaja a Prado ese día; replan por hacer en el cierre del viernes, no el jueves). El cierre de Bogotá (CORS en las tres Web Apps, prueba del frontend, PR `develop` → `staging` `[señal]`, dump para `B-RESERVAS m2`, mudanza, fechar Prado) queda sujeto a ese replan | ◐ 6 |
-| Sáb 7 | **Día de trabajo en Bogotá (David no viaja; decisión 5 nov 18:48, confirmada el 6 a las 17:26): cerrar la semana.** Merge del PR de `item/af-07` (AF-07 + contrato del auditor + cierre del 6). `B-TESTS`: BE-32 **completo** (`/deuda-verificar` → adenda con la lista acumulada en su fila → planear → fases; `tests/` entra en `mypy.files`, opción b; los 4 `str \| None` de A4 como conjunto declarado) | A4 (adelantado de `B-PAGOS`): primero los dos tests de firma (precondición, fila A4), `/deuda-verificar` y `/deuda-planear`, fases hasta donde alcance; al cerrar, `unfixable I001` fuera e I001 aplicado; compuerta medida en `develop`; `--soft` fuera si verde (→ ADR-0005 superado). El cierre de Bogotá (CORS en las tres Web Apps, prueba del frontend, PR `develop` → `staging` `[señal]`, dump para `B-RESERVAS m2`) solo si sobra; si no, primera media jornada con señal de Prado. Fechar la semana de Prado y `B-GHOST-ADMIN`/`B-GUARD-TESTS` en el cierre del sábado; la fecha de la mudanza, por confirmar `(CONTEXT §2)`. Domingo 8: descanso | ◐ 7 |
+| Sáb 7 | **Día de trabajo en Bogotá (David no viaja; decisión 5 nov 18:48, confirmada el 6 a las 17:26): cerrar la semana.** Merge del PR de `item/af-07` (AF-07 + contrato del auditor + cierre del 6). `B-TESTS`: BE-32 **completo** (`/deuda-verificar` → adenda con la lista acumulada en su fila → planear → fases; `tests/` entra en `mypy.files`, opción b; los 4 opcionales `str`/`None` de A4 como conjunto declarado) | A4 (adelantado de `B-PAGOS`): primero los dos tests de firma (precondición, fila A4), `/deuda-verificar` y `/deuda-planear`, fases hasta donde alcance; al cerrar, `unfixable I001` fuera e I001 aplicado; compuerta medida en `develop`; `--soft` fuera si verde (→ ADR-0005 superado). El cierre de Bogotá (CORS en las tres Web Apps, prueba del frontend, PR `develop` → `staging` `[señal]`, dump para `B-RESERVAS m2`) solo si sobra; si no, primera media jornada con señal de Prado. Fechar la semana de Prado y `B-GHOST-ADMIN`/`B-GUARD-TESTS` en el cierre del sábado; la fecha de la mudanza, por confirmar `(CONTEXT §2)`. Domingo 8: descanso | ◐ 7 |
 
-### Régimen Prado `(CONTEXT §2)`: solo mañanas
+### Régimen Bogotá hasta nuevo aviso `(CONTEXT §2)`: desde la semana del 9 nov hasta el final del plan
 
-**Presupuesto:** 19 m `(CONTEXT §2)`; secuencia 18 (`B-RESERVAS` 6 · `B-PAGOS` 4 · `B-ORDEN` 1 · `B-FE-BASE` 3 ·
-`B-FE-LISTA` 2 · `B-FE-RESERVAS` 2); **colchón 1**. Orden: `B-RESERVAS` → `B-PAGOS` → `B-ORDEN` → `B-FE-BASE` →
-`B-FE-LISTA` → `B-FE-RESERVAS`. La única media jornada que exige señal es `B-PAGOS m4` (PR a `staging` y pre-aviso).
-El día de la mudanza no es día planificado. Las semanas se fechan al cierre del último día trabajado de la anterior.
+Sustituye a las secciones "Régimen Prado" (19 m, colchón 1) y "Régimen final" (62 m, colchón 1) de PLAN 2.x: la capacidad
+es una sola `(CONTEXT §2)` y el régimen de Prado no arranca. Fechado el 9 nov, en la apertura, por decisión del 7 nov.
 
-| Día | Mañana | Cierre |
-|---|---|---|
-| (se fecha el vie 6) | | |
+**Presupuesto (calculado el 9 nov):** disponibles **91 m** hasta el sábado 9 ene: 6 semanas completas de 11 m (9–14 nov,
+16–21, 23–28, 30 nov–5 dic, 7–12 dic, 14–19 dic) = 66; semana del 21 al 26 dic = 7 (24 y 25 fuera); semana del 28 dic al
+2 ene = 7 (31 y 1 fuera); semana del 4 al 9 ene = 11. Festivos colombianos sin descontar (candidatos: lun 16 nov, mar 8 dic;
+−2 m cada uno si no se trabajan; David lo declara al fechar cada semana). **Secuencia restante: 86,5 m** = planificación del
+9 nov 0,5 · `B-TESTS` 2,5 (A4 2 + CI duro 0,5) · `B-GUARD-TESTS` 2 · `B-GHOST-ADMIN` 2 · puesta en `staging` 0,5
+(configuración, sin flujo: `CORS_ORIGINS` en las tres Web Apps, PR a `staging`, cliente Flutter contra `staging`, dump)
+· `B-RESERVAS` 6 · `B-PAGOS` 4 · `B-ORDEN` 1 · `B-FE-BASE` 3 · `B-FE-LISTA` 2 · `B-FE-RESERVAS` 8 · `B-WOMPI` 3 · `B-QA` 22 ·
+`B-DOCS-TEC` 8 · `B-TESIS` 22. **Colchón 4,5 m** (0,5 si los dos festivos no se trabajan), más las tardes de sábado que
+existan y el domingo de margen anterior al día final `(CONTEXT §2)`. **Orden decidido por David al fechar esta semana:** `B-TESTS` (A4, CI duro) → `B-GUARD-TESTS`
+→ `B-GHOST-ADMIN` → puesta en `staging` → `B-RESERVAS` → `B-PAGOS` → `B-ORDEN` → `B-FE-BASE` → `B-FE-LISTA` →
+`B-FE-RESERVAS` → `B-WOMPI` → `B-QA` → `B-DOCS-TEC` → `B-TESIS`. **Reparto del colchón alrededor del corte (18 dic):** hasta
+el corte, 66 disponibles contra 56,5 de secuencia (+9,5); después, 25 disponibles contra 30 de `B-DOCS-TEC` + `B-TESIS`
+(−5). El total cierra, el tramo del documento no: el riesgo y sus dos salidas están en §8 y se deciden al fechar la
+semana del 7 dic. `B-PAGOS m4` (PR a `staging` y pre-aviso al gerente) ya no exige señal: la red es la de Bogotá.
 
-### Régimen final `(CONTEXT §2)`: jornada completa, lugar por confirmar
-
-**Presupuesto:** 62 m `(CONTEXT §2)`; secuencia 61 (`B-FE-RESERVAS` m3–m8 · `B-WOMPI` 3 · `B-QA` 22 · `B-DOCS-TEC` 8 ·
-`B-TESIS` 22); **colchón 1** más el domingo anterior a la entrega. Orden: `B-FE-RESERVAS` → `B-WOMPI` → `B-QA` →
-`B-DOCS-TEC` → `B-TESIS`. Mientras el lugar no esté confirmado, el plan asume los riesgos de Prado; cuando se confirme
-Bogotá, una versión menor lo dice. Las semanas se fechan al cierre del último día trabajado de la anterior.
+**Estimaciones de A4 y del CI duro (dato detrás de las cifras):** A4 toca 15 `os.getenv` en 6 archivos de `app/`
+`(backlog A4)`, ~4 fases con lógica (tests de firma; `Settings` con `security`/`database`; `email`/`storage`/`routers/user`/
+`main`; I001 y `unfixable` fuera, los dos `jwt.encode` de `tests/` a `make_token`) a ~55 min por fase medidos en BE-33, más
+verificar (~15 min), planear (~25 min) y PR → 2 m. CI duro: medir sobre `develop`, un commit al YAML, la línea de estado de
+ADR-0005 y la columna de §6 → 0,5 m.
 
 | Día | Mañana | Tarde | Cierre |
 |---|---|---|---|
-| (se fecha al cerrar Prado) | | | |
+| Lun 9 nov | Planificación de la semana (½ m: pendientes decididos, CONTEXT 4.0, PLAN 3.0, bitácora); rama `item/a4` desde `adfe3bb`; `/deuda-verificar A4` | Adenda (tests de firma = fase A; clave de `.env.example` → 401; `Settings` sin default para `JWT_SECRET_KEY`; `jwt.encode` → `make_token`) → `/deuda-planear A4` → aprobación → fases. En una pausa: `CORS_ORIGINS` local con el puerto del Flutter web | |
+| Mar 10 | A4 fases restantes, `/pr`, merge. **CI duro:** compuerta medida en `develop`; `--soft` fuera del YAML; ADR-0005 marcado superado; columna de §6; `B-TESTS` cerrado | `B-GUARD-TESTS m1` (BE-39: 17 rutas, tests de rechazo en RED con M1–M7) | |
+| Mié 11 | `B-GUARD-TESTS m2` (BE-40), `/pr`, merge | `B-GHOST-ADMIN m1` (BE-34, BE-35) | |
+| Jue 12 | `B-GHOST-ADMIN m2` (BE-36, BE-37, BE-38), `/pr`, merge | Puesta en `staging` (½ m): `CORS_ORIGINS` en las tres Web Apps, PR `develop` → `staging`, login y registro desde el cliente (registro = correo real: cierra BE-33 D), `grep` de `role` en el Flutter (cierra la nota de BE-02), dump de `staging`. Luego `/deuda-verificar BE-19` | |
+| Vie 13 | `B-RESERVAS m1` (modelos 2.0, BE-31 decidida, tests RED) | `B-RESERVAS m2` (migración `--autogenerate` revisada contra el dump) | |
+| Sáb 14 | `B-RESERVAS m3` (crear: guardia BE-13, expiración perezosa, 409) | Comodín `(CONTEXT §2)`: `B-RESERVAS m4` si hay tarde; si no, pasa a la semana siguiente | |
+
+Secuencia de la semana 10,5 m contra 11 disponibles → **colchón 0,5 m**. `B-RESERVAS m4`–`m6` caen en la semana del 16, que
+se fecha el sábado 14 al cierre.
 
 ---
 
@@ -244,9 +266,10 @@ excepción y desaparece al migrar a `Annotated` (D6/S3). Evidencia por fase del 
   una fecha concreta cuesta credibilidad); **confirmación** del día dentro de la ventana cuando el flujo de reserva
   funcione de punta a punta en `staging` desde el cliente, con Wompi en sandbox si `B-WOMPI` está mezclado o con
   `FakeAdapter` si no (declarándolo como limitación en resultados: se mide todo el flujo menos la pantalla de Wompi).
-  Tope: **15 de diciembre**, para que las correcciones y el capítulo de resultados quepan. Alerta: el flujo completo
-  en el cliente cae en la primera semana del régimen final; un deslizamiento de una semana en Prado deja la usabilidad
-  en el tope sin días de corrección (mitigación en §8). La sesión es real: el gerente es un miembro real de ASOPRADO
+  Tope: **15 de diciembre**, para que las correcciones y el capítulo de resultados quepan. Alerta: con la secuencia de
+  §3 el flujo completo en el cliente (`B-FE-RESERVAS m8`, 31,5 m de secuencia desde el 9 nov) cae a unas dos semanas y
+  media del tope; un deslizamiento de una
+  semana deja la usabilidad en el tope sin días de corrección (mitigación en §8). La sesión es real: el gerente es un miembro real de ASOPRADO
   y el usuario administrador real.
 - **Participantes:** gerente (usuario administrador, videollamada con pantalla compartida) + 4–5 personas con perfil
   turista (muestra por conveniencia, **declarada como tal** en el documento). Remoto es un método reconocido.
@@ -264,10 +287,10 @@ excepción y desaparece al migrar a `Annotated` (D6/S3). Evidencia por fase del 
 | Riesgo | Mitigación |
 |---|---|
 | **Déficit en cualquier régimen: remedios en orden** | Primero el comodín del domingo, si está disponible, decidido al cierre del último día trabajado `(CONTEXT §2)`. Solo si no alcanza o no hay domingo, recorte en este orden; cada escalón es una decisión por ítem escrita en el backlog el día que se toma, y **sale, no se traslada**: (1) `B-WOMPI`: `BE-27 → B-FUTURO`; la usabilidad se declara con `FakeAdapter` (§7). (2) Lo de `B-HIGIENE` aparcado en `B-QA` → `B-FUTURO`. (3) Pulido que nadie prometió y nadie mide: skeletons (FE-11), señal del kanban (FE-05), refresco y pull-to-refresh, `B-ORDEN` y BE-28; en Prado, antes de eso, `B-FE-BASE` al mínimo (tokens, 401, componentes básicos). (4) Correcciones de `B-QA` que no afecten al SUS ni a la caja negra. (5) Historial completo del turista (filtros, pasadas/próximas, detalle extendido) → `B-FUTURO`; el listado mínimo de mis reservas se queda: §1-D3 y la tarea de usabilidad de §7 lo requieren. **No se recortan:** métricas de admin en su versión mínima (`CONTEXT §3` las compromete; piso: BE-18), listado mínimo de mis reservas, `B-TESIS`, `B-DOCS-TEC`, la sesión de usabilidad. La lista existe para que la decisión no se tome cansado ni en Prado |
-| Señal de internet caída hasta dos días sin aviso, cortes de luz de horas (régimen Prado) | Lo mecánico y lo que el CI ejecuta solo (`B-FORMATO`, `B-CI`) queda antes de la mudanza; en Prado, acordeón de §3 (secuencia fija, fechas por semana) y regla de red; push y despliegues en medias jornadas con señal |
-| Las condiciones de Prado consumen más medias jornadas de las que el colchón cubre | **Criterio:** si en la primera semana de Prado se pierden más de dos `m`, se activa la mitigación de entorno: trabajar desde un sitio con señal estable (casa de un amigo, otro sector). Si aun así el colchón queda negativo, orden de sacrificio de la primera fila |
-| Sin push no hay CI | En Prado, `python scripts/check.py` local es la única compuerta hasta la siguiente media jornada con señal; ningún PR se abre sin haberla pasado localmente |
-| La usabilidad llega al tope de §7 sin días de corrección (pago, listado y despliegue caen en la primera semana del régimen final) | Pre-aviso en dos pasos (§7) desacopla la semana de aviso del frontend; si al PR a `staging` de `B-PAGOS` el backend no está, `B-FE-BASE` se reduce al mínimo para defender la ventana; historial completo y pulido ceden antes que la usabilidad |
+| **El documento no cabe después del corte de código** (medido el 9 nov al fechar con la capacidad nueva): tras el 18 dic quedan 25 m de calendario (24, 25, 31 dic y 1 ene fuera) para 30 m de `B-DOCS-TEC` + `B-TESIS`, mientras que antes del corte sobran 9,5 m. El total del plan cierra; el tramo del documento no | Dos salidas, ambas dentro de las reglas del hito (§3: "se mueve solo hacia antes"): (a) `B-DOCS-TEC m1`–`m4` (UML, MER, OpenAPI: se generan desde código que ya existe) empiezan antes del corte, en las esperas de `B-QA` (ventana del pre-aviso, sesiones con testers); (b) el corte se declara el día que `B-QA m21` cierre y el 18 dic queda como tope. Inclinación de David (9 nov): (b), y además (a) si hace falta. Lo que **no** se hace: abrir el corte a features nuevos después de declararlo; la puerta para lo que pida gerencia es antes del corte, por §1-D3, y después solo las correcciones que el hito ya admite. Se formaliza al fechar la semana del 7 dic |
+| Mudanza a Prado (hoy no prevista, `(CONTEXT §2)`): señal de internet caída hasta dos días sin aviso, cortes de luz de horas | Si ocurre: acordeón de §3 (secuencia fija, fechas por semana) y regla de red (push, PR y despliegues en medias jornadas con señal); si en la primera semana allí se pierden más de dos `m`, mitigación de entorno (trabajar desde un sitio con señal estable); si aun así el colchón queda negativo, orden de sacrificio de la primera fila |
+| Sin push no hay CI (solo con la mudanza) | La compuerta local `(AGENTS §6)` es la única hasta la siguiente media jornada con señal; ningún PR se abre sin haberla pasado localmente |
+| La usabilidad llega al tope de §7 sin días de corrección (pago, listado y despliegue desde el cliente caen a dos semanas y media del tope, §7) | Pre-aviso en dos pasos (§7) desacopla la semana de aviso del frontend; si al PR a `staging` de `B-PAGOS` el backend no está, `B-FE-BASE` se reduce al mínimo para defender la ventana; historial completo y pulido ceden antes que la usabilidad |
 | Reprogramar la usabilidad cuesta credibilidad | Al gerente se le propone una ventana de una semana, no un día; se confirma el día dentro de la ventana cuando el criterio de §7 se cumple entero |
 | `WompiAdapter` consume más de lo previsto o no hay red | `FakeAdapter` deja el flujo completo y testeable por el mismo camino (webhook incluido); `B-WOMPI` es solo adaptador, PR aparte, primero en el orden de sacrificio |
 | Frontend se desborda (área débil) | Sistema de diseño primero, belleza después; métricas admin en su versión mínima; pulido y historial completo ceden antes |
