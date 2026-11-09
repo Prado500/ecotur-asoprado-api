@@ -1,0 +1,19 @@
+{
+  "plan_file": "docs/deuda/AF-12/plan.md",
+  "current_target": "Fase_A",
+  "phases": {
+    "Fase_A": {
+      "status": "pending",
+      "commit": null,
+      "description": "AF-12: el paso import-linter corre [PY, \"-c\", LINT_IMPORTS_CODE] (entry point importlinter.cli:lint_imports_command) si find_spec(\"importlinter\") lo encuentra; si no, el sustituto con el hint de pip (exit 1). Se retiran find_lint_imports, LINT_IMPORTS_NAMES y sysconfig; TestLintImportsResolution (7) -> TestLintImportsStep (5). MA1-MA5."
+    },
+    "Fase_B": {
+      "status": "pending",
+      "commit": null,
+      "description": "AF-13: run() captura OSError alrededor de subprocess.call; el paso queda FALLA (<tipo>), los siguientes corren y el RESUMEN se imprime con exit 1. TestRunReportsUnstartableStep (3). MB1-MB3."
+    }
+  },
+  "allowed_statuses": ["pending", "partial", "completed"],
+  "last_handoff": "Estado inicial. Plan pendiente de aprobación de David.",
+  "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
+}
