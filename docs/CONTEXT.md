@@ -8,7 +8,9 @@
 > **Versión 4.0 — 9 nov 2026.** Cambio de premisa: bitácora `2026-11-09` (§2: la capacidad declarada el 7 nov entra en
 > vigor —Bogotá hasta nuevo aviso, 2 m/día de lunes a viernes, 1 m el sábado con la tarde como comodín, sin régimen de
 > Prado—; §6: fila del 9 nov; §8 reescrito con la ruta de la semana: A4 → CI duro → `B-GUARD-TESTS` → `B-GHOST-ADMIN` →
-> puesta en `staging` → `B-RESERVAS`). Versiones anteriores: `2026-11-07` (3.8: bitácora `2026-11-07` (§4: `tests/` dentro
+> puesta en `staging` → `B-RESERVAS`; al cierre del mismo día: §4 la compuerta sin binarios de `venv/Scripts/` (AF-12, AF-13); §5
+> desviación del ejecutor y evidencia estructural; §6 segunda fila del 9 nov; §8 con A4 deslizado al martes). Versiones
+> anteriores: `2026-11-07` (3.8: bitácora `2026-11-07` (§4: `tests/` dentro
 > de mypy desde BE-32; §5: contrato del auditor y `current_target` cumplidos por los agentes en BE-32; §6: cinco filas del
 > 7 nov; §8 reescrito tras BE-32 hecho (PR #85) y A4 sin empezar); `2026-11-06` (3.7: bitácora `2026-11-06` (§2: Bogotá un día más, mudanza por
 > confirmar —ajuste de un día dentro del mismo régimen; si David lo considera cambio de premisa, 4.0—; §4: compuerta en rojo
@@ -224,7 +226,12 @@ la Web App la hala al reiniciar. Operación: 2 clics.
   comillas; propuesta de reglas para la sesión Mentor, pendiente). Pendientes de flujo con dueño en §8.4;
   `check.py` corre en el CI de Azure desde `B-CI` `(PLAN §2b)`.
   Desde AF-02 (6 nov) `check_docs.py --estado` lee el veredicto del último bloque de `gaps.md`, y el prompt del auditor
-  dicta el encabezado y la línea de veredicto exactos (AF-07, mismo día); `--cierre` evalúa fechas en el huso del proyecto. El 7 nov (BE-32) el contrato se cumplió en las nueve auditorías y los ejecutores pusieron `current_target: null` al terminar; el ejecutor de la fase I se detuvo sin commitear ante una enmienda que no podía aplicarse sin empeorar la compuerta, que es lo que el protocolo exige. Un ítem de nueve fases sin lógica de `app/` costó ~27 min por fase (11:24–17:11).
+  dicta el encabezado y la línea de veredicto exactos (AF-07, mismo día); `--cierre` evalúa fechas en el huso del proyecto. El 7 nov (BE-32) el contrato se cumplió en las nueve auditorías y los ejecutores pusieron `current_target: null` al terminar; el ejecutor de la fase I se detuvo sin commitear ante una enmienda que no podía aplicarse sin empeorar la compuerta, que es lo que el protocolo exige. Un ítem de nueve fases sin lógica de `app/` costó ~27 min por fase (11:24–17:11). El 9 nov (AF-12/AF-13) el flujo corrió
+  con la compuerta rota al arrancar (abortaba sin RESUMEN en la máquina de David): el verificador midió los pasos por separado, la
+  adenda aceptó esa línea base y la aceptación de cada fase exigió RESUMEN impreso; el ejecutor de A descartó la salida de una
+  comprobación (`> /dev/null`) y el auditor encontró la causa del exit 1 (AF-15) porque la guardó: la salida de la compuerta no se
+  descarta nunca (nota en AF-09). Cuando un bloqueo de entorno deja de reproducirse a mitad del ítem, la evidencia pasa a ser
+  estructural (exe renombrado → `4 kept`; exe inexistente → rojo con RESUMEN) y así se declara en el PR.
 - **Artefactos de datos por ítem** (`docs/deuda/<ID>/`): `verificacion.md`, `plan.md`, `progress.json`,
   `handoff-<fase>.md`, `gaps.md`. El estado de un ítem es lo que existe en su carpeta; no hay índice aparte.
 
@@ -265,6 +272,7 @@ la Web App la hala al reiniciar. Operación: 2 clics.
 | 7 nov | D8 (enviar una copia del mensaje con otro asunto) declarado inmatable por decisión no analizada de David ("flip de moneda"), para no detenerse ese día; se revisa al estudiar BE-32. | `docs/deuda/BE-32/plan.md` (E0, Residuales) | Cap. de pruebas (límites declarados de la mutación) |
 | 7 nov | Capacidad hasta nuevo aviso declarada por David (no viaja a Prado) y **la semana siguiente se planifica en la apertura de la próxima sesión, no en este cierre**; ese día se actualizan §2 y PLAN §3 (versión mayor si David lo considera cambio de premisa). | bitácora `2026-11-07`; recogida en §2 el 9 nov | Cap. de metodología (gestión del plan con hechos) |
 | 9 nov | Cambio de premisa (CONTEXT 4.0, PLAN 3.0): un solo régimen hasta la entrega, Bogotá, 11 m/semana; la tarde del sábado es comodín que adelanta o repaga y se decide el mismo sábado (distinto del domingo). Ruta de la semana: A4 → CI duro (`--soft` fuera, ADR-0005 superado) → `B-GUARD-TESTS` completo → `B-GHOST-ADMIN` completo (David: el día de la demostración ningún jurado puede degradarse ni dejar la plataforma sin superadmin) → puesta en `staging` → `B-RESERVAS`. El bloqueo del cliente Flutter (preflight `OPTIONS` rechazado) es la lista blanca de SEC1 funcionando contra un origen no configurado: se resuelve por configuración (`CORS_ORIGINS`), sin código ni flujo. BE-31: la suite sigue sobre SQLite, defendible porque sus huecos están declarados (ADR-0011, fila BE-31); la suite sobre Postgres sigue en `B-FUTURO`. Tests de firma de A4: fase A del plan, no a mano. | `CONTEXT.md` §2, `PLAN.md` §3 y §8, bitácora `2026-11-09` | Cap. de metodología (gestión del plan con hechos; CI duro como entregable) y de pruebas (qué no mide la suite y por qué) |
+| 9 nov | Tres reglas de proceso del día. (1) **Falso positivo de `check_docs.py`** (la herramienta se equivoca, el documento está bien): no se detiene el trabajo; se esquiva en el documento con la edición mínima que no cambie ningún hecho, se declara en la bitácora con la causa verificada y el defecto recibe fila `AF-xx` en `B-FUTURO`; nunca se arregla el script "de paso" ni se deja la compuerta de cierre en rojo por una razón falsa (primer caso: AF-11, `_cells()` y el pipe escapado). (2) **Fila hija:** una fila del backlog puede saldarse como fase del ítem de otra cuando la verificación de este la midió y comparten archivos; la fila lo dice, la carpeta es una, el PR es uno (BE-01 con P1 y A7 lo hizo sin regla; AF-12 con AF-13 la escribe en AGENTS §8). (3) **La compuerta no depende de ejecutables de `venv/Scripts/`**: import-linter por su entry point (AF-12) y un paso que no arranca sale en rojo con RESUMEN (AF-13); apagar Smart App Control se descartó (irreversible, ajeno al repo). Además: el hint de instalación se conserva (fallo explícito), y la salida de la compuerta nunca se descarta (AF-09). | README de sesiones (paso 3), AGENTS §6 y §8 (`3e47d99`), `docs/deuda/AF-12/`, `docs/backlog.md` (AF-11, AF-14, AF-15) | Cap. de metodología (verificación documental; compuerta portable frente a políticas del sistema operativo; evidencia estructural cuando un bloqueo de entorno desaparece) |
 | pendiente | Pagos: puerto `PaymentGateway`, `WompiAdapter`, `FakeAdapter`, webhook idempotente. | ADR de pagos (`B-PAGOS`, tomará el siguiente número libre) | Cap. de diseño (secuencia de pago) y arquitectura |
 
 ## 7. Preguntas abiertas
@@ -279,19 +287,22 @@ la Web App la hala al reiniciar. Operación: 2 clics.
 
 ## 8. Próximo paso
 
-Dónde estamos (estado en la apertura de la bitácora `2026-11-09`): `B-TESTS` tiene hechos BE-15, BE-02, BE-33, A2, AF-02,
-BE-32 y AF-07; quedan **A4, la medición final en `develop` y la retirada de `--soft`**. `develop` = `adfe3bb` (cierre
-documental del 7 nov sobre `08c3a3d`, PR #85; mismo código de `app/` y `tests/`), árbol limpio, ningún ítem en curso.
-Compuerta vigente en `(PLAN §6)`: todo el rojo (ruff 8, mypy 9) es del conjunto de A4. La semana del 9 nov está fechada
-en `(PLAN §3)` con la capacidad nueva de §2; la ruta decidida por David el 9 nov es **A4 → CI duro → `B-GUARD-TESTS`
-(completo) → `B-GHOST-ADMIN` (completo) → puesta en `staging` → `B-RESERVAS`**, y después el orden de bloques de PLAN §3.
+Dónde estamos (estado al cierre de la bitácora `2026-11-09`): la semana está fechada con la capacidad nueva `(PLAN §3)`;
+**AF-12 y AF-13 saldadas en `item/af-12`** (dos fases, dos PASS, nueve commits; PR abierto al cierre, pendiente de MD1 en el log
+del CI y merge): la compuerta ya no depende de `lint-imports.exe` y nunca muere sin RESUMEN. **A4 no empezó**: Smart App Control
+bloqueó el binario al ir a verificarlo y el día se fue en AF-12/AF-13 (1 m, no ½). `develop` = `bb03f46` (PR #86); `item/af-12`
+= `f7b92c8` (código en `5cbdec1`): 549 tests · 96,11 % · ruff 8 · mypy 9 (A4) · 4 kept `(PLAN §6)`. Filas nuevas: AF-11, AF-14,
+AF-15 (`B-FUTURO`); notas en AF-09 y P2. Ruta de la semana (David, 9 nov): **A4 → CI duro → `B-GUARD-TESTS` → `B-GHOST-ADMIN`
+→ puesta en `staging` → `B-RESERVAS`**, re-fechada un día en `(PLAN §3)`.
 
-1. **A4** (adelantado de `B-PAGOS`, en `B-TESTS`): rama `item/a4` desde `adfe3bb`; `/deuda-verificar A4` sobre `develop`
+0. **Primero el martes:** MD1 (log del CI de `item/af-12`: `Contracts: 4 kept, 0 broken.` bajo import-linter) → merge → filas
+   AF-12 y AF-13 a `Hecho (PR #N …)` en el backlog (misma versión 1.18) → `develop` actualizado antes de crear `item/a4`.
+1. **A4** (adelantado de `B-PAGOS`, en `B-TESTS`): rama `item/a4` desde `develop` con AF-12 mezclada; `/deuda-verificar A4`
    (15 `os.getenv` en 6 archivos: `security.py:7-10`, `email.py:12-16`, `storage.py:42-44`, `database.py:7`,
-   `routers/user.py:66`, `main.py:196`; `tests/test_user_service.py:105,203,280,298`); adenda: los dos tests de firma
-   son la **fase A del plan** (no se escriben a mano), test con la clave de `.env.example` → 401, `Settings` sin valor
-   por defecto para `JWT_SECRET_KEY`, los dos `jwt.encode` de `tests/` migrados a `make_token`; al cerrar, `unfixable
-   I001` fuera e I001 aplicado.
+   `routers/user.py:66`, `main.py:196`; `tests/test_user_service.py:105,203,280,298`; línea base 549 tests); adenda: los dos
+   tests de firma son la **fase A del plan** (no se escriben a mano), test con la clave de `.env.example` → 401, `Settings` sin
+   valor por defecto para `JWT_SECRET_KEY`, los dos `jwt.encode` de `tests/` migrados a `make_token`, `CORS_ORIGINS` conserva su
+   nombre (contrato con las Web Apps y `.env.example`); al cerrar, `unfixable I001` fuera e I001 aplicado.
 2. **CI duro**, justo tras el merge de A4: compuerta medida en `develop`; si 0 · 0 · 4 kept, `--soft` fuera del YAML
    (`ci-pipeline.yml`), línea de estado de ADR-0005 marcada superada, columna nueva en PLAN §6, `B-TESTS` cerrado.
    Trabajo emergente que impida el verde recibe fila ese día y el `--soft` espera.
@@ -301,8 +312,9 @@ en `(PLAN §3)` con la capacidad nueva de §2; la ruta decidida por David el 9 n
    el cliente Flutter web es la lista blanca de SEC1 contra un origen no configurado; el APK no lo sufre porque no envía
    `Origin`); PR `develop` → `staging`; login y registro desde el cliente contra `staging` (el registro envía el correo
    real: cierra la revisión visual pendiente de BE-33 D, fila nueva solo si falla); `grep` de `role` en el cliente Flutter
-   (cierra la nota de BE-02); **dump de `staging` para `B-RESERVAS m2`**. En local, `CORS_ORIGINS` en `.env` con el
-   puerto del Flutter web se hace en cualquier pausa de hoy, antes de que A4 mueva esa lectura a `Settings`.
+   (cierra la nota de BE-02); **dump de `staging` para `B-RESERVAS m2`**. En local quedó resuelto el 9 nov: el Flutter web
+   se levanta con `--web-port 3000` y coincide con el default de `main.py:166`; el log de uvicorn confirmó la causa (`OPTIONS
+   /usuarios/login 400`, sin `POST` detrás).
 5. **`B-RESERVAS`** (m1 decide BE-31: `sqlite_where` espejo en el `Index`; la suite sobre Postgres sigue en `B-FUTURO`
    porque sus huecos están declarados en ADR-0011 y en la fila BE-31). Luego el orden de PLAN §3.
 6. Pendientes chicos sin `m`: ficha `fichas/BE-02.md` y ficha BE-32 (opcional; revisa D8), con las 3 dudas abiertas de

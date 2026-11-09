@@ -1,8 +1,10 @@
 # Sesiones de IA: cómo arrancar cualquiera sin depender de ninguna conversación anterior
 
-> **Versión 1.5 — 7 nov 2026.** Cambios de esta versión: bitácora `2026-11-07` (paso 3: la batería de `check_docs.py` la ejecuta
+> **Versión 1.6 — 9 nov 2026.** Cambios de esta versión: bitácora `2026-11-09` (paso 3: qué se hace ante un falso positivo de
+> `check_docs.py`: esquivar en el documento, declarar, fila `AF-xx`; el prompt de la batería pide la salida completa). Versiones
+> anteriores: `2026-11-07` (1.5, bitácora `2026-11-07` (paso 3: la batería de `check_docs.py` la ejecuta
 > Claude Code con un prompt fijo y la sesión que cierra revisa la salida, AF-10; `mentor.md` 2.0: modo ejemplo obligatorio y tres
-> líneas fijas tras cada auditoría). Versiones anteriores: `2026-11-06` (1.4, bitácora `2026-11-06` ("modo ejemplo" al final de `estudio.md` y
+> líneas fijas tras cada auditoría)); `2026-11-06` (1.4, bitácora `2026-11-06` ("modo ejemplo" al final de `estudio.md` y
 > `mentor.md`: cómo pide David una explicación con dato real, acciones en orden, punto de ruptura y regla al final). Versiones
 > anteriores: `2026-11-04` (1.3, regla del retoque: un retoque aprobado
 > a un plan es una edición a `plan.md` antes de `/implementar`, o no existe; decidida el 2 nov, aplicada el 3 y el 4).
@@ -57,6 +59,11 @@ porque cada uno alimenta al siguiente:
    reglas que dependen de `git` y del día, y por eso no corren en la compuerta (ADR-0008, addendum del 1 nov). **Quién la ejecuta (desde el 7 nov):** Claude Code, con el prompt fijo de la bitácora `2026-11-07` (una vez por dueño con
    cambios en `git status`, más `--huerfanas`, `--cierre` y `--estado`; salida literal, sin editar ni commitear), porque la sesión
    Mentor no puede correr el venv del repo; la sesión que cierra revisa esa salida y decide. AF-10 convertirá el prompt en comando.
+   El prompt pide **la salida completa de cada comando**, no solo los exit codes (lección del 7 nov). **Falso positivo de
+   `check_docs.py`** (decidido el 9 nov): cuando la herramienta se equivoca y el documento está bien, el trabajo no se detiene:
+   se esquiva en el documento con la edición mínima que no cambie ningún hecho, se declara en la bitácora del día con la causa
+   verificada (línea del script), y el defecto recibe fila `AF-xx` en `B-FUTURO`. No se arregla el script "de paso" (AGENTS §7) ni
+   se deja la compuerta de cierre en rojo por una razón falsa. Primer caso: AF-11 (`_cells()` y la barra vertical escapada en una celda de PLAN §3).
 4. **Commit** (y PR). Un archivo sin commitear no existe para una sesión que arranca con `git pull` en
    otra máquina o en otra rama.
 
