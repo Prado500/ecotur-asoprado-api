@@ -166,3 +166,66 @@ Evidencia:
   `dependency_overrides.clear()` (tests/conftest.py:96). Afirma código, cabecera y estructura con `_assert_bearer_401`,
   sin texto en español. No hay excepciones de dominio nuevas. El texto no dictado no nombra variables de entorno en
   mayúsculas en `app/` y no usa "another/other key" ni "forged" en `tests/`. E0 no afecta a D.
+
+## Auditoría Fase E — 2026-11-10
+**Veredicto Fase E: PASS (0 bloqueantes, 0 opcionales).**
+
+Sin hallazgos.
+
+Evidencia:
+
+- Árbol: `git status --short` limpio al empezar. `git diff --name-only 6104d15 HEAD` → los 4 archivos de la fase
+  (`59d75b7`, 50+/32-: `alembic/env.py`, `app/core/email.py`, `app/db/database.py`, `tests/test_email.py`) más
+  `docs/deuda/A4/handoff-Fase_E.md` y `docs/deuda/A4/progress.json` (`18662f2`). Nada fuera de la fase.
+  `git diff --stat 55345a1 HEAD -- .azure-pipelines` → vacío: `cd-pipeline.yml` intacto (E0.1).
+- Commit `59d75b7`: el asunto es idéntico al del plan (`refactor(config): engine, migrations and SMTP client read Settings (A4)`).
+  El cuerpo declara el cambio de remitente (`tu_correo@gmail.com` → `MAIL_USERNAME` sin `MAIL_FROM`) y explica por qué
+  el CD sigue intacto (`DatabaseSettings`, P1/E0). Termina en el trailer.
+- `progress.json`: JSON válido. `Fase_E` está en `completed` con `59d75b7` (hash real, `git show --stat` lo confirma);
+  `current_target` = `Fase_F`; `last_handoff` presente. El diff de `18662f2` no toca `edit_rules`.
+- Compuerta re-ejecutada (`./venv/Scripts/python.exe scripts/check.py`, exit 1), fila E exacta:
+  `60 files already formatted` · ruff `Found 4 errors.`, los 4 I001 que el plan deja para I (`routers/audit.py`,
+  `user_repository.py`, `schemas/audit.py`, `audit_service.py`) · mypy `Success: no issues found in 55 source files` ·
+  `Contracts: 4 kept, 0 broken.` · `575 passed, 5 warnings` · `TOTAL 971 23 138 19 96.21%` ·
+  `Compuerta NO superada: ruff check`. Coincide con lo que pegó el ejecutor.
+- Cobertura: 96.21 % ≥ 96.11 % (umbral del plan, `plan.md:128`). La explicación del ejecutor cuadra con la tabla:
+  en D era `975 23 138 19 96.23%` (`handoff-Fase_D.md:133`); `Miss`, `Branch` y `BrPart` no cambian, y `Stmts`
+  baja en 4. `database.py` pierde 4 sentencias y gana 1 (−3). `email.py` pierde 4 (`import os`, `dotenv`,
+  `load_dotenv()`, `conf`) y gana 3 (import, `def _smtp_config`, `return`) (−1). `alembic/` no se mide
+  (`source = ["app"]`). Ninguna línea nueva queda sin cubrir: `email.py` está entre los 25 archivos con cobertura
+  completa, y en `database.py` solo faltan `31-35` (cuerpo de `get_db`, que la suite sustituye; ADR-0011), que ya
+  faltaban antes.
+- Archivos tocados: `ruff check` de los 4 → `All checks passed!`; `ruff format --check` → `4 files already formatted`;
+  `mypy` sobre `email.py`, `database.py` y `test_email.py` → `Success: no issues found in 3 source files`; sobre
+  `alembic/env.py`, que no está en `mypy.files` → `Success: no issues found in 1 source file`.
+- Diff frente a "Cambios exactos". `database.py`: sin `os`, `dotenv`, `load_dotenv()` ni `DATABASE_URL`; usa
+  `get_database_settings().database_url`; `echo=True` y su comentario siguen igual (A5); I001 resuelto.
+  `alembic/env.py`: sin `os`, `dotenv`, `load_dotenv()`, `database_url` ni `raise ValueError`; el comentario dictado
+  aparece literal y le sigue `set_main_option(..., get_database_settings().database_url)`. `email.py`: los imports
+  dictados; `_smtp_config(settings: Settings) -> ConnectionConfig` con docstring Google (Args/Returns), los 5 campos de
+  `settings`, `mail_sender` incluido, y los 5 fijos sin cambios; `fast_mail = FastMail(_smtp_config(get_settings()))`;
+  I001 resuelto. Plantilla y `send_verification_email` sin tocar. Test: nombre y tupla de 5 campos dictados.
+- P1 (E0): `database.py` y `alembic/env.py` llaman a `get_database_settings()`, no a `get_settings()`. Sonda re-medida
+  en exportaciones `git archive` de `55345a1` y `HEAD` en el scratchpad, sin `.env` (`test ! -e .env`) y con los 15
+  campos quitados del entorno (`env -u …`). Con solo `DATABASE_URL="postgresql+asyncpg://u:p@localhost:5432/db"`,
+  `-m alembic upgrade head --sql` → `base: exit=0 lines=116` y `head: exit=0 lines=116`; `cmp` → idénticos. Sin
+  `DATABASE_URL` en `HEAD` → `exit=1`; stderr `1 validation error for DatabaseSettings` / `database_url` /
+  `Field required [type=missing]` (2 apariciones de `database_url`; ninguna de `postgresql` ni de valores). No se
+  ejecutó nada contra una base real.
+- M6, en una copia `git archive HEAD` sin `.env`. El `sed` del plan deja `25:        MAIL_FROM=settings.mail_username,`;
+  `tests/test_email.py -k configured_from_settings` → `1 failed, 6 deselected`
+  (`FAILED tests/test_email.py::test_smtp_client_is_configured_from_settings`). En otra copia, sin mutante →
+  `1 passed, 6 deselected`. La caracterización que dicta el plan ("pasa antes y después") se cumple: en una copia de
+  `6104d15` (código con `os.getenv("MAIL_FROM", "tu_correo@gmail.com")`) con el `tests/test_email.py` de `59d75b7`,
+  `tests/test_email.py` → `7 passed`.
+- Punto 3: `git grep -n -E "getenv|load_dotenv|os\.environ" -- app/db alembic app/core/email.py` → sin salida (exit 1).
+  `echo=True` sigue en `database.py:7`; `sqlalchemy.future` sigue en los 3 repositorios (S2). `app/services` no importa
+  `fastapi` ni `starlette`; import-linter: 4 kept.
+- Punto 4: `git ls-files --eol` → `i/lf w/lf attr/text=auto eol=lf` en los 4 archivos.
+- Verificación final, en lo que esta fase cambia: #3 → 1 línea (`tests/test_token_failure_paths.py:16`; la segunda
+  llega con H). #7 en `app tests` → 0. #5 → 4 líneas, todas en `app/main.py` (`:170,189,196,200`); `:196` y `:200` las
+  retira F, y ya no aparece `DATABASE_URL`.
+- AGENTS: el test nuevo no usa mocks ni fábricas de usuario (no los necesita) y afirma sobre valores de configuración,
+  sin texto en español. No hay excepciones de dominio nuevas. El texto no dictado (docstring de `_smtp_config`) no
+  nombra variables de entorno en mayúsculas. El límite E0.7 (arranque local desde `.env` entre E y G) está aceptado:
+  no es hallazgo.
