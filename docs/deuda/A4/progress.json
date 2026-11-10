@@ -1,10 +1,10 @@
 {
   "plan_file": "docs/deuda/A4/plan.md",
-  "current_target": "Fase_A",
+  "current_target": "Fase_B",
   "phases": {
     "Fase_A": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "21ee9fc",
       "description": "Three JWT signature tests in test_token_failure_paths.py (foreign key on both decode paths, .env.example key); M1 2 failed/1 passed, M2 1 failed/2 passed. Target: 552 passed, ruff 8, mypy 9."
     },
     "Fase_B": {
@@ -53,6 +53,6 @@
     "partial",
     "completed"
   ],
-  "last_handoff": "Estado inicial.",
+  "last_handoff": "Fase_A completada (21ee9fc): 3 tests de firma JWT; compuerta fila A exacta (552 passed, 96.11 %, ruff 8, mypy 9, 4 kept); M1 2 failed/1 passed, M2 1 failed/2 passed; sin desviaciones.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
