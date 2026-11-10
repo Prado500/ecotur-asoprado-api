@@ -1,6 +1,6 @@
 {
   "plan_file": "docs/deuda/A4/plan.md",
-  "current_target": "Fase_C",
+  "current_target": "Fase_D",
   "phases": {
     "Fase_A": {
       "status": "completed",
@@ -13,8 +13,8 @@
       "description": "app/core/config.py (DatabaseSettings, Settings, cached getters), root conftest.py test environment, tests/test_config.py (21 cases); suite passes from a git export without .env. Target: 573 passed, ruff 8, mypy 9 (55 checked)."
     },
     "Fase_C": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "cbf439c",
       "description": "Tests stop importing SECRET_KEY/ALGORITHM: make_token gains extra_claims, two hand-made jwt.encode migrated, decodes via get_settings(); M3, M4. Target: 573 passed, ruff 8, mypy 5."
     },
     "Fase_D": {
@@ -53,6 +53,6 @@
     "partial",
     "completed"
   ],
-  "last_handoff": "Fase_B completada (43d28f5): config.py, conftest.py raíz y tests/test_config.py (21 casos); compuerta fila B exacta (573 passed, 96.23 %, ruff 8, mypy 9 en 55, 60 formatted, 4 kept); M9 y M10 1 failed; suite exportada sin .env 573 passed; desviación menor: 2 docstrings de config.py re-envueltos a 100 columnas.",
+  "last_handoff": "Fase_C completada (cbf439c): make_token gana extra_claims; test_user_service y test_auth decodifican con get_settings() y firman con make_token; compuerta fila C exacta (573 passed, 96.23 %, ruff 8, mypy 5 en 55, 60 formatted, 4 kept); M3 y M4 1 failed; grep de constantes JWT en tests → 0.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
