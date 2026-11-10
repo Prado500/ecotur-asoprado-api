@@ -229,3 +229,69 @@ Evidencia:
   sin texto en español. No hay excepciones de dominio nuevas. El texto no dictado (docstring de `_smtp_config`) no
   nombra variables de entorno en mayúsculas. El límite E0.7 (arranque local desde `.env` entre E y G) está aceptado:
   no es hallazgo.
+
+## Auditoría Fase F — 2026-11-10
+**Veredicto Fase F: PASS (0 bloqueantes, 0 opcionales).**
+
+Sin hallazgos.
+
+Evidencia:
+
+- Árbol: `git status --short` limpio al empezar. `git diff --name-only feabea0 HEAD` → los 4 archivos de la fase
+  (`311b19e`, 45+/19-: `app/api/routers/user.py`, `app/main.py`, `tests/test_auth.py`, `tests/test_main.py`) más
+  `docs/deuda/A4/handoff-Fase_F.md` y `docs/deuda/A4/progress.json` (`973aa77`). Nada fuera de la fase.
+- Commit `311b19e`: el asunto es idéntico al del plan (`refactor(api): CORS origins and frontend URL come from Settings (A4)`).
+  El cuerpo explica el porqué (las dos últimas lecturas `os.getenv` de la capa HTTP), lleva un bullet por archivo, el
+  RED y M7. Termina en el trailer.
+- `progress.json`: JSON válido. `Fase_F` está en `completed` con `311b19e` (hash real, `git show --stat` lo confirma);
+  `current_target` = `Fase_G`; `last_handoff` presente. El diff de `973aa77` no toca `edit_rules`.
+- Compuerta re-ejecutada (`./venv/Scripts/python.exe scripts/check.py`, exit 1), fila F exacta:
+  `60 files already formatted` · ruff `Found 4 errors.`, los 4 I001 que el plan deja para I (`routers/audit.py`,
+  `user_repository.py`, `schemas/audit.py`, `audit_service.py`) · mypy `Success: no issues found in 55 source files` ·
+  `Contracts: 4 kept, 0 broken.` · `576 passed, 5 warnings` · `TOTAL 969 23 138 19 96.21%` ·
+  `Compuerta NO superada: ruff check`. Coincide con lo que pegó el ejecutor.
+- Cobertura: 96.21 % ≥ 96.11 % (umbral del plan, `plan.md:128`), igual que en E. `Stmts` baja de 971 a 969 y
+  `Miss`/`Branch`/`BrPart` no cambian. `app\main.py` `57 6 18 5 85.33%`, `Miss` `61, 72, 76, 79, 82, 106`: las mismas
+  ramas de handlers que en E, desplazadas una línea por el `import os` borrado. `routers/user.py` y `core/config.py`
+  no aparecen en el informe (cobertura completa).
+- Archivos tocados: `ruff check` de los 4 → `All checks passed!`; `ruff format --check` → `4 files already formatted`;
+  `mypy` → `Success: no issues found in 4 source files`; `git ls-files --eol` → `i/lf w/lf attr/text=auto eol=lf` en
+  los 4.
+- Diff frente a "Cambios exactos". `main.py`: sin `import os`, `DEFAULT_CORS_ORIGINS`, el comentario de tres líneas
+  ni `CORS_ORIGINS`; importa `get_settings`; el comentario dictado aparece literal sobre `app.add_middleware`, con
+  `allow_origins=parse_cors_origins(get_settings().cors_origins),`. `parse_cors_origins` no cambia, y
+  `allow_credentials=False`, `allow_methods=["*"]` y `allow_headers=["*"]` siguen igual con sus comentarios (SEC1). El
+  comportamiento de CORS es el mismo: misma función, mismo valor por defecto (`Settings.cors_origins` =
+  `http://localhost:3000`), y sigue fallando al importar si hay comodín. `routers/user.py`: sin `import os`; importa
+  `Settings, get_settings`; `registrar_turista` tiene `settings: Settings = Depends(get_settings)` como último
+  parámetro, con su línea `Args`, y `frontend_url = settings.frontend_url.rstrip("/")`. Ruta `/registro`,
+  `response_model`, `status_code` y textos sin cambios. El router solo orquesta: recibe, delega en `UserService` y
+  encola el correo. `test_main.py`: los imports dictados; el helper `_allowed_origins()` toma el único `Middleware`
+  con `cls is CORSMiddleware`; `:49` usa `Settings.model_fields["cors_origins"].default`; el resto usa
+  `_allowed_origins()`; `test_configured_cors_origins_have_no_wildcard` añade la igualdad dictada. `test_auth.py`:
+  `from app.main import app` y el test con el nombre, el override y el `assert_called_once_with` dictados.
+- RED: con el código de `feabea0`, el `base_url` era `http://localhost:3000`, el valor de `os.getenv` que el override
+  de `get_settings` no alcanza. El RED de ejecución lo pegó el ejecutor (`handoff-Fase_F.md:57-62`); es coherente con el
+  diff y con M7.
+- M7, en una copia `git archive 311b19e` del scratchpad sin `.env` (`test ! -e .env`). El `sed` del plan deja
+  `68:    frontend_url = settings.frontend_url`; `tests/test_auth.py -k frontend_url` → `1 failed, 19 deselected`
+  (`FAILED tests/test_auth.py::test_register_builds_the_verification_link_from_frontend_url`, `Actual: … base_url='https://front.example/'`).
+  En otra copia, sin mutante (`68:    frontend_url = settings.frontend_url.rstrip("/")`) → `1 passed, 19 deselected`.
+- Suite exportada sin `.env` y con `env -u` de las 5 obligatorias → `576 passed, 5 warnings`.
+- Criterios y Verificación final. `git grep -n "DEFAULT_CORS_ORIGINS" -- app tests` → sin salida. #5 → 2 líneas, su
+  valor final: `app/main.py:168` (docstring de `parse_cors_origins`) y `app/main.py:187` (su `ValueError`). #6 → sin
+  salida. #1 → 3 líneas, todas en `app/core/storage.py:42-44` (fase G). #9 sigue en 3 líneas. `git grep -n -E "import os|getenv" -- app/main.py app/api/routers/user.py` → sin salida.
+- Desviación declarada (a), `assert isinstance(origins, list)` en `_allowed_origins()`: aceptable. Starlette tipa
+  `Middleware.kwargs` con valores `object`, y la aserción estrecha el tipo sin `cast` ni `type: ignore`. No oculta
+  nada: si el middleware recibiera otra cosa que una lista, el helper fallaría en voz alta, que es más estricto que un
+  `cast`. Hace redundante el `assert isinstance(_allowed_origins(), list)` que sigue en el test, pero esa línea viene
+  del test original y el plan no la quita. No es hallazgo.
+- Desviación declarada (b), `# === CORS ===` en `app/main.py:164` seguido de dos líneas en blanco: no es hallazgo.
+  `ruff format` lo acepta, deja las dos líneas que PEP 8 pide antes de una función de nivel superior, la cabecera sigue
+  encabezando la sección y no afecta a la corrección ni a ningún requisito del plan. Tocarla saldría de lo dictado.
+- AGENTS: el router recibe la configuración por `Depends` (§3, decisión 2 del plan); `app/services` no importa
+  `fastapi` ni `starlette`; import-linter: 4 kept. El test nuevo afirma sobre el código HTTP y sobre la llamada al
+  mock con todos sus argumentos (`mock_send_email`, doble global de `tests/conftest.py`), sin texto en español. Su
+  override de `get_settings` lo limpia el `dependency_overrides.clear()` del fixture `client`. No hay excepciones de
+  dominio nuevas. El texto no dictado (docstring de `_allowed_origins`, línea `Args` de `settings`) no nombra variables
+  de entorno en mayúsculas. El límite E0.7 (Azure sigue con `os.getenv` hasta G) está aceptado: no es hallazgo.
