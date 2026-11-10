@@ -1,6 +1,6 @@
 {
   "plan_file": "docs/deuda/A4/plan.md",
-  "current_target": "Fase_H",
+  "current_target": "Fase_I",
   "phases": {
     "Fase_A": {
       "status": "completed",
@@ -38,8 +38,8 @@
       "description": "AzureStorageClient takes explicit values; get_storage_client builds it from injected Settings; test_storage without setenv; M8. Target: 577 passed, ruff 4, mypy 0."
     },
     "Fase_H": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "c2ffea8",
       "description": ".env.example complete and valid (7 keys added, :20-22 fixed); CI gate env block removed; two .env.example tests. Target: 579 passed, ruff 4, mypy 0."
     },
     "Fase_I": {
@@ -53,6 +53,6 @@
     "partial",
     "completed"
   ],
-  "last_handoff": "Fase_G completada (714e05a): AzureStorageClient.__init__ recibe connection_string, container_name y temporal_container_name explícitos (fuera import os; ValueError si la cadena está vacía); get_storage_client recibe settings por Depends(get_settings); E1: fuera '# Repository injection' y '# Service injection' de dependencies.py; test_storage sin setenv/delenv + test nuevo from_settings (RED TypeError); compuerta fila G (577 passed, ruff 4, mypy Success 55, 60 formatted, 4 kept, cobertura 96.29 % >= 96.11 %); M8 1 failed; suite exportada sin .env 577 passed; Verificación final #1 ya vacía.",
+  "last_handoff": "Fase_H completada (c2ffea8): .env.example completo y válido (ALGORITHM/ACCESS/VERIFICATION con los defaults; bloque Email con 5 claves; AZURE_TEMPORAL_CONTAINER_NAME; bloque Frontend con FRONTEND_URL), solo placeholders; ci-pipeline.yml sin bloque env: (E0/P4) y con el comentario dictado, YAML válido (PyYAML 6.0.3); 2 tests nuevos en test_config.py (RED: int_parsing + mail_* missing; 7 claves faltantes); compuerta fila H (579 passed, ruff 4, mypy Success 55, 60 formatted, 4 kept, cobertura 96.29 % >= 96.11 %); suite exportada sin .env 579 passed. MD pendiente: David confirma en el log del CI del PR que la compuerta pasa sin env:.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
