@@ -1,4 +1,5 @@
-from datetime import datetime, UTC
+from datetime import UTC, datetime
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.sql.operators import or_

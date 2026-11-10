@@ -66,10 +66,6 @@ extend-exclude = ["alembic/versions", "venv", ".venv", "*.md"]
 select = ["E", "F", "W", "I", "B", "UP", "SIM", "ASYNC", "N", "D"]
 # D1xx = "falta docstring": se exige en código nuevo por AGENTS.md, no se retro-impone al existente.
 ignore = ["D100", "D101", "D102", "D103", "D104", "D105", "D106", "D107"]
-# I001 se reporta pero no se autocorrige (hook de edición, `check.py --fix`): reordenar imports de `app/`
-# cambia el orden de carga y `security.py` lee `JWT_SECRET_KEY` antes del `load_dotenv()` de otro módulo
-# (bitácora 2026-11-02, lección 11). Se retira al cerrar A4 (configuración centralizada).
-unfixable = ["I001"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
