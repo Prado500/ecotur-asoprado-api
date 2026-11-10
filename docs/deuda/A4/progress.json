@@ -1,6 +1,6 @@
 {
   "plan_file": "docs/deuda/A4/plan.md",
-  "current_target": "Fase_F",
+  "current_target": "Fase_G",
   "phases": {
     "Fase_A": {
       "status": "completed",
@@ -28,8 +28,8 @@
       "description": "Engine and Alembic via get_database_settings(), SMTP client via Settings (MAIL_FROM falls back to MAIL_USERNAME); CD-like alembic --sql unchanged; M6. Requires P1. Target: 575 passed, ruff 4, mypy 0."
     },
     "Fase_F": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "311b19e",
       "description": "CORS origins (main.py) and FRONTEND_URL (registration, Depends) from Settings; test_main reads the middleware's allow-list; M7. Target: 576 passed, ruff 4, mypy 0."
     },
     "Fase_G": {
@@ -53,6 +53,6 @@
     "partial",
     "completed"
   ],
-  "last_handoff": "Fase_E completada (59d75b7): database.py y alembic/env.py leen get_database_settings(), email.py construye el cliente SMTP con _smtp_config(get_settings()) (remitente = mail_sender); I001 de database.py y email.py ordenados; compuerta fila E (575 passed, ruff 4, mypy Success 55, 60 formatted, 4 kept, cobertura 96.21 % >= 96.11 % base, -0.02 frente a D por sentencias cubiertas borradas); M6 1 failed; alembic --sql solo con DATABASE_URL: exit 0, 116 lineas, identico a 55345a1; sin la URL exit 1 con database_url.",
+  "last_handoff": "Fase_F completada (311b19e): main.py pasa parse_cors_origins(get_settings().cors_origins) al middleware (fuera os, DEFAULT_CORS_ORIGINS y CORS_ORIGINS); registrar_turista recibe settings por Depends(get_settings) y usa settings.frontend_url.rstrip('/'); test_main lee la allow-list de app.user_middleware; test nuevo en test_auth (RED: base_url http://localhost:3000); compuerta fila F (576 passed, ruff 4, mypy Success 55, 60 formatted, 4 kept, cobertura 96.21 % >= 96.11 %); M7 1 failed; suite exportada sin .env 576 passed.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
