@@ -1,5 +1,3 @@
-import os
-
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -7,6 +5,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.exc import IntegrityError
 
 from app.api.routers import audit, service, user
+from app.core.config import get_settings
 from app.core.exceptions import (
     AccountNotActiveError,
     AlreadyExistsError,
@@ -163,7 +162,6 @@ async def domain_error_handler(request: Request, exc: DomainError):
 
 
 # === CORS ===
-DEFAULT_CORS_ORIGINS = "http://localhost:3000"
 
 
 def parse_cors_origins(raw: str) -> list[str]:
@@ -190,14 +188,10 @@ def parse_cors_origins(raw: str) -> list[str]:
     return origins
 
 
-# Read at import time with os.getenv, like the rest of the configuration (backlog A4
-# centralizes settings). `.env` is already loaded here: app.db.database loads it on
-# import and is imported transitively through app.api.routers above.
-CORS_ORIGINS: list[str] = parse_cors_origins(os.getenv("CORS_ORIGINS", DEFAULT_CORS_ORIGINS))
-
+# Allowed origins come from Settings.cors_origins (ADR-0013); wildcards are rejected at startup.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=CORS_ORIGINS,
+    allow_origins=parse_cors_origins(get_settings().cors_origins),
     allow_credentials=False,  # Bearer tokens are not CORS credentials; this API sets none.
     allow_methods=["*"],  # Open on purpose: only trusted origins get this far (backlog SEC1).
     allow_headers=["*"],

@@ -10,6 +10,7 @@ from app.core.security import (
     create_verification_token,
     get_password_hash,
 )
+from app.main import app
 from app.models.user import User, UserRole
 
 USER_PAYLOAD: dict[str, Any] = {
@@ -68,6 +69,22 @@ async def test_register_duplicate_returns_400_without_second_row(
 
     mock_send_email.assert_called_once_with(
         email_to=USER_PAYLOAD["email"], first_name="Juan", token=ANY, base_url=ANY
+    )
+
+
+async def test_register_builds_the_verification_link_from_frontend_url(client, mock_send_email):
+    """Edge case: the link base is the injected frontend_url, without its trailing slash."""
+    settings = get_settings().model_copy(update={"frontend_url": "https://front.example/"})
+    app.dependency_overrides[get_settings] = lambda: settings
+
+    response = await client.post("/usuarios/registro", json=USER_PAYLOAD)
+
+    assert response.status_code == 201
+    mock_send_email.assert_called_once_with(
+        email_to=USER_PAYLOAD["email"],
+        first_name="Juan",
+        token=ANY,
+        base_url="https://front.example",
     )
 
 
