@@ -1,6 +1,6 @@
 {
   "plan_file": "docs/deuda/A4/plan.md",
-  "current_target": "Fase_B",
+  "current_target": "Fase_C",
   "phases": {
     "Fase_A": {
       "status": "completed",
@@ -8,8 +8,8 @@
       "description": "Three JWT signature tests in test_token_failure_paths.py (foreign key on both decode paths, .env.example key); M1 2 failed/1 passed, M2 1 failed/2 passed. Target: 552 passed, ruff 8, mypy 9."
     },
     "Fase_B": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "43d28f5",
       "description": "app/core/config.py (DatabaseSettings, Settings, cached getters), root conftest.py test environment, tests/test_config.py (21 cases); suite passes from a git export without .env. Target: 573 passed, ruff 8, mypy 9 (55 checked)."
     },
     "Fase_C": {
@@ -53,6 +53,6 @@
     "partial",
     "completed"
   ],
-  "last_handoff": "Fase_A completada (21ee9fc): 3 tests de firma JWT; compuerta fila A exacta (552 passed, 96.11 %, ruff 8, mypy 9, 4 kept); M1 2 failed/1 passed, M2 1 failed/2 passed; sin desviaciones.",
+  "last_handoff": "Fase_B completada (43d28f5): config.py, conftest.py raíz y tests/test_config.py (21 casos); compuerta fila B exacta (573 passed, 96.23 %, ruff 8, mypy 9 en 55, 60 formatted, 4 kept); M9 y M10 1 failed; suite exportada sin .env 573 passed; desviación menor: 2 docstrings de config.py re-envueltos a 100 columnas.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
