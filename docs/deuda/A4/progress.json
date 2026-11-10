@@ -1,6 +1,6 @@
 {
   "plan_file": "docs/deuda/A4/plan.md",
-  "current_target": "Fase_I",
+  "current_target": null,
   "phases": {
     "Fase_A": {
       "status": "completed",
@@ -43,8 +43,8 @@
       "description": ".env.example complete and valid (7 keys added, :20-22 fixed); CI gate env block removed; two .env.example tests. Target: 579 passed, ruff 4, mypy 0."
     },
     "Fase_I": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "c122cb1",
       "description": "unfixable I001 out of pyproject.toml; I001 on the last 4 files. Target: 579 passed, ruff 0, mypy 0, Compuerta superada."
     }
   },
@@ -53,6 +53,6 @@
     "partial",
     "completed"
   ],
-  "last_handoff": "Fase_H completada (c2ffea8): .env.example completo y válido (ALGORITHM/ACCESS/VERIFICATION con los defaults; bloque Email con 5 claves; AZURE_TEMPORAL_CONTAINER_NAME; bloque Frontend con FRONTEND_URL), solo placeholders; ci-pipeline.yml sin bloque env: (E0/P4) y con el comentario dictado, YAML válido (PyYAML 6.0.3); 2 tests nuevos en test_config.py (RED: int_parsing + mail_* missing; 7 claves faltantes); compuerta fila H (579 passed, ruff 4, mypy Success 55, 60 formatted, 4 kept, cobertura 96.29 % >= 96.11 %); suite exportada sin .env 579 passed. MD pendiente: David confirma en el log del CI del PR que la compuerta pasa sin env:.",
+  "last_handoff": "Fase_I completada (c122cb1), última del plan: fuera unfixable I001 y su comentario de pyproject.toml; I001 ordenado con ruff en audit router, user_repository, audit schema y audit_service (solo líneas de import; sqlalchemy.future intacto, S2); compuerta fila I exit 0 (All checks passed!, mypy Success 55, 60 formatted, 4 kept, 579 passed, cobertura 96.29 %, Compuerta superada.); Verificación final 1-15 conforme, suite exportada sin .env 579 passed, alembic --sql idéntico a 55345a1. MD pendiente de H: David confirma en el log del CI del PR que la compuerta pasa sin env:.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
