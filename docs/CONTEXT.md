@@ -288,15 +288,13 @@ la Web App la hala al reiniciar. Operación: 2 clics.
 ## 8. Próximo paso
 
 Dónde estamos (estado al cierre de la bitácora `2026-11-09`): la semana está fechada con la capacidad nueva `(PLAN §3)`;
-**AF-12 y AF-13 saldadas en `item/af-12`** (dos fases, dos PASS, nueve commits; PR abierto al cierre, pendiente de MD1 en el log
-del CI y merge): la compuerta ya no depende de `lint-imports.exe` y nunca muere sin RESUMEN. **A4 no empezó**: Smart App Control
-bloqueó el binario al ir a verificarlo y el día se fue en AF-12/AF-13 (1 m, no ½). `develop` = `bb03f46` (PR #86); `item/af-12`
-= `f7b92c8` (código en `5cbdec1`): 549 tests · 96,11 % · ruff 8 · mypy 9 (A4) · 4 kept `(PLAN §6)`. Filas nuevas: AF-11, AF-14,
+**AF-12 y AF-13 hechas** (PR #87, `f6a4201`, mezclado a las 19:03; dos fases, dos PASS; MD1: import-linter en verde en el CI,
+que con el entry point solo puede ser contratos medidos): la compuerta ya no depende de `lint-imports.exe` y nunca muere sin RESUMEN. **A4 no empezó**: Smart App Control
+bloqueó el binario al ir a verificarlo y el día se fue en AF-12/AF-13 (1 m, no ½). `develop` = `f6a4201`: 549 tests · 96,11 % · ruff 8 · mypy 9 (A4) · 4 kept `(PLAN §6)`. Filas nuevas: AF-11, AF-14,
 AF-15 (`B-FUTURO`); notas en AF-09 y P2. Ruta de la semana (David, 9 nov): **A4 → CI duro → `B-GUARD-TESTS` → `B-GHOST-ADMIN`
 → puesta en `staging` → `B-RESERVAS`**, re-fechada un día en `(PLAN §3)`.
 
-0. **Primero el martes:** MD1 (log del CI de `item/af-12`: `Contracts: 4 kept, 0 broken.` bajo import-linter) → merge → filas
-   AF-12 y AF-13 a `Hecho (PR #N …)` en el backlog (misma versión 1.18) → `develop` actualizado antes de crear `item/a4`.
+0. Hecho el 9 nov por la noche: MD1, merge de PR #87, filas AF-12 y AF-13 a `Hecho`. `develop` = `f6a4201` al abrir el martes.
 1. **A4** (adelantado de `B-PAGOS`, en `B-TESTS`): rama `item/a4` desde `develop` con AF-12 mezclada; `/deuda-verificar A4`
    (15 `os.getenv` en 6 archivos: `security.py:7-10`, `email.py:12-16`, `storage.py:42-44`, `database.py:7`,
    `routers/user.py:66`, `main.py:196`; `tests/test_user_service.py:105,203,280,298`; línea base 549 tests); adenda: los dos
