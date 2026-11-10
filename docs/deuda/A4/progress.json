@@ -1,6 +1,6 @@
 {
   "plan_file": "docs/deuda/A4/plan.md",
-  "current_target": "Fase_G",
+  "current_target": "Fase_H",
   "phases": {
     "Fase_A": {
       "status": "completed",
@@ -33,8 +33,8 @@
       "description": "CORS origins (main.py) and FRONTEND_URL (registration, Depends) from Settings; test_main reads the middleware's allow-list; M7. Target: 576 passed, ruff 4, mypy 0."
     },
     "Fase_G": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "714e05a",
       "description": "AzureStorageClient takes explicit values; get_storage_client builds it from injected Settings; test_storage without setenv; M8. Target: 577 passed, ruff 4, mypy 0."
     },
     "Fase_H": {
@@ -53,6 +53,6 @@
     "partial",
     "completed"
   ],
-  "last_handoff": "Fase_F completada (311b19e): main.py pasa parse_cors_origins(get_settings().cors_origins) al middleware (fuera os, DEFAULT_CORS_ORIGINS y CORS_ORIGINS); registrar_turista recibe settings por Depends(get_settings) y usa settings.frontend_url.rstrip('/'); test_main lee la allow-list de app.user_middleware; test nuevo en test_auth (RED: base_url http://localhost:3000); compuerta fila F (576 passed, ruff 4, mypy Success 55, 60 formatted, 4 kept, cobertura 96.21 % >= 96.11 %); M7 1 failed; suite exportada sin .env 576 passed.",
+  "last_handoff": "Fase_G completada (714e05a): AzureStorageClient.__init__ recibe connection_string, container_name y temporal_container_name explícitos (fuera import os; ValueError si la cadena está vacía); get_storage_client recibe settings por Depends(get_settings); E1: fuera '# Repository injection' y '# Service injection' de dependencies.py; test_storage sin setenv/delenv + test nuevo from_settings (RED TypeError); compuerta fila G (577 passed, ruff 4, mypy Success 55, 60 formatted, 4 kept, cobertura 96.29 % >= 96.11 %); M8 1 failed; suite exportada sin .env 577 passed; Verificación final #1 ya vacía.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
