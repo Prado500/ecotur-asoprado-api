@@ -18,6 +18,7 @@ from fastapi_mail.errors import ConnectionErrors
 from pydantic import ValidationError
 
 from app.core import email as email_module
+from app.core.config import get_settings
 from app.core.email import send_verification_email
 
 RECIPIENT = "turista@test.com"
@@ -156,3 +157,17 @@ async def test_css_braces_are_rendered_unescaped(send_message: Any) -> None:
     assert body.count("}") == 9
     assert re.search(r"\{\s*\}", body) is None
     assert re.search(r"\.btn\s*\{", body) is not None
+
+
+def test_smtp_client_is_configured_from_settings() -> None:
+    """Edge case: the SMTP client takes its account, sender, port and server from Settings."""
+    s = get_settings()
+    config = email_module.fast_mail.config
+
+    assert (
+        config.MAIL_USERNAME,
+        config.MAIL_PASSWORD.get_secret_value(),
+        config.MAIL_FROM,
+        config.MAIL_PORT,
+        config.MAIL_SERVER,
+    ) == (s.mail_username, s.mail_password, s.mail_sender, s.mail_port, s.mail_server)

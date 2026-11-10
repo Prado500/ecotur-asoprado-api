@@ -1,14 +1,10 @@
-import os
-from dotenv import load_dotenv
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
-load_dotenv()
-DATABASE_URL = os.getenv("DATABASE_URL")
-
+from app.core.config import get_database_settings
 
 engine = create_async_engine(
-    DATABASE_URL, echo=True
+    get_database_settings().database_url, echo=True
 )  # con echo = True para verificar desde la terminal exactamente cuál sentencia sql ejecuta Python.
 """
  Handling of asynchronous requests according to concurrency levels
