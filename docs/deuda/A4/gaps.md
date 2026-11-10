@@ -117,3 +117,52 @@ Sin hallazgos. Evidencia:
 - AGENTS: sin mocks nuevos; tokens por la fábrica de `conftest.py`, ninguno a mano; inglés; ninguna aserción sobre
   texto en español; ninguna excepción de dominio nueva. E0 no afecta a C. La Verificación final #6 aún encuentra
   `tests/test_main.py:3,49` (`DEFAULT_CORS_ORIGINS`), que el plan asigna a la fase F: no es hallazgo de C.
+
+## Auditoría Fase D — 2026-11-10
+**Veredicto Fase D: PASS (0 bloqueantes, 2 opcionales).**
+
+[OPCIONAL] — Fase D — Tras el `ruff --fix` de I001, los comentarios `# Repository injection` y `# Service injection` ya no encabezan los bloques que describen: el primero queda entre `service_repository` y `user_repository`, el segundo tras `audit_service`, `tourist_services_service` y `user_access_policy`. No afecta a la corrección. El plan dicta solo el `--fix` y la fase G declara fuera de alcance "el resto de `dependencies.py`", así que el ejecutor hizo bien en no tocarlos. Destino: residual del PR o fila de backlog (retirarlos o dejar uno solo sobre el bloque `app.*`) — app/api/dependencies.py:13,20
+[OPCIONAL] — Fase D — Ya existía antes de esta fase y no forma parte del alcance de A4: `get_current_user` no comprueba `scope`, así que un token de verificación (`scope=email_verification`, `sub`=correo, 15 min) se acepta como bearer de un usuario activo. D no lo debilita: `git show d528748:app/api/dependencies.py | grep scope` → sin salida. Riesgo bajo, porque el portador es el dueño del correo. Destino: `docs/backlog.md` (seguridad, Baja) — app/api/dependencies.py:106-110
+
+Evidencia:
+
+- Árbol: `git status --short` limpio. `git diff --stat d528748..HEAD` → los 4 archivos de la fase (`e4602cf`, 75+/32-)
+  más `docs/deuda/A4/handoff-Fase_D.md` y `docs/deuda/A4/progress.json` (`1b43c2b`). Nada fuera de la fase.
+- Commit `e4602cf`: asunto idéntico al del plan (`refactor(auth): sign and verify JWTs with the injected Settings (A4)`).
+  El cuerpo da el porqué, un bullet por archivo, la compuerta y los mutantes, y termina en el trailer.
+- `progress.json`: JSON válido; `Fase_D` `completed` con `e4602cf` (hash real, `git show --stat` lo confirma);
+  `current_target` = `Fase_E`; `last_handoff` presente; `edit_rules` sin cambios en el diff de `1b43c2b`.
+- Compuerta re-ejecutada (`./venv/Scripts/python.exe scripts/check.py`, exit 1), fila D exacta:
+  `60 files already formatted` · ruff `Found 6 errors.`, los 6 I001 heredados (`routers/audit.py`, `email.py`,
+  `database.py`, `user_repository.py`, `schemas/audit.py`, `audit_service.py`), asignados a E e I · mypy
+  `Found 1 error in 1 file (checked 55 source files)` en `app\db\database.py:11` (fase E) ·
+  `Contracts: 4 kept, 0 broken.` · `574 passed, 5 warnings` · `TOTAL … 96.23%`, igual que C y ≥ 96.11 % de la base.
+- Archivos tocados: `ruff check` sobre los 4 → `All checks passed!`. `mypy` sobre los 4 → solo `database.py:11`,
+  que entra por el import y no es de esta fase. Han desaparecido `security.py:71,87`, `dependencies.py:95` y `user_service.py:124`.
+- Diff contra "Cambios exactos". `security.py`: sin `import os` ni las 4 constantes; `get_settings()` en las dos
+  funciones; docstrings con Args/Returns. `dependencies.py`: el import pasa a ser `Settings, get_settings`;
+  `settings: Settings = Depends(get_settings)` es el tercer parámetro; decode con `settings.jwt_secret_key` y
+  `[settings.algorithm]`; docstring con Args/Returns/Raises; I001 resuelto. `user_service.py`: pierde `SECRET_KEY, ALGORITHM`;
+  `settings = get_settings()` antes del `try`; I001 resuelto. Test: importa `get_settings` y `app`; test nuevo con el
+  nombre, las fábricas y el docstring dictados. Todo está presente y no hay nada de más.
+- Punto 1 (arquitectura): `git grep -n -E "os\.getenv|getenv\(|environ"` sobre los 3 archivos de `app/` → sin salida.
+  `security.py` y `user_service.py` no importan `fastapi` ni `starlette`; `dependencies.py`, que es capa HTTP, sí, y recibe
+  `Settings` por `Depends`. import-linter: 4 kept.
+- Punto 2 (seguridad): las dos rutas siguen fijando la lista de algoritmos (`algorithms=[settings.algorithm]`,
+  dependencies.py:107, user_service.py:124), sin `options`, así que la verificación de firma y de `exp` sigue por defecto.
+  `sub` sigue comprobándose en dependencies.py:109 y `sub`+`scope` en user_service.py:136. `alg=none` tampoco se cuela:
+  PyJWT rechaza `none` con clave no vacía, y `jwt_secret_key` es `min_length=1`. El origen del algoritmo es el mismo que
+  antes (variable de entorno con default `HS256`); ahora además pasa por la validación de `Settings`.
+- Punto 3b: la única llamada directa a `get_current_user` del repo (`git grep -n "get_current_user("`) está en
+  tests/test_token_failure_paths.py:262 y pasa `settings=get_settings()`. El handoff dice `:263`, una línea de
+  desfase que no cambia nada.
+- Punto 3c: `git ls-files --eol` → `i/lf w/lf attr/text=auto eol=lf` en los 4 archivos.
+- Mutantes re-medidos en copias `git archive e4602cf` del scratchpad, sin `.env`, una por mutante. Sin mutante
+  (`-k "signed_with or injected_settings"`) → `4 passed, 14 deselected`. M1' (`107: … options={"verify_signature":
+  False, "verify_exp": True})`, `-k signed_with`) → `2 failed, 1 passed, 15 deselected`. M2' (`124: …` igual) →
+  `1 failed, 2 passed, 15 deselected`. M5 (`107: jwt.decode(token, get_settings().jwt_secret_key, …`,
+  `-k injected_settings`) → `1 failed, 17 deselected`. Coinciden con el plan y con el handoff.
+- AGENTS: el test nuevo usa las fábricas (`persist_user`, `make_auth_headers`), no tiene mocks, y el override lo limpia
+  `dependency_overrides.clear()` (tests/conftest.py:96). Afirma código, cabecera y estructura con `_assert_bearer_401`,
+  sin texto en español. No hay excepciones de dominio nuevas. El texto no dictado no nombra variables de entorno en
+  mayúsculas en `app/` y no usa "another/other key" ni "forged" en `tests/`. E0 no afecta a D.
