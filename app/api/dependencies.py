@@ -9,15 +9,11 @@ from app.db.database import get_db
 from app.models.user import User, UserRole
 from app.repositories.audit_repository import AuditRepository
 from app.repositories.service_repository import ServiceRepository
-
-# Repository injection
 from app.repositories.user_repository import UserRepository
 from app.schemas.token import TokenData
 from app.services.audit_service import AuditService
 from app.services.tourist_services_service import TouristServicesService
 from app.services.user_access_policy import UserAccessPolicy
-
-# Service injection
 from app.services.user_service import UserService
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="usuarios/login")
@@ -59,8 +55,24 @@ def get_user_service(
 # --- AZURE BLOB STORAGE DEPENDENCY HANDLING --- #
 
 
-def get_storage_client() -> AzureStorageClient:
-    return AzureStorageClient()
+def get_storage_client(settings: Settings = Depends(get_settings)) -> AzureStorageClient:
+    """Builds the Azure Blob Storage adapter from the injected settings.
+
+    The adapter reads no configuration of its own (ADR-0013): the connection string and both
+    container names come from Settings, so overriding get_settings changes them.
+
+    Args:
+        settings (Settings): Application settings; supplies the connection string and the
+            permanent and temporal container names.
+
+    Returns:
+        AzureStorageClient: Adapter bound to the configured account and containers.
+    """
+    return AzureStorageClient(
+        connection_string=settings.azure_storage_connection_string,
+        container_name=settings.azure_container_name,
+        temporal_container_name=settings.azure_temporal_container_name,
+    )
 
 
 def get_service_service(
