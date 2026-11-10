@@ -400,3 +400,55 @@ Sin hallazgos. Evidencia, medida por el auditor (no copiada del handoff):
 - MD de la fase (David, en el PR): el log del paso "Compuerta de calidad (scripts/check.py)" del CI sin `env:`.
   Pendiente; la medición local con `env -i` lo anticipa.
 - AGENTS: sin código de `app/`, sin excepciones de dominio, sin dobles; tests en inglés con docstring.
+
+## Auditoría Fase I — 2026-11-10
+**Veredicto Fase I: PASS (0 bloqueantes, 0 opcionales).**
+
+Sin hallazgos en la fase ni en el cierre del ítem. Evidencia, medida por el auditor (no copiada del handoff):
+
+- Árbol: `git status --short` vacío al empezar. HEAD `3298a91` (progreso) sobre `c122cb1` (fase) sobre `88425c4`.
+- `progress.json` (`git show 3298a91`): `Fase_I` pasa a `completed` con `c122cb1`; `current_target` `Fase_I` → `null`
+  (convención de cierre: los 13 `docs/deuda/*/progress.json` del repo lo tienen en `null`); `last_handoff` reescrito;
+  `edit_rules` idéntico en las 10 versiones del archivo (`md5sum` único); JSON válido, 9 fases `completed`. Hashes de
+  A–I (`21ee9fc`, `43d28f5`, `cbf439c`, `e4602cf`, `59d75b7`, `311b19e`, `714e05a`, `c2ffea8`, `c122cb1`) reales
+  (`git log -1`) y cada asunto coincide letra por letra con el "Commit:" de su fase en `plan.md`.
+- Commit `c122cb1`: mensaje exacto del plan (`plan.md:562`), cuerpo con el porqué y `Co-Authored-By`. Archivos: los 5
+  de `plan.md:553-554` (10+/11-), ningún otro.
+- Cambios exactos: `pyproject.toml` pierde solo las 3 líneas de comentario y `unfixable = ["I001"]`. Los 4 archivos de
+  `app/` cambian solo líneas del bloque de imports. **Reproducido:** en una copia `git archive 88425c4`
+  (scratchpad `audI_ruff`), borrar esas 4 líneas da un `pyproject.toml` idéntico al de `c122cb1`, y el comando literal
+  del plan (`ruff check --select I001 --fix <4 archivos>`) → `Found 4 errors (4 fixed, 0 remaining).`, con los 4
+  archivos idénticos (`diff`) a los de `c122cb1`. `from sqlalchemy.future import select` sigue en
+  `app/repositories/user_repository.py:4` (S2). Archivos tocados: `ruff check` → `All checks passed!`; `mypy` →
+  `Success: no issues found in 4 source files`.
+- Compuerta (`./venv/Scripts/python.exe scripts/check.py`, sin `--soft`, exit 0) = fila I (`plan.md:141`):
+  `60 files already formatted` · `All checks passed!` · `Success: no issues found in 55 source files` ·
+  `Contracts: 4 kept, 0 broken.` · `579 passed, 5 warnings` · `TOTAL 968 22 138 19 96.29%` (≥ 96.11 %,
+  `plan.md:128`; igual que H) · `Compuerta superada.` Coincide con el handoff.
+- Verificación final (`plan.md:564-605`), sobre `3298a91` (= `c122cb1` en código):
+  #1 → 0 · #2 → 1 (`conftest.py:28`) · #3 → 2 (`tests/test_config.py:13`, `tests/test_token_failure_paths.py:16`) ·
+  #4 → 3 (`app/core/config.py:13,20,30`) · #5 → 2 (`app/main.py:168,187`) · #6 → 0 · #7 → 0 · #8 → `unfixable` 0,
+  `env:` 0, `--soft` 2 (`ci-pipeline.yml:28,31`) · #9 → 3 (`tests/test_token_failure_paths.py:59,191,204`) ·
+  #10 → `All checks passed!` y `Success: no issues found in 55 source files` · #11 → bloque anterior.
+  En copias `git archive` sin `.env` (`test ! -e .env` en las dos; scratchpad `audI_head` = `HEAD`, `audI_base` =
+  `55345a1`): #12 `env -u` de las 5 obligatorias → `579 passed, 5 warnings` · #13 `env -i` con las 5 → exit 0 en `HEAD`
+  y en `55345a1` · #14 sin `JWT_SECRET_KEY` → `HEAD` exit 1, stderr `jwt_secret_key` 1, `Field required` 1,
+  `a@test.com` 0 (`55345a1`: exit 0, como dice el plan) · #15 solo `DATABASE_URL` → exit 0 y 116 líneas en las dos,
+  `cmp` idénticos; sin `DATABASE_URL` en `HEAD` → exit 1, `database_url` en stderr. Todo coincide con el handoff.
+- Cierre del ítem: `git diff --stat 55345a1 HEAD` → 40 archivos. Código y configuración: exactamente los de la Regla de
+  alcance (`plan.md:118-123`): `app/core/config.py`, `conftest.py`, `tests/test_config.py`, los 8 consumidores,
+  `alembic/env.py`, los 7 tests existentes, `.env.example`, `ci-pipeline.yml` (solo el bloque `env:` y el comentario
+  dictado), `pyproject.toml` (solo `unfixable`) y los 4 I001. El resto es documentación del flujo: ADR-0013
+  (`db2be61`, con el plan), bitácora del 10 nov (`7f46c5e`, `e6feb08`), `docs/deuda/A4/*`. Sin diff desde `8cea834` en
+  `cd-pipeline.yml`, `Dockerfile`, `docker-compose.yml`, `docs/CONTEXT.md`, `docs/PLAN.md`; `docs/backlog.md` solo
+  cambia en `8cea834..55345a1` (verificación, antes de la base). `git grep -E "getenv|load_dotenv|os\.environ" -- app
+  alembic` → 0. Fuera de `docs/`, ninguna mención de `unfixable`, `load_dotenv` ni `os.getenv`.
+- Opcionales previos con destino: los dos de la fase D. El 1 lo resolvió E1 en la fase G
+  (`git grep -n -E "# (Repository|Service) injection" -- app/api/dependencies.py` → 0); el 2 queda fuera de A4 como
+  BE-42 por decisión de David (E1, `plan.md:652-653`). A–C y E–H, sin opcionales.
+- AGENTS: la fase solo reordena imports; sin código nuevo, sin excepciones de dominio, sin tests nuevos.
+- Pendiente humano antes del PR (no es hallazgo): (1) MD de H/P4: el log del paso "Compuerta de calidad
+  (scripts/check.py)" del CI del PR, sin `env:`. (2) E0.8 y E1: las filas del backlog (residuales 1–4 y 6 del plan,
+  longitud mínima de `jwt_secret_key`, BE-42) las escribe la sesión Mentor; hoy `git grep -n "BE-42" -- docs/backlog.md`
+  no da nada. La fila A4 (`docs/backlog.md:98`) sigue en `Entra · B-PAGOS`. (3) La descripción del PR declara el límite
+  de E0.7 (commits de E y F con `.env` local). (4) Residuales 5 y 7 → CI duro (`--soft` sale tras medir `develop`).
