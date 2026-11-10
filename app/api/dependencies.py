@@ -3,22 +3,22 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import Settings, get_settings
 from app.core.storage import AzureStorageClient
 from app.db.database import get_db
 from app.models.user import User, UserRole
 from app.repositories.audit_repository import AuditRepository
-from app.schemas.token import TokenData
-from app.core.security import SECRET_KEY, ALGORITHM
+from app.repositories.service_repository import ServiceRepository
 
 # Repository injection
 from app.repositories.user_repository import UserRepository
-from app.repositories.service_repository import ServiceRepository
+from app.schemas.token import TokenData
 from app.services.audit_service import AuditService
+from app.services.tourist_services_service import TouristServicesService
+from app.services.user_access_policy import UserAccessPolicy
 
 # Service injection
 from app.services.user_service import UserService
-from app.services.user_access_policy import UserAccessPolicy
-from app.services.tourist_services_service import TouristServicesService
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="usuarios/login")
 
@@ -75,15 +75,27 @@ def get_service_service(
 
 
 async def get_current_user(
-    token: str = Depends(oauth2_scheme), user_repo: UserRepository = Depends(get_user_repository)
+    token: str = Depends(oauth2_scheme),
+    user_repo: UserRepository = Depends(get_user_repository),
+    settings: Settings = Depends(get_settings),
 ) -> User:
     """Decodes the given JWT token and resolves the active user it identifies.
 
-    Verifies payload consistency, lifespan status (unexpired or expired) and user enabling
-    (only active users are allowed).
+    Verifies signature, payload consistency, lifespan status (unexpired or expired) and user
+    enabling (only active users are allowed). The signature is checked with the injected
+    settings, so a test or a key rotation that overrides get_settings is honoured.
 
-    It's injected with a UserRepository instance for user-state consulting against the
-    persistence layer.
+    Args:
+        token (str): Bearer token extracted by the OAuth2 scheme.
+        user_repo (UserRepository): Repository used to consult the user state.
+        settings (Settings): Application settings; supplies the JWT key and algorithm.
+
+    Returns:
+        User: The active, non-deleted user named by the token subject.
+
+    Raises:
+        HTTPException: 401 when the token is expired, corrupt, wrongly signed, has no
+            subject, or names no active user.
     """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -92,7 +104,7 @@ async def get_current_user(
     )
 
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.algorithm])
         email: str | None = payload.get("sub")
         if email is None:
             raise credentials_exception

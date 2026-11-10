@@ -19,8 +19,10 @@ from httpx import AsyncClient, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_user
+from app.core.config import get_settings
 from app.core.exceptions import InvalidVerificationTokenError
 from app.core.security import create_access_token, create_verification_token
+from app.main import app
 from app.models.user import User
 from app.repositories.user_repository import UserRepository
 from app.services.audit_service import AuditService
@@ -234,6 +236,19 @@ async def test_access_token_signed_with_the_env_example_key_returns_401(
     _assert_bearer_401(response)
 
 
+async def test_protected_route_verifies_with_the_injected_settings(
+    client: AsyncClient, persist_user: PersistUser, make_auth_headers: AuthHeaders
+) -> None:
+    """Edge case: get_current_user verifies with the Settings it is given, not a module copy."""
+    user = await persist_user()
+    rotated = get_settings().model_copy(update={"jwt_secret_key": FOREIGN_KEY})
+    app.dependency_overrides[get_settings] = lambda: rotated
+
+    response = await client.get(PROTECTED_ROUTE, headers=make_auth_headers(user))
+
+    _assert_bearer_401(response)
+
+
 @pytest.mark.parametrize(
     ("build_token", "expected_cause"),
     [(_expired_token, jwt.ExpiredSignatureError), (_corrupt_token, jwt.DecodeError)],
@@ -244,7 +259,7 @@ async def test_get_current_user_chains_the_jwt_error_as_cause(
 ) -> None:
     """The 401 keeps the JWT error as its cause, and the repository is never consulted."""
     with pytest.raises(HTTPException) as exc_info:
-        await get_current_user(token=build_token(), user_repo=user_repo)
+        await get_current_user(token=build_token(), user_repo=user_repo, settings=get_settings())
 
     assert exc_info.value.status_code == 401
     assert type(exc_info.value.__cause__) is expected_cause
