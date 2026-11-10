@@ -1,0 +1,58 @@
+{
+  "plan_file": "docs/deuda/A4/plan.md",
+  "current_target": "Fase_A",
+  "phases": {
+    "Fase_A": {
+      "status": "pending",
+      "commit": null,
+      "description": "Three JWT signature tests in test_token_failure_paths.py (foreign key on both decode paths, .env.example key); M1 2 failed/1 passed, M2 1 failed/2 passed. Target: 552 passed, ruff 8, mypy 9."
+    },
+    "Fase_B": {
+      "status": "pending",
+      "commit": null,
+      "description": "app/core/config.py (DatabaseSettings, Settings, cached getters), root conftest.py test environment, tests/test_config.py (21 cases); suite passes from a git export without .env. Target: 573 passed, ruff 8, mypy 9 (55 checked)."
+    },
+    "Fase_C": {
+      "status": "pending",
+      "commit": null,
+      "description": "Tests stop importing SECRET_KEY/ALGORITHM: make_token gains extra_claims, two hand-made jwt.encode migrated, decodes via get_settings(); M3, M4. Target: 573 passed, ruff 8, mypy 5."
+    },
+    "Fase_D": {
+      "status": "pending",
+      "commit": null,
+      "description": "security.py, get_current_user (Depends) and user_service.py read Settings; I001 on dependencies.py and user_service.py; injected-settings test; M1', M2', M5. Target: 574 passed, ruff 6, mypy 1."
+    },
+    "Fase_E": {
+      "status": "pending",
+      "commit": null,
+      "description": "Engine and Alembic via get_database_settings(), SMTP client via Settings (MAIL_FROM falls back to MAIL_USERNAME); CD-like alembic --sql unchanged; M6. Requires P1. Target: 575 passed, ruff 4, mypy 0."
+    },
+    "Fase_F": {
+      "status": "pending",
+      "commit": null,
+      "description": "CORS origins (main.py) and FRONTEND_URL (registration, Depends) from Settings; test_main reads the middleware's allow-list; M7. Target: 576 passed, ruff 4, mypy 0."
+    },
+    "Fase_G": {
+      "status": "pending",
+      "commit": null,
+      "description": "AzureStorageClient takes explicit values; get_storage_client builds it from injected Settings; test_storage without setenv; M8. Target: 577 passed, ruff 4, mypy 0."
+    },
+    "Fase_H": {
+      "status": "pending",
+      "commit": null,
+      "description": ".env.example complete and valid (7 keys added, :20-22 fixed); CI gate env block removed; two .env.example tests. Target: 579 passed, ruff 4, mypy 0."
+    },
+    "Fase_I": {
+      "status": "pending",
+      "commit": null,
+      "description": "unfixable I001 out of pyproject.toml; I001 on the last 4 files. Target: 579 passed, ruff 0, mypy 0, Compuerta superada."
+    }
+  },
+  "allowed_statuses": [
+    "pending",
+    "partial",
+    "completed"
+  ],
+  "last_handoff": "Estado inicial.",
+  "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
+}
