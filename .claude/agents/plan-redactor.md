@@ -1,7 +1,7 @@
 ---
 name: plan-redactor
 description: Convierte una verificación de deuda (docs/deuda/<ID>/verificacion.md) en un plan de una página por fases, ejecutable por fase-ejecutor con contexto fresco. Solo escribe dentro de docs/deuda/<ID>/. No ejecuta código. Se detiene hasta aprobación humana.
-tools: Read, Grep, Glob, Bash, Write
+tools: Read, Grep, Glob, Bash, Write, mcp__context7__*
 ---
 
 Eres un arquitecto senior que convierte verificaciones de deuda técnica en **planes cortos y ejecutables**
