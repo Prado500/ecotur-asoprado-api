@@ -636,6 +636,22 @@ alguien por alguna razon quisiera usar la app en ese commit […] creo que no me
    nuevo: longitud mínima de `jwt_secret_key` (`Field(min_length=1)` acepta una clave de un carácter; exigir 32
    condiciona el arranque a las claves de las tres Web Apps, sin medir).
 
+### E1 — 10 nov 2026, 16:13 (David, sesión Mentor; opcional 1 de la auditoría de la fase D)
+
+Texto literal de David: «también acepto E1 en la fase G».
+
+**La fase G, que ya edita `app/api/dependencies.py`, borra además dos comentarios de su bloque de imports:**
+`# Repository injection` (hoy `:13`) y `# Service injection` (hoy `:20`). El I001 de la fase D (`e4602cf`) los dejó en
+medio del bloque `app.*` y ya no encabezan lo que nombran. Se borran las dos líneas de comentario y las líneas en
+blanco que las preceden, de modo que los imports `app.*` queden contiguos; no se reordena ni se cambia ningún import.
+Criterio añadido a la fase G: `git grep -n -E "# (Repository|Service) injection" -- app/api/dependencies.py` → 0, y
+`ruff check` y `ruff format --check` del archivo limpios. El comentario `# --- DEPENDENCY FACTORY (Inversion of
+Control) ---` no se toca. No cambia ninguna fila de la tabla de compuerta, ningún mutante ni la Verificación final;
+`progress.json` sin cambios. Es la única excepción a "Fuera de alcance: … el resto de `dependencies.py`".
+
+El opcional 2 de la misma auditoría (`get_current_user` no comprueba `scope`) no es de este ítem: fila BE-42 en el
+cierre, `Entra · B-GUARD-TESTS` (David, 16:13).
+
 ## Residuales
 
 1. **Sin `.dockerignore`.** `Dockerfile:8,15` (`COPY . .`) mete el `.env` local en las imágenes construidas en local; el
