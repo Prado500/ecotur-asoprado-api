@@ -76,3 +76,44 @@ Sin hallazgos. Evidencia de la auditoría (contexto fresco, `handoff-auditor`):
   de la fase A (`tests/test_token_failure_paths.py:57`, `:189`, `:202`).
 - AGENTS: sin mocks; sin usuarios ni tokens a mano; inglés; docstrings Google en lo público; aserciones sobre
   `type`/`loc` de pydantic, valores e identidad, ninguna sobre texto en español. Ninguna excepción de dominio nueva.
+
+## Auditoría Fase C — 2026-11-10
+**Veredicto Fase C: PASS (0 bloqueantes, 0 opcionales).**
+
+Sin hallazgos. Evidencia:
+
+- Árbol: `git status --short` limpio. `git diff --stat 41a457a..HEAD` → solo `tests/conftest.py`, `tests/test_auth.py`,
+  `tests/test_user_service.py` (commit `cbf439c`, 38+/30-) y `docs/deuda/A4/handoff-Fase_C.md`,
+  `docs/deuda/A4/progress.json` (commit `429b17c`). Nada en `app/`.
+- Commit `cbf439c`: asunto idéntico al del plan (`test(auth): drop JWT constant imports; sign tokens with make_token (A4)`);
+  cuerpo con el porqué (D borra las constantes), un bullet por archivo, M3/M4 y el trailer.
+- `progress.json`: JSON válido; `Fase_C` `completed` con `cbf439c` (hash real, `git show --stat` lo confirma);
+  `current_target` = `Fase_D`; `last_handoff` presente; `edit_rules` idéntico al de `41a457a`.
+- Diff contra "Cambios exactos": `make_token` con `extra_claims: dict[str, Any] | None = None` keyword-only, mezclado con
+  `update` sobre `{"sub", "role"}` y documentado en el docstring (`tests/conftest.py:219-227`), `from typing import Any`;
+  `test_user_service.py` importa solo `create_verification_token, get_password_hash` + `get_settings`, los dos decodes con
+  `settings.jwt_secret_key`/`[settings.algorithm]`, los dos `jwt.encode` sustituidos por las llamadas a `make_token`
+  dictadas y sus tests reciben `make_user, make_token`; `from datetime import timedelta`. `test_auth.py`: fuera
+  `ALGORITHM, SECRET_KEY` y `assert SECRET_KEY is not None`; decode con `get_settings()`. Todo presente, nada de más.
+- Punto a juzgar (token de scope equivocado con `role` y 30 min en vez de 5): aceptable, no debilita el test.
+  `verify_email_account` (`app/services/user_service.py:123-138`) solo mira firma, `exp`, `sub` y `scope`; ignora `role`.
+  El token tiene firma válida, `exp` futuro (30 min o 5, da igual: no caduca durante el test) y `sub` presente, así que
+  el único motivo posible del `InvalidVerificationTokenError` es `scope`; M4 (quitar el chequeo de scope) lo mata
+  (`1 failed`). El claim `role` además lo acerca a un token de acceso real. `make_token(extra_claims=...)` se ajusta a lo
+  dictado (tipo, keyword-only, mezcla "sobre" la base, docstring).
+- Compuerta re-ejecutada (`./venv/Scripts/python.exe scripts/check.py`, exit 1): `60 files already formatted` ·
+  `Found 8 errors.` (los 8 I001 heredados en `app/`: `dependencies.py`, `routers/audit.py`, `email.py`, `database.py`,
+  `user_repository.py`, `schemas/audit.py`, `audit_service.py`, `user_service.py`) ·
+  `Found 5 errors in 4 files (checked 55 source files)` (`database.py:11`, `security.py:71,87`, `user_service.py:124`,
+  `dependencies.py:95`; desaparecen los 4 de `tests/test_user_service.py`) · `Contracts: 4 kept, 0 broken.` ·
+  `573 passed, 5 warnings` · `TOTAL … 96.23%`. Fila C exacta; cobertura = B (96.23 %) ≥ base (96.11 %).
+- Archivos tocados: `ruff check` → `All checks passed!`; `mypy tests/conftest.py tests/test_user_service.py
+  tests/test_auth.py` → ninguna línea `tests…` (los 5 errores que informa son de `app/`, seguidos por import).
+- Criterio: `git grep -n -E "\bSECRET_KEY\b|import .*\bALGORITHM\b|ALGORITHM,$" -- tests` → sin salida (exit 1).
+- Mutantes re-medidos en copias `git archive HEAD` del scratchpad, sin `.env`: sin mutante
+  (`-k "expired_token or wrong_scope"`) `2 passed, 17 deselected`; M3 (`124: … options={"verify_exp": False})`)
+  `-k expired_token` → `1 failed, 18 deselected`; M4 (`137: if email is None:`) `-k wrong_scope` →
+  `1 failed, 18 deselected`. Coinciden con el plan y el handoff.
+- AGENTS: sin mocks nuevos; tokens por la fábrica de `conftest.py`, ninguno a mano; inglés; ninguna aserción sobre
+  texto en español; ninguna excepción de dominio nueva. E0 no afecta a C. La Verificación final #6 aún encuentra
+  `tests/test_main.py:3,49` (`DEFAULT_CORS_ORIGINS`), que el plan asigna a la fase F: no es hallazgo de C.
