@@ -348,3 +348,55 @@ Sin hallazgos. Evidencia:
   un fallo produciría el 500 genérico de Starlette sin el mensaje. Además, con `Settings` (`min_length=1`), la rama no
   se alcanza por `get_storage_client`. El texto nuevo no nombra variables en mayúsculas en `app/` ("Texto no
   dictado") y no altera los conteos de la Verificación final.
+
+## Auditoría Fase H — 2026-11-10
+**Veredicto Fase H: PASS (0 bloqueantes, 0 opcionales).**
+
+Sin hallazgos. Evidencia, medida por el auditor (no copiada del handoff):
+
+- Árbol: `git status --short` vacío al empezar. HEAD `8a06b91` (progreso) sobre `c2ffea8` (fase) sobre `8d1afcb`.
+- `progress.json` (`git diff 8d1afcb 8a06b91`): `Fase_H` pasa a `completed` con `c2ffea8` (`git show --stat` lo
+  confirma); `current_target` `Fase_H` → `Fase_I`; `last_handoff` reescrito; `edit_rules` y `allowed_statuses` intactos;
+  JSON válido.
+- Commit `c2ffea8`: mensaje exacto del plan (`plan.md:550`), cuerpo con el porqué y `Co-Authored-By`. Archivos:
+  `.azure-pipelines/ci-pipeline.yml`, `.env.example`, `tests/test_config.py` (40+/8-), los tres de `plan.md:526`.
+  `git diff 8d1afcb HEAD --stat -- .azure-pipelines/cd-pipeline.yml` vacío (E0/P1).
+- Compuerta (`./venv/Scripts/python.exe scripts/check.py`, exit 1) = fila H (`plan.md:140`): `60 files already
+  formatted` · ruff `Found 4 errors.` (los I001 de `audit.py`, `user_repository.py`, `schemas/audit.py`,
+  `audit_service.py`, de la fase I) · `Success: no issues found in 55 source files` · `Contracts: 4 kept, 0 broken.` ·
+  `579 passed, 5 warnings` · `TOTAL 968 22 138 19 96.29%` (≥ 96.11 %, `plan.md:128`; igual que G: la fase no toca
+  `app/`) · `Compuerta NO superada: ruff check`. Archivo tocado: `ruff check`, `ruff format --check` y `mypy` de
+  `tests/test_config.py` limpios.
+- Cambios exactos, `.env.example`: `:20-22` → `HS256`, `30`, `15`; `:19` intacta. Bloque Email con las 5 claves y el
+  comentario dictados, tras el bloque JWT. `AZURE_TEMPORAL_CONTAINER_NAME=temp-ecotur-images` en `:39`, justo tras
+  `AZURE_CONTAINER_NAME` (`:38`) **dentro del bloque Azure** (`cat -A`): en el diff parece seguir a `MAIL_SERVER` solo
+  porque el hunk muestra como contexto el encabezado Azure entre las dos zonas añadidas. Bloque Frontend antes de CORS.
+  Sin secretos: solo placeholders (`cuenta_smtp@example.com`, `DIGITAR_CONTRASEÑA_DE_APLICACION`) y valores por defecto
+  públicos; `JWT_SECRET_KEY` es la línea previa, que el tercer test de A ya fija como no aceptada.
+- 15 campos: `dotenv_values(".env.example")` devuelve las 15 claves de `Settings` más las 5 `POSTGRES_*`. Carácter `Ñ`:
+  `dotenv_values` lee en `utf-8` por defecto (firma: `encoding='utf-8'`) y `Settings` usa `env_file_encoding="utf-8"`;
+  medido con locale `cp1252`, `utf8_mode 0`: `mail_password == "DIGITAR_CONTRASEÑA_DE_APLICACION"` → `True` en las
+  dos lecturas. Precedente: `POSTGRES_PASSWORD=DIGITAR_CONTRASEÑA_PRIVADA` (`:5`) ya estaba en la línea base.
+- CI (E0/P4): el bloque `env:` (5 líneas) desaparece entero; `yaml.safe_load` → 3 pasos (`task`, `script`, `script`),
+  `variables` con `pythonVersion` y `group: VG-ECOTUR-DEV`, el último paso sin `env`. Comentario dictado
+  (`plan.md:536`) en `:29`, sobre `- script:`. **El comentario es cierto:** en una copia `git archive HEAD` sin `.env`
+  (scratchpad `auditH_head`), con `env -i` (solo `PATH`, `SYSTEMROOT`, `TEMP`, `TMP`, `USERPROFILE`), `pytest` →
+  `579 passed`, y el comando literal del CI (`scripts/check.py --soft format,ruff,mypy`) → `Compuerta superada;
+  tolerados en rojo: ruff check`, exit 0. Ningún paso de la compuerta necesita una variable del CI.
+- Tests: los dos dictados, con el nombre, la firma y la aserción del plan (`plan.md:540-545`). RED repetido en copia
+  `git archive 8d1afcb` + `tests/test_config.py` de `c2ffea8` (`auditH_red`): `int_parsing` ×2 + `missing` ×2 y 7
+  claves sobrantes (`MAIL_*` ×5, `AZURE_TEMPORAL_CONTAINER_NAME`, `FRONTEND_URL`) → `2 failed`. No dependen de `.env`:
+  el primero pasa `_env_file=ENV_EXAMPLE` y borra los 15 campos con `_clear` (`monkeypatch.delenv`, se restaura al
+  salir); el segundo solo lee `.env.example`. `Settings(_env_file=…)` no escribe en `os.environ` y ninguno toca la
+  caché de `get_settings`: sin fuga entre tests. Sin aserciones sobre texto en español.
+- Criterios: `^\s+env:` en `ci-pipeline.yml` → 0; `tu_correo@gmail.com` → 0; Verificación final #1 → 0; #2 → 1
+  (`conftest.py:28`); #3 → 2 (`tests/test_config.py:13`, `tests/test_token_failure_paths.py:16`); #8 `--soft` → 2.
+  Suite exportada con `env -u` de las 5 obligatorias → `579 passed`. `git ls-files --eol` de los 3 archivos →
+  `i/lf w/lf`.
+- Desviaciones declaradas, aceptables (no son hallazgo): (a) los separadores `# ====` y la línea en blanco única siguen
+  el estilo de todos los bloques del archivo; el plan dicta el texto del encabezado y no su marco, y no alteran claves
+  ni conteos. (b) Que `ci-pipeline.yml` acabe en `\n` es consecuencia de borrar las últimas líneas (la base no tenía
+  salto final) y es lo correcto en POSIX; YAML válido.
+- MD de la fase (David, en el PR): el log del paso "Compuerta de calidad (scripts/check.py)" del CI sin `env:`.
+  Pendiente; la medición local con `env -i` lo anticipa.
+- AGENTS: sin código de `app/`, sin excepciones de dominio, sin dobles; tests en inglés con docstring.
