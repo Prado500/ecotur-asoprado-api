@@ -1,6 +1,6 @@
 {
   "plan_file": "docs/deuda/A4/plan.md",
-  "current_target": "Fase_E",
+  "current_target": "Fase_F",
   "phases": {
     "Fase_A": {
       "status": "completed",
@@ -23,8 +23,8 @@
       "description": "security.py, get_current_user (Depends) and user_service.py read Settings; I001 on dependencies.py and user_service.py; injected-settings test; M1', M2', M5. Target: 574 passed, ruff 6, mypy 1."
     },
     "Fase_E": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "59d75b7",
       "description": "Engine and Alembic via get_database_settings(), SMTP client via Settings (MAIL_FROM falls back to MAIL_USERNAME); CD-like alembic --sql unchanged; M6. Requires P1. Target: 575 passed, ruff 4, mypy 0."
     },
     "Fase_F": {
@@ -53,6 +53,6 @@
     "partial",
     "completed"
   ],
-  "last_handoff": "Fase_D completada (e4602cf): security.py, get_current_user (Depends(get_settings)) y verify_email_account leen Settings; I001 de dependencies.py y user_service.py ordenados; test de Settings inyectado (RED 200 -> 401); compuerta fila D exacta (574 passed, 96.23 %, ruff 6, mypy 1 en database.py:11, 60 formatted, 4 kept); M1' 2 failed/1 passed, M2' 1 failed/2 passed, M5 1 failed.",
+  "last_handoff": "Fase_E completada (59d75b7): database.py y alembic/env.py leen get_database_settings(), email.py construye el cliente SMTP con _smtp_config(get_settings()) (remitente = mail_sender); I001 de database.py y email.py ordenados; compuerta fila E (575 passed, ruff 4, mypy Success 55, 60 formatted, 4 kept, cobertura 96.21 % >= 96.11 % base, -0.02 frente a D por sentencias cubiertas borradas); M6 1 failed; alembic --sql solo con DATABASE_URL: exit 0, 116 lineas, identico a 55345a1; sin la URL exit 1 con database_url.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
