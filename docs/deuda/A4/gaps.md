@@ -295,3 +295,56 @@ Evidencia:
   override de `get_settings` lo limpia el `dependency_overrides.clear()` del fixture `client`. No hay excepciones de
   dominio nuevas. El texto no dictado (docstring de `_allowed_origins`, línea `Args` de `settings`) no nombra variables
   de entorno en mayúsculas. El límite E0.7 (Azure sigue con `os.getenv` hasta G) está aceptado: no es hallazgo.
+
+## Auditoría Fase G — 2026-11-10
+**Veredicto Fase G: PASS (0 bloqueantes, 0 opcionales).**
+
+Sin hallazgos. Evidencia:
+
+- Árbol y commits: `git status --short` limpio. `714e05a` (`refactor(storage): build the Azure adapter from injected
+  Settings (A4)`, mensaje idéntico al del plan, con `Co-Authored-By`) toca solo `app/api/dependencies.py`,
+  `app/core/storage.py` y `tests/test_storage.py` (71+/23-), los tres archivos de la fase. `35c263c` solo
+  `handoff-Fase_G.md` y `progress.json`. `progress.json`: `Fase_G` `completed` con `714e05a` (real, `git show --stat`),
+  `current_target` `Fase_H`, `last_handoff` presente, `edit_rules` intacto (diff de `35c263c`).
+- Compuerta re-ejecutada (exit 1), igual a la fila G y a lo que pegó el ejecutor: `60 files already formatted` ·
+  `Found 4 errors.` (los 4 I001 de la fase I: `routers/audit.py`, `user_repository.py`, `schemas/audit.py`,
+  `audit_service.py`) · `Success: no issues found in 55 source files` · `Contracts: 4 kept, 0 broken.` ·
+  `TOTAL 968 22 138 19 96.29%` (≥ 96.11 %, `plan.md:128`; sube desde 96.21 % de F) · `577 passed, 5 warnings` ·
+  `Compuerta NO superada: ruff check`. Archivos de la fase: `ruff check` → `All checks passed!`; `ruff format --check`
+  → `3 files already formatted`; `mypy` → `Success: no issues found in 3 source files`.
+- Cambios exactos: `storage.py` sin `import os`; `__init__(self, connection_string: str, container_name: str,
+  temporal_container_name: str) -> None` con docstring `Args`/`Raises`, guarda los tres valores y conserva el
+  `ValueError` antes de `BlobServiceClient.from_connection_string` (mismo orden). El diff de `storage.py` es un único
+  hunk en `__init__`: `upload_image`, `delete_image` y la promoción no cambian (E0: Azure solo cambia de dónde lee).
+  `dependencies.py:58-75`: `get_storage_client(settings: Settings = Depends(get_settings))` con los tres argumentos
+  nombrados del plan y docstring Google. `tests/test_storage.py`: fixture `doubles` sin `monkeypatch`, valores
+  explícitos; `test_init_without_connection_string_raises` con `connection_string=""`; test nuevo
+  `test_get_storage_client_builds_the_adapter_from_settings` con `patch.object(..., autospec=True)`,
+  `assert_called_once_with("UseDevelopmentStorage=true")` y la tupla `("perm-c", "temp-c")`, como dicta el plan.
+  Única instanciación de producción: `dependencies.py:71` (`git grep "AzureStorageClient("`).
+- E1: `git grep -n -E "# (Repository|Service) injection" -- app/api/dependencies.py` → sin salida (exit 1). El diff
+  borra exactamente 4 líneas del bloque de imports (dos comentarios y la línea en blanco que precede a cada uno); ningún
+  import se mueve ni cambia. `# --- DEPENDENCY FACTORY (Inversion of Control) ---` intacto (`:21`). Fuera de E1 y de
+  `get_storage_client`, `dependencies.py` no cambia: `get_current_user` (BE-42, `scope`) no aparece en el diff.
+- Criterio de G: `git grep -n -E "getenv|setenv|delenv" -- app/core/storage.py tests/test_storage.py` → sin salida.
+- M8 repetido en copia `git archive 714e05a` sin `.env` (scratchpad `tmp.VSzo3b1J3c`): `grep` muestra `:73` y `:74`
+  con `azure_temporal_container_name`; `-k from_settings` → `AssertionError: assert ('temp-c', 'temp-c') == ('perm-c',
+  'temp-c')`, `1 failed, 18 deselected`. Control (`tmp.UL2qe9K2Ut`) → `1 passed, 18 deselected`. Misma copia de
+  control, `env -u` de las 5 obligatorias → `577 passed, 5 warnings`.
+- Verificación final parcial: #1 → sin salida (valor final ya alcanzado); #3 → 1 línea (la de `test_config.py` llega
+  en H); #5 → 2 líneas, `app/main.py:168` y `:187`; #9 → 3 líneas. `git ls-files --eol` de los 3 archivos →
+  `i/lf w/lf`.
+- AGENTS: la capa HTTP recibe la configuración por `Depends(get_settings)` (§3, decisión 2 del plan); el adaptador
+  no lee entorno; import-linter 4 kept. El único doble nuevo usa `autospec=True` (§5); el test afirma sobre la
+  llamada al mock con argumentos y sobre el estado del adaptador, sin texto en español. Sin excepciones de dominio
+  nuevas. Los dobles globales de `tests/conftest.py:135` (`lambda: mock_client`) siguen valiendo: FastAPI resuelve el
+  override sin la dependencia `settings`, y `test_fixtures_contract.py` y `test_services.py` pasan.
+- Desviación declarada, texto del `ValueError` (`app/core/storage.py:61-63`): aceptable, no es hallazgo. El plan
+  (`plan.md:502-503`) dicta "conserva el `ValueError` si la cadena está vacía", no su mensaje. El texto viejo
+  ("… missing in environment variables") pasó a ser falso, porque el adaptador ya no lee el entorno. `git grep` del
+  texto viejo y del nuevo: ningún test ni documento depende de él (solo el handoff lo cita), y
+  `test_init_without_connection_string_raises` afirma solo el tipo. No llega al usuario final (AGENTS §4 c): no hay
+  handler de `ValueError` en `app/main.py` (solo `RequestValidationError`, `IntegrityError` y `DomainError`), así que
+  un fallo produciría el 500 genérico de Starlette sin el mensaje. Además, con `Settings` (`min_length=1`), la rama no
+  se alcanza por `get_storage_client`. El texto nuevo no nombra variables en mayúsculas en `app/` ("Texto no
+  dictado") y no altera los conteos de la Verificación final.
