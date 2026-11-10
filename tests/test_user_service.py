@@ -1,12 +1,13 @@
 """Unit and integration tests for the transport-agnostic UserService contract."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 from typing import Any
 from unittest.mock import create_autospec
 
 import jwt
 import pytest
 
+from app.core.config import get_settings
 from app.core.exceptions import (
     AccountNotActiveError,
     AlreadyExistsError,
@@ -15,7 +16,7 @@ from app.core.exceptions import (
     InvalidVerificationTokenError,
     NotFoundError,
 )
-from app.core.security import ALGORITHM, SECRET_KEY, create_verification_token, get_password_hash
+from app.core.security import create_verification_token, get_password_hash
 from app.models.audit import AuditAction
 from app.models.user import UserRole
 from app.repositories.user_repository import UserRepository
@@ -102,7 +103,10 @@ async def test_register_tourist_returns_registration_result(user_repo, audit_ser
     assert result.user.is_active is False
     assert result.user.password_hash != "passwordSegura123"
 
-    claims = jwt.decode(result.verification_token, SECRET_KEY, algorithms=[ALGORITHM])
+    settings = get_settings()
+    claims = jwt.decode(
+        result.verification_token, settings.jwt_secret_key, algorithms=[settings.algorithm]
+    )
     assert claims["sub"] == result.user.email
     assert claims["scope"] == "email_verification"
 
@@ -200,7 +204,10 @@ async def test_authenticate_active_user_returns_bearer_token(user_repo, user_ser
     )
 
     assert result.token_type == "bearer"
-    claims = jwt.decode(result.access_token, SECRET_KEY, algorithms=[ALGORITHM])
+    settings = get_settings()
+    claims = jwt.decode(
+        result.access_token, settings.jwt_secret_key, algorithms=[settings.algorithm]
+    )
     assert claims["sub"] == user.email
     assert claims["role"] == user.role.value
 
@@ -268,17 +275,13 @@ async def test_verify_email_corrupt_token_raises_invalid_verification_token(
 
 
 async def test_verify_email_expired_token_raises_invalid_verification_token(
-    user_repo, user_service
+    user_repo, user_service, make_user, make_token
 ):
     """Unhappy path: an expired token is rejected before any activation attempt."""
-    expired_token = jwt.encode(
-        {
-            "sub": "turista@example.com",
-            "scope": "email_verification",
-            "exp": datetime.now(UTC) - timedelta(minutes=1),
-        },
-        SECRET_KEY,
-        algorithm=ALGORITHM,
+    expired_token = make_token(
+        make_user(email="turista@example.com"),
+        expires_delta=timedelta(minutes=-1),
+        extra_claims={"scope": "email_verification"},
     )
 
     with pytest.raises(InvalidVerificationTokenError):
@@ -287,16 +290,12 @@ async def test_verify_email_expired_token_raises_invalid_verification_token(
     user_repo.activate_user.assert_not_awaited()
 
 
-async def test_verify_email_wrong_scope_raises_invalid_verification_token(user_repo, user_service):
+async def test_verify_email_wrong_scope_raises_invalid_verification_token(
+    user_repo, user_service, make_user, make_token
+):
     """Edge case: an otherwise valid JWT with a non-verification scope is rejected."""
-    wrong_scope_token = jwt.encode(
-        {
-            "sub": "turista@example.com",
-            "scope": "access",
-            "exp": datetime.now(UTC) + timedelta(minutes=5),
-        },
-        SECRET_KEY,
-        algorithm=ALGORITHM,
+    wrong_scope_token = make_token(
+        make_user(email="turista@example.com"), extra_claims={"scope": "access"}
     )
 
     with pytest.raises(InvalidVerificationTokenError):

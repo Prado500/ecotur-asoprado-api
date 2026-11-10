@@ -5,9 +5,8 @@ from unittest.mock import ANY
 import jwt
 from sqlalchemy import func, select
 
+from app.core.config import get_settings
 from app.core.security import (
-    ALGORITHM,
-    SECRET_KEY,
     create_verification_token,
     get_password_hash,
 )
@@ -111,8 +110,10 @@ async def test_login_active_user_returns_bearer_token(client, persist_user):
     assert set(body) == {"access_token", "token_type"}
     assert body["token_type"] == "bearer"
 
-    assert SECRET_KEY is not None
-    claims = jwt.decode(body["access_token"], SECRET_KEY, algorithms=[ALGORITHM])
+    settings = get_settings()
+    claims = jwt.decode(
+        body["access_token"], settings.jwt_secret_key, algorithms=[settings.algorithm]
+    )
     assert claims["sub"] == user.email
     assert claims["role"] == "tourist"
 
