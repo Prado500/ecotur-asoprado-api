@@ -7,17 +7,20 @@ The HTTP cases pin the answers of branches that had no test. The direct calls ch
 
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any
 from unittest.mock import create_autospec
 
 import jwt
 import pytest
+from dotenv import dotenv_values
 from fastapi import HTTPException
 from httpx import AsyncClient, Response
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_user
 from app.core.exceptions import InvalidVerificationTokenError
-from app.core.security import create_access_token
+from app.core.security import create_access_token, create_verification_token
 from app.models.user import User
 from app.repositories.user_repository import UserRepository
 from app.services.audit_service import AuditService
@@ -25,6 +28,9 @@ from app.services.user_access_policy import UserAccessPolicy
 from app.services.user_service import UserService
 
 PROTECTED_ROUTE = "/usuarios/mi-perfil"
+VERIFY_ROUTE = "/usuarios/verificar-email"
+FOREIGN_KEY = "foreign-signing-key-known-only-to-these-tests"
+ENV_EXAMPLE = Path(__file__).resolve().parents[1] / ".env.example"
 
 PersistUser = Callable[..., Awaitable[User]]
 AuthHeaders = Callable[[User], dict[str, str]]
@@ -44,6 +50,20 @@ def _corrupt_token() -> str:
 def _bearer(token: str) -> dict[str, str]:
     """Builds the Authorization header for a token the factories cannot produce."""
     return {"Authorization": f"Bearer {token}"}
+
+
+def _resign(token: str, key: str) -> str:
+    """Signs a genuine token's claims again with the given key, keeping its algorithm."""
+    claims = jwt.decode(token, options={"verify_signature": False})
+    algorithm = jwt.get_unverified_header(token)["alg"]
+    return jwt.encode(claims, key, algorithm=algorithm)
+
+
+def _env_example_jwt_key() -> str:
+    """Reads the JWT key that .env.example ships, the one a developer may copy as is."""
+    key = dotenv_values(ENV_EXAMPLE)["JWT_SECRET_KEY"]
+    assert key
+    return key
 
 
 def _assert_bearer_401(response: Response) -> None:
@@ -162,6 +182,54 @@ async def test_token_for_soft_deleted_active_user_returns_401(
     user = await persist_user(deleted_at=datetime(2026, 1, 15, 12, 0, tzinfo=UTC))
 
     response = await client.get(PROTECTED_ROUTE, headers=make_auth_headers(user))
+
+    _assert_bearer_401(response)
+
+
+async def test_access_token_signed_with_another_key_returns_401(
+    client: AsyncClient, persist_user: PersistUser, make_token: MakeToken
+) -> None:
+    """Unhappy path: a token re-signed with a foreign key is rejected for an active user."""
+    user = await persist_user()
+
+    response = await client.get(
+        PROTECTED_ROUTE, headers=_bearer(_resign(make_token(user), FOREIGN_KEY))
+    )
+
+    _assert_bearer_401(response)
+
+
+async def test_verification_token_signed_with_another_key_returns_400_and_keeps_account_inactive(
+    client: AsyncClient, db_session: AsyncSession, persist_user: PersistUser
+) -> None:
+    """Unhappy path: a re-signed verification token is rejected and activates nothing."""
+    user = await persist_user(is_active=False)
+
+    response = await client.get(
+        VERIFY_ROUTE,
+        params={"token": _resign(create_verification_token(user.email), FOREIGN_KEY)},
+    )
+
+    assert response.status_code == 400
+    body = response.json()
+    assert set(body) == {"detail"}
+    assert isinstance(body["detail"], str)
+    await db_session.refresh(user)
+    assert user.is_active is False
+
+
+async def test_access_token_signed_with_the_env_example_key_returns_401(
+    client: AsyncClient, persist_user: PersistUser, make_token: MakeToken
+) -> None:
+    """Edge case: the key that .env.example ships signs nothing this app accepts.
+
+    Protects whoever copies the example as their .env; CI and production use their own keys.
+    """
+    user = await persist_user()
+
+    response = await client.get(
+        PROTECTED_ROUTE, headers=_bearer(_resign(make_token(user), _env_example_jwt_key()))
+    )
 
     _assert_bearer_401(response)
 
