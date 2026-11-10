@@ -26,11 +26,7 @@ steps:
     displayName: 'Instalar dependencias (pyproject.toml)'
 
   # --soft: ruff/mypy do not block until the global gate is green (B-TESTS m4, ADR-0005). Remove it then.
+  # No env block: the suite fixes its own configuration in conftest.py (ADR-0013).
   - script: |
       python scripts/check.py --soft format,ruff,mypy
     displayName: 'Compuerta de calidad (scripts/check.py)'
-    env:
-      DATABASE_URL: "sqlite+aiosqlite:///:memory:"
-      JWT_SECRET_KEY: "super_secreto_ficticio_para_el_ci_pipeline"
-      MAIL_USERNAME: $(MAIL_USERNAME)
-      MAIL_PASSWORD: $(MAIL_PASSWORD)

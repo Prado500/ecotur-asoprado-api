@@ -10,6 +10,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 import pytest
+from dotenv import dotenv_values
 from pydantic import ValidationError
 
 from app.core.config import (
@@ -42,6 +43,8 @@ OPTIONAL_DEFAULTS = {
 }
 
 ALL_FIELDS = (*REQUIRED, *OPTIONAL_DEFAULTS)
+
+ENV_EXAMPLE = Path(__file__).resolve().parents[1] / ".env.example"
 
 VALID_REQUIRED = {
     "database_url": "sqlite+aiosqlite:///:memory:",
@@ -196,3 +199,21 @@ def test_validation_errors_do_not_echo_values(monkeypatch: pytest.MonkeyPatch) -
         Settings(_env_file=None)
 
     assert "leak-sentinel-value" not in str(exc_info.value)
+
+
+def test_env_example_is_a_valid_configuration(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Happy path: .env.example, copied as is to .env, is a configuration the app loads."""
+    _clear(monkeypatch, ALL_FIELDS)
+
+    settings = Settings(_env_file=ENV_EXAMPLE)
+
+    assert (
+        settings.algorithm,
+        settings.access_token_expire_minutes,
+        settings.verification_token_expire_minutes,
+    ) == ("HS256", 30, 15)
+
+
+def test_env_example_documents_every_setting() -> None:
+    """Edge case: every Settings field has its upper-case key in .env.example."""
+    assert {n.upper() for n in Settings.model_fields} <= set(dotenv_values(ENV_EXAMPLE))
