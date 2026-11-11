@@ -1,19 +1,21 @@
 # PLAN — BE-39: Dar a cada ruta protegida un test HTTP de rechazo que caiga si su guard desaparece
 
 > Fuente: `docs/deuda/BE-39/verificacion.md` (confirmada, con adenda de siete decisiones de David del 11 nov, 10:48).
-> Base: `9ecc176` (`3ca990a` + un commit de documentación, la verificación; `app/` y `tests/` idénticos). Estado: **aprobado con E0
-> (11 nov, 12:32); la fase D está pendiente de que el planificador la escriba**. Todas las cifras de este plan se
-> midieron hoy sobre copias desechables con el contenido exacto que dicta.
+> Base: `9ecc176` (`3ca990a` + un commit de documentación, la verificación; `app/` y `tests/` idénticos). Estado:
+> **aprobado con E0 y E1 (11 nov, 12:32 y 12:55): cuatro fases, A → D**. Todas las cifras de este plan se midieron hoy
+> sobre copias desechables con el contenido exacto que dicta.
 
 ## Resumen para aprobación
 
-En tres fases, todas en `tests/` y sin tocar `app/`, el plan crea `tests/test_route_guards.py` con una tabla de las 17
-rutas protegidas y tres tests sobre ella. (A) Un test de inventario compara la tabla y la lista de rutas públicas con
+En cuatro fases, todas en `tests/` y sin tocar `app/`, el plan crea `tests/test_route_guards.py` con una tabla de las 17
+rutas protegidas y cuatro tests sobre ella. (A) Un test de inventario compara la tabla y la lista de rutas públicas con
 `app.routes`, de modo que una ruta nueva sin entrada hace caer la suite. (B) Las 17 rutas, sin token, responden 401 con
-`WWW-Authenticate: Bearer`. (C) Las 14 rutas admin responden 403 a un turista, sin esa cabecera. Ningún test lee texto.
-Los dos tests de `tests/test_audit.py` que cubrían `/auditoria/` se borran en la fase que los sustituye. La suite pasa de
-579 a 609 tests y la cobertura queda en 96,29 % (medido). Cada test nuevo se midió en rojo frente a su mutante: M1, M2,
-M3, M6, M7, M4+M5, M9 (sin token), M10 y M11 (inventario).
+`WWW-Authenticate: Bearer`. (C) Las 14 rutas admin responden 403 a un turista, sin esa cabecera. (D) Las 3 rutas de
+usuario dejan pasar a un turista y responde el handler (200, 404, 404), así que una ruta admin etiquetada `"user"` por
+error cae (E0). Ningún test lee texto. Los dos tests de `tests/test_audit.py` que cubrían `/auditoria/` se borran en la
+fase que los sustituye. La suite pasa de 579 a 612 tests y la cobertura queda en 96,29 % (medido). Cada test nuevo se
+midió en rojo frente a su mutante: M1, M2, M3, M6, M7, M4+M5, M9 (sin token), M10 y M11 (inventario), M12 y M14
+(etiqueta y guard de usuario); M13, el recíproco de M12, lo mata la fase C.
 **Riesgo principal:** M4 sola sigue sin matarse. En `/auditoria/` el re-chequeo de `audit_service.py:65` responde el mismo
 403 que el guard, y así seguirá hasta BE-40. Está declarado (adenda, decisión 2) y pasa a la verificación final de BE-40.
 Por la misma razón, M7 tumba 13 de las 14 rutas admin, no 14.
@@ -150,6 +152,7 @@ Compuerta esperada al cerrar cada fase (exit 0, `Compuerta superada.`; ruff chec
 | A | 61 files | `… in 56 source files` | **580 passed** | 96,29 % | 291 passed |
 | B | 61 files | 56 | **596 passed** | 96,29 % | 307 passed |
 | C | 61 files | 56 | **609 passed** | 96,29 % | 320 passed |
+| D | 61 files | 56 | **612 passed** | 96,29 % | 323 passed |
 
 Al usar cada mensaje de commit, el ejecutor sustituye `<MODELO EJECUTOR>` por su modelo real y deja el resto letra a letra.
 
@@ -402,9 +405,83 @@ Al usar cada mensaje de commit, el ejecutor sustituye `<MODELO EJECUTOR>` por su
   Co-Authored-By: <MODELO EJECUTOR> <noreply@anthropic.com>
   ```
 
+### Fase D — La etiqueta `"user"` se comprueba: un turista pasa el guard de las 3 rutas de usuario (E0, punto 3)
+- **Archivos:** `tests/test_route_guards.py`.
+- **Cambios exactos:** dos inserciones. Tras la línea `ADMIN_ROUTES: …` de la fase C, una línea en blanco y:
+  ```python
+  USER_ROUTES: tuple[ProtectedRoute, ...] = tuple(r for r in PROTECTED_ROUTES if r.guard == "user")
+
+  # What each user route answers a tourist once its guard lets them through, with _PATH_PARAMS and
+  # the table's body: the tourist's own profile, and 404 for a cedula that names no account.
+  _TOURIST_PAST_USER_GUARD: dict[tuple[str, str], int] = {
+      ("GET", "/usuarios/mi-perfil"): 200,
+      ("DELETE", "/usuarios/{cedula}"): 404,
+      ("PATCH", "/usuarios/{cedula}"): 404,
+  }
+  ```
+  Y al final del archivo:
+  ```python
+
+
+  @pytest.mark.parametrize("route", USER_ROUTES, ids=_route_id)
+  async def test_user_route_lets_tourist_through(
+      client, persist_user, make_auth_headers, route: ProtectedRoute
+  ) -> None:
+      """A tourist's valid token passes the guard of every user route, so the handler answers.
+
+      An admin route labeled "user" by mistake answers 403 here, not its handler's code.
+      """
+      tourist = await persist_user(role=UserRole.tourist)
+
+      response = await client.request(
+          route.method, _url(route), json=route.body, headers=make_auth_headers(tourist)
+      )
+
+      assert response.status_code == _TOURIST_PAST_USER_GUARD.get((route.method, route.path))
+  ```
+- **Por qué el código exacto y no "ni 401 ni 403"** (E0, punto 3, dato medido hoy con una sonda sobre copia nueva): con
+  `_PATH_PARAMS` y el cuerpo de la tabla, un turista recibe `200` en `GET /usuarios/mi-perfil`, `404` en
+  `DELETE /usuarios/{cedula}` y `404` en `PATCH /usuarios/{cedula}`. Con el cuerpo `{}` de la tabla, el PATCH da 404, no el
+  422 que la verificación anotó para "404/422". El código exacto descarta además un 5xx que "ni 401 ni 403" dejaría pasar.
+  Los dos 404 dependen de que la existencia se compruebe antes que la política, y eso ya lo congelan
+  `tests/test_user_access_policy.py::test_delete_nonexistent_cedula_returns_404_before_403` y
+  `::test_patch_nonexistent_cedula_returns_404_before_403`. Con `.get(...)`, una ruta sin entrada da `None`: una ruta
+  `"user"` nueva falla hasta que se anota su código, y una ruta admin mal etiquetada falla con `403 == None`.
+- **Tests (RED primero):** procedimiento común, copiando `tests/test_route_guards.py` (y `tests/test_audit.py` tal como
+  queda tras la fase C). Mutantes propios:
+
+  | Mutante | Archivo de la copia | Edición exacta (original → sustituto) | Resultado |
+  |---|---|---|---|
+  | M12 | `tests/test_route_guards.py` | `    ProtectedRoute("GET", "/usuarios/", "admin"),` → `    ProtectedRoute("GET", "/usuarios/", "user"),` | 1 failed, 322 passed: `test_user_route_lets_tourist_through[GET /usuarios/]` |
+  | M13 (recíproco, declarado) | `tests/test_route_guards.py` | `    ProtectedRoute("GET", "/usuarios/mi-perfil", "user"),` → `    ProtectedRoute("GET", "/usuarios/mi-perfil", "admin"),` | 1 failed, 322 passed: `test_admin_route_rejects_tourist[GET /usuarios/mi-perfil]` (lo mata la fase C, no esta) |
+  | M14 | `app/api/routers/user.py` | `self_service_router = APIRouter(dependencies=[Depends(get_current_user)])` → `self_service_router = APIRouter(dependencies=[Depends(get_current_admin_user)])` | 18 failed, 305 passed: los 3 casos nuevos y 15 tests que ya existían (`tests/test_auth.py` 2, `tests/test_token_failure_paths.py` 1, `tests/test_user_access_policy.py` 2, `tests/test_user_response.py` 10) |
+
+  Sin mutante, `323 passed`.
+- **Criterio de aceptación:** las cifras anteriores, `pytest tests/test_route_guards.py -q` → `35 passed`, y la fila D de la
+  compuerta.
+- **Fuera de alcance de esta fase:** `ProtectedRoute` y la tabla (aprobadas en A); aserciones sobre el cuerpo de las
+  respuestas de usuario (ya las congelan `tests/test_auth.py` y `tests/test_user_response.py`); `tests/test_audit.py`.
+- **Commit:**
+  ```text
+  test(guards): check the "user" label by letting a tourist through
+
+  The inventory test proves that every route sits in a table, not that
+  its guard label is right. An admin route labeled "user" by mistake
+  would drop out of ADMIN_ROUTES, lose its tourist case, and nothing
+  would notice. One parametrized test now sends a tourist to each
+  "user" route and expects the handler's own code (200 for the
+  profile, 404 for a cedula that names no account), so a mislabeled
+  admin route answers 403 and fails.
+
+  The opposite mistake, a user route labeled "admin", already fails
+  test_admin_route_rejects_tourist. Requested by E0 of the BE-39 plan.
+
+  Co-Authored-By: <MODELO EJECUTOR> <noreply@anthropic.com>
+  ```
+
 ## Verificación final
 
-Desde la raíz del repo, tras la fase C. Las cifras cuentan el texto literal que dicta este plan (docstrings y comentarios
+Desde la raíz del repo, tras la fase D. Las cifras cuentan el texto literal que dicta este plan (docstrings y comentarios
 de `tests/test_route_guards.py` incluidos).
 
 ```bash
@@ -416,14 +493,14 @@ git diff --name-only 9ecc176 HEAD -- tests
 grep -c '^    ProtectedRoute("' tests/test_route_guards.py
 grep -cE '^    ProtectedRoute\(".*", "admin"' tests/test_route_guards.py
 grep -cE '^    ProtectedRoute\(".*", "user"' tests/test_route_guards.py
-# 4. 32 casos (1 inventario + 17 sin token + 14 turista), todos verdes
-./venv/Scripts/python.exe -m pytest tests/test_route_guards.py -q -p no:cacheprovider      # 32 passed
+# 4. 35 casos (1 inventario + 17 sin token + 14 turista en admin + 3 turista en usuario), todos verdes
+./venv/Scripts/python.exe -m pytest tests/test_route_guards.py -q -p no:cacheprovider      # 35 passed
 # 5. La cabecera se afirma dos veces (presente en 401, ausente en 403): 2
 grep -c "www-authenticate" tests/test_route_guards.py
 # 6. Aserciones 401/403 en toda la suite: 30 (30 − test_audit.py:58,144 + 2 nuevas); 0 en test_audit.py
 grep -rnE "status_code == 40[13]" tests --include=*.py | wc -l
 grep -cE "status_code == 40[13]" tests/test_audit.py
-# 7. Patrón 1 de la verificación: 0 en test_services.py (decisión 5); 3 en el archivo nuevo
+# 7. Patrón 1 de la verificación: 0 en test_services.py (decisión 5); 4 en el archivo nuevo
 grep -rnE "UserRole\.tourist|status_code == 40[13]" tests/test_services.py | wc -l
 grep -nE "UserRole\.tourist|status_code == 40[13]" tests/test_route_guards.py | wc -l
 # 8. Patrón 3: 3 líneas, todas a rutas públicas (test_auth.py:109, test_services.py:648, :668)
@@ -433,13 +510,15 @@ grep -rn "test_audit_trail_forbidden_for_tourist\|test_audit_trail_requires_auth
 # 10. app/ intacto: 15 y 1, como en la línea base
 grep -rn "get_current_admin_user" app --include=*.py | wc -l
 grep -rn "assert_is_admin_plus(current_user)" app --include=*.py | wc -l
-# 11. Compuerta: exit 0, 609 passed, cobertura ≥ 96,29 %, 61 files formatted, mypy 56 source files, 4 kept
+# 11. Compuerta: exit 0, 612 passed, cobertura ≥ 96,29 %, 61 files formatted, mypy 56 source files, 4 kept
 ./venv/Scripts/python.exe scripts/check.py
 ```
 
-12. Mutantes sobre la copia del estado final (procedimiento común): M1 6/314, M2 9/311, M3 12/308, M4+M5 2/318, M6 4/316,
-    M7 13/307, M9 17/303, M10 1/319, M11 4/316 (los 4 de M11: el inventario, los dos casos de `admin/inactivos` y
-    `test_inactive_column_returns_off_rule_package`). Sin rojo: M4 320 (R1) y M9a 320 (equivalente).
+12. Mutantes sobre la copia del estado final (procedimiento común): M1 6/317, M2 9/314, M3 12/311, M4+M5 2/321, M6 4/319,
+    M7 13/310, M9 17/306, M10 1/322, M11 4/319 (los 4 de M11: el inventario, los dos casos de `admin/inactivos` y
+    `test_inactive_column_returns_off_rule_package`), M12 1/322 (`test_user_route_lets_tourist_through[GET /usuarios/]`),
+    M13 1/322 (`test_admin_route_rejects_tourist[GET /usuarios/mi-perfil]`), M14 18/305. Sin rojo: M4 323 (R1) y M9a 323
+    (equivalente).
 
 ## Enmiendas aprobadas
 
@@ -479,6 +558,15 @@ commits y las cifras de A, B y C no cambian.
    en `Fase_A`); el Resumen para aprobación, si su cifra final cambia.
 5. **Residuales tras E0:** R1 (M4 sola) y R2 (`guard="superadmin"`) son notas para BE-40, que ya tiene fila; R3 es una
    nota para BE-42. Ninguno crea fila nueva. R4 resuelto por el punto 2.
+
+### E1 — 11 nov 2026, 12:55 (David, sesión Mentor)
+
+Texto literal de David: «sí, ve y deja el plan listo para implementar».
+
+**Fase D aprobada como la escribió el planificador** (E0, punto 3): `USER_ROUTES`, `_TOURIST_PAST_USER_GUARD` con el
+código exacto por ruta (200, 404, 404) y `test_user_route_lets_tourist_through`; mutantes M12, M13 y M14; meta 612 passed.
+Sin cambios en A, B y C. Límite aceptado: la fase D afirma solo el código de estado; los cuerpos de esas respuestas ya
+los congelan `tests/test_auth.py` y `tests/test_user_response.py`. `current_target` sigue en `Fase_A`.
 
 ## Residuales
 
