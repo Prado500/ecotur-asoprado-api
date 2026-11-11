@@ -57,6 +57,16 @@ PROTECTED_ROUTES: tuple[ProtectedRoute, ...] = (
 
 ADMIN_ROUTES: tuple[ProtectedRoute, ...] = tuple(r for r in PROTECTED_ROUTES if r.guard == "admin")
 
+USER_ROUTES: tuple[ProtectedRoute, ...] = tuple(r for r in PROTECTED_ROUTES if r.guard == "user")
+
+# What each user route answers a tourist once its guard lets them through, with _PATH_PARAMS and
+# the table's body: the tourist's own profile, and 404 for a cedula that names no account.
+_TOURIST_PAST_USER_GUARD: dict[tuple[str, str], int] = {
+    ("GET", "/usuarios/mi-perfil"): 200,
+    ("DELETE", "/usuarios/{cedula}"): 404,
+    ("PATCH", "/usuarios/{cedula}"): 404,
+}
+
 PUBLIC_ROUTES: frozenset[tuple[str, str]] = frozenset(
     {
         ("POST", "/usuarios/registro"),
@@ -135,3 +145,20 @@ async def test_admin_route_rejects_tourist(
     body = response.json()
     assert set(body) == {"detail"}
     assert isinstance(body["detail"], str)
+
+
+@pytest.mark.parametrize("route", USER_ROUTES, ids=_route_id)
+async def test_user_route_lets_tourist_through(
+    client, persist_user, make_auth_headers, route: ProtectedRoute
+) -> None:
+    """A tourist's valid token passes the guard of every user route, so the handler answers.
+
+    An admin route labeled "user" by mistake answers 403 here, not its handler's code.
+    """
+    tourist = await persist_user(role=UserRole.tourist)
+
+    response = await client.request(
+        route.method, _url(route), json=route.body, headers=make_auth_headers(tourist)
+    )
+
+    assert response.status_code == _TOURIST_PAST_USER_GUARD.get((route.method, route.path))
