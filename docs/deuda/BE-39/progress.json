@@ -1,6 +1,6 @@
 {
   "plan_file": "docs/deuda/BE-39/plan.md",
-  "current_target": "Fase_B",
+  "current_target": "Fase_C",
   "phases": {
     "Fase_A": {
       "status": "completed",
@@ -8,8 +8,8 @@
       "description": "tests/test_route_guards.py (new): PROTECTED_ROUTES (17), PUBLIC_ROUTES (9) and the inventory test against app.routes; M10 1 failed, M11 2 failed. Target: 580 passed, cov 96.29 %."
     },
     "Fase_B": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "4612c42",
       "description": "17 no-token cases (401, WWW-Authenticate: Bearer, {detail}); drop test_audit_trail_requires_authentication; M9 17 failed, M9a equivalent. Target: 596 passed."
     },
     "Fase_C": {
@@ -29,6 +29,6 @@
     }
   },
   "allowed_statuses": ["pending", "partial", "completed"],
-  "last_handoff": "Fase_A completada (d89e942): tests/test_route_guards.py idéntico al plan; M10 1 failed/290, M11 2 failed/289, sin mutante 291; compuerta exit 0, 580 passed, 96.29 %. Ver handoff-Fase_A.md.",
+  "last_handoff": "Fase_B completada (4612c42): 3 inserciones en tests/test_route_guards.py idénticas al plan y borrado de test_audit_trail_requires_authentication; M9 17 failed/290, M9a 307 (equivalente), sin mutante 307; compuerta exit 0, 596 passed, 96.29 %. Ver handoff-Fase_B.md.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
