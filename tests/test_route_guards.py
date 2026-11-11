@@ -81,6 +81,20 @@ PUBLIC_ROUTES: frozenset[tuple[str, str]] = frozenset(
     }
 )
 
+# What each public route answers a request with no token and no body: validation's 422 where the
+# route needs a body or a query parameter, 200 everywhere else. A guard would answer 401 first.
+_ANONYMOUS_ON_PUBLIC_ROUTE: dict[tuple[str, str], int] = {
+    ("POST", "/usuarios/registro"): 422,
+    ("GET", "/usuarios/verificar-email"): 422,
+    ("POST", "/usuarios/login"): 422,
+    ("GET", "/servicios/"): 200,
+    ("GET", "/"): 200,
+    ("GET", "/openapi.json"): 200,
+    ("GET", "/docs"): 200,
+    ("GET", "/docs/oauth2-redirect"): 200,
+    ("GET", "/redoc"): 200,
+}
+
 # Path parameters that name no stored row: the guard must answer before any lookup could.
 _PATH_PARAMS: dict[str, str] = {"cedula": "0000000000", "service_id": "999"}
 
@@ -162,3 +176,27 @@ async def test_user_route_lets_tourist_through(
     )
 
     assert response.status_code == _TOURIST_PAST_USER_GUARD.get((route.method, route.path))
+
+
+def test_route_tables_have_no_repeated_or_shared_entries() -> None:
+    """Each protected (method, path) is listed once, and never in PUBLIC_ROUTES as well.
+
+    The inventory test compares sets, so it cannot see either mistake on its own.
+    """
+    protected = [(route.method, route.path) for route in PROTECTED_ROUTES]
+
+    assert len(protected) == len(set(protected))
+    assert not set(protected) & PUBLIC_ROUTES
+
+
+@pytest.mark.parametrize("route", sorted(PUBLIC_ROUTES), ids=" ".join)
+async def test_public_route_answers_without_token(client, route: tuple[str, str]) -> None:
+    """Without a token, every public route answers its own code, never the guard's 401.
+
+    A protected route listed in PUBLIC_ROUTES by mistake answers 401 here and fails.
+    """
+    method, path = route
+
+    response = await client.request(method, path)
+
+    assert response.status_code == _ANONYMOUS_ON_PUBLIC_ROUTE.get(route)
