@@ -1,0 +1,24 @@
+{
+  "plan_file": "docs/deuda/BE-39/plan.md",
+  "current_target": "Fase_A",
+  "phases": {
+    "Fase_A": {
+      "status": "pending",
+      "commit": null,
+      "description": "tests/test_route_guards.py (new): PROTECTED_ROUTES (17), PUBLIC_ROUTES (9) and the inventory test against app.routes; M10 1 failed, M11 2 failed. Target: 580 passed, cov 96.29 %."
+    },
+    "Fase_B": {
+      "status": "pending",
+      "commit": null,
+      "description": "17 no-token cases (401, WWW-Authenticate: Bearer, {detail}); drop test_audit_trail_requires_authentication; M9 17 failed, M9a equivalent. Target: 596 passed."
+    },
+    "Fase_C": {
+      "status": "pending",
+      "commit": null,
+      "description": "14 tourist cases on admin routes (403, no WWW-Authenticate, {detail}); drop test_audit_trail_forbidden_for_tourist; M1 6, M2 9, M3 12, M6 4, M7 13, M4+M5 2 failed; M4 alone declared (BE-40). Target: 609 passed."
+    }
+  },
+  "allowed_statuses": ["pending", "partial", "completed"],
+  "last_handoff": "Estado inicial. Plan pendiente de aprobación humana.",
+  "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
+}
