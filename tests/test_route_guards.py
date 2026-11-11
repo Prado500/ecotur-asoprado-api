@@ -12,6 +12,7 @@ import pytest
 from starlette.routing import Route
 
 from app.main import app
+from app.models.user import UserRole
 
 
 class ProtectedRoute(NamedTuple):
@@ -53,6 +54,8 @@ PROTECTED_ROUTES: tuple[ProtectedRoute, ...] = (
     ProtectedRoute("DELETE", "/usuarios/{cedula}", "user"),
     ProtectedRoute("PATCH", "/usuarios/{cedula}", "user", _EMPTY_BODY),
 )
+
+ADMIN_ROUTES: tuple[ProtectedRoute, ...] = tuple(r for r in PROTECTED_ROUTES if r.guard == "admin")
 
 PUBLIC_ROUTES: frozenset[tuple[str, str]] = frozenset(
     {
@@ -111,6 +114,24 @@ async def test_protected_route_rejects_request_without_token(client, route: Prot
 
     assert response.status_code == 401
     assert response.headers["www-authenticate"] == "Bearer"
+    body = response.json()
+    assert set(body) == {"detail"}
+    assert isinstance(body["detail"], str)
+
+
+@pytest.mark.parametrize("route", ADMIN_ROUTES, ids=_route_id)
+async def test_admin_route_rejects_tourist(
+    client, persist_user, make_auth_headers, route: ProtectedRoute
+) -> None:
+    """A tourist's valid token gets 403 from every admin route, without a Bearer challenge."""
+    tourist = await persist_user(role=UserRole.tourist)
+
+    response = await client.request(
+        route.method, _url(route), json=route.body, headers=make_auth_headers(tourist)
+    )
+
+    assert response.status_code == 403
+    assert "www-authenticate" not in response.headers
     body = response.json()
     assert set(body) == {"detail"}
     assert isinstance(body["detail"], str)
