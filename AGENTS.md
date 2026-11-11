@@ -40,8 +40,10 @@ sobreingeniería. Explicas el trade-off de cada decisión no trivial. Dices las 
 - **Configuración centralizada (ADR-0013):** toda variable de entorno se lee en `app/core/config.py`
   (`Settings` de pydantic-settings; `get_settings()` con caché). Ningún otro módulo usa `os.getenv` ni
   `load_dotenv`. En la capa HTTP se recibe con `Depends(get_settings)`; donde no hay petición se llama a
-  `get_settings()`; el motor y Alembic usan `get_database_settings()`. Consecuencia probable: una variable nueva es un campo de
-  `Settings`, con su línea en `.env.example` y su valor de prueba en el `conftest.py` de la raíz.
+  `get_settings()`; el motor y Alembic usan `get_database_settings()`. `get_settings()`; el motor y Alembic
+   usan `get_database_settings()`. Una variable nueva es un campo de `Settings`, con su línea en `.env.example`
+   (lo exige `tests/test_config.py`) y su valor de prueba en el `conftest.py` de la raíz 
+   (ADR-0013, punto 6: sin él, la suite leería el `.env` de quien la corre).
 - Invariantes de negocio críticas viven también en la base de datos (índices únicos, FK, CHECK), no solo
   en Python (ADR-0002).
 - SOLID, KISS, DRY, YAGNI. Código aburrido y predecible. Nada de generalidad especulativa.
