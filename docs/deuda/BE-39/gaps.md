@@ -142,3 +142,55 @@ Evidencia (auditor con contexto fresco, sobre `25bc30b`; commit de la fase `f980
 Hallazgos:
 
 [OPCIONAL] — Fase C (fuera del commit de la fase) — El commit `fb109e7`, padre de la fase, que añade la auditoría de B a este archivo, lleva como mensaje `docs/deuda/BE-39/gaps.md`, que no es Conventional Commits (AGENTS §9). No afecta al código ni al plan; si el PR no se fusiona con squash, conviene reescribir ese mensaje al preparar `/pr` (p. ej. `docs(item-be39): phase B audit PASS (0 blocking, 0 optional)`, en línea con `5e24d3e`) — evidencia: `git show -s --format=%s fb109e7` → `docs/deuda/BE-39/gaps.md`.
+
+## Auditoría Fase D — 2026-11-11
+
+**Veredicto Fase D: PASS (0 bloqueantes, 0 opcionales).**
+
+Evidencia (auditor con contexto fresco, sobre `e960867`; commit de la fase `284cfe7`, padre `28d49be`):
+
+- Árbol: `git status --short` vacío antes y después de la compuerta.
+- Compuerta re-ejecutada (`./venv/Scripts/python.exe scripts/check.py`), exit 0: `61 files already formatted` ·
+  `All checks passed!` · `Success: no issues found in 56 source files` · `Contracts: 4 kept, 0 broken.` · docs OK ·
+  `Required test coverage of 92.0% reached. Total coverage: 96.29%` · `612 passed, 5 warnings in 16.61s` ·
+  `Compuerta superada.` Frente a la línea base de `verificacion.md:180-190` (579 · 96,29 % · ruff 0 · mypy 0 / 55 · 4 kept):
+  cobertura igual, ruff y mypy en 0, 4 kept. Coincide con la fila D del plan (`plan.md:157`) y con el handoff. Los 5
+  warnings son los de siempre (`HTTP_422_UNPROCESSABLE_ENTITY`, backlog S5).
+- Archivo de la fase: `ruff check tests/test_route_guards.py` → `All checks passed!`; `ruff format --check` →
+  `1 file already formatted`; `mypy tests/test_route_guards.py` → `Success: no issues found in 1 source file`;
+  `pytest tests/test_route_guards.py -q -p no:cacheprovider` → `35 passed` (criterio de `plan.md:463`).
+  `git ls-files --eol` → `i/lf w/lf`.
+- Cambios exactos: reconstruí el archivo esperado (contenido de `28d49be` + el primer bloque de `plan.md:414-424` sin la
+  sangría tras la línea `ADMIN_ROUTES: …` y una línea en blanco + el segundo bloque al final) y lo comparé con
+  `git show 284cfe7:tests/test_route_guards.py`: idénticos byte a byte. `USER_ROUTES` en `tests/test_route_guards.py:60`,
+  `_TOURIST_PAST_USER_GUARD` (200, 404, 404) en `:64-68`, `test_user_route_lets_tourist_through` en `:150-164`.
+- Alcance: `git show --stat 284cfe7` → solo `tests/test_route_guards.py` (27+). `e960867` toca solo `handoff-Fase_D.md` y
+  `progress.json`. `git diff --name-only 9ecc176 HEAD -- app alembic conftest.py tests/conftest.py` → 0 líneas; en `tests/`
+  solo `tests/test_audit.py` y `tests/test_route_guards.py`. `app/` intacto: `get_current_admin_user` 15 y
+  `assert_is_admin_plus(current_user)` 1. Tabla: 17 filas, 3 `"user"`.
+- Mensaje de commit: `plan.md:468-482` sin la sangría y con `Claude Opus 5.5` en lugar de `<MODELO EJECUTOR>`, contra
+  `git log -1 --format=%B 284cfe7` (con `strip`): idénticos.
+- `progress.json`: JSON válido; `Fase_D` `completed` con `284cfe7` (existe; `git show --stat` → 1 archivo, 27+);
+  `current_target` = `Fase_E`; `last_handoff` presente y describe la fase D; `Fase_A`, `Fase_B`, `Fase_C`, `Fase_E`,
+  `allowed_statuses` y `edit_rules` sin cambios (diff `28d49be..e960867`; `edit_rules` igual que en `5b0537d`).
+- Determinismo de los 404: `_PATH_PARAMS` usa la cédula `0000000000` (`tests/test_route_guards.py:85`) y `make_user` genera
+  `1000000000 + n` (`tests/conftest.py:190`), así que el turista nunca coincide con la cédula de la ruta.
+- Mutantes re-medidos en directorios nuevos y vacíos del scratchpad (`audD_nomut`, `audD_m12`, `audD_m13`, `audD_m14`,
+  extraídos con `git archive 284cfe7`; `find -name 'test_*probe*'` → 0 en los cuatro). Ediciones de `plan.md:458-460`
+  aplicadas con un script aparte (`audD_tools/mut.py`) que exige una sola coincidencia; `diff -r` contra `audD_nomut` solo
+  muestra la línea mutada (M12 `tests/test_route_guards.py:39`, M13 `:53`, M14 `app/api/routers/user.py:36`). Suite sin
+  `test_check*.py`:
+
+  | Estado | Resultado | Plan (`plan.md:458-462`) |
+  |---|---|---|
+  | Sin mutante | `323 passed` | 323 passed |
+  | M12 | `1 failed, 322 passed` (`test_user_route_lets_tourist_through[GET /usuarios/]`) | igual |
+  | M13 (recíproco) | `1 failed, 322 passed` (`test_admin_route_rejects_tourist[GET /usuarios/mi-perfil]`) | igual |
+  | M14 | `18 failed, 305 passed` (3 casos nuevos + `test_auth.py` 2, `test_token_failure_paths.py` 1, `test_user_access_policy.py` 2, `test_user_response.py` 10) | igual |
+
+  Los `FAILED` coinciden uno a uno con los que pega el handoff.
+- AGENTS: sin mocks; usuario y token salen de `persist_user` y `make_auth_headers`; identificadores, comentario y docstring
+  en inglés; se afirma solo el código de estado (límite aceptado en E1), nunca texto; `app/` intacto.
+- No es la última fase (queda `Fase_E`): la "Verificación final" de `plan.md:580-618` no se ejecuta en esta auditoría.
+
+Hallazgos: ninguno.
