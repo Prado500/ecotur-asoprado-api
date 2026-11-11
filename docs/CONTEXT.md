@@ -191,7 +191,7 @@ por el equipo humano"**. → El flujo agéntico es parte de la metodología decl
 - **Tests y calidad:** pytest + mocks; la medición vigente (tests, cobertura, ruff, mypy, contratos) es la última columna
   de `(PLAN §6)` y no se copia aquí. Tooling desde el 24 oct: `ruff`, `mypy`, `import-linter`, `pytest-cov`, unidos
   en `scripts/check.py` (AGENTS §6); desde el 6 nov (BE-33, PR #81) la compuerta global quedó en rojo solo por lo que tenía dueño
-  en A4 (8 I001 y 5 `str | None`) y BE-32 (1 I001); rigió el trinquete de ADR-0005 hasta A4. **Desde el 10 nov (A4, `item/a4`, PR abierto al cierre) la compuerta local pasa completa sin `--soft`** (cifras en `(PLAN §6)`); el CI conserva `--soft` hasta el CI duro (§8), que es quien marca ADR-0005 como superado. Desde el 3 nov (AF-05) un paso cuya herramienta falta sale en rojo (un
+  en A4 (8 I001 y 5 `str | None`) y BE-32 (1 I001); rigió el trinquete de ADR-0005 hasta A4. **Desde el 10 nov (A4, PR #88) la compuerta pasa completa sin `--soft` en local y sin tolerar nada en el CI** (cifras en `(PLAN §6)`); el CI conserva `--soft` hasta el CI duro (§8), que es quien marca ADR-0005 como superado. Desde el 3 nov (AF-05) un paso cuya herramienta falta sale en rojo (un
   "4 KEPT" ya no puede ser un paso que no corrió) y desde el 9 nov (AF-12) ningún paso depende de un ejecutable de `venv/Scripts/`:
   import-linter corre por su entry point con el intérprete de la compuerta, como ruff, mypy y pytest con `-m`. Los tests de `scripts/check_docs.py` corren en la suite pero fuera de la cobertura. **Desde BE-32 (7 nov, PR #85) mypy mide también `tests/`**: `pyproject.toml` `files` incluye `"tests"`, la suite propia quedó en 0 errores y los 4 que mypy reporta ahí son `SECRET_KEY` de A4; además 0 aserciones de mock sin argumentos y 3 copias HTTP menos `(backlog BE-32)`. El diagnóstico de la suite (mocks sin
   `spec`, setup duplicado, aserciones sobre texto, sesión ≠ `get_db`, huecos B2/B3/B4) es la fila
@@ -309,14 +309,14 @@ Dónde estamos (estado al cierre de la bitácora `2026-11-10`): **A4 saldada en 
 PASS, ADR-0013): toda la configuración vive en `app/core/config.py`, la app no arranca sin sus cinco variables obligatorias y
 **la compuerta local pasa completa sin `--soft` por primera vez**: 579 tests · 96,29 % · ruff 0 · mypy 0 · 4 kept `(PLAN §6)`.
 Prueba de humo en local con el `.env` real: login, perfil, subida de imagen, creación de paquete, registro, correo y
-verificación. **AF-16** hecha en la misma rama (los agentes alcanzan Context7). PR de A4 abierto al cierre; `develop` sigue en
-`8cea834` hasta mezclarlo. Filas nuevas: BE-42 (`B-GUARD-TESTS`), BE-43, BE-44 y BE-45 (`B-FUTURO`). Ruta de la semana sin
+verificación. **AF-16** hecha en la misma rama (los agentes alcanzan Context7). **PR #88 mezclado en `2dfb564`** (20:29; CI en verde
+sin bloque `env:`): `develop` = `2dfb564` más el commit documental de post-cierre. Filas nuevas: BE-42 (`B-GUARD-TESTS`), BE-43, BE-44 y BE-45 (`B-FUTURO`). Ruta de la semana sin
 cambios (David, 9 nov): **CI duro → `B-GUARD-TESTS` → `B-GHOST-ADMIN` → puesta en `staging` → `B-RESERVAS`** `(PLAN §3)`.
 
-0. **Merge del PR de A4** (si no se mezcló la noche del 10 nov): antes, revisar en el log del CI que el paso "Compuerta de
-   calidad" pasa **sin el bloque `env:`** (MD de la fase H); al mezclar, filas A4 y AF-16 a `Hecho` y PLAN §2b/§6 dejan de
-   decir "PR abierto". El merge no exige cambios en Azure (las cinco obligatorias ya están en las tres Web Apps); tras el
-   despliegue de `develop`, comprobar que la Web App arranca (es el primer arranque con validación).
+0. Hecho el 10 nov por la noche: CI del PR en verde sin el bloque `env:` (MD de la fase H), merge de PR #88, filas A4 y
+   AF-16 a `Hecho`. **Pendiente al abrir:** comprobar que la Web App de `develop` arranca tras el despliegue (es el primer
+   arranque con validación de `Settings`; las cinco obligatorias ya están definidas): `/docs` responde; si no, el log de la
+   Web App nombra la variable que falta.
 1. **CI duro** (media jornada): compuerta medida en `develop` tras el merge; si 0 · 0 · 4 kept, `--soft` fuera de
    `ci-pipeline.yml` (l.28 y l.31), línea de estado de ADR-0005 marcada superada, columna nueva en PLAN §6, `B-TESTS`
    cerrado. De paso, residuales 5 y 7 del plan de A4: `variables: - group: VG-ECOTUR-DEV` ya no lo usa la compuerta;
