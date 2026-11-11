@@ -8,7 +8,7 @@ WORKDIR /app
 COPY . .
 
 
-RUN pip install -e .[test]
+RUN pip install -e .[test] -c constraints.txt
 
 
 COPY . .

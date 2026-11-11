@@ -21,8 +21,8 @@ steps:
       versionSpec: '$(pythonVersion)'
 
   - script: |
-      pip install -e .[test,dev]
-    displayName: 'Instalar dependencias (pyproject.toml)'
+      pip install -e .[test,dev] -c constraints.txt
+    displayName: 'Instalar dependencias (pyproject.toml) + constraints.txt'
 
   # No env block: the suite fixes its own configuration in conftest.py (ADR-0013).
   - script: |
