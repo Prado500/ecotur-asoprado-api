@@ -1,6 +1,6 @@
 {
   "plan_file": "docs/deuda/BE-39/plan.md",
-  "current_target": "Fase_C",
+  "current_target": "Fase_D",
   "phases": {
     "Fase_A": {
       "status": "completed",
@@ -13,8 +13,8 @@
       "description": "17 no-token cases (401, WWW-Authenticate: Bearer, {detail}); drop test_audit_trail_requires_authentication; M9 17 failed, M9a equivalent. Target: 596 passed."
     },
     "Fase_C": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "f980041",
       "description": "14 tourist cases on admin routes (403, no WWW-Authenticate, {detail}); drop test_audit_trail_forbidden_for_tourist; M1 6, M2 9, M3 12, M6 4, M7 13, M4+M5 2 failed; M4 alone declared (BE-40). Target: 609 passed."
     },
     "Fase_D": {
@@ -29,6 +29,6 @@
     }
   },
   "allowed_statuses": ["pending", "partial", "completed"],
-  "last_handoff": "Fase_B completada (4612c42): 3 inserciones en tests/test_route_guards.py idénticas al plan y borrado de test_audit_trail_requires_authentication; M9 17 failed/290, M9a 307 (equivalente), sin mutante 307; compuerta exit 0, 596 passed, 96.29 %. Ver handoff-Fase_B.md.",
+  "last_handoff": "Fase_C completada (f980041): 3 inserciones en tests/test_route_guards.py idénticas al plan y borrado de test_audit_trail_forbidden_for_tourist; M1 6, M2 9, M3 12, M5 1, M4+M5 2, M6 4, M7 13 failed sobre 320; M4 320 passed (R1, declarado); sin mutante 320; compuerta exit 0, 609 passed, 96.29 %. Ver handoff-Fase_C.md.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
