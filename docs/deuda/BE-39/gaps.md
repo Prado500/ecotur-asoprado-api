@@ -81,3 +81,64 @@ Evidencia (auditor con contexto fresco, sobre `1e745e7`; commit de la fase `4612
   las aserciones miran código, cabecera, claves y tipo, nunca el texto de `detail`; `app/` intacto.
 
 Hallazgos: ninguno.
+
+## Auditoría Fase C — 2026-11-11
+
+**Veredicto Fase C: PASS (0 bloqueantes, 1 opcionales).**
+
+Evidencia (auditor con contexto fresco, sobre `25bc30b`; commit de la fase `f980041`, padre `fb109e7`):
+
+- Árbol: `git status --short` vacío antes y después de la compuerta.
+- Compuerta re-ejecutada (`./venv/Scripts/python.exe scripts/check.py`), exit 0: `61 files already formatted` ·
+  `All checks passed!` · `Success: no issues found in 56 source files` · `Contracts: 4 kept, 0 broken.` · docs OK ·
+  `Required test coverage of 92.0% reached. Total coverage: 96.29%` · `609 passed, 5 warnings in 17.25s` ·
+  `Compuerta superada.` Frente a la línea base de `verificacion.md:180-190` (579 · 96,29 % · ruff 0 · mypy 0 / 55 · 4 kept):
+  cobertura igual, ruff y mypy en 0, 4 kept. Coincide con la fila C del plan (`plan.md:156`) y con el handoff. Los 5
+  warnings son los de siempre (`HTTP_422_UNPROCESSABLE_ENTITY` en `tests/test_services.py`, backlog S5).
+- Archivos de la fase: `ruff check tests/test_route_guards.py tests/test_audit.py` → `All checks passed!`;
+  `ruff format --check` → `2 files already formatted`; `mypy` sobre los dos → `Success: no issues found in 2 source files`;
+  `pytest tests/test_route_guards.py -q -p no:cacheprovider` → `32 passed`.
+- Contenido: el diff de `f980041` son exactamente las tres inserciones de `plan.md:351-373`: `from app.models.user import
+  UserRole` tras `from app.main import app` (`tests/test_route_guards.py:15`); `ADMIN_ROUTES` entre el cierre de
+  `PROTECTED_ROUTES` y `PUBLIC_ROUTES` con una línea en blanco a cada lado (`:58`); el test al final (`:120-137`). El bloque
+  del test de `plan.md:355-372`, sin sangría, contra las últimas 18 líneas de `git show f980041:tests/test_route_guards.py`:
+  `diff` vacío. 137 líneas, 0 bytes `\r`, termina en un solo `\n`; `i/lf w/lf` en los dos archivos.
+  `tests/test_audit.py`: se borra exactamente `test_audit_trail_forbidden_for_tourist` (`git show 9ecc176:tests/test_audit.py`,
+  `:50-59`) y las dos líneas en blanco que la seguían; el bloque `# ===…` de "UNIT TESTS" queda a dos líneas en blanco de
+  `test_audit_trail_creation_and_retrieval` (`tests/test_audit.py:47-50`). `UserRole` sigue en uso (`:19`, `:69`, `:78`, `:111`).
+- Criterio de aceptación: `grep -rn "test_audit_trail_forbidden_for_tourist" tests --include=*.py` → 0 líneas (y 0 para
+  `test_audit_trail_requires_authentication`). `grep -rnE "status_code == 40[13]" tests --include=*.py | wc -l` → 30 y 0 en
+  `tests/test_audit.py` (la cifra del paso 6 de la Verificación final); `grep -c "www-authenticate"` en el archivo nuevo → 2.
+- Alcance: `git diff --name-only fb109e7 f980041` → solo `tests/test_audit.py` y `tests/test_route_guards.py`;
+  `git diff --name-only 9ecc176 HEAD -- app alembic conftest.py tests/conftest.py` → 0 líneas. `25bc30b` toca solo
+  `handoff-Fase_C.md` y `progress.json`. `app/` intacto: `get_current_admin_user` 15 y `assert_is_admin_plus(current_user)` 1.
+- Mensaje de commit: `plan.md:390-408` sin la sangría y con `Claude Opus 5.5` en lugar de `<MODELO EJECUTOR>`, contra
+  `git show -s --format=%B f980041`: la única diferencia es la línea vacía final que añade `%B`.
+- `progress.json`: JSON válido; `Fase_C` `completed` con `f980041` (existe; `git show --stat` → 2 archivos, 21+, 12-);
+  `current_target` = `Fase_D`; `last_handoff` presente; `Fase_A`, `Fase_B`, `Fase_D`, `Fase_E`, `edit_rules` y
+  `allowed_statuses` sin cambios (diff `1e745e7..25bc30b`).
+- Mutantes re-medidos en directorios nuevos y vacíos del scratchpad (`audC_nomut`, `audC_m1`, `audC_m2`, `audC_m3`,
+  `audC_m4`, `audC_m5`, `audC_m4m5`, `audC_m6`, `audC_m7`, extraídos con `git archive f980041`; `find -name 'test_*probe*'`
+  → 0 en los nueve). Ediciones de `plan.md:117-125` aplicadas con un script aparte (`audC_tools/mut.py`) que exige el número
+  exacto de coincidencias (7 en M2, 6 en M3, 2 en M6, 1 en el resto); `diff -r -q` de cada copia contra `audC_nomut/app`
+  solo muestra el archivo mutado. Suite sin `test_check*.py`:
+
+  | Estado | Resultado | Plan (`plan.md:379-383`) |
+  |---|---|---|
+  | Sin mutante | `320 passed` | 320 passed |
+  | M1 | `6 failed, 314 passed` (3 de turista + 3 anónimos: `upload-images`, `admin/inactivos`, `admin/eliminados`) | igual |
+  | M2 | `9 failed, 311 passed` (las 9 de `/servicios`, turista) | igual |
+  | M3 | `12 failed, 308 passed` (9 de turista + los 3 anónimos de M1) | igual |
+  | M4 | `320 passed` (R1, declarado) | igual |
+  | M5 | `1 failed, 319 passed` (`TestAuditServiceAuthorization::test_tourist_raises_authorization_error_and_repo_never_called`) | igual |
+  | M4+M5 | `2 failed, 318 passed` (el unitario + `[GET /auditoria/]`) | igual |
+  | M6 | `4 failed, 316 passed` (las 4 de `/usuarios`) | igual |
+  | M7 | `13 failed, 307 passed` (las 13 admin salvo `[GET /auditoria/]`) | igual |
+
+  Los `FAILED` coinciden uno a uno con los que pega el handoff.
+- AGENTS: sin mocks; usuario y token salen de `persist_user` y `make_auth_headers`; identificadores y docstrings en inglés;
+  se afirma sobre código, ausencia de cabecera, claves y tipo de `detail`, nunca sobre su texto; `app/` intacto.
+
+Hallazgos:
+
+[OPCIONAL] — Fase C (fuera del commit de la fase) — El commit `fb109e7`, padre de la fase, que añade la auditoría de B a este archivo, lleva como mensaje `docs/deuda/BE-39/gaps.md`, que no es Conventional Commits (AGENTS §9). No afecta al código ni al plan; si el PR no se fusiona con squash, conviene reescribir ese mensaje al preparar `/pr` (p. ej. `docs(item-be39): phase B audit PASS (0 blocking, 0 optional)`, en línea con `5e24d3e`) — evidencia: `git show -s --format=%s fb109e7` → `docs/deuda/BE-39/gaps.md`.
