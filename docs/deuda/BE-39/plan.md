@@ -2,21 +2,22 @@
 
 > Fuente: `docs/deuda/BE-39/verificacion.md` (confirmada, con adenda de siete decisiones de David del 11 nov, 10:48).
 > Base: `9ecc176` (`3ca990a` + un commit de documentación, la verificación; `app/` y `tests/` idénticos). Estado:
-> **aprobado con E0 y E1 (11 nov, 12:32 y 12:55): cuatro fases, A → D; E2 (13:18) pide una fase E, pendiente de que el
-> planificador la escriba**. Todas las cifras de este plan se midieron hoy
-> sobre copias desechables con el contenido exacto que dicta.
+> **aprobado con E0, E1, E2 y E3 (11 nov, 12:32, 12:55, 13:18 y 16:13): cinco fases, A → E**. Todas las cifras de este
+> plan se midieron hoy sobre copias desechables con el contenido exacto que dicta.
 
 ## Resumen para aprobación
 
-En cuatro fases, todas en `tests/` y sin tocar `app/`, el plan crea `tests/test_route_guards.py` con una tabla de las 17
-rutas protegidas y cuatro tests sobre ella. (A) Un test de inventario compara la tabla y la lista de rutas públicas con
+En cinco fases, todas en `tests/` y sin tocar `app/`, el plan crea `tests/test_route_guards.py` con una tabla de las 17
+rutas protegidas y seis tests sobre ella. (A) Un test de inventario compara la tabla y la lista de rutas públicas con
 `app.routes`, de modo que una ruta nueva sin entrada hace caer la suite. (B) Las 17 rutas, sin token, responden 401 con
 `WWW-Authenticate: Bearer`. (C) Las 14 rutas admin responden 403 a un turista, sin esa cabecera. (D) Las 3 rutas de
 usuario dejan pasar a un turista y responde el handler (200, 404, 404), así que una ruta admin etiquetada `"user"` por
-error cae (E0). Ningún test lee texto. Los dos tests de `tests/test_audit.py` que cubrían `/auditoria/` se borran en la
-fase que los sustituye. La suite pasa de 579 a 612 tests y la cobertura queda en 96,29 % (medido). Cada test nuevo se
-midió en rojo frente a su mutante: M1, M2, M3, M6, M7, M4+M5, M9 (sin token), M10 y M11 (inventario), M12 y M14
-(etiqueta y guard de usuario); M13, el recíproco de M12, lo mata la fase C.
+error cae (E0). (E) Las 9 rutas públicas responden sin token su propio código (200 o 422, nunca 401) y las tablas no
+repiten ni comparten filas, así que una ruta protegida anotada como pública cae (E2). Ningún test lee texto. Los dos
+tests de `tests/test_audit.py` que cubrían `/auditoria/` se borran en la fase que los sustituye. La suite pasa de 579 a
+622 tests y la cobertura de 96,29 % a 96,47 % (medido). Cada test nuevo se midió en rojo frente a su mutante: M1, M2,
+M3, M6, M7, M4+M5, M9 (sin token), M10 y M11 (inventario), M12 y M14 (etiqueta y guard de usuario), M15, M16 y M17
+(tablas pública y protegida); M13 y M18, recíprocos, los matan las fases C y B.
 **Riesgo principal:** M4 sola sigue sin matarse. En `/auditoria/` el re-chequeo de `audit_service.py:65` responde el mismo
 403 que el guard, y así seguirá hasta BE-40. Está declarado (adenda, decisión 2) y pasa a la verificación final de BE-40.
 Por la misma razón, M7 tumba 13 de las 14 rutas admin, no 14.
@@ -154,6 +155,7 @@ Compuerta esperada al cerrar cada fase (exit 0, `Compuerta superada.`; ruff chec
 | B | 61 files | 56 | **596 passed** | 96,29 % | 307 passed |
 | C | 61 files | 56 | **609 passed** | 96,29 % | 320 passed |
 | D | 61 files | 56 | **612 passed** | 96,29 % | 323 passed |
+| E | 61 files | 56 | **622 passed** | 96,47 % | 333 passed |
 
 Al usar cada mensaje de commit, el ejecutor sustituye `<MODELO EJECUTOR>` por su modelo real y deja el resto letra a letra.
 
@@ -480,9 +482,104 @@ Al usar cada mensaje de commit, el ejecutor sustituye `<MODELO EJECUTOR>` por su
   Co-Authored-By: <MODELO EJECUTOR> <noreply@anthropic.com>
   ```
 
+### Fase E — Cada ruta pública responde sin token y las tablas no repiten ni comparten filas (E2)
+- **Archivos:** `tests/test_route_guards.py`.
+- **Cambios exactos:** dos inserciones. Tras el cierre de `PUBLIC_ROUTES` (antes del comentario `# Path parameters …` de la
+  fase B), una línea en blanco y:
+  ```python
+  # What each public route answers a request with no token and no body: validation's 422 where the
+  # route needs a body or a query parameter, 200 everywhere else. A guard would answer 401 first.
+  _ANONYMOUS_ON_PUBLIC_ROUTE: dict[tuple[str, str], int] = {
+      ("POST", "/usuarios/registro"): 422,
+      ("GET", "/usuarios/verificar-email"): 422,
+      ("POST", "/usuarios/login"): 422,
+      ("GET", "/servicios/"): 200,
+      ("GET", "/"): 200,
+      ("GET", "/openapi.json"): 200,
+      ("GET", "/docs"): 200,
+      ("GET", "/docs/oauth2-redirect"): 200,
+      ("GET", "/redoc"): 200,
+  }
+  ```
+  Y al final del archivo:
+  ```python
+
+
+  def test_route_tables_have_no_repeated_or_shared_entries() -> None:
+      """Each protected (method, path) is listed once, and never in PUBLIC_ROUTES as well.
+
+      The inventory test compares sets, so it cannot see either mistake on its own.
+      """
+      protected = [(route.method, route.path) for route in PROTECTED_ROUTES]
+
+      assert len(protected) == len(set(protected))
+      assert not set(protected) & PUBLIC_ROUTES
+
+
+  @pytest.mark.parametrize("route", sorted(PUBLIC_ROUTES), ids=" ".join)
+  async def test_public_route_answers_without_token(client, route: tuple[str, str]) -> None:
+      """Without a token, every public route answers its own code, never the guard's 401.
+
+      A protected route listed in PUBLIC_ROUTES by mistake answers 401 here and fails.
+      """
+      method, path = route
+
+      response = await client.request(method, path)
+
+      assert response.status_code == _ANONYMOUS_ON_PUBLIC_ROUTE.get(route)
+  ```
+- **Por qué el código exacto y no "no 401"** (E2, punto 1a, dato medido hoy con una sonda sobre copia nueva): sin token ni
+  cuerpo, `GET /`, `/docs`, `/docs/oauth2-redirect`, `/openapi.json`, `/redoc` y `GET /servicios/` dan `200`;
+  `POST /usuarios/registro`, `POST /usuarios/login` y `GET /usuarios/verificar-email` dan `422` (falta el cuerpo o el
+  parámetro `token`). Ninguna lleva `www-authenticate`. El código exacto descarta además un 5xx. Con `.get(...)`, una ruta
+  sin entrada da `None`: una ruta pública nueva falla hasta que se anota su código. `PUBLIC_ROUTES` es un `frozenset`, así
+  que los casos se recorren con `sorted(...)` (orden estable) y `ids=" ".join` los nombra `GET /docs`, etc. Un
+  `frozenset` no puede repetir filas, así que la higiene comprueba solo las repeticiones de `PROTECTED_ROUTES` y el solape
+  entre las dos tablas, en un test aparte: el de inventario es de la fase A (`d89e942`) y no se toca.
+- **Efecto medido en la compuerta:** los 3 casos de `422` pasan por el handler de validación de `app/main.py:94`, que usa
+  `HTTP_422_UNPROCESSABLE_ENTITY` (deprecado, backlog S5): la compuerta muestra `8 warnings` en vez de `5`. No bloquea y no
+  se corrige aquí. La cobertura sube a 96,47 %.
+- **Tests (RED primero):** procedimiento común, copiando `tests/test_route_guards.py` (y `tests/test_audit.py` tal como
+  queda tras la fase C). Mutantes propios, sobre la tabla:
+
+  | Mutante | Edición exacta en `tests/test_route_guards.py` de la copia | Resultado |
+  |---|---|---|
+  | M15 | borrar `    ProtectedRoute("GET", "/usuarios/mi-perfil", "user"),` y añadir `        ("GET", "/usuarios/mi-perfil"),` tras `        ("GET", "/redoc"),` | 1 failed, 331 passed: `test_public_route_answers_without_token[GET /usuarios/mi-perfil]` |
+  | M16 | duplicar la línea `    ProtectedRoute("GET", "/usuarios/", "admin"),` | 1 failed, 334 passed: `test_route_tables_have_no_repeated_or_shared_entries` (los casos duplicados de B y C pasan) |
+  | M17 | añadir `        ("GET", "/usuarios/"),` tras `        ("GET", "/redoc"),` | 2 failed, 332 passed: la higiene y `test_public_route_answers_without_token[GET /usuarios/]` |
+  | M18 (recíproco, declarado) | borrar `        ("GET", "/servicios/"),` y añadir `    ProtectedRoute("GET", "/servicios/", "admin"),` tras `    ProtectedRoute("GET", "/auditoria/", "admin"),` | 2 failed, 332 passed: `test_protected_route_rejects_request_without_token[GET /servicios/]` (fase B) y `test_admin_route_rejects_tourist[GET /servicios/]` (fase C) |
+
+  Sin mutante, `333 passed`.
+- **Criterio de aceptación:** las cifras anteriores, `pytest tests/test_route_guards.py -q` → `45 passed`, y la fila E de la
+  compuerta.
+- **Fuera de alcance de esta fase:** el test de inventario y las tablas de la fase A; los cuerpos de las respuestas
+  públicas; la deprecación de `app/main.py:94` (S5); `tests/test_audit.py`.
+- **Commit:**
+  ```text
+  test(guards): pin public routes without a token and table hygiene
+
+  The inventory test only proves that every route sits in some table.
+  A protected route listed in PUBLIC_ROUTES by mistake would drop out
+  of the rejection tests, and a repeated row or a route in both tables
+  would go unseen, because the test compares sets (optional 2 of the
+  phase A audit).
+
+  - One parametrized test sends a request without a token to each
+    public route, in sorted order, and expects the route's own code
+    (422 where a body or query parameter is missing, 200 elsewhere);
+    a guarded route answers 401 and fails.
+  - One test asserts that no (method, path) repeats in
+    PROTECTED_ROUTES and that none is also in PUBLIC_ROUTES.
+
+  The opposite mistake, a public route listed as protected, already
+  fails its no-token case. Requested by E2 of the BE-39 plan.
+
+  Co-Authored-By: <MODELO EJECUTOR> <noreply@anthropic.com>
+  ```
+
 ## Verificación final
 
-Desde la raíz del repo, tras la fase D. Las cifras cuentan el texto literal que dicta este plan (docstrings y comentarios
+Desde la raíz del repo, tras la fase E. Las cifras cuentan el texto literal que dicta este plan (docstrings y comentarios
 de `tests/test_route_guards.py` incluidos).
 
 ```bash
@@ -494,8 +591,9 @@ git diff --name-only 9ecc176 HEAD -- tests
 grep -c '^    ProtectedRoute("' tests/test_route_guards.py
 grep -cE '^    ProtectedRoute\(".*", "admin"' tests/test_route_guards.py
 grep -cE '^    ProtectedRoute\(".*", "user"' tests/test_route_guards.py
-# 4. 35 casos (1 inventario + 17 sin token + 14 turista en admin + 3 turista en usuario), todos verdes
-./venv/Scripts/python.exe -m pytest tests/test_route_guards.py -q -p no:cacheprovider      # 35 passed
+# 4. 45 casos (1 inventario + 17 sin token + 14 turista en admin + 3 turista en usuario + 1 higiene
+#    + 9 públicas), todos verdes
+./venv/Scripts/python.exe -m pytest tests/test_route_guards.py -q -p no:cacheprovider      # 45 passed
 # 5. La cabecera se afirma dos veces (presente en 401, ausente en 403): 2
 grep -c "www-authenticate" tests/test_route_guards.py
 # 6. Aserciones 401/403 en toda la suite: 30 (30 − test_audit.py:58,144 + 2 nuevas); 0 en test_audit.py
@@ -511,15 +609,15 @@ grep -rn "test_audit_trail_forbidden_for_tourist\|test_audit_trail_requires_auth
 # 10. app/ intacto: 15 y 1, como en la línea base
 grep -rn "get_current_admin_user" app --include=*.py | wc -l
 grep -rn "assert_is_admin_plus(current_user)" app --include=*.py | wc -l
-# 11. Compuerta: exit 0, 612 passed, cobertura ≥ 96,29 %, 61 files formatted, mypy 56 source files, 4 kept
+# 11. Compuerta: exit 0, 622 passed, cobertura 96,47 % (≥ 96,29 %), 61 files formatted, mypy 56 source files, 4 kept
 ./venv/Scripts/python.exe scripts/check.py
 ```
 
-12. Mutantes sobre la copia del estado final (procedimiento común): M1 6/317, M2 9/314, M3 12/311, M4+M5 2/321, M6 4/319,
-    M7 13/310, M9 17/306, M10 1/322, M11 4/319 (los 4 de M11: el inventario, los dos casos de `admin/inactivos` y
-    `test_inactive_column_returns_off_rule_package`), M12 1/322 (`test_user_route_lets_tourist_through[GET /usuarios/]`),
-    M13 1/322 (`test_admin_route_rejects_tourist[GET /usuarios/mi-perfil]`), M14 18/305. Sin rojo: M4 323 (R1) y M9a 323
-    (equivalente).
+12. Mutantes sobre la copia del estado final (procedimiento común): M1 6/327, M2 9/324, M3 12/321, M4+M5 2/331, M6 4/329,
+    M7 13/320, M9 17/316, M10 1/332, M11 4/329 (los 4 de M11: el inventario, los dos casos de `admin/inactivos` y
+    `test_inactive_column_returns_off_rule_package`), M12 1/332 (`test_user_route_lets_tourist_through[GET /usuarios/]`),
+    M13 1/332 (`test_admin_route_rejects_tourist[GET /usuarios/mi-perfil]`), M14 18/315, M15 1/331, M16 1/334, M17 2/332,
+    M18 2/332 (detalle de M15–M18 en la fase E). Sin rojo: M4 333 (R1) y M9a 333 (equivalente).
 
 ## Enmiendas aprobadas
 
@@ -599,6 +697,17 @@ alguna tabla, no que esté en la correcta, y compara conjuntos.
    `progress.json`: añade `Fase_E` y **no toca** `Fase_A` (`completed`, `d89e942`) ni `current_target` (`Fase_B`).
 4. **Opcional 1 de la misma auditoría** (el commit de A dice "the next two commits" y serán cuatro): sin acción en el
    código; se declara en la descripción del PR.
+
+### E3 — 11 nov 2026, 16:13 (David, sesión Mentor)
+
+Texto literal de David: «sí. ve y hazlo para empezar a implementar las siguientes fases».
+
+**Fase E aprobada como la escribió el planificador** (E2): `_ANONYMOUS_ON_PUBLIC_ROUTE` con el código exacto por ruta
+(200 en seis, 422 en tres), `test_public_route_answers_without_token` y
+`test_route_tables_have_no_repeated_or_shared_entries`; mutantes M15, M16, M17 y M18. **Meta final del ítem: 622 passed ·
+96,47 %.** Sin cambios en A, B, C y D. Dos efectos aceptados: la compuerta pasa de `5 warnings` a `8 warnings` por la
+constante deprecada de `app/main.py:94` (backlog S5, no se corrige aquí); la fase E afirma solo el código de estado.
+`current_target` sigue en `Fase_B`.
 
 ## Residuales
 
