@@ -194,3 +194,92 @@ Evidencia (auditor con contexto fresco, sobre `e960867`; commit de la fase `284c
 - No es la última fase (queda `Fase_E`): la "Verificación final" de `plan.md:580-618` no se ejecuta en esta auditoría.
 
 Hallazgos: ninguno.
+
+## Auditoría Fase E — 2026-11-11
+
+**Veredicto Fase E: PASS (0 bloqueantes, 0 opcionales).**
+
+Evidencia (auditor con contexto fresco, sobre `6e4c66c`; commit de la fase `fee04bc`, padre `3b10acd`). Última fase del
+ítem: incluye la Verificación final completa de `plan.md:580-620`, paso 12 incluido.
+
+- Árbol: `git status --short` vacío antes y después de la compuerta y de los mutantes.
+- Compuerta re-ejecutada (`./venv/Scripts/python.exe scripts/check.py`), exit 0: `61 files already formatted` ·
+  `All checks passed!` · `Success: no issues found in 56 source files` · `Contracts: 4 kept, 0 broken.` · docs OK ·
+  `Required test coverage of 92.0% reached. Total coverage: 96.47%` · `622 passed, 8 warnings in 17.66s` ·
+  `Compuerta superada.` Frente a la línea base de `verificacion.md:180-190` (579 · 96,29 % · ruff 0 · mypy 0 / 55 · 4 kept):
+  +43 tests, cobertura +0,18, ruff y mypy en 0, 4 kept. Coincide con la fila E del plan (`plan.md:158`) y con el handoff.
+  Los 8 warnings son todos `HTTP_422_UNPROCESSABLE_ENTITY` (backlog S5): los 5 de siempre más los 3 casos 422 nuevos
+  (`[GET /usuarios/verificar-email]`, `[POST /usuarios/login]`, `[POST /usuarios/registro]`), efecto aceptado en E3.
+- Archivo de la fase: `ruff check tests/test_route_guards.py` → `All checks passed!`; `mypy tests/test_route_guards.py` →
+  `Success: no issues found in 1 source file`; `pytest tests/test_route_guards.py -q -p no:cacheprovider` → `45 passed`
+  (criterio de `plan.md:553`). `git ls-files --eol` → `i/lf w/lf`.
+- Cambios exactos: reconstruí el archivo esperado (`git show 284cfe7:tests/test_route_guards.py` + el bloque de
+  `plan.md:490-502` sin la sangría, tras el cierre de `PUBLIC_ROUTES` y su línea en blanco y con una línea en blanco antes
+  de `# Path parameters`, + el bloque de `plan.md:506-529` al final) y lo comparé con
+  `git show fee04bc:tests/test_route_guards.py`: idénticos byte a byte (202 líneas, 0 bytes `\r`, un solo `\n` final).
+  `_ANONYMOUS_ON_PUBLIC_ROUTE` en `tests/test_route_guards.py:84-96`; `test_route_tables_have_no_repeated_or_shared_entries`
+  en `:181-189`; `test_public_route_answers_without_token` en `:192-202`. El inventario y las tablas de A no cambian.
+- Alcance: `git show --stat fee04bc` → solo `tests/test_route_guards.py` (38+). `6e4c66c` toca solo `handoff-Fase_E.md` y
+  `progress.json`.
+- Mensaje de commit: `plan.md:559-577` sin la sangría y con `Claude Opus 5.5` en lugar de `<MODELO EJECUTOR>`, contra
+  `git log -1 --format=%B fee04bc` sin la línea vacía final: `diff` vacío.
+- `progress.json`: JSON válido; `Fase_E` `completed` con `fee04bc` (existe; `git show --stat` → 1 archivo, 38+);
+  `current_target` = `null` (cierre del ítem; 14 de los 16 `progress.json` de `docs/deuda/` lo tienen así); `last_handoff`
+  presente y describe la fase E; `Fase_A`…`Fase_D`, `allowed_statuses` y `edit_rules` sin cambios (diff de `6e4c66c`;
+  `edit_rules` igual que en `5b0537d`).
+- AGENTS: sin mocks ni fábricas (peticiones anónimas, solo `client`; el test de higiene no hace E/S); identificadores,
+  comentario y docstrings en inglés; se afirma solo el código de estado y la estructura de las tablas, nunca texto; `app/`
+  intacto.
+
+Verificación final (`plan.md:585-620`), desde la raíz tras `6e4c66c`:
+
+| Paso | Esperado | Medido |
+|---|---|---|
+| 1. `app`, `alembic`, conftests desde `9ecc176` | 0 | 0 |
+| 2. Archivos de `tests/` cambiados | `test_audit.py`, `test_route_guards.py` | esos dos |
+| 3. Filas / admin / user | 17 / 14 / 3 | 17 / 14 / 3 |
+| 4. `pytest tests/test_route_guards.py` | 45 passed | `45 passed, 3 warnings in 0.78s` |
+| 5. `www-authenticate` | 2 | 2 |
+| 6. `status_code == 40[13]` suite / `test_audit.py` | 30 / 0 | 30 / 0 |
+| 7. Patrón 1 en `test_services.py` / archivo nuevo | 0 / 4 | 0 / 4 |
+| 8. Patrón 3 | 3 (`test_auth.py:109`, `test_services.py:648`, `:668`) | esas 3 |
+| 9. Tests sustituidos | 0 | 0 |
+| 10. `get_current_admin_user` / `assert_is_admin_plus(current_user)` en `app` | 15 / 1 | 15 / 1 |
+| 11. Compuerta | exit 0, 622, 96,47 %, 61 files, mypy 56, 4 kept | exit 0, 622, 96,47 %, 61 files, mypy 56, 4 kept |
+
+Paso 12, mutantes sobre el estado final: 19 copias en directorios nuevos y vacíos del scratchpad (`audE_NOMUT`, `audE_M1`…
+`audE_M18`, `audE_M4M5`, `audE_M9a`; ningún `audE_*` existía), extraídas con `git archive HEAD` (`6e4c66c`; su
+`tests/test_route_guards.py` es idéntico al del árbol, `cmp`); `find -name 'test_*probe*'` → 0 en las 19. Ediciones de
+`plan.md:117-147`, `:456-460` y `:545-550` aplicadas con un script aparte (`audE_tools/apply.py`) que exige el número
+exacto de coincidencias (7 en M2, 6 en M3, líneas 21 y 37 en M6, 1 en el resto); `diff -rq` de cada copia contra
+`audE_NOMUT` solo muestra el archivo mutado. Suite sin `test_check*.py`:
+
+| Mutante | Medido | Plan (`plan.md:616-620`) |
+|---|---|---|
+| Sin mutante | 333 passed | 333 |
+| M1 | 6 failed, 327 passed (3 sin token + 3 turista: `upload-images`, `admin/inactivos`, `admin/eliminados`) | 6/327 |
+| M2 | 9 failed, 324 passed (las 9 de `/servicios`, turista) | 9/324 |
+| M3 | 12 failed, 321 passed (9 turista + los 3 sin token de M1) | 12/321 |
+| M4 | 333 passed (R1) | 333 (sin rojo, R1) |
+| M4+M5 | 2 failed, 331 passed (`TestAuditServiceAuthorization::test_tourist_raises_…` + `[GET /auditoria/]`) | 2/331 |
+| M6 | 4 failed, 329 passed (las 4 admin de `/usuarios`) | 4/329 |
+| M7 | 13 failed, 320 passed (las 13 admin salvo `[GET /auditoria/]`) | 13/320 |
+| M9 | 17 failed, 316 passed (los 17 casos sin token) | 17/316 |
+| M9a | 333 passed (equivalente) | 333 (sin rojo, equivalente) |
+| M10 | 1 failed, 332 passed (inventario) | 1/332 |
+| M11 | 4 failed, 329 passed (inventario, `[GET /servicios/admin/inactivos]` sin token y turista, `test_inactive_column_returns_off_rule_package`) | 4/329 |
+| M12 | 1 failed, 332 passed (`test_user_route_lets_tourist_through[GET /usuarios/]`) | 1/332 |
+| M13 | 1 failed, 332 passed (`test_admin_route_rejects_tourist[GET /usuarios/mi-perfil]`) | 1/332 |
+| M14 | 18 failed, 315 passed (3 de usuario + `test_auth.py` 2, `test_token_failure_paths.py` 1, `test_user_access_policy.py` 2, `test_user_response.py` 10) | 18/315 |
+| M15 | 1 failed, 331 passed (`test_public_route_answers_without_token[GET /usuarios/mi-perfil]`) | 1/331 |
+| M16 | 1 failed, 334 passed (`test_route_tables_have_no_repeated_or_shared_entries`) | 1/334 |
+| M17 | 2 failed, 332 passed (higiene + `test_public_route_answers_without_token[GET /usuarios/]`) | 2/332 |
+| M18 | 2 failed, 332 passed (`test_protected_route_rejects_request_without_token[GET /servicios/]`, `test_admin_route_rejects_tourist[GET /servicios/]`) | 2/332 |
+
+Las 19 cifras coinciden con el plan; M15–M18 coinciden además, `FAILED` a `FAILED`, con las que pega el handoff.
+
+Hallazgos: ninguno.
+
+Pendientes de cierre ya decididos (no son hallazgos de esta fase): la línea de AGENTS §3 (E0 punto 2, P1/R4) la escribe
+David antes de `/pr`; el opcional 1 de la auditoría de A va a la descripción del PR (E2 punto 4); el opcional de la
+auditoría de C (mensaje de `fb109e7`) se resuelve al preparar `/pr`; R1–R3 son notas para BE-40 y BE-42.
