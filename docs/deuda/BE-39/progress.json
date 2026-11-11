@@ -1,10 +1,10 @@
 {
   "plan_file": "docs/deuda/BE-39/plan.md",
-  "current_target": "Fase_A",
+  "current_target": "Fase_B",
   "phases": {
     "Fase_A": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "d89e942",
       "description": "tests/test_route_guards.py (new): PROTECTED_ROUTES (17), PUBLIC_ROUTES (9) and the inventory test against app.routes; M10 1 failed, M11 2 failed. Target: 580 passed, cov 96.29 %."
     },
     "Fase_B": {
@@ -24,6 +24,6 @@
     }
   },
   "allowed_statuses": ["pending", "partial", "completed"],
-  "last_handoff": "Estado inicial. Plan pendiente de aprobación humana.",
+  "last_handoff": "Fase_A completada (d89e942): tests/test_route_guards.py idéntico al plan; M10 1 failed/290, M11 2 failed/289, sin mutante 291; compuerta exit 0, 580 passed, 96.29 %. Ver handoff-Fase_A.md.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
