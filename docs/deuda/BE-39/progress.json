@@ -1,6 +1,6 @@
 {
   "plan_file": "docs/deuda/BE-39/plan.md",
-  "current_target": "Fase_E",
+  "current_target": null,
   "phases": {
     "Fase_A": {
       "status": "completed",
@@ -23,12 +23,12 @@
       "description": "E0: 3 tourist cases on user routes expect the handler's code (200, 404, 404) via USER_ROUTES and _TOURIST_PAST_USER_GUARD; M12 1 failed, M14 18 failed; M13 (reciprocal) killed by phase C. Target: 612 passed."
     },
     "Fase_E": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "fee04bc",
       "description": "E2: 9 no-token cases on public routes expect their own code (200 x6, 422 x3) via _ANONYMOUS_ON_PUBLIC_ROUTE; table hygiene test (no repeated protected row, no row in both tables); M15 1, M16 1, M17 2 failed; M18 (reciprocal) killed by phases B and C. Target: 622 passed, cov 96.47 %."
     }
   },
   "allowed_statuses": ["pending", "partial", "completed"],
-  "last_handoff": "Fase_D completada (284cfe7): 2 inserciones en tests/test_route_guards.py idénticas al plan (USER_ROUTES, _TOURIST_PAST_USER_GUARD, test_user_route_lets_tourist_through); M12 1, M13 1 (recíproco, lo mata la fase C), M14 18 failed sobre 323; sin mutante 323; compuerta exit 0, 612 passed, 96.29 %. Ver handoff-Fase_D.md.",
+  "last_handoff": "Fase_E completada (fee04bc): 2 inserciones en tests/test_route_guards.py idénticas al plan (_ANONYMOUS_ON_PUBLIC_ROUTE, test_route_tables_have_no_repeated_or_shared_entries, test_public_route_answers_without_token); M15 1, M16 1, M17 2, M18 2 (recíproco, lo matan B y C) failed; sin mutante 333; compuerta exit 0, 622 passed, 96.47 %, 8 warnings (S5). Última fase del ítem. Ver handoff-Fase_E.md.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
