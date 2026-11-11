@@ -2,7 +2,8 @@
 
 > Fuente: `docs/deuda/BE-39/verificacion.md` (confirmada, con adenda de siete decisiones de David del 11 nov, 10:48).
 > Base: `9ecc176` (`3ca990a` + un commit de documentación, la verificación; `app/` y `tests/` idénticos). Estado:
-> **aprobado con E0 y E1 (11 nov, 12:32 y 12:55): cuatro fases, A → D**. Todas las cifras de este plan se midieron hoy
+> **aprobado con E0 y E1 (11 nov, 12:32 y 12:55): cuatro fases, A → D; E2 (13:18) pide una fase E, pendiente de que el
+> planificador la escriba**. Todas las cifras de este plan se midieron hoy
 > sobre copias desechables con el contenido exacto que dicta.
 
 ## Resumen para aprobación
@@ -567,6 +568,37 @@ Texto literal de David: «sí, ve y deja el plan listo para implementar».
 código exacto por ruta (200, 404, 404) y `test_user_route_lets_tourist_through`; mutantes M12, M13 y M14; meta 612 passed.
 Sin cambios en A, B y C. Límite aceptado: la fase D afirma solo el código de estado; los cuerpos de esas respuestas ya
 los congelan `tests/test_auth.py` y `tests/test_user_response.py`. `current_target` sigue en `Fase_A`.
+
+### E2 — 11 nov 2026, 13:18 (David, sesión Mentor; opcional 2 de la auditoría de la fase A)
+
+Texto literal de David: «sí, hagamos que haya fase E tal y como tú dices». Aplica su regla de las 12:25 (E0): un
+hallazgo sobre el propio artefacto del ítem se corrige en el ítem.
+
+**Fase E nueva, después de la D. Las fases A (hecha, `d89e942`), B, C y D no cambian: ni su código, ni sus cifras, ni
+sus commits.** El hallazgo (`gaps.md`, auditoría de la fase A, opcional 2): el inventario prueba que cada ruta esté en
+alguna tabla, no que esté en la correcta, y compara conjuntos.
+
+1. **Lo que la fase E debe conseguir (requisito; el planificador dicta el código y lo mide):**
+   a. **Una ruta protegida anotada por error en `PUBLIC_ROUTES` hace caer la suite.** Un test parametrizado sobre
+      `PUBLIC_ROUTES`: una petición sin token a cada ruta pública **no** responde 401. Una ruta con guard anotada ahí
+      responde 401 y el test cae. Igual que en la fase D, si la medición permite afirmar el código exacto por ruta sin
+      leer texto, mejor que "no 401"; lo decide el planificador. Datos a medir antes de dictar: qué responde hoy cada
+      una de las 9 (las 5 de la aplicación y las 4 de documentación) sin token, con qué cuerpo o parámetros; y que
+      `PUBLIC_ROUTES` es un `frozenset`, así que los casos necesitan un orden estable para sus ids.
+   b. **Higiene de las tablas:** ninguna pareja (método, ruta) repetida en `PROTECTED_ROUTES`, y ninguna en las dos
+      tablas a la vez. Como aserciones del test de inventario o como test aparte: lo decide el planificador.
+   Solo `tests/test_route_guards.py`; sin tocar `app/` ni ningún `conftest.py`. Sin texto (AGENTS §5).
+2. **Mutantes propios, sobre la tabla, en la copia:** (i) quitar una fila de `PROTECTED_ROUTES` y anotar esa ruta en
+   `PUBLIC_ROUTES` (p. ej. `GET /usuarios/mi-perfil`) → cae el caso nuevo de esa ruta; (ii) repetir una fila de
+   `PROTECTED_ROUTES` → cae la higiene; (iii) anotar en `PUBLIC_ROUTES` una ruta que sigue en `PROTECTED_ROUTES` → cae
+   la higiene. El plan declara además el recíproco que ya cubre la fase B: una ruta pública anotada como protegida →
+   cae su caso de 401.
+3. **Lo que el planificador recalcula, y nada más:** la sección de la fase E (archivos, cambios exactos, RED con sus
+   mutantes, criterio de aceptación, commit); la fila E de la tabla de compuerta; los pasos de la Verificación final
+   cuya cifra cambie y el paso 12 con los mutantes nuevos; el Resumen para aprobación si cambia su cifra final;
+   `progress.json`: añade `Fase_E` y **no toca** `Fase_A` (`completed`, `d89e942`) ni `current_target` (`Fase_B`).
+4. **Opcional 1 de la misma auditoría** (el commit de A dice "the next two commits" y serán cuatro): sin acción en el
+   código; se declara en la descripción del PR.
 
 ## Residuales
 
