@@ -1,6 +1,6 @@
 # ADR-0005 — Trinquete de calidad: criterio de aceptación relativo a la línea base mientras la compuerta global esté en rojo
 
-- **Estado:** aceptado
+- **Estado:** superado el 11 nov 2026: la compuerta pasa completa en `develop` (`c957941`) y el CI la ejecuta sin `--soft` (PR #89). Aceptado el 26 oct 2026.
 - **Propuesta:** Claude (25 oct 2026) · **Aprobada:** David (26 oct 2026)
 - **Ubicación en el repo:** `docs/adr/0005-trinquete-de-calidad-contra-la-linea-base.md`
 - **Relación:** complementa ADR-0001 (determinismo por herramientas). **Caduca** cuando `python scripts/check.py`

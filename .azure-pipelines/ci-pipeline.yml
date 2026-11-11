@@ -13,7 +13,6 @@ pool:
 variables:
   - name: pythonVersion
     value: '3.14'
-  - group: VG-ECOTUR-DEV
 
 steps:
   - task: UsePythonVersion@0
@@ -25,8 +24,7 @@ steps:
       pip install -e .[test,dev]
     displayName: 'Instalar dependencias (pyproject.toml)'
 
-  # --soft: ruff/mypy do not block until the global gate is green (B-TESTS m4, ADR-0005). Remove it then.
   # No env block: the suite fixes its own configuration in conftest.py (ADR-0013).
   - script: |
-      python scripts/check.py --soft format,ruff,mypy
+      python scripts/check.py
     displayName: 'Compuerta de calidad (scripts/check.py)'
