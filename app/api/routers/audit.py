@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, Query
 
-from app.schemas.audit import AuditLogResponse
+from app.api.dependencies import get_audit_service, get_current_admin_user, get_current_user
 from app.models.user import User
-from app.api.dependencies import get_current_user, get_current_admin_user, get_audit_service
+from app.schemas.audit import AuditLogResponse
 from app.services.audit_service import AuditService
 
 router = APIRouter(dependencies=[Depends(get_current_admin_user)])

@@ -1,27 +1,39 @@
-import os
-from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
+from fastapi_mail import ConnectionConfig, FastMail, MessageSchema, MessageType
 from pydantic import EmailStr
-from dotenv import load_dotenv
 
-load_dotenv()
+from app.core.config import Settings, get_settings
+
 
 # ==========================================
 #  SMTP Client Config
 # ==========================================
-conf = ConnectionConfig(
-    MAIL_USERNAME=os.getenv("MAIL_USERNAME"),
-    MAIL_PASSWORD=os.getenv("MAIL_PASSWORD"),
-    MAIL_FROM=os.getenv("MAIL_FROM", "tu_correo@gmail.com"),
-    MAIL_PORT=int(os.getenv("MAIL_PORT", 465)),
-    MAIL_SERVER=os.getenv("MAIL_SERVER", "smtp.gmail.com"),
-    MAIL_FROM_NAME="Ecotur Asoprado",
-    MAIL_STARTTLS=False,
-    MAIL_SSL_TLS=True,
-    USE_CREDENTIALS=True,
-    VALIDATE_CERTS=True,
-)
+def _smtp_config(settings: Settings) -> ConnectionConfig:
+    """Builds the SMTP connection settings from the application settings.
 
-fast_mail = FastMail(conf)
+    Account, password, sender, port and server come from Settings (ADR-0013); the sender is
+    mail_from when set and the SMTP account otherwise. Transport options stay fixed here.
+
+    Args:
+        settings: The validated application settings.
+
+    Returns:
+        ConnectionConfig: The configuration the FastMail client is built with.
+    """
+    return ConnectionConfig(
+        MAIL_USERNAME=settings.mail_username,
+        MAIL_PASSWORD=settings.mail_password,
+        MAIL_FROM=settings.mail_sender,
+        MAIL_PORT=settings.mail_port,
+        MAIL_SERVER=settings.mail_server,
+        MAIL_FROM_NAME="Ecotur Asoprado",
+        MAIL_STARTTLS=False,
+        MAIL_SSL_TLS=True,
+        USE_CREDENTIALS=True,
+        VALIDATE_CERTS=True,
+    )
+
+
+fast_mail = FastMail(_smtp_config(get_settings()))
 
 
 async def send_verification_email(email_to: EmailStr, first_name: str, token: str, base_url: str):

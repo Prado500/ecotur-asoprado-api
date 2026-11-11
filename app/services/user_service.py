@@ -2,6 +2,7 @@ from typing import NamedTuple
 
 import jwt
 
+from app.core.config import get_settings
 from app.core.exceptions import (
     AccountNotActiveError,
     AlreadyExistsError,
@@ -9,19 +10,17 @@ from app.core.exceptions import (
     InvalidVerificationTokenError,
     NotFoundError,
 )
-from app.models.audit import AuditAction
-from app.repositories.user_repository import UserRepository
-from app.schemas.user import UserCreate, UserLogin, UserUpdate, UserCreateByAdmin
-from app.models.user import User, UserRole
 from app.core.security import (
+    create_access_token,
+    create_verification_token,
     get_password_hash,
     verify_password,
-    create_access_token,
-    SECRET_KEY,
-    ALGORITHM,
-    create_verification_token,
 )
+from app.models.audit import AuditAction
+from app.models.user import User, UserRole
+from app.repositories.user_repository import UserRepository
 from app.schemas.token import TokenResponse
+from app.schemas.user import UserCreate, UserCreateByAdmin, UserLogin, UserUpdate
 from app.services.audit_service import AuditService
 from app.services.user_access_policy import UserAccessPolicy
 
@@ -120,8 +119,9 @@ class UserService:
                 carrying an unexpected scope.
             NotFoundError: No user matches the token subject.
         """
+        settings = get_settings()
         try:
-            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.algorithm])
         except jwt.ExpiredSignatureError as err:
             raise InvalidVerificationTokenError(
                 "El enlace de verificación ha expirado. Por favor solicite uno nuevo."

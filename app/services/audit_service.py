@@ -1,8 +1,8 @@
 from typing import Any
 
-from app.repositories.audit_repository import AuditRepository
-from app.models.audit import AuditLog, AuditAction
+from app.models.audit import AuditAction, AuditLog
 from app.models.user import User
+from app.repositories.audit_repository import AuditRepository
 from app.services.user_access_policy import UserAccessPolicy
 
 

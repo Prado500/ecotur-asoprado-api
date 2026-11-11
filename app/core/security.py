@@ -1,13 +1,9 @@
-import os
 from datetime import UTC, datetime, timedelta
 
 import bcrypt
 import jwt
 
-SECRET_KEY = os.getenv("JWT_SECRET_KEY")
-ALGORITHM = os.getenv("ALGORITHM", "HS256")
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
-VERIFICATION_TOKEN_EXPIRE_MINUTES = int(os.getenv("VERIFICATION_TOKEN_EXPIRE_MINUTES", "15"))
+from app.core.config import get_settings
 
 """
    HASH FACTORY
@@ -57,18 +53,29 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
     It's given a payload (e.g. {"sub": "manuel_ortigoza", "role": "tourist"}), then
     checks weather there is a given parameter for the token lifespan and includes
     the expiration date within the payload. Afterward it produces the cryptographic
-    signature using the secret key.
+    signature using the secret key and algorithm of the application settings.
+
+    Args:
+        data (dict): Claims to sign; copied, never mutated.
+        expires_delta (timedelta | None): Token lifespan. When missing, the settings'
+            access_token_expire_minutes applies.
+
+    Returns:
+        str: The encoded and signed JWT.
     """
+    settings = get_settings()
     to_encode = data.copy()
 
     if expires_delta:
         expire = datetime.now(UTC) + expires_delta
     else:
-        expire = datetime.now(UTC) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = datetime.now(UTC) + timedelta(minutes=settings.access_token_expire_minutes)
 
     to_encode.update({"exp": expire})
 
-    encoded_jwt = jwt.encode(payload=to_encode, key=SECRET_KEY, algorithm=ALGORITHM)
+    encoded_jwt = jwt.encode(
+        payload=to_encode, key=settings.jwt_secret_key, algorithm=settings.algorithm
+    )
 
     return encoded_jwt
 
@@ -77,13 +84,22 @@ def create_verification_token(email: str) -> str:
     """Generates a single-use JWT token for user email validation purposes.
 
     There is a specific scope within the token's payload to prevent its usage as a
-    general authorization token.
+    general authorization token. Its lifespan is the settings'
+    verification_token_expire_minutes.
 
+    Args:
+        email (str): Address of the account to verify; becomes the sub claim.
+
+    Returns:
+        str: The encoded and signed verification JWT.
     """
-    expire = datetime.now(UTC) + timedelta(minutes=VERIFICATION_TOKEN_EXPIRE_MINUTES)
+    settings = get_settings()
+    expire = datetime.now(UTC) + timedelta(minutes=settings.verification_token_expire_minutes)
 
     to_encode = {"sub": email, "scope": "email_verification", "exp": expire}
 
-    encoded_jwt = jwt.encode(payload=to_encode, key=SECRET_KEY, algorithm=ALGORITHM)
+    encoded_jwt = jwt.encode(
+        payload=to_encode, key=settings.jwt_secret_key, algorithm=settings.algorithm
+    )
 
     return encoded_jwt

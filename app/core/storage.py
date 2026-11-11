@@ -1,4 +1,3 @@
-import os
 import uuid
 from typing import NamedTuple
 
@@ -38,15 +37,30 @@ class AzureStorageClient:
     reported as domain errors, never as HTTP exceptions.
     """
 
-    def __init__(self):
-        self.connection_string = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
-        self.container_name = os.getenv("AZURE_CONTAINER_NAME", "ecotur-images")
-        self.temporal_container_name = os.getenv(
-            "AZURE_TEMPORAL_CONTAINER_NAME", "temp-ecotur-images"
-        )
+    def __init__(
+        self, connection_string: str, container_name: str, temporal_container_name: str
+    ) -> None:
+        """Binds the adapter to one storage account and its two containers.
+
+        The values are passed in explicitly (built from Settings by the dependency
+        factory, ADR-0013), so the adapter reads no configuration of its own.
+
+        Args:
+            connection_string (str): Azure Storage account connection string.
+            container_name (str): Container that keeps confirmed (permanent) images.
+            temporal_container_name (str): Container that keeps freshly uploaded images.
+
+        Raises:
+            ValueError: When the connection string is empty.
+        """
+        self.connection_string = connection_string
+        self.container_name = container_name
+        self.temporal_container_name = temporal_container_name
 
         if not self.connection_string:
-            raise ValueError("AZURE_STORAGE_CONNECTION_STRING is missing in environment variables.")
+            raise ValueError(
+                "connection_string must be a non-empty Azure Storage connection string."
+            )
 
         self.blob_service_client = BlobServiceClient.from_connection_string(self.connection_string)
 

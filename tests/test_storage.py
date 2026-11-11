@@ -8,6 +8,8 @@ from azure.storage.blob import ContentSettings
 from azure.storage.blob.aio import BlobClient, BlobServiceClient, ContainerClient
 
 import app.core.storage as storage_module
+from app.api.dependencies import get_storage_client
+from app.core.config import get_settings
 from app.core.exceptions import (
     InvalidImageUrlError,
     StorageUnavailableError,
@@ -50,27 +52,47 @@ class StorageDoubles:
 
 
 @pytest.fixture
-def doubles(monkeypatch):
+def doubles():
     """Builds an AzureStorageClient over autospecced Azure SDK clients."""
-    monkeypatch.setenv("AZURE_STORAGE_CONNECTION_STRING", "UseDevelopmentStorage=true")
-    monkeypatch.setenv("AZURE_CONTAINER_NAME", "ecotur-images")
-    monkeypatch.setenv("AZURE_TEMPORAL_CONTAINER_NAME", "temp-ecotur-images")
     d = StorageDoubles()
     service = create_autospec(BlobServiceClient, instance=True)
     containers = {"temp-ecotur-images": d.temp_container, "ecotur-images": d.perm_container}
     service.get_container_client.side_effect = lambda name: containers[name]
     with patch.object(storage_module, "BlobServiceClient", autospec=True) as cls:
         cls.from_connection_string.return_value = service
-        d.client = AzureStorageClient()
+        d.client = AzureStorageClient(
+            connection_string="UseDevelopmentStorage=true",
+            container_name="ecotur-images",
+            temporal_container_name="temp-ecotur-images",
+        )
     return d
 
 
-def test_init_without_connection_string_raises(monkeypatch):
+def test_init_without_connection_string_raises():
     """The adapter refuses to start without a connection string."""
-    monkeypatch.delenv("AZURE_STORAGE_CONNECTION_STRING", raising=False)
-
     with pytest.raises(ValueError):
-        AzureStorageClient()
+        AzureStorageClient(
+            connection_string="",
+            container_name="ecotur-images",
+            temporal_container_name="temp-ecotur-images",
+        )
+
+
+def test_get_storage_client_builds_the_adapter_from_settings():
+    """Edge case: the injected Settings decide the connection string and both containers."""
+    settings = get_settings().model_copy(
+        update={
+            "azure_storage_connection_string": "UseDevelopmentStorage=true",
+            "azure_container_name": "perm-c",
+            "azure_temporal_container_name": "temp-c",
+        }
+    )
+
+    with patch.object(storage_module, "BlobServiceClient", autospec=True) as cls:
+        client = get_storage_client(settings)
+
+    cls.from_connection_string.assert_called_once_with("UseDevelopmentStorage=true")
+    assert (client.container_name, client.temporal_container_name) == ("perm-c", "temp-c")
 
 
 async def test_upload_image_rejects_non_image_content_type(doubles):

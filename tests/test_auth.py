@@ -5,12 +5,12 @@ from unittest.mock import ANY
 import jwt
 from sqlalchemy import func, select
 
+from app.core.config import get_settings
 from app.core.security import (
-    ALGORITHM,
-    SECRET_KEY,
     create_verification_token,
     get_password_hash,
 )
+from app.main import app
 from app.models.user import User, UserRole
 
 USER_PAYLOAD: dict[str, Any] = {
@@ -72,6 +72,22 @@ async def test_register_duplicate_returns_400_without_second_row(
     )
 
 
+async def test_register_builds_the_verification_link_from_frontend_url(client, mock_send_email):
+    """Edge case: the link base is the injected frontend_url, without its trailing slash."""
+    settings = get_settings().model_copy(update={"frontend_url": "https://front.example/"})
+    app.dependency_overrides[get_settings] = lambda: settings
+
+    response = await client.post("/usuarios/registro", json=USER_PAYLOAD)
+
+    assert response.status_code == 201
+    mock_send_email.assert_called_once_with(
+        email_to=USER_PAYLOAD["email"],
+        first_name="Juan",
+        token=ANY,
+        base_url="https://front.example",
+    )
+
+
 async def test_verify_email_endpoint_activates_account(client, db_session, persist_user):
     """A valid verification token activates the account behind it."""
     user = await persist_user(is_active=False)
@@ -111,8 +127,10 @@ async def test_login_active_user_returns_bearer_token(client, persist_user):
     assert set(body) == {"access_token", "token_type"}
     assert body["token_type"] == "bearer"
 
-    assert SECRET_KEY is not None
-    claims = jwt.decode(body["access_token"], SECRET_KEY, algorithms=[ALGORITHM])
+    settings = get_settings()
+    claims = jwt.decode(
+        body["access_token"], settings.jwt_secret_key, algorithms=[settings.algorithm]
+    )
     assert claims["sub"] == user.email
     assert claims["role"] == "tourist"
 

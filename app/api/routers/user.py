@@ -1,9 +1,9 @@
-import os
 from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, Depends, status
 
 from app.api.dependencies import get_current_admin_user, get_current_user, get_user_service
+from app.core.config import Settings, get_settings
 from app.core.email import send_verification_email
 from app.models.user import User
 from app.schemas.token import TokenResponse
@@ -47,6 +47,7 @@ async def registrar_turista(
     usuario: UserCreate,
     background_tasks: BackgroundTasks,
     user_service: UserService = Depends(get_user_service),
+    settings: Settings = Depends(get_settings),
 ):
     """Public endpoint: Registers a new tourist account.
 
@@ -59,11 +60,12 @@ async def registrar_turista(
         usuario (UserCreate): Validated payload describing the new tourist account.
         background_tasks (BackgroundTasks): Starlette task queue for email dispatch.
         user_service (UserService): Injected business-logic service.
+        settings (Settings): Injected configuration; frontend_url is the base of the emailed link.
 
     Returns:
         UserResponse: JSON representation of the newly persisted inactive user.
     """
-    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")
+    frontend_url = settings.frontend_url.rstrip("/")
 
     result = await user_service.register_tourist(user_data=usuario)
 

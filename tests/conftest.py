@@ -1,5 +1,6 @@
 import itertools
 from datetime import timedelta
+from typing import Any
 from unittest.mock import create_autospec, patch
 
 import pytest
@@ -211,12 +212,19 @@ def make_token():
         Callable[..., str]: Factory producing a signed bearer token with
         the user's email and role as claims; expires_delta overrides the
         default lifespan, and a negative one yields an already expired token.
+        extra_claims (keyword-only) are merged over the email and role claims,
+        so a test can add or override one (e.g. a scope) without signing by hand.
     """
 
-    def _make_token(user: User, *, expires_delta: timedelta | None = None) -> str:
-        return create_access_token(
-            data={"sub": user.email, "role": user.role.value}, expires_delta=expires_delta
-        )
+    def _make_token(
+        user: User,
+        *,
+        expires_delta: timedelta | None = None,
+        extra_claims: dict[str, Any] | None = None,
+    ) -> str:
+        claims: dict[str, Any] = {"sub": user.email, "role": user.role.value}
+        claims.update(extra_claims or {})
+        return create_access_token(data=claims, expires_delta=expires_delta)
 
     return _make_token
 
