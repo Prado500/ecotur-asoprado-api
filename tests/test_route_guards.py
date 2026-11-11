@@ -8,6 +8,7 @@ gone, fails the suite.
 
 from typing import Any, Literal, NamedTuple
 
+import pytest
 from starlette.routing import Route
 
 from app.main import app
@@ -67,6 +68,19 @@ PUBLIC_ROUTES: frozenset[tuple[str, str]] = frozenset(
     }
 )
 
+# Path parameters that name no stored row: the guard must answer before any lookup could.
+_PATH_PARAMS: dict[str, str] = {"cedula": "0000000000", "service_id": "999"}
+
+
+def _url(route: ProtectedRoute) -> str:
+    """Fill the route's path template with _PATH_PARAMS."""
+    return route.path.format(**_PATH_PARAMS)
+
+
+def _route_id(route: ProtectedRoute) -> str:
+    """Name a parametrized case after its route, e.g. "PUT /servicios/{service_id}"."""
+    return f"{route.method} {route.path}"
+
 
 def _declared_routes() -> set[tuple[str, str]]:
     """Collect (method, path template) for every route of the app.
@@ -88,3 +102,15 @@ def test_every_route_is_listed_as_protected_or_public() -> None:
     protected = {(route.method, route.path) for route in PROTECTED_ROUTES}
 
     assert _declared_routes() == protected | PUBLIC_ROUTES
+
+
+@pytest.mark.parametrize("route", PROTECTED_ROUTES, ids=_route_id)
+async def test_protected_route_rejects_request_without_token(client, route: ProtectedRoute) -> None:
+    """Without a token, every protected route answers 401 with the Bearer challenge."""
+    response = await client.request(route.method, _url(route), json=route.body)
+
+    assert response.status_code == 401
+    assert response.headers["www-authenticate"] == "Bearer"
+    body = response.json()
+    assert set(body) == {"detail"}
+    assert isinstance(body["detail"], str)

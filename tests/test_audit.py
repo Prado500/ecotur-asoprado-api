@@ -135,11 +135,3 @@ async def test_audit_trail_accessible_for_admin(
     assert logs[0]["entity_name"] == "User"
     assert logs[0]["entity_id"] == "1"
     assert logs[0]["action"] == "CREATE"
-
-
-async def test_audit_trail_requires_authentication(client):
-    """Missing bearer token is rejected by the router gate with a 401 detail body."""
-    response = await client.get("/auditoria/")
-
-    assert response.status_code == 401
-    assert "detail" in response.json()
