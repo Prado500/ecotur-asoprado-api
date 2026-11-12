@@ -1,0 +1,24 @@
+{
+  "plan_file": "docs/deuda/BE-42/plan.md",
+  "current_target": "Fase_A",
+  "phases": {
+    "Fase_A": {
+      "status": "pending",
+      "commit": null,
+      "description": "EMAIL_VERIFICATION_SCOPE en security.py; create_verification_token y verify_email_account la usan (refactor, sin RED; MV y MEV)."
+    },
+    "Fase_B": {
+      "status": "pending",
+      "commit": null,
+      "description": "create_access_token impone ACCESS_TOKEN_SCOPE; make_token sin extra_claims; fixture sign_claims; scope en los claims del login (RED 3 failed; 619 passed)."
+    },
+    "Fase_C": {
+      "status": "pending",
+      "commit": null,
+      "description": "get_current_user exige ACCESS_TOKEN_SCOPE; token de verificación como bearer -> 401 en las 17 rutas y token sin scope -> 401 (RED 19 failed; 638 passed; BREAKING CHANGE)."
+    }
+  },
+  "allowed_statuses": ["pending", "partial", "completed"],
+  "last_handoff": "Estado inicial.",
+  "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
+}
