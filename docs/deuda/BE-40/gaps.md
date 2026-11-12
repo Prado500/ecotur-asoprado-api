@@ -186,3 +186,70 @@ Cierre del ítem: las cuatro fases tienen PASS y la Verificación final cuadra (
 - R3 pendiente: `AGENTS.md:48` sigue diciendo `"admin"` o `"user"`. Lo hace David antes de `/pr`.
 - R4 pendiente: la fila D1 (`docs/backlog.md:115`) aún cita `user_access_policy.py:130`. Faltan la nota en BE-42 y el estado de la fila BE-40. Lo hace la sesión Mentor al cerrar.
 - P3/E0.5: el cambio 422 → 403 se declara en el PR y no lo bloquea.
+
+## Auditoría Fase E — 2026-11-12
+**Veredicto Fase E: PASS (0 bloqueantes, 0 opcionales).**
+
+Sin hallazgos. El OPCIONAL de la auditoría de la fase D (el test sustituto no afirmaba los argumentos de la búsqueda que falla, `tests/test_user_service.py:357-369` en `09ec81b`) queda **RESUELTO (`9ff32a9`)**: `test_create_administrative_account_lookup_failure_writes_nothing` afirma ahora `get_user_by_email_or_cedula.assert_awaited_once_with(email="newadmin@test.com", cedula="5555555555")` (`tests/test_user_service.py:377-379`). El mismo hueco del test del duplicado, que aquel opcional citaba, también queda cerrado (`:360-362`). El bloque de D no se edita.
+
+Evidencia (auditor, contexto fresco, sobre `d141d4e`):
+- Árbol: `git status --short` vacío. `git log` muestra `9ff32a9` (fase) y `d141d4e` (registro) sobre `54a4551`. La aprobación es `d49bc9a` (E2). `git diff --name-only 54a4551 HEAD` da `handoff-Fase_E.md`, `progress.json` y `tests/test_user_service.py`.
+- `progress.json`:
+  - Es JSON válido.
+  - `Fase_E` está `completed` con `commit: "9ff32a9"`, y `git show --stat 9ff32a9` lo confirma: 1 archivo, 12+/0−.
+  - `current_target` pasa de `"Fase_E"` a `null`: es la última fase, y se aplica el mismo criterio que en la auditoría de D (`check_docs.py:473-480`).
+  - `last_handoff` apunta a `handoff-Fase_E.md`. `edit_rules` y las fases A–D no cambian: el diff de `d141d4e` solo toca `current_target`, `Fase_E.status`, `Fase_E.commit` y `last_handoff`.
+  - `check_docs.py --estado` da `BE-40: … ejecutado (todas las fases); pendiente de PR o mezclado … última auditoría: PASS`.
+- Compuerta: `./venv/Scripts/python.exe scripts/check.py` sale con 0. Resultados:
+  - `618 passed, 8 warnings` y `TOTAL 961 19 136 16 96.81%`.
+  - `61 files already formatted`, `All checks passed!`, `Success: no issues found in 56 source files`, `Contracts: 4 kept, 0 broken.` y `Compuerta superada.`
+  - Cifras iguales a la fila E del plan y al handoff. La línea base es 622 / 96,47 % (`verificacion.md:151-152`), así que la cobertura no baja.
+  - Archivo de la fase: `ruff check`: `All checks passed!`. `mypy`: `Success: no issues found in 1 source file`. `ruff format --check`: `1 file already formatted`. Ninguna línea pasa de 100 columnas.
+- Commit frente al plan:
+  - El mensaje es idéntico al del plan (`plan.md:554-571`), con `<MODELO EJECUTOR>` sustituido. Se comparó con `diff`.
+  - Toca solo `tests/test_user_service.py`, y `app/` no aparece.
+  - Las cuatro inserciones van en el sitio que dicta el plan y no se borra ninguna línea:
+    - `test_register_tourist_duplicate_raises_already_exists`: antes de `create_user.assert_not_called()`.
+    - `…_provisions_admin`: antes de `create_user.assert_awaited_once_with(created_user)`.
+    - `…_duplicate_raises_already_exists`: antes de `create_user.assert_not_awaited()`.
+    - `…_lookup_failure_writes_nothing`: antes de `audit_service.log_transaction.assert_not_awaited()`.
+  - Los bloques de tres líneas tienen la forma de `:113-115`.
+- Valores frente al payload:
+  - El test turista usa `_tourist_payload()` (`:35-46`: `cedula="1005911792"`, `email="turista@example.com"`) y afirma esos valores.
+  - Los tres tests de provisión usan `_admin_payload()` (`:49-62`: `cedula="5555555555"`, `email="newadmin@test.com"`) y afirman esos valores.
+  - Ningún test pasa `overrides`.
+- R5 no se toca. En `git diff 54a4551 HEAD -- tests/test_user_service.py` hay 0 líneas `+`/`-` con `get_user_by_cedula`, `get_non_deleted_user_by_email` o `activate_user`.
+- E0, E1 y E2: E1 define la fase, con 4 tests y 1 archivo, y se cumple. E2.1 la aprueba sin correcciones de dictado, así que manda el cuerpo de la sección "Fase E". E2.2 lleva R5 a BE-49, que consta en `docs/backlog.md:96`. Ninguna corrección de E0 toca la fase E.
+- Verificación final:
+  - Paso 13: `git diff --numstat 09ec81b HEAD -- app tests alembic conftest.py` da `12<TAB>0<TAB>tests/test_user_service.py`, una sola línea (comprobado con `cat -A`). Los greps dan `5`, `3` y `2`.
+  - Pasos 1-10, re-ejecutados sobre el estado E: 11 / 0 · 0 · 0 / 0 · 6 / 2 · 4 / 0 / 13 / 0 / 3 · 7 · 0 · `42:` / 17 / 1 / 13 / 3 · `test_audit.py:0` / `test_user_service.py:0` · `46 passed`. Todo cuadra.
+  - Paso 11: es la compuerta de arriba.
+- Mutantes (pasos 12 y 14):
+  - Procedimiento común: una copia nueva de `git archive` por medición, en el scratchpad.
+  - En ML1 y ML2, `sed -n '75p;395p'` confirma que solo cambia la línea del mutante. `diff --strip-trailing-cr` contra `git show <rev>:<archivo>` da un único hunk en cada mutante.
+  - Resultados:
+
+    | Mutante | Copia | Resultado | Tests que caen |
+    |---|---|---|---|
+    | Control | E | `329 passed` | — |
+    | ML1 | D (`54a4551`) | `1 failed, 328 passed` | `test_register_tourist_returns_registration_result` |
+    | ML2 | D (`54a4551`) | `329 passed` | ninguno: sobrevive (RED de la fase) |
+    | ML1 | E | `2 failed, 327 passed` | el de D más `test_register_tourist_duplicate_raises_already_exists` |
+    | ML2 | E | `3 failed, 326 passed` | `…_provisions_admin`, `…_duplicate_raises_already_exists`, `…_lookup_failure_writes_nothing` |
+    | M4 | E | `2 failed, 327 passed` | `…without_token[GET /auditoria/]`, `test_admin_route_rejects_tourist[GET /auditoria/]` |
+    | MS1 | E | `2 failed, 327 passed` | `test_superadmin_route_rejects_admin[POST /usuarios/admin]`, `test_auth.py::test_admin_provisioning_admin_returns_403_without_row` |
+    | MS2 | E | `2 failed, 327 passed` | los mismos que MS1 |
+    | MS3 | E | `3 failed, 326 passed` | los de MS1 más `test_admin_route_rejects_tourist[POST /usuarios/admin]` |
+
+  - Todo coincide con el plan (tabla de la fase E, pasos 12 y 14) y con el handoff.
+- Las dos rarezas que anotó el ejecutor no son hallazgos:
+  - `app/api/__init__.py` difiere solo en el fin de línea. El índice tiene LF y la copia de trabajo CRLF (`git ls-files --eol`: `i/lf w/crlf attr/text=auto eol=lf`). `.gitattributes` lo normaliza, así que `git status` sale limpio. El archivo no cambia desde `d822671` y BE-40 no lo toca. No afecta a ninguna medición.
+  - MS1 y MS2 dan 9 warnings y MS3 10, frente a 8. Re-medido: los extra son `StarletteDeprecationWarning: 'HTTP_422_UNPROCESSABLE_ENTITY'` en `test_admin_route_rejects_tourist[POST /usuarios/admin]` y `test_superadmin_route_rejects_admin[POST /usuarios/admin]`. Con el guard mutado, la petición llega a la validación del cuerpo y responde 422, que es el síntoma del mutante. En la copia de control y en la compuerta hay 8.
+
+Cierre del ítem: las cinco fases tienen PASS y la Verificación final cuadra (pasos 1-14). Según el plan, el código del ítem está listo para PR. Antes de `/pr` falta un paso que no es de ningún ejecutor:
+- R1 hecho (BE-48, `docs/backlog.md:95`).
+- R2 fuera de BE-40 (`docs/CONTEXT.md`).
+- R3 pendiente y previo a `/pr`. `AGENTS.md:48` sigue diciendo `(`"admin"` o `"user"`)`. Lo hace David en un commit de documentos (adenda, punto 4).
+- R4 pendiente, al cerrar. La fila D1 (`docs/backlog.md:116`) sigue citando `user_access_policy.py:130`. La fila BE-40 (`:86`) no está cerrada y BE-42 (`:89`) no tiene la nota del guard de superadmin. Lo hace la sesión Mentor.
+- R5 hecho (BE-49, `docs/backlog.md:96`, E2.2).
+- P3/E0.5: el cambio 422 → 403 se declara en el PR y no lo bloquea.
