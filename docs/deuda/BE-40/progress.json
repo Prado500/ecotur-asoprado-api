@@ -1,6 +1,6 @@
 {
   "plan_file": "docs/deuda/BE-40/plan.md",
-  "current_target": "Fase_B",
+  "current_target": "Fase_C",
   "phases": {
     "Fase_A": {
       "status": "completed",
@@ -8,8 +8,8 @@
       "description": "UserDep/AdminDep move to app/api/dependencies.py; the 6 handlers of service.py take usuario_actual: AdminDep (4 reordered before service_service). No behaviour change. Target: 622 passed, cov 96.47 %."
     },
     "Fase_B": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "0739e24",
       "description": "GET /auditoria/: AuditService without the policy, retrieve_audit_history without current_user, handler without identity; TestAuditServiceAuthorization -> TestAuditServiceHistory (4) + HTTP filter test. RED 4 failed; M4 2 failed. Target: 625 passed, cov 96.82 %."
     },
     "Fase_C": {
@@ -24,6 +24,6 @@
     }
   },
   "allowed_statuses": ["pending", "partial", "completed"],
-  "last_handoff": "Fase_A completed (a138a9e): UserDep/AdminDep in dependencies.py, 6 service.py handlers on AdminDep; gate green, 622 passed, cov 96.47 %, 4 kept; E0.1 grep 0. See handoff-Fase_A.md.",
+  "last_handoff": "Fase_B completed (0739e24): AuditService without policy, handler without identity, E0.2 docstring; RED 4 failed (TypeError); M4 333 passed before -> 2 failed, 334 passed after; gate green, 625 passed, cov 96.82 %, 4 kept. See handoff-Fase_B.md.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
