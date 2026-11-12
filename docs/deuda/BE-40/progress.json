@@ -1,6 +1,6 @@
 {
   "plan_file": "docs/deuda/BE-40/plan.md",
-  "current_target": "Fase_C",
+  "current_target": "Fase_D",
   "phases": {
     "Fase_A": {
       "status": "completed",
@@ -13,8 +13,8 @@
       "description": "GET /auditoria/: AuditService without the policy, retrieve_audit_history without current_user, handler without identity; TestAuditServiceAuthorization -> TestAuditServiceHistory (4) + HTTP filter test. RED 4 failed; M4 2 failed. Target: 625 passed, cov 96.82 %."
     },
     "Fase_C": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "349a329",
       "description": "get_current_superadmin_user + SuperadminDep; POST /usuarios/admin moves to superadmin_router (replaces the admin guard); route table row guard=superadmin, ADMIN_ROUTES keeps the tourist case, new admin -> 403 case. RED 1 failed (422 != 403); MS1 1, MS2 1, MS3 2 failed. Contract 422 -> 403. Target: 626 passed, cov 96.84 %."
     },
     "Fase_D": {
@@ -24,6 +24,6 @@
     }
   },
   "allowed_statuses": ["pending", "partial", "completed"],
-  "last_handoff": "Fase_B completed (0739e24): AuditService without policy, handler without identity, E0.2 docstring; RED 4 failed (TypeError); M4 333 passed before -> 2 failed, 334 passed after; gate green, 625 passed, cov 96.82 %, 4 kept. See handoff-Fase_B.md.",
+  "last_handoff": "Fase_C completed (349a329): get_current_superadmin_user + SuperadminDep, POST /usuarios/admin on superadmin_router, row guard=superadmin keeps the tourist case; RED 1 failed (422 != 403); MS1 1, MS2 1, MS3 2 failed; gate green, 626 passed, cov 96.84 %, 4 kept. See handoff-Fase_C.md.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
