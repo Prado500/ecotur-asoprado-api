@@ -16,7 +16,12 @@ from app.core.exceptions import (
     InvalidVerificationTokenError,
     NotFoundError,
 )
-from app.core.security import create_verification_token, get_password_hash
+from app.core.security import (
+    EMAIL_VERIFICATION_SCOPE,
+    create_access_token,
+    create_verification_token,
+    get_password_hash,
+)
 from app.models.audit import AuditAction
 from app.models.user import UserRole
 from app.repositories.user_repository import UserRepository
@@ -213,6 +218,7 @@ async def test_authenticate_active_user_returns_bearer_token(user_repo, user_ser
     )
     assert claims["sub"] == user.email
     assert claims["role"] == user.role.value
+    assert claims["scope"] == "access"
 
 
 async def test_authenticate_unknown_email_raises_invalid_credentials(user_repo, user_service):
@@ -278,31 +284,43 @@ async def test_verify_email_corrupt_token_raises_invalid_verification_token(
 
 
 async def test_verify_email_expired_token_raises_invalid_verification_token(
-    user_repo, user_service, make_user, make_token
+    user_repo, user_service, sign_claims
 ):
-    """Unhappy path: an expired token is rejected before any activation attempt."""
-    expired_token = make_token(
-        make_user(email="turista@example.com"),
+    """Unhappy path: an expired verification token is rejected before any activation attempt."""
+    expired_token = sign_claims(
+        {"sub": "turista@example.com", "scope": EMAIL_VERIFICATION_SCOPE},
         expires_delta=timedelta(minutes=-1),
-        extra_claims={"scope": "email_verification"},
     )
 
-    with pytest.raises(InvalidVerificationTokenError):
+    with pytest.raises(InvalidVerificationTokenError) as exc_info:
         await user_service.verify_email_account(expired_token)
 
+    assert type(exc_info.value.__cause__) is jwt.ExpiredSignatureError
     user_repo.activate_user.assert_not_awaited()
 
 
 async def test_verify_email_wrong_scope_raises_invalid_verification_token(
     user_repo, user_service, make_user, make_token
 ):
-    """Edge case: an otherwise valid JWT with a non-verification scope is rejected."""
-    wrong_scope_token = make_token(
-        make_user(email="turista@example.com"), extra_claims={"scope": "access"}
-    )
+    """Edge case: an access token, valid in every other way, is not a verification link."""
+    wrong_scope_token = make_token(make_user(email="turista@example.com"))
 
     with pytest.raises(InvalidVerificationTokenError):
         await user_service.verify_email_account(wrong_scope_token)
+
+    user_repo.activate_user.assert_not_awaited()
+
+
+async def test_verify_email_rejects_access_token_whose_data_names_the_verification_scope(
+    user_repo, user_service
+):
+    """Edge case: create_access_token replaces a scope in its data, so no caller forges a link."""
+    forged_token = create_access_token(
+        data={"sub": "turista@example.com", "scope": EMAIL_VERIFICATION_SCOPE}
+    )
+
+    with pytest.raises(InvalidVerificationTokenError):
+        await user_service.verify_email_account(forged_token)
 
     user_repo.activate_user.assert_not_awaited()
 
