@@ -324,8 +324,8 @@ la Web App la hala al reiniciar. Operación: 2 clics.
 Dónde estamos (estado al cierre de la bitácora `2026-11-11`): **`B-TESTS` cerrado y `B-GUARD-TESTS m1` hecho.** El CI ejecuta la
 compuerta sin `--soft` (PR #89, `4956346`; ADR-0005 superado). BE-39 saldada (PR #91, `a0578ae`): cinco fases, cinco PASS,
 `tests/test_route_guards.py` con 45 casos y el inventario de rutas; **622 tests · 96,47 % · ruff 0 · mypy 0 · 4 kept** `(PLAN §6)`.
-Todas las dependencias fijadas en `constraints.txt` (PR #92, `6d649df`; ADR-0014, BE-46). `develop` = `a0578ae` más el commit
-documental de cierre. Ruta sin cambios: **`B-GUARD-TESTS m2` → `B-GHOST-ADMIN` → puesta en `staging` → `B-RESERVAS`** `(PLAN §3)`.
+Todas las dependencias fijadas en `constraints.txt` (PR #92, `6d649df`; ADR-0014, BE-46). `develop` = `a612215` (PR #93,
+cierre documental del 11 nov) más el commit de post-cierre. Ruta sin cambios: **`B-GUARD-TESTS m2` → `B-GHOST-ADMIN` → puesta en `staging` → `B-RESERVAS`** `(PLAN §3)`.
 
 0. **Pendiente al abrir:** comprobar que la Web App de `develop` arranca tras los despliegues del 11 nov (`/docs` responde).
    Es la primera imagen construida con `-c constraints.txt`: vuelve a FastAPI 0.135.1 desde la versión sin fijar que el CD
@@ -346,7 +346,8 @@ documental de cierre. Ruta sin cambios: **`B-GUARD-TESTS m2` → `B-GHOST-ADMIN`
    rutas nacen registradas en `PROTECTED_ROUTES` o `PUBLIC_ROUTES`. Luego el orden de PLAN §3. `B-PAGOS m2` añade el
    conmutador Fake/Wompi como un campo de `Settings`.
 5. Pendientes chicos sin `m`: **línea de ADR-0014 en AGENTS §2** (commit de David: las versiones viven en `constraints.txt`;
-   una librería nueva entra en `pyproject.toml` y en `constraints.txt` en el mismo PR); fila en la tabla de CONTEXT §0 para
+   una librería nueva entra en `pyproject.toml` y en `constraints.txt` en el mismo PR), y en ese mismo commit quitar el
+   fragmento repetido de `AGENTS.md:43-44` (viñeta de ADR-0013, de `3ca990a`); fila en la tabla de CONTEXT §0 para
    "versión exacta de cada dependencia → `constraints.txt`" (propuesta del Mentor, la valida David); en el `.env` local,
    `FRONTEND_URL=http://localhost:3000`, y borrar el paquete 73 de prueba; fichas `fichas/BE-02.md`, BE-32 (opcional; revisa
    D8), **A4** y **BE-39** (qué es un mutante, por qué M4 no cae, qué vigila el inventario), con las 3 dudas abiertas de
