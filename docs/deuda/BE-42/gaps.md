@@ -96,3 +96,64 @@ Sin hallazgos. Evidencia de la auditoría (contexto fresco, `handoff-auditor`, H
   dominio nuevas; la constante vive en `app/core/` (4 contratos KEPT).
 - Nota, no es hallazgo de B: el commit de la auditoría de A, `53268ba`, lleva el scope `docs(item-be40)` en lugar de
   `docs(item-be42)`; su contenido (`docs/deuda/BE-42/gaps.md`) es correcto. Error del humano, sin efecto en el estado.
+
+## Auditoría Fase C — 2026-11-12
+**Veredicto Fase C: PASS (0 bloqueantes, 0 opcionales).**
+
+Sin hallazgos. Evidencia de la auditoría (contexto fresco, `handoff-auditor`, HEAD `8c38f47`, rama `item/be-42`). C es la
+última fase: se ejecutó también la "Verificación final" del plan (`plan.md:510-558`).
+
+- Árbol: `git status --short` vacío antes de la auditoría (después, solo este `gaps.md`).
+- `progress.json`: `Fase_C` `completed` con `commit: "717fc73"` (`git show --stat 717fc73` lo confirma); las tres fases
+  `completed`; `current_target: null`; `last_handoff` presente; `edit_rules` igual que en `758a2fa` (línea de contexto en
+  `git diff 758a2fa 8c38f47 -- docs/deuda/BE-42/progress.json`). `8c38f47` solo toca `handoff-Fase_C.md` y
+  `progress.json`. `current_target: null` es coherente con `check_docs`: el paso `docs (coherencia)` de la compuerta pasa y
+  `scripts/check_docs.py --estado` da `BE-42: verificado → planeado → ejecutado (todas las fases); pendiente de PR o
+  mezclado → handoffs: Fase_A, Fase_B, Fase_C`.
+- Commit `717fc73`: mensaje idéntico a `plan.md:484-507` con `<MODELO EJECUTOR>` → `Claude Opus 5.5` (`diff` vacío),
+  incluidos `fix(auth)!` y el footer `BREAKING CHANGE` (E0, P1). `git show --numstat --format= 717fc73` →
+  `8	2	app/api/dependencies.py`, `24	0	tests/test_route_guards.py`, `34	0	tests/test_token_failure_paths.py`
+  (criterio, `plan.md:473-474`): ningún test existente cambia. `git diff --name-only 48e782e 717fc73` → solo esos tres; no
+  se tocan `security.py`, `conftest.py` ni los tests de B.
+- Cambios exactos, todos en el diff: `app/api/dependencies.py:9` (import), `:102-104` (párrafo del docstring), `:116`
+  (`Raises:`), `:127-128` (`scope` y `if email is None or scope != ACCESS_TOKEN_SCOPE:`). El `raise` va dentro del `try`
+  pero `HTTPException` no es `jwt.InvalidTokenError`, así que sale la misma `credentials_exception` (`:118-122`): 401,
+  `WWW-Authenticate: Bearer` y el mismo `detail` que un token corrupto (lo fija
+  `tests/test_token_failure_paths.py:188`, P4). `credentials_exception`, los dos `except`, la búsqueda del usuario y todo
+  desde `get_current_admin_user` sin cambios (Verificación final, punto 2: `0`).
+  `tests/test_route_guards.py:14` y `:154-174`; `tests/test_token_failure_paths.py:40`, `:170-185` y `:188-200`: texto
+  dictado, en el sitio dictado.
+- AGENTS §5: usuarios con `persist_user`; tokens de la API de producción (`create_verification_token`) o de la fábrica
+  `sign_claims`; sin mocks; aserciones sobre código, cabecera `Bearer`, estructura `{"detail"}` y tipo, y la igualdad de
+  `detail` entre dos respuestas, nunca sobre texto en español. Sin excepciones de dominio nuevas ni rutas nuevas.
+- RED re-medido en copia desechable (`git archive 48e782e` + `git apply` del diff de `tests/` de `717fc73`; `diff
+  --strip-trailing-cr` confirma tests = `717fc73` y `dependencies.py` = `48e782e`, sin `ACCESS_TOKEN_SCOPE`):
+  `19 failed, 64 passed`. Los 17 `test_protected_route_rejects_verification_token_as_bearer[...]` y los dos tests nuevos de
+  `test_token_failure_paths.py`; códigos: 200 × 8 (6 rutas + los 2 tests nuevos), 404 × 7, 422 × 3, 400 × 1. Coincide con
+  `plan.md:448-457` y el handoff.
+- Mutantes re-medidos, todos, sobre `git archive HEAD` en directorios nuevos del scratchpad (`auditC_*`; cada edición
+  comprobada con `diff` contra `HEAD`: una línea, dos en los dobles; el árbol de trabajo no se tocó): control
+  `349 passed`; MSC `19 failed, 330 passed` (17 de `test_route_guards.py` + 2 de `test_token_failure_paths.py`); MSUB
+  `1 failed, 348 passed` (`test_token_without_subject_returns_401`); MU `3 failed, 346 passed`; MA `102 failed, 247 passed`
+  (services 29, user_access_policy 24, route_guards 18, auth 13, user_response 12, audit 3, user_service 2,
+  token_failure_paths 1); MA+MSUB y MA+MU `102 failed, 247 passed`, mismo desglose, con los tres tests del rincón 2 en
+  verde; MD `1 failed, 348 passed`; MV `2 failed, 347 passed`; MEV `1 failed, 348 passed`; MAV `2 failed, 347 passed`.
+  Coinciden con `plan.md:458-470`, `plan.md:556-558` y el handoff.
+- Compuerta re-ejecutada (`./venv/Scripts/python.exe scripts/check.py`): exit 0, `Compuerta superada.`,
+  `61 files already formatted`, `All checks passed!`, `Success: no issues found in 56 source files`,
+  `Contracts: 4 kept, 0 broken.`, `638 passed, 8 warnings`, `TOTAL 965 19 136 16 96.82%`. Línea base
+  (`verificacion.md:179-184`): 618 passed, 96,81 %; fila C del plan: 638, 96,82 %, 965 stmts. Sobre los tres archivos
+  tocados: `ruff check` → `All checks passed!`, `ruff format --check` → `3 files already formatted`, `mypy` →
+  `Success: no issues found in 3 source files`.
+- Verificación final (puntos 1-5), salida re-ejecutada: `# 1` las 8 líneas de numstat exactas de `plan.md:519-526`;
+  `# 2` `0`, `0`, `0`; `# 3` `app/api/dependencies.py:4`, `2`, `2`, `16`, `4`, `5`, `3`, `3`,
+  `tests/test_route_guards.py:17`, `63 tests collected`; `# 4` `1`, `1`, `6`, `7`; `# 5` `0`, `8`, `2`, `83 passed`.
+  Punto 6: la compuerta de arriba. Punto 7: los mutantes de arriba. La deuda no asoma: `get_current_user` es el único
+  lector de bearer (`Depends(get_current_user)` × 3, los guards de admin y superadmin se apoyan en él) y los dos
+  `jwt.decode` de `app/` comprueban el `scope`.
+- Estado del ítem: tres fases `completed`, tres auditorías PASS. Listo para PR. Residuales del plan (`plan.md:560-574`),
+  sin hallazgo nuevo: R1 (cita de 5 líneas, sin deuda; la Verificación final ya usa 5), R2 (`TokenData.role` sin uso,
+  decisión de David), R3 (BE-50 ya tiene fila, `docs/backlog.md:97`), R4 (cierre de documentos tras el merge; el PR
+  declara el `BREAKING CHANGE` y los 30 minutos; AGENTS §5 y `sign_claims`, decisión de David antes de `/pr`).
+- Nota, no es hallazgo: el commit de la auditoría de A, `53268ba`, lleva el scope `docs(item-be40)` en lugar de
+  `docs(item-be42)` (error humano; contenido correcto, sin efecto en el estado).
