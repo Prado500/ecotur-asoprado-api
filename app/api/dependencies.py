@@ -6,6 +6,7 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings, get_settings
+from app.core.security import ACCESS_TOKEN_SCOPE
 from app.core.storage import AzureStorageClient
 from app.db.database import get_db
 from app.models.user import User, UserRole
@@ -98,6 +99,10 @@ async def get_current_user(
     enabling (only active users are allowed). The signature is checked with the injected
     settings, so a test or a key rotation that overrides get_settings is honoured.
 
+    Only an access token is a bearer: the scope claim must be ACCESS_TOKEN_SCOPE. An email
+    verification token, signed with the same key, or a token with no scope gets the same 401
+    as a corrupt one, as verify_email_account refuses an access token.
+
     Args:
         token (str): Bearer token extracted by the OAuth2 scheme.
         user_repo (UserRepository): Repository used to consult the user state.
@@ -108,7 +113,7 @@ async def get_current_user(
 
     Raises:
         HTTPException: 401 when the token is expired, corrupt, wrongly signed, has no
-            subject, or names no active user.
+            subject, is not an access token, or names no active user.
     """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -119,7 +124,8 @@ async def get_current_user(
     try:
         payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.algorithm])
         email: str | None = payload.get("sub")
-        if email is None:
+        scope: str | None = payload.get("scope")
+        if email is None or scope != ACCESS_TOKEN_SCOPE:
             raise credentials_exception
 
         token_data = TokenData(email=email)
