@@ -376,25 +376,21 @@ class UserService:
     ) -> User:
         """Provisions a new administrative account bypassing the public pipeline.
 
-        The superadmin-only guard below is an intentional hierarchical business
-        rule, not a duplicate of the transport frontier: the router's admin-tier
-        dependency only guarantees an admin+ session, while provisioning accounts
-        is reserved for the highest governance tier. The account is created
+        The caller is a superadmin: the route's guard decided it (ADR-0012,
+        point 1), so the service checks no role. The account is created
         instantly without requiring email verification.
 
         Args:
             user_data (UserCreateByAdmin): DTO containing profile and explicit role definitions.
-            current_user (User): The authenticated superadmin executing the creation.
+            current_user (User): The authenticated superadmin executing the creation;
+                recorded as the author of the audit entry.
 
         Returns:
             User: The newly persisted administrative ORM entity.
 
         Raises:
-            AuthorizationError: 403 Forbidden if the requester is not a superadmin.
             AlreadyExistsError: 400 Bad Request if the cedula or email already exists.
         """
-        self.user_access_policy.assert_can_provision_admin(current_user)
-
         existing_user = await self.user_repo.get_user_by_email_or_cedula(
             email=user_data.email, cedula=user_data.cedula
         )

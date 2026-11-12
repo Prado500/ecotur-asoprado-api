@@ -6,12 +6,12 @@ from unittest.mock import create_autospec
 
 import jwt
 import pytest
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.config import get_settings
 from app.core.exceptions import (
     AccountNotActiveError,
     AlreadyExistsError,
-    AuthorizationError,
     InvalidCredentialsError,
     InvalidVerificationTokenError,
     NotFoundError,
@@ -354,16 +354,19 @@ async def test_create_administrative_account_duplicate_raises_already_exists(
     user_repo.create_user.assert_not_awaited()
 
 
-async def test_create_administrative_account_rejects_non_superadmin(
-    user_repo, user_service, make_user
+async def test_create_administrative_account_lookup_failure_writes_nothing(
+    user_repo, audit_service, user_service, make_user
 ):
-    """Edge case: provisioning governance is checked before any repository access."""
-    with pytest.raises(AuthorizationError):
+    """Unhappy path: a failing duplicate lookup aborts before the audit entry and the insert."""
+    user_repo.get_user_by_email_or_cedula.side_effect = SQLAlchemyError("database unavailable")
+
+    with pytest.raises(SQLAlchemyError):
         await user_service.create_administrative_account(
-            _admin_payload(), make_user(role=UserRole.admin)
+            _admin_payload(), make_user(role=UserRole.superadmin)
         )
 
-    user_repo.get_user_by_email_or_cedula.assert_not_awaited()
+    audit_service.log_transaction.assert_not_awaited()
+    user_repo.create_user.assert_not_awaited()
 
 
 # ==========================================
