@@ -315,6 +315,10 @@ la Web App la hala al reiniciar. Operación: 2 clics.
 - Quién redacta resultados por objetivo y conclusiones y recomendaciones (sin dueño acordado; §2).
 - Fecha de la próxima reunión con María Paula; en ella, plantillas de caja negra, consentimiento y SUS y apoyo en
   las sesiones de usabilidad, que la reunión del 2 nov no cerró.
+- ¿Debe un admin ver en el historial de auditoría lo hecho por un superadmin? Hoy lo ve: `GET /auditoria/` admite a los dos
+  roles por igual y la consulta no filtra por quién pregunta, mientras la política sí oculta los superadmins a un admin en
+  el listado de usuarios. Sin decidir por David `(bitácora 2026-11-12)`. Si la respuesta es que no, es una regla de dato:
+  va en la política `(ADR-0012)`, con fila propia en el backlog, fuera de BE-40.
 - Para mencionar al gerente cuando convenga (no bloquean; están asumidas en ADR-0002): precio
   por paquete completo, antelación mínima 1 día, 30 min para pagar una reserva pendiente,
   tarifa de temporada alta como trabajo futuro.

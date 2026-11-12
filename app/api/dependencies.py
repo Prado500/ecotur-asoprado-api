@@ -1,3 +1,5 @@
+from typing import Annotated
+
 import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -39,9 +41,8 @@ def get_user_access_policy() -> UserAccessPolicy:
 
 def get_audit_service(
     audit_repo: AuditRepository = Depends(get_audit_repository),
-    user_access_policy: UserAccessPolicy = Depends(get_user_access_policy),
 ) -> AuditService:
-    return AuditService(audit_repo, user_access_policy)
+    return AuditService(audit_repo)
 
 
 def get_user_service(
@@ -158,3 +159,35 @@ async def get_current_admin_user(current_user: User = Depends(get_current_user))
             status_code=status.HTTP_403_FORBIDDEN, detail="Privilegios insuficientes."
         )
     return current_user
+
+
+async def get_current_superadmin_user(current_user: User = Depends(get_current_user)) -> User:
+    """Lets only superadmins through: the role guard of superadmin-only routes.
+
+    Built on get_current_user, not on the admin guard, so the superadmin rule is checked
+    once and on its own (ADR-0012, points 1 and 3). As a route dependency it runs before
+    body validation: any other role gets 403 whatever the body.
+
+    Args:
+        current_user (User): The active user resolved from the JWT session.
+
+    Returns:
+        User: The same user, once known to be a superadmin.
+
+    Raises:
+        HTTPException: 403 Forbidden if the user's role is not 'superadmin'.
+    """
+    if current_user.role != UserRole.superadmin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Privilegios insuficientes."
+        )
+    return current_user
+
+
+# --- IDENTITY ALIASES (ADR-0012, point 5) ---
+# The single way a handler receives the caller under a guard: the alias names the guard, so
+# the signature says with which right the route acts.
+
+UserDep = Annotated[User, Depends(get_current_user)]
+AdminDep = Annotated[User, Depends(get_current_admin_user)]
+SuperadminDep = Annotated[User, Depends(get_current_superadmin_user)]

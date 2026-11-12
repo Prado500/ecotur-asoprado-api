@@ -21,25 +21,25 @@ class ProtectedRoute(NamedTuple):
     Attributes:
         method: HTTP method, upper case.
         path: Path template as declared in app.routes (e.g. "/servicios/{service_id}").
-        guard: "admin" for get_current_admin_user, "user" for get_current_user.
+        guard: "superadmin" for get_current_superadmin_user, "admin" for
+            get_current_admin_user, "user" for get_current_user.
         body: JSON body sent with the request; None sends no body.
     """
 
     method: str
     path: str
-    guard: Literal["admin", "user"]
+    guard: Literal["superadmin", "admin", "user"]
     body: dict[str, Any] | None = None
 
 
-# Empty on purpose: if a guard let a tourist through, body validation would answer 422, not 403.
-# A valid body to POST /usuarios/admin gets 403 from the provisioning policy and hides the guard.
+# Empty on purpose: past a guard, body validation would answer 422 instead of the guard's 403.
 _EMPTY_BODY: dict[str, Any] = {}
 
 PROTECTED_ROUTES: tuple[ProtectedRoute, ...] = (
     ProtectedRoute("GET", "/usuarios/", "admin"),
     ProtectedRoute("GET", "/usuarios/admin/eliminados", "admin"),
     ProtectedRoute("PATCH", "/usuarios/{cedula}/recuperar", "admin"),
-    ProtectedRoute("POST", "/usuarios/admin", "admin", _EMPTY_BODY),
+    ProtectedRoute("POST", "/usuarios/admin", "superadmin", _EMPTY_BODY),
     ProtectedRoute("POST", "/servicios/upload-images/", "admin", _EMPTY_BODY),
     ProtectedRoute("POST", "/servicios/", "admin", _EMPTY_BODY),
     ProtectedRoute("GET", "/servicios/admin/inactivos", "admin"),
@@ -55,7 +55,14 @@ PROTECTED_ROUTES: tuple[ProtectedRoute, ...] = (
     ProtectedRoute("PATCH", "/usuarios/{cedula}", "user", _EMPTY_BODY),
 )
 
-ADMIN_ROUTES: tuple[ProtectedRoute, ...] = tuple(r for r in PROTECTED_ROUTES if r.guard == "admin")
+# Every route a tourist may not enter: the admin ones and the superadmin ones.
+ADMIN_ROUTES: tuple[ProtectedRoute, ...] = tuple(
+    r for r in PROTECTED_ROUTES if r.guard in ("admin", "superadmin")
+)
+
+SUPERADMIN_ROUTES: tuple[ProtectedRoute, ...] = tuple(
+    r for r in PROTECTED_ROUTES if r.guard == "superadmin"
+)
 
 USER_ROUTES: tuple[ProtectedRoute, ...] = tuple(r for r in PROTECTED_ROUTES if r.guard == "user")
 
@@ -152,6 +159,24 @@ async def test_admin_route_rejects_tourist(
 
     response = await client.request(
         route.method, _url(route), json=route.body, headers=make_auth_headers(tourist)
+    )
+
+    assert response.status_code == 403
+    assert "www-authenticate" not in response.headers
+    body = response.json()
+    assert set(body) == {"detail"}
+    assert isinstance(body["detail"], str)
+
+
+@pytest.mark.parametrize("route", SUPERADMIN_ROUTES, ids=_route_id)
+async def test_superadmin_route_rejects_admin(
+    client, persist_user, make_auth_headers, route: ProtectedRoute
+) -> None:
+    """An admin's valid token gets 403 from every superadmin route, before body validation."""
+    admin = await persist_user(role=UserRole.admin)
+
+    response = await client.request(
+        route.method, _url(route), json=route.body, headers=make_auth_headers(admin)
     )
 
     assert response.status_code == 403

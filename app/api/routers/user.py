@@ -1,40 +1,38 @@
-from typing import Annotated
-
 from fastapi import APIRouter, BackgroundTasks, Depends, status
 
-from app.api.dependencies import get_current_admin_user, get_current_user, get_user_service
+from app.api.dependencies import (
+    AdminDep,
+    SuperadminDep,
+    UserDep,
+    get_current_admin_user,
+    get_current_superadmin_user,
+    get_current_user,
+    get_user_service,
+)
 from app.core.config import Settings, get_settings
 from app.core.email import send_verification_email
-from app.models.user import User
 from app.schemas.token import TokenResponse
 from app.schemas.user import UserCreate, UserCreateByAdmin, UserLogin, UserResponse, UserUpdate
 from app.services.user_service import UserService
 
 # -------------------------------------------------------------------
-# DEPENDENCY TYPE ALIASES (PEP 593)
-# Reusable injection contracts that remove the repetitive manual
-# "usuario_actual: User = Depends(...)" boilerplate from every
-# endpoint signature.
-# -------------------------------------------------------------------
-
-UserDep = Annotated[User, Depends(get_current_user)]
-AdminDep = Annotated[User, Depends(get_current_admin_user)]
-
-# -------------------------------------------------------------------
-# ROUTER SEGMENTATION (RBAC at the transport boundary)
-# Authorization is centralized in the router layer:
+# ROUTER SEGMENTATION (RBAC at the transport boundary, ADR-0012)
+# Each router's guard decides the role, once:
 #   - public_router: no auth dependency (registration, login, verification).
 #   - self_service_router: requires an authenticated session; handlers inject
 #     the user only when the service needs the identity (audit, ABAC).
 #   - admin_router: requires admin/superadmin privileges; handlers inject the
 #     user only when the service needs the identity.
-# Services keep pure business rules (hierarchical ABAC, data scoping) and
-# never duplicate the transport-level authorization frontier.
+#   - superadmin_router: requires superadmin privileges (provisioning of
+#     administrative accounts).
+# Services keep the rules that depend on the data (hierarchical ABAC, data
+# scoping) and never check the caller's role again.
 # -------------------------------------------------------------------
 
 public_router = APIRouter()
 self_service_router = APIRouter(dependencies=[Depends(get_current_user)])
 admin_router = APIRouter(dependencies=[Depends(get_current_admin_user)])
+superadmin_router = APIRouter(dependencies=[Depends(get_current_superadmin_user)])
 
 
 # -------------------------------------------------------------------
@@ -237,20 +235,26 @@ async def recuperar_usuario(
     )
 
 
-@admin_router.post("/admin", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+# -------------------------------------------------------------------
+# SUPERADMIN ENDPOINTS (superadmin only)
+# -------------------------------------------------------------------
+
+
+@superadmin_router.post("/admin", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def crear_administrador(
     usuario: UserCreateByAdmin,
-    usuario_actual: AdminDep,
+    usuario_actual: SuperadminDep,
     user_service: UserService = Depends(get_user_service),
 ):
     """Protected endpoint: Provisions a new administrative account.
 
-    The admin-tier dependency gates transport access, while UserService
-    enforces the stricter superadmin-only hierarchical rule.
+    Only a superadmin reaches this handler: the superadmin_router guard decides
+    the role before the body is validated, so an admin gets 403 whatever the
+    body (ADR-0012, Consequences).
 
     Args:
         usuario (UserCreateByAdmin): Validated DTO with explicit role definition.
-        usuario_actual (User): Authenticated administrator executing the operation.
+        usuario_actual (User): Authenticated superadmin executing the operation.
         user_service (UserService): Injected business-logic service.
 
     Returns:
@@ -265,3 +269,4 @@ router = APIRouter()
 router.include_router(public_router)
 router.include_router(self_service_router)
 router.include_router(admin_router)
+router.include_router(superadmin_router)

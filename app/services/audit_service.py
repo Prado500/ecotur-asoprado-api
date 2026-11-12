@@ -1,17 +1,14 @@
 from typing import Any
 
 from app.models.audit import AuditAction, AuditLog
-from app.models.user import User
 from app.repositories.audit_repository import AuditRepository
-from app.services.user_access_policy import UserAccessPolicy
 
 
 class AuditService:
     """Encapsulates business logic, rules, and operational logic of the Audit Trail ecosystem."""
 
-    def __init__(self, audit_repo: AuditRepository, user_access_policy: UserAccessPolicy):
+    def __init__(self, audit_repo: AuditRepository) -> None:
         self.audit_repo = audit_repo
-        self.user_access_policy = user_access_policy
 
     async def log_transaction(
         self,
@@ -37,20 +34,17 @@ class AuditService:
 
     async def retrieve_audit_history(
         self,
-        current_user: User,
         limit: int = 20,
         offset: int = 0,
         entity_name: str | None = None,
         entity_id: str | None = None,
     ) -> list[AuditLog]:
-        """Retrieves the global audit history enforcing Role-Based Access Control.
+        """Retrieves one page of the global audit history, newest first.
 
-        Authorization is delegated to the UserAccessPolicy administrative-tier
-        rule, keeping the service free of role comparisons and transport
-        semantics. Strictly gated to Administrators and Superadmins.
+        Who may read it is decided before this call, by the admin guard of the audit
+        router (ADR-0012, point 1); the service applies no role rule of its own.
 
         Args:
-            current_user (User): The authenticated user making the request.
             limit (int): Maximum number of records to return. Defaults to 20.
             offset (int): Number of records to skip for pagination.
             entity_name (str, optional): Filter by entity class name.
@@ -58,12 +52,7 @@ class AuditService:
 
         Returns:
             List[AuditLog]: A collection of the requested audit logs.
-
-        Raises:
-            AuthorizationError: If the requester is a standard tourist.
         """
-        self.user_access_policy.assert_is_admin_plus(current_user)
-
         return await self.audit_repo.get_all_audit_logs(
             limit=limit, offset=offset, entity_name=entity_name, entity_id=entity_id
         )

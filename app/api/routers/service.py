@@ -1,8 +1,7 @@
 from fastapi import APIRouter, Depends, File, UploadFile, status
 
-from app.api.dependencies import get_current_admin_user, get_service_service
+from app.api.dependencies import AdminDep, get_current_admin_user, get_service_service
 from app.core.storage import StagedImage
-from app.models.user import User
 from app.schemas.service import (
     ServiceCreate,
     ServiceDetailResponse,
@@ -86,7 +85,7 @@ async def upload_images(
 @admin_router.post("/", response_model=ServiceDetailResponse, status_code=status.HTTP_201_CREATED)
 async def crear_paquete(
     paquete: ServiceCreate,
-    usuario_actual: User = Depends(get_current_admin_user),
+    usuario_actual: AdminDep,
     service_service: TouristServicesService = Depends(get_service_service),
 ):
     """Protected endpoint: Delegates tourist services creation to TouristServicesService.
@@ -143,7 +142,7 @@ async def listar_eliminados(service_service: TouristServicesService = Depends(ge
 async def modificar_paquete(
     service_id: int,
     update_payload: ServiceUpdate,
-    usuario_actual: User = Depends(get_current_admin_user),
+    usuario_actual: AdminDep,
     service_service: TouristServicesService = Depends(get_service_service),
 ):
     """Protected Endpoint: Modifies existing attributes of a target package.
@@ -166,8 +165,8 @@ async def modificar_paquete(
 @admin_router.patch("/{service_id}/activar")
 async def activar_paquete(
     service_id: int,
+    usuario_actual: AdminDep,
     service_service: TouristServicesService = Depends(get_service_service),
-    usuario_actual: User = Depends(get_current_admin_user),
 ):
     """Protected Endpoint: Triggers a state mutation transitioning a package to active.
 
@@ -175,8 +174,8 @@ async def activar_paquete(
 
     Args:
         service_id (int): The unique identifier of the package to activate.
-        service_service (TouristServicesService): Injected business-logic service.
         usuario_actual (User): Authenticated administrator executing the mutation.
+        service_service (TouristServicesService): Injected business-logic service.
 
     Returns:
         dict: Standardized JSON response confirming the state change.
@@ -187,8 +186,8 @@ async def activar_paquete(
 @admin_router.patch("/{service_id}/desactivar")
 async def desactivar_paquete(
     service_id: int,
+    usuario_actual: AdminDep,
     service_service: TouristServicesService = Depends(get_service_service),
-    usuario_actual: User = Depends(get_current_admin_user),
 ):
     """Protected Endpoint: Triggers a state mutation transitioning a package to inactive.
 
@@ -196,8 +195,8 @@ async def desactivar_paquete(
 
     Args:
         service_id (int): The unique identifier of the package to deactivate.
-        service_service (TouristServicesService): Injected business-logic service.
         usuario_actual (User): Authenticated administrator executing the mutation.
+        service_service (TouristServicesService): Injected business-logic service.
 
     Returns:
         dict: Standardized JSON response confirming the state change.
@@ -208,8 +207,8 @@ async def desactivar_paquete(
 @admin_router.delete("/{service_id}")
 async def borrar_paquete_logico(
     service_id: int,
+    usuario_actual: AdminDep,
     service_service: TouristServicesService = Depends(get_service_service),
-    usuario_actual: User = Depends(get_current_admin_user),
 ):
     """Protected Endpoint: Performs a logical deletion (Soft Delete) on the target package.
 
@@ -218,8 +217,8 @@ async def borrar_paquete_logico(
 
     Args:
         service_id (int): The unique identifier of the package to delete.
-        service_service (TouristServicesService): Injected business-logic service.
         usuario_actual (User): Authenticated administrator executing the mutation.
+        service_service (TouristServicesService): Injected business-logic service.
 
     Returns:
         dict: Standardized confirmation message.
@@ -230,8 +229,8 @@ async def borrar_paquete_logico(
 @admin_router.patch("/{service_id}/recuperar")
 async def recuperar_paquete(
     service_id: int,
+    usuario_actual: AdminDep,
     service_service: TouristServicesService = Depends(get_service_service),
-    usuario_actual: User = Depends(get_current_admin_user),
 ):
     """Protected Endpoint: Recovers a soft-deleted package.
 
@@ -240,8 +239,8 @@ async def recuperar_paquete(
 
     Args:
         service_id (int): The unique identifier of the package to recover.
-        service_service (TouristServicesService): Injected business-logic service.
         usuario_actual (User): Authenticated administrator executing the mutation.
+        service_service (TouristServicesService): Injected business-logic service.
 
     Returns:
         dict: Standardized confirmation message.

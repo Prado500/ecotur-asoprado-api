@@ -12,7 +12,8 @@ class UserAccessPolicy:
     require a strictly higher rank. One exception: nobody changes their own
     role, superadmins included.
     Failures are raised as AuthorizationError domain exceptions so the service
-    layer remains transport-agnostic.
+    layer remains transport-agnostic. Rules that depend only on the actor's role
+    are decided by the HTTP guards, not here (ADR-0012, point 1).
     """
 
     _ROLE_RANK = {UserRole.tourist: 0, UserRole.admin: 1, UserRole.superadmin: 2}
@@ -93,43 +94,6 @@ class UserAccessPolicy:
         if actor.role == UserRole.admin and target.role in [UserRole.admin, UserRole.superadmin]:
             raise AuthorizationError(
                 "Violación de jerarquía: No tiene autorización para recuperar esta cuenta."
-            )
-
-    def assert_can_provision_admin(self, actor: User) -> None:
-        """Enforces provisioning governance over administrative accounts.
-
-        Only superadmins may create them.
-
-        Args:
-            actor (User): The authenticated user attempting the provisioning.
-
-        Raises:
-            AuthorizationError: When the requester is not a superadmin.
-        """
-        if actor.role != UserRole.superadmin:
-            raise AuthorizationError(
-                "Violación de jerarquía: "
-                "Solo un Superusuario puede aprovisionar cuentas administrativas."
-            )
-
-    def assert_is_admin_plus(self, actor: User) -> None:
-        """Enforces the administrative-tier rule on a guarded operation.
-
-        Only admins and superadmins may proceed (e.g. reading the audit trail).
-
-        The rule inspects nothing beyond the actor role, so it stays reusable
-        for any operation restricted to administrative tiers.
-
-        Args:
-            actor (User): The authenticated user attempting the operation.
-
-        Raises:
-            AuthorizationError: When the actor's role is not admin or
-                superadmin.
-        """
-        if actor.role not in [UserRole.admin, UserRole.superadmin]:
-            raise AuthorizationError(
-                "Privilegios insuficientes para visualizar la auditoría del sistema."
             )
 
     def can_see(self, viewer_role: UserRole, subject_role: UserRole) -> bool:

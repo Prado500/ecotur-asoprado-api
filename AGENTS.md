@@ -45,8 +45,10 @@ sobreingeniería. Explicas el trade-off de cada decisión no trivial. Dices las 
    (lo exige `tests/test_config.py`) y su valor de prueba en el `conftest.py` de la raíz 
    (ADR-0013, punto 6: sin él, la suite leería el `.env` de quien la corre).
 - **Inventario de rutas (ADR-0012, punto 4):** toda ruta nueva se registra en `tests/test_route_guards.py`: en
-   `PROTECTED_ROUTES` con su guard (`"admin"` o `"user"`) o en `PUBLIC_ROUTES`. Una ruta de usuario anota además su
-   código esperado en `_TOURIST_PAST_USER_GUARD`, y una pública en `_ANONYMOUS_ON_PUBLIC_ROUTE`. Si falta, la suite falla.
+  `PROTECTED_ROUTES` con su guard (`"superadmin"`, `"admin"` o `"user"`) o en `PUBLIC_ROUTES`. Una ruta de superadmin
+  entra sola en `ADMIN_ROUTES` (caso turista → 403) y en `SUPERADMIN_ROUTES` (caso admin → 403). Una ruta de usuario
+  anota además su código esperado en `_TOURIST_PAST_USER_GUARD`, y una pública en `_ANONYMOUS_ON_PUBLIC_ROUTE`. Si
+  falta, la suite falla.
 - Invariantes de negocio críticas viven también en la base de datos (índices únicos, FK, CHECK), no solo
   en Python (ADR-0002).
 - SOLID, KISS, DRY, YAGNI. Código aburrido y predecible. Nada de generalidad especulativa.

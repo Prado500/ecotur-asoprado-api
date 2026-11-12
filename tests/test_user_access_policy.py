@@ -257,61 +257,6 @@ class TestAssertCanRecover:
             policy.assert_can_recover(actor, target)
 
 
-class TestAssertCanProvisionAdmin:
-    """Freezes provisioning governance: only superadmins create administrative accounts."""
-
-    def test_superadmin_can_provision_admin(self, policy, make_user):
-        actor = make_user(role=UserRole.superadmin)
-
-        policy.assert_can_provision_admin(actor)
-
-    def test_admin_cannot_provision_admin(self, policy, make_user):
-        actor = make_user(role=UserRole.admin)
-
-        with pytest.raises(AuthorizationError):
-            policy.assert_can_provision_admin(actor)
-
-    def test_tourist_cannot_provision_admin(self, policy, make_user):
-        actor = make_user(role=UserRole.tourist)
-
-        with pytest.raises(AuthorizationError):
-            policy.assert_can_provision_admin(actor)
-
-
-class TestAssertIsAdminPlus:
-    """Freezes the administrative-tier rule: only admin/superadmin may proceed."""
-
-    def test_superadmin_is_allowed(self, policy, make_user):
-        superadmin = make_user(role=UserRole.superadmin)
-
-        policy.assert_is_admin_plus(superadmin)
-
-    def test_admin_is_allowed(self, policy, make_user):
-        admin = make_user(role=UserRole.admin)
-
-        policy.assert_is_admin_plus(admin)
-
-    def test_tourist_raises_authorization_error(self, policy, make_user):
-        tourist = make_user(role=UserRole.tourist)
-
-        with pytest.raises(AuthorizationError):
-            policy.assert_is_admin_plus(tourist)
-
-    def test_role_is_the_only_deciding_factor(self, policy, make_user):
-        admin = make_user(role=UserRole.admin, cedula="123456", email="twin@test.com")
-        tourist = make_user(role=UserRole.tourist, cedula="123456", email="twin@test.com")
-
-        policy.assert_is_admin_plus(admin)
-
-        with pytest.raises(AuthorizationError):
-            policy.assert_is_admin_plus(tourist)
-
-    def test_admin_with_degenerate_identity_data_still_allowed(self, policy, make_user):
-        degenerate_admin = make_user(role=UserRole.admin, cedula="")
-
-        policy.assert_is_admin_plus(degenerate_admin)
-
-
 class TestCanSee:
     """Freezes the visibility denylist: only (admin, superadmin) is obscured."""
 
