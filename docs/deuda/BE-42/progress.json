@@ -1,6 +1,6 @@
 {
   "plan_file": "docs/deuda/BE-42/plan.md",
-  "current_target": "Fase_C",
+  "current_target": null,
   "phases": {
     "Fase_A": {
       "status": "completed",
@@ -13,12 +13,12 @@
       "description": "create_access_token impone ACCESS_TOKEN_SCOPE; make_token sin extra_claims; fixture sign_claims; scope en los claims del login (RED 3 failed; 619 passed)."
     },
     "Fase_C": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "717fc73",
       "description": "get_current_user exige ACCESS_TOKEN_SCOPE; token de verificación como bearer -> 401 en las 17 rutas y token sin scope -> 401 (RED 19 failed; 638 passed; BREAKING CHANGE)."
     }
   },
   "allowed_statuses": ["pending", "partial", "completed"],
-  "last_handoff": "Fase_B completed (20429bf): create_access_token sets ACCESS_TOKEN_SCOPE over any scope in data; make_token without extra_claims; sign_claims fixture; RED 3 failed, 37 passed; gate exit 0, 619 passed, cov 96.82 % (963 stmts); MA 3, MD 1, MV 2 failed; copy suite 330 passed. No deviations.",
+  "last_handoff": "Fase_C completed (717fc73): get_current_user requires ACCESS_TOKEN_SCOPE (same 401 as a corrupt token); RED 19 failed, 64 passed (17 routes 200x6/404x7/422x3/400x1 + 2); gate exit 0, 638 passed, cov 96.82 % (965 stmts); MSC 19, MSUB 1, MU 3, MA 102, MD 1, MV 2, MEV 1, MAV 2; MA+MSUB and MA+MU 102 with corner-2 tests green; copy suite 349 passed; final verification matches. No deviations.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
