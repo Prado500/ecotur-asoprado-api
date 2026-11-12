@@ -1,6 +1,6 @@
 {
   "plan_file": "docs/deuda/BE-42/plan.md",
-  "current_target": "Fase_B",
+  "current_target": "Fase_C",
   "phases": {
     "Fase_A": {
       "status": "completed",
@@ -8,8 +8,8 @@
       "description": "EMAIL_VERIFICATION_SCOPE en security.py; create_verification_token y verify_email_account la usan (refactor, sin RED; MV y MEV)."
     },
     "Fase_B": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "20429bf",
       "description": "create_access_token impone ACCESS_TOKEN_SCOPE; make_token sin extra_claims; fixture sign_claims; scope en los claims del login (RED 3 failed; 619 passed)."
     },
     "Fase_C": {
@@ -19,6 +19,6 @@
     }
   },
   "allowed_statuses": ["pending", "partial", "completed"],
-  "last_handoff": "Fase_A completed (db6bc51): EMAIL_VERIFICATION_SCOPE in security.py, used by create_verification_token and verify_email_account; gate exit 0, 618 passed, cov 96.81 % (962 stmts); MV 1 failed, MEV 1 failed (328 passed each); copy suite 329 passed. No deviations.",
+  "last_handoff": "Fase_B completed (20429bf): create_access_token sets ACCESS_TOKEN_SCOPE over any scope in data; make_token without extra_claims; sign_claims fixture; RED 3 failed, 37 passed; gate exit 0, 619 passed, cov 96.82 % (963 stmts); MA 3, MD 1, MV 2 failed; copy suite 330 passed. No deviations.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
