@@ -1,10 +1,10 @@
 {
   "plan_file": "docs/deuda/BE-40/plan.md",
-  "current_target": "Fase_A",
+  "current_target": "Fase_B",
   "phases": {
     "Fase_A": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "a138a9e",
       "description": "UserDep/AdminDep move to app/api/dependencies.py; the 6 handlers of service.py take usuario_actual: AdminDep (4 reordered before service_service). No behaviour change. Target: 622 passed, cov 96.47 %."
     },
     "Fase_B": {
@@ -24,6 +24,6 @@
     }
   },
   "allowed_statuses": ["pending", "partial", "completed"],
-  "last_handoff": "Estado inicial. Plan pendiente de aprobación humana (decisiones abiertas P1-P5 en plan.md).",
+  "last_handoff": "Fase_A completed (a138a9e): UserDep/AdminDep in dependencies.py, 6 service.py handlers on AdminDep; gate green, 622 passed, cov 96.47 %, 4 kept; E0.1 grep 0. See handoff-Fase_A.md.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
