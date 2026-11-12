@@ -47,18 +47,6 @@ async def test_audit_trail_creation_and_retrieval(client, persist_user, make_aut
     assert logs[0]["action"] == "CREATE"
 
 
-async def test_audit_trail_forbidden_for_tourist(client, persist_user, make_auth_headers):
-    """
-    Validates RBAC restrictions ensuring tourists cannot read sensitive system logs.
-    """
-    tourist = await persist_user(role=UserRole.tourist)
-
-    response = await client.get("/auditoria/", headers=make_auth_headers(tourist))
-
-    assert response.status_code == 403
-    assert isinstance(response.json()["detail"], str)
-
-
 # ==========================================
 # UNIT TESTS (pure service delegation contract)
 # ==========================================
@@ -135,11 +123,3 @@ async def test_audit_trail_accessible_for_admin(
     assert logs[0]["entity_name"] == "User"
     assert logs[0]["entity_id"] == "1"
     assert logs[0]["action"] == "CREATE"
-
-
-async def test_audit_trail_requires_authentication(client):
-    """Missing bearer token is rejected by the router gate with a 401 detail body."""
-    response = await client.get("/auditoria/")
-
-    assert response.status_code == 401
-    assert "detail" in response.json()

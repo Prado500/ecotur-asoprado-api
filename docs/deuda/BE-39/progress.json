@@ -1,0 +1,34 @@
+{
+  "plan_file": "docs/deuda/BE-39/plan.md",
+  "current_target": null,
+  "phases": {
+    "Fase_A": {
+      "status": "completed",
+      "commit": "d89e942",
+      "description": "tests/test_route_guards.py (new): PROTECTED_ROUTES (17), PUBLIC_ROUTES (9) and the inventory test against app.routes; M10 1 failed, M11 2 failed. Target: 580 passed, cov 96.29 %."
+    },
+    "Fase_B": {
+      "status": "completed",
+      "commit": "4612c42",
+      "description": "17 no-token cases (401, WWW-Authenticate: Bearer, {detail}); drop test_audit_trail_requires_authentication; M9 17 failed, M9a equivalent. Target: 596 passed."
+    },
+    "Fase_C": {
+      "status": "completed",
+      "commit": "f980041",
+      "description": "14 tourist cases on admin routes (403, no WWW-Authenticate, {detail}); drop test_audit_trail_forbidden_for_tourist; M1 6, M2 9, M3 12, M6 4, M7 13, M4+M5 2 failed; M4 alone declared (BE-40). Target: 609 passed."
+    },
+    "Fase_D": {
+      "status": "completed",
+      "commit": "284cfe7",
+      "description": "E0: 3 tourist cases on user routes expect the handler's code (200, 404, 404) via USER_ROUTES and _TOURIST_PAST_USER_GUARD; M12 1 failed, M14 18 failed; M13 (reciprocal) killed by phase C. Target: 612 passed."
+    },
+    "Fase_E": {
+      "status": "completed",
+      "commit": "fee04bc",
+      "description": "E2: 9 no-token cases on public routes expect their own code (200 x6, 422 x3) via _ANONYMOUS_ON_PUBLIC_ROUTE; table hygiene test (no repeated protected row, no row in both tables); M15 1, M16 1, M17 2 failed; M18 (reciprocal) killed by phases B and C. Target: 622 passed, cov 96.47 %."
+    }
+  },
+  "allowed_statuses": ["pending", "partial", "completed"],
+  "last_handoff": "Fase_E completada (fee04bc): 2 inserciones en tests/test_route_guards.py idénticas al plan (_ANONYMOUS_ON_PUBLIC_ROUTE, test_route_tables_have_no_repeated_or_shared_entries, test_public_route_answers_without_token); M15 1, M16 1, M17 2, M18 2 (recíproco, lo matan B y C) failed; sin mutante 333; compuerta exit 0, 622 passed, 96.47 %, 8 warnings (S5). Última fase del ítem. Ver handoff-Fase_E.md.",
+  "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
+}
