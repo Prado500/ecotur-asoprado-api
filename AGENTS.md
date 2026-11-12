@@ -15,6 +15,8 @@ sobreingeniería. Explicas el trade-off de cada decisión no trivial. Dices las 
   PostgreSQL. Alembic para TODO cambio de esquema (prohibido alterar tablas a mano).
 - Si una librería no está en `pyproject.toml`, no la uses sin preguntar. Versiones: consulta Context7
   cuando una API te genere duda, haya aviso de deprecación o la librería no esté en tu conocimiento base.
+- Versiones exactas: viven en `constraints.txt` (ADR-0014). Una librería nueva entra en `pyproject.toml` y en
+  `constraints.txt` en el mismo PR; cambiar una versión es regenerar ese archivo.
 - Secretos: viven en `.env` (ignorado por git). Nunca leas ni copies `.env`; usa `.env.example` como referencia.
 
 ## 3. Leyes arquitectónicas (las hace cumplir `import-linter`; ver `pyproject.toml`)
@@ -40,10 +42,9 @@ sobreingeniería. Explicas el trade-off de cada decisión no trivial. Dices las 
 - **Configuración centralizada (ADR-0013):** toda variable de entorno se lee en `app/core/config.py`
   (`Settings` de pydantic-settings; `get_settings()` con caché). Ningún otro módulo usa `os.getenv` ni
   `load_dotenv`. En la capa HTTP se recibe con `Depends(get_settings)`; donde no hay petición se llama a
-  `get_settings()`; el motor y Alembic usan `get_database_settings()`. `get_settings()`; el motor y Alembic
-   usan `get_database_settings()`. Una variable nueva es un campo de `Settings`, con su línea en `.env.example`
-   (lo exige `tests/test_config.py`) y su valor de prueba en el `conftest.py` de la raíz 
-   (ADR-0013, punto 6: sin él, la suite leería el `.env` de quien la corre).
+  `get_settings()`; el motor y Alembic usan `get_database_settings()`. Una variable nueva es un campo de `Settings`,
+  con su línea en `.env.example` (lo exige `tests/test_config.py`) y su valor de prueba en el `conftest.py` de la raíz
+  (ADR-0013, punto 6: sin él, la suite leería el `.env` de quien la corre).
 - **Inventario de rutas (ADR-0012, punto 4):** toda ruta nueva se registra en `tests/test_route_guards.py`: en
   `PROTECTED_ROUTES` con su guard (`"superadmin"`, `"admin"` o `"user"`) o en `PUBLIC_ROUTES`. Una ruta de superadmin
   entra sola en `ADMIN_ROUTES` (caso turista → 403) y en `SUPERADMIN_ROUTES` (caso admin → 403). Una ruta de usuario
@@ -65,8 +66,8 @@ sobreingeniería. Explicas el trade-off de cada decisión no trivial. Dices las 
 
 ## 5. Testing (cero "test theater")
 - Pytest. Mocks solo para infraestructura externa (Azure, correo), siempre con `spec=`/`autospec=True`.
-- Fábricas centralizadas en `conftest.py` (`make_user(role=...)`, `auth_headers(user)`); prohibido construir
-  usuarios/tokens a mano en cada test.
+- Fábricas centralizadas en `tests/conftest.py` (`make_user(role=...)`, `persist_user`, `make_token`, `make_auth_headers(user)`,
+  `sign_claims` para los tokens que la app nunca emite); prohibido construir usuarios/tokens a mano en cada test.
 - Prueba comportamiento, no implementación. Aserciones estrictas: código HTTP **y** estructura del JSON **y**
   mutación de estado **y** llamadas a mocks con argumentos (`assert_called_once_with`).
 - Prohibido afirmar sobre texto humano en español; se afirma sobre códigos, tipos y estructura.
