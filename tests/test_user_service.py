@@ -129,6 +129,9 @@ async def test_register_tourist_duplicate_raises_already_exists(user_repo, user_
     with pytest.raises(AlreadyExistsError):
         await user_service.register_tourist(_tourist_payload())
 
+    user_repo.get_user_by_email_or_cedula.assert_awaited_once_with(
+        email="turista@example.com", cedula="1005911792"
+    )
     user_repo.create_user.assert_not_called()
 
 
@@ -330,6 +333,9 @@ async def test_create_administrative_account_provisions_admin(
     assert created_user.role == UserRole.admin
     assert created_user.cedula == "5555555555"
     assert created_user.is_active is True
+    user_repo.get_user_by_email_or_cedula.assert_awaited_once_with(
+        email="newadmin@test.com", cedula="5555555555"
+    )
     user_repo.create_user.assert_awaited_once_with(created_user)
     audit_service.log_transaction.assert_awaited_once_with(
         entity_name="User",
@@ -351,6 +357,9 @@ async def test_create_administrative_account_duplicate_raises_already_exists(
             _admin_payload(), make_user(role=UserRole.superadmin)
         )
 
+    user_repo.get_user_by_email_or_cedula.assert_awaited_once_with(
+        email="newadmin@test.com", cedula="5555555555"
+    )
     user_repo.create_user.assert_not_awaited()
 
 
@@ -365,6 +374,9 @@ async def test_create_administrative_account_lookup_failure_writes_nothing(
             _admin_payload(), make_user(role=UserRole.superadmin)
         )
 
+    user_repo.get_user_by_email_or_cedula.assert_awaited_once_with(
+        email="newadmin@test.com", cedula="5555555555"
+    )
     audit_service.log_transaction.assert_not_awaited()
     user_repo.create_user.assert_not_awaited()
 
