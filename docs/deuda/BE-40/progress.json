@@ -1,0 +1,29 @@
+{
+  "plan_file": "docs/deuda/BE-40/plan.md",
+  "current_target": "Fase_A",
+  "phases": {
+    "Fase_A": {
+      "status": "pending",
+      "commit": null,
+      "description": "UserDep/AdminDep move to app/api/dependencies.py; the 6 handlers of service.py take usuario_actual: AdminDep (4 reordered before service_service). No behaviour change. Target: 622 passed, cov 96.47 %."
+    },
+    "Fase_B": {
+      "status": "pending",
+      "commit": null,
+      "description": "GET /auditoria/: AuditService without the policy, retrieve_audit_history without current_user, handler without identity; TestAuditServiceAuthorization -> TestAuditServiceHistory (4) + HTTP filter test. RED 4 failed; M4 2 failed. Target: 625 passed, cov 96.82 %."
+    },
+    "Fase_C": {
+      "status": "pending",
+      "commit": null,
+      "description": "get_current_superadmin_user + SuperadminDep; POST /usuarios/admin moves to superadmin_router (replaces the admin guard); route table row guard=superadmin, ADMIN_ROUTES keeps the tourist case, new admin -> 403 case. RED 1 failed (422 != 403); MS1 1, MS2 1, MS3 2 failed. Contract 422 -> 403. Target: 626 passed, cov 96.84 %."
+    },
+    "Fase_D": {
+      "status": "pending",
+      "commit": null,
+      "description": "Drop assert_can_provision_admin and assert_is_admin_plus (policy + user_service call) and their 9 tests; lookup-failure test replaces the service one. MS1 1 -> 2 failed (test_auth unmasked); MS2 2, MS3 3, M4 2 failed. Target: 618 passed, cov 96.81 %."
+    }
+  },
+  "allowed_statuses": ["pending", "partial", "completed"],
+  "last_handoff": "Estado inicial. Plan pendiente de aprobación humana (decisiones abiertas P1-P5 en plan.md).",
+  "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
+}
