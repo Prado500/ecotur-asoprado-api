@@ -4,6 +4,7 @@
 > Base: `3798db4` (`41ff01d` más cuatro commits de documentación; `app/`, `tests/`, `alembic/` y `conftest.py` sin cambios,
 > `git diff --name-only 41ff01d HEAD -- app tests alembic conftest.py` vacío). Estado: **aprobado por David el 12 nov 2026
 > con E0 (11:22): cuatro fases, A → D; P1–P5 resueltas y dos correcciones de dictado en "Enmiendas aprobadas", al final.**
+> **E1 (12:38) añade la fase E** (opcional de la auditoría de D); A–D ejecutadas y auditadas PASS.
 > Las cifras de este plan (tests, cobertura, mutantes y conteos de grep) se midieron el 12 nov sobre copias desechables
 > con el texto exacto que dicta.
 
@@ -638,3 +639,47 @@ compuerta, los mutantes, los commits y las cifras no cambian. Si un punto de arr
    Ninguna fase de BE-40 lo toca.
 
 `progress.json` no cambia (`current_target: Fase_A`).
+
+### E1 — 12 nov 2026, 12:38 (David, sesión Mentor; regla del retoque, README de sesiones)
+
+Texto literal de David: «nos vamos por la opción A (fase E) para solucionar el hueco del opcional».
+
+**Origen:** opcional de la auditoría de la fase D (`docs/deuda/BE-40/gaps.md`, bloque "Auditoría Fase D"): el test
+sustituto `test_create_administrative_account_lookup_failure_writes_nothing` (`tests/test_user_service.py:357-369`), que
+este plan dictó, comprueba que no hubo escrituras pero no con qué argumentos se llamó a la búsqueda que falla. AGENTS §5
+pide llamadas a mocks con argumentos. Es un defecto del artefacto del propio ítem: se corrige dentro del ítem, con una
+fase nueva (regla de David del 11 nov; precedentes: E0 y E2 de BE-39).
+
+**Fase E nueva. Las fases A–D, sus commits, sus cifras y sus auditorías no cambian.**
+
+1. **Alcance: un archivo, `tests/test_user_service.py`** (los tests exactos, en el punto 4). Se añade la aserción de la llamada a
+   `user_repo.get_user_by_email_or_cedula` con sus dos argumentos por nombre (`email`, `cedula`), una sola vez. Los valores
+   salen de `_admin_payload()` (`tests/test_user_service.py:49-62`: `cedula="5555555555"`, `email="newadmin@test.com"`); la
+   llamada del servicio es `app/services/user_service.py`, `create_administrative_account`,
+   `get_user_by_email_or_cedula(email=user_data.email, cedula=user_data.cedula)`. `app/` no se toca.
+2. **El planificador dicta el texto exacto de la aserción y lo mide** (regla "medir antes de dictar"): compuerta
+   completa, y un mutante en la copia desechable que demuestre que la aserción vigila (la llamada del servicio con un
+   argumento cambiado: sin la aserción la suite queda en verde; con ella, cae este test). Declara cuántos tests caen y
+   cuáles. El número de tests no cambia (618); si la cobertura cambia, lo dice.
+3. **El planificador recalcula solo lo que depende de E1:** sección "Fase E" con el formato de las demás (archivos,
+   cambio exacto, RED o mutante, criterio de aceptación, fuera de alcance, commit), fila E en la tabla de compuerta,
+   fila del mutante nuevo en la tabla de mutantes, pasos de la Verificación final que cambien, y `progress.json` con
+   `Fase_E` (`pending`) y `current_target: "Fase_E"`. No reescribe nada de A–D.
+4. **Alcance ampliado por David (12:40: «sí, la fase E arregla todos los huecos homólogos»).** Medido por la sesión
+   Mentor sobre `ed3047a`: cinco tests de `tests/test_user_service.py` configuran `get_user_by_email_or_cedula` y solo uno
+   afirma sus argumentos (`test_register_tourist_returns_registration_result`, `:92`, aserción en `:113`). La fase E
+   añade la misma aserción (una llamada, `email` y `cedula` por nombre, con los valores del payload de cada test) a los
+   otros cuatro:
+   - `test_register_tourist_duplicate_raises_already_exists` (`:125`), sobre `user_service.py:74`;
+   - `test_create_administrative_account_provisions_admin` (`:320`), sobre `user_service.py:394`;
+   - `test_create_administrative_account_duplicate_raises_already_exists` (`:343`), ídem;
+   - `test_create_administrative_account_lookup_failure_writes_nothing` (`:357`), ídem (el del opcional).
+   Dato que motiva el alcance: hoy ningún test de ese archivo afirma los argumentos de la búsqueda de
+   `create_administrative_account` (`user_service.py:394`). Es un dato leído, no ejecutado: si un mutante ahí sobrevive a
+   toda la suite lo mide el planificador, con un mutante por cada llamada del servicio (`:74` y `:394`), y declara qué
+   tests caen antes y después. Sigue siendo un solo archivo y ningún
+   cambio en `app/`. **Fuera de alcance:** cualquier otro mock sin argumentos de ese archivo o de otros; si el
+   planificador ve más, van a Residuales.
+5. **Cómo se invoca:** mensaje directo al subagente `plan-redactor` ("lee E1 en `docs/deuda/BE-40/plan.md` y escribe la
+   fase E"), no `/deuda-planear`, que redacta el plan desde la verificación y podría reescribir fases ya ejecutadas (nota
+   de BE-39 en AF-09).
