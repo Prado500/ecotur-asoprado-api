@@ -5,9 +5,11 @@
 > Vive en `docs/CONTEXT.md`. Regla de oro: **el contexto vive en archivos versionados, no en la
 > memoria de un chat.** Cada sesión nueva arranca leyendo esto.
 >
-> **Versión 4.1 — 10 nov 2026.** Bitácora `2026-11-10` (§4: configuración centralizada en `Settings` y compuerta local en verde
+> **Versión 4.2 — 11 nov 2026.** Bitácora `2026-11-11` (§4: CI estricto sin `--soft`, dependencias fijadas en `constraints.txt`,
+> toda ruta protegida con test de rechazo; §5: lo que el flujo enseñó con BE-39; §6: filas de ADR-0014 y de las decisiones del
+> día; §8 reescrito: `B-GUARD-TESTS m2` como siguiente paso). Versiones anteriores: `2026-11-10` (4.1, bitácora `2026-11-10` (§4: configuración centralizada en `Settings` y compuerta local en verde
 > sin `--soft` desde A4; §5: Context7 alcanzable desde los agentes y ritmo medido de A4; §6: fila de ADR-0013 y fila de las
-> decisiones del día; §8 reescrito: merge de A4 y CI duro). Versiones anteriores: `2026-11-09` (4.0, cambio de premisa: bitácora `2026-11-09` (§2: la capacidad declarada el 7 nov entra en
+> decisiones del día; §8 reescrito: merge de A4 y CI duro)); `2026-11-09` (4.0, cambio de premisa: bitácora `2026-11-09` (§2: la capacidad declarada el 7 nov entra en
 > vigor —Bogotá hasta nuevo aviso, 2 m/día de lunes a viernes, 1 m el sábado con la tarde como comodín, sin régimen de
 > Prado—; §6: fila del 9 nov; §8 reescrito con la ruta de la semana: A4 → CI duro → `B-GUARD-TESTS` → `B-GHOST-ADMIN` →
 > puesta en `staging` → `B-RESERVAS`; al cierre del mismo día: §4 la compuerta sin binarios de `venv/Scripts/` (AF-12, AF-13); §5
@@ -174,7 +176,11 @@ por el equipo humano"**. → El flujo agéntico es parte de la metodología decl
 - **Hecho y verificado:** autenticación JWT, registro con hash, handlers globales de
   excepciones, `UserAccessPolicy` con ABAC jerárquico (cubre delete y update), auditoría básica
   (`test_audit.py`). Frontera de autorización decidida el 6 nov (**ADR-0012**): rol en el guard, dato en la política; dos
-  rutas aún no la cumplen y **ningún test HTTP depende del guard de rol** (BE-39, BE-40, `B-GUARD-TESTS`). **Desde el 27 oct, los cuatro contratos de capas de `import-linter` se cumplen**
+  rutas aún no la cumplen (BE-40, `B-GUARD-TESTS`). **Desde el 11 nov (BE-39, PR #91) toda ruta tiene test de rechazo:**
+  `tests/test_route_guards.py` lleva la tabla de las 17 rutas protegidas y la de las 9 públicas, un inventario que falla si
+  una ruta no está en ninguna, y 45 casos (sin token → 401; turista → 403 en las 14 admin; código exacto en las de usuario y
+  en las públicas); quitar o debilitar un guard pone la suite en rojo, salvo el de `/auditoria/`, tapado por el re-chequeo del
+  servicio hasta BE-40 `(backlog BE-39)`. **Desde el 27 oct, los cuatro contratos de capas de `import-linter` se cumplen**
   (`B-BE01`: `storage.py` y `security.py` dejaron de arrastrar FastAPI; ADR-0006): ningún servicio conoce
   el transporte HTTP, ni directa ni transitivamente.
 - **Configuración (A4, 10 nov; ADR-0013):** toda la configuración se lee en `app/core/config.py` (`Settings` de
@@ -191,7 +197,7 @@ por el equipo humano"**. → El flujo agéntico es parte de la metodología decl
 - **Tests y calidad:** pytest + mocks; la medición vigente (tests, cobertura, ruff, mypy, contratos) es la última columna
   de `(PLAN §6)` y no se copia aquí. Tooling desde el 24 oct: `ruff`, `mypy`, `import-linter`, `pytest-cov`, unidos
   en `scripts/check.py` (AGENTS §6); desde el 6 nov (BE-33, PR #81) la compuerta global quedó en rojo solo por lo que tenía dueño
-  en A4 (8 I001 y 5 `str | None`) y BE-32 (1 I001); rigió el trinquete de ADR-0005 hasta A4. **Desde el 10 nov (A4, PR #88) la compuerta pasa completa sin `--soft` en local y sin tolerar nada en el CI** (cifras en `(PLAN §6)`); el CI conserva `--soft` hasta el CI duro (§8), que es quien marca ADR-0005 como superado. Desde el 3 nov (AF-05) un paso cuya herramienta falta sale en rojo (un
+  en A4 (8 I001 y 5 `str | None`) y BE-32 (1 I001); rigió el trinquete de ADR-0005 hasta A4. **Desde el 10 nov (A4, PR #88) la compuerta pasa completa sin `--soft` en local y sin tolerar nada en el CI** (cifras en `(PLAN §6)`); **desde el 11 nov (CI duro, PR #89) el CI ejecuta `python scripts/check.py` sin `--soft` y sin grupo de variables: un paso en rojo bloquea el PR, y ADR-0005 queda superado.** **Las versiones de todas las dependencias están fijadas en `constraints.txt`** (77, generadas del venv de desarrollo; ADR-0014, BE-46, PR #92): el CI y el `Dockerfile` instalan con `-c constraints.txt`, así que local, CI e imagen ejecutan lo mismo; cambiar una versión es regenerar el archivo en el mismo PR. Desde el 3 nov (AF-05) un paso cuya herramienta falta sale en rojo (un
   "4 KEPT" ya no puede ser un paso que no corrió) y desde el 9 nov (AF-12) ningún paso depende de un ejecutable de `venv/Scripts/`:
   import-linter corre por su entry point con el intérprete de la compuerta, como ruff, mypy y pytest con `-m`. Los tests de `scripts/check_docs.py` corren en la suite pero fuera de la cobertura. **Desde BE-32 (7 nov, PR #85) mypy mide también `tests/`**: `pyproject.toml` `files` incluye `"tests"`, la suite propia quedó en 0 errores y los 4 que mypy reporta ahí son `SECRET_KEY` de A4; además 0 aserciones de mock sin argumentos y 3 copias HTTP menos `(backlog BE-32)`. El diagnóstico de la suite (mocks sin
   `spec`, setup duplicado, aserciones sobre texto, sesión ≠ `get_db`, huecos B2/B3/B4) es la fila
@@ -201,7 +207,7 @@ por el equipo humano"**. → El flujo agéntico es parte de la metodología decl
 ### CI/CD e infraestructura (operativa)
 GitHub → Azure DevOps → Azure (Web App for Containers + BD administrada) → Docker Hub.
 Tres entornos (`develop`, `staging`, `main`) con resource group propio. PR → webhook → CI
-(`scripts/check.py` con ruff y mypy tolerados en rojo hasta `B-TESTS`, PLAN §2b) → merge → CD construye y publica imagen con tag del entorno →
+(`scripts/check.py` completa, sin tolerar nada, con las dependencias de `constraints.txt`; ADR-0014) → merge → CD construye y publica imagen con tag del entorno →
 la Web App la hala al reiniciar. Operación: 2 clics.
 
 ### Frontend (Flutter, MVVM; web + Android)
@@ -217,7 +223,9 @@ la Web App la hala al reiniciar. Operación: 2 clics.
 - **Decidido:** ADR-0001 (se conservan `deuda-verificador` y `handoff-auditor` con poda; se reescribe el
   paso 6 de `plan-redactor`; el determinismo pasa a herramientas ejecutadas por el ejecutor, el auditor y
   el CI; decisiones → ADR) y ADR-0005 (trinquete contra la línea base mientras la compuerta global esté en
-  rojo; caduca al quedar en verde; la verificación registra el hash medido y el ejecutor lo compara).
+  rojo; caduca al quedar en verde; la verificación registra el hash medido y el ejecutor lo compara). **ADR-0005 quedó
+  superado el 11 nov**: la compuerta pasa completa en `develop` y el CI la ejecuta sin `--soft`; el criterio de cada fase
+  vuelve a ser la compuerta en verde.
 - **Runtime principal: Claude Code**, con **compatibilidad con OpenCode** como requisito (posible trabajo
   futuro con otras personas). Diseño de compatibilidad:
   - Las reglas del proyecto viven **una sola vez** en `AGENTS.md`; `CLAUDE.md` lo importa (`@AGENTS.md`) y
@@ -247,7 +255,13 @@ la Web App la hala al reiniciar. Operación: 2 clics.
   lista cerrada `tools:` y un subagente con lista recibe solo lo listado; `plan-redactor` y `fase-ejecutor` llevan ahora
   `mcp__context7__*` (AF-16) y el plan de A4 cita Context7 en sus Referencias. El planificador atrapó con una lectura del
   pipeline de CD un error de la adenda del Mentor (Alembic con el `Settings` completo habría roto las migraciones) y lo
-  resolvió con `DatabaseSettings`. Ritmo medido: ~15–20 min por fase con su auditoría, también con lógica de `app/`.
+  resolvió con `DatabaseSettings`. Ritmo medido: ~15–20 min por fase con su auditoría, también con lógica de `app/`. El 11 nov (BE-39, cinco fases, cinco PASS)
+  dos de las cinco fases nacieron de enmiendas: una de la revisión del plan por el Mentor y otra de un opcional del auditor
+  de la fase A, las dos sobre límites de la propia tabla de tests; David fijó el criterio (un hallazgo sobre el artefacto del
+  ítem se corrige en el ítem con una fase nueva; lo que queda fuera de su alcance recibe fila). Para aplicar una enmienda
+  con fases ya ejecutadas se invoca a `plan-redactor` con un mensaje directo, no con `/deuda-planear`. El primer ítem bajo
+  el CI estricto destapó que el CI instalaba versiones distintas de las de desarrollo (ADR-0014), y un PR se mezcló con un
+  solo commit porque el resto no estaba subido: antes de mezclar se miran commits y archivos en GitHub, no solo el CI.
 - **Artefactos de datos por ítem** (`docs/deuda/<ID>/`): `verificacion.md`, `plan.md`, `progress.json`,
   `handoff-<fase>.md`, `gaps.md`. El estado de un ítem es lo que existe en su carpeta; no hay índice aparte.
 
@@ -291,6 +305,8 @@ la Web App la hala al reiniciar. Operación: 2 clics.
 | 9 nov | Tres reglas de proceso del día. (1) **Falso positivo de `check_docs.py`** (la herramienta se equivoca, el documento está bien): no se detiene el trabajo; se esquiva en el documento con la edición mínima que no cambie ningún hecho, se declara en la bitácora con la causa verificada y el defecto recibe fila `AF-xx` en `B-FUTURO`; nunca se arregla el script "de paso" ni se deja la compuerta de cierre en rojo por una razón falsa (primer caso: AF-11, `_cells()` y el pipe escapado). (2) **Fila hija:** una fila del backlog puede saldarse como fase del ítem de otra cuando la verificación de este la midió y comparten archivos; la fila lo dice, la carpeta es una, el PR es uno (BE-01 con P1 y A7 lo hizo sin regla; AF-12 con AF-13 la escribe en AGENTS §8). (3) **La compuerta no depende de ejecutables de `venv/Scripts/`**: import-linter por su entry point (AF-12) y un paso que no arranca sale en rojo con RESUMEN (AF-13); apagar Smart App Control se descartó (irreversible, ajeno al repo). Además: el hint de instalación se conserva (fallo explícito), y la salida de la compuerta nunca se descarta (AF-09). | README de sesiones (paso 3), AGENTS §6 y §8 (`3e47d99`), `docs/deuda/AF-12/`, `docs/backlog.md` (AF-11, AF-14, AF-15) | Cap. de metodología (verificación documental; compuerta portable frente a políticas del sistema operativo; evidencia estructural cuando un bloqueo de entorno desaparece) |
 | 10 nov | Configuración centralizada: un único módulo `app/core/config.py` con `Settings` (pydantic-settings) y `get_settings()` con caché; cinco variables obligatorias y no vacías, `MAIL_FROM` opcional con `MAIL_USERNAME` como valor si falta; `.env` de la raíz ubicado por la ruta del módulo, el entorno del proceso gana, `extra="ignore"`, errores de arranque sin valores; `Depends(get_settings)` en la capa HTTP y llamada directa donde no hay petición; `DatabaseSettings` para el motor y las migraciones; la suite fija su entorno en un `conftest.py` de la raíz. | **ADR-0013**, `docs/deuda/A4/` (adenda de 13 puntos, plan con E0 y E1) | Cap. de arquitectura (configuración y arranque; fallo ruidoso frente a valores por defecto silenciosos), de despliegue (variables por entorno) y de resultados (primera compuerta en verde completa) |
 | 10 nov | Decisiones de proceso del día. (1) **A4 pasa de `B-PAGOS` a `B-TESTS`**: va en el bloque por dependencia (es lo que deja la compuerta en verde y permite el CI duro), no por tema. (2) **AF-16 antes de planear**, no en el cierre: los agentes del flujo corren en modelos más pequeños que el Mentor y necesitan documentación al día. (3) **`MAIL_FROM` no es obligatoria**: David mostró con un correo real que el remitente visible lo pone la cuenta autenticada de Gmail; hacerla obligatoria habría exigido tocar tres Web Apps sin cambiar nada para el destinatario. (4) **Un límite de commits intermedios se declara en el PR en vez de reordenar fases** (E0.7: entre las fases E y G la app en local no lee bien `.env`; la suite, el CI y Azure no lo sufren). (5) **Un hallazgo de auditoría anterior al ítem recibe fila, no arreglo** (BE-42, `scope` del bearer, a `B-GUARD-TESTS`). (6) Un commit con mensaje inexacto que aún no está en el remoto y es el último se corrige con `--amend` (`54cbfb9`); si ya está en el remoto, se declara en el PR (regla del 7 nov). | `docs/backlog.md` (A4, AF-16, BE-42..BE-45), `PLAN.md` §2b, `docs/deuda/A4/plan.md` (E0, E1), bitácora `2026-11-10` | Cap. de metodología (revisión humana del flujo: dos correcciones de David al Mentor y una del planificador; gestión de deuda; documentación al día para los agentes) |
+| 11 nov | Versiones de dependencias fijadas: `constraints.txt` con la versión exacta de toda distribución instalada (directa o transitiva), generado del venv de desarrollo; `pyproject.toml` sigue declarando qué se necesita; el CI y la imagen instalan con `-c constraints.txt`; cambiar una versión es regenerar el archivo en el mismo PR; lo exclusivo de Linux se fija a mano desde el log del CI. | **ADR-0014**, `docs/backlog.md` (BE-46) | Cap. de despliegue y de metodología (builds reproducibles; el CI estricto atrapó una deriva de versiones el primer día) |
+| 11 nov | Decisiones de proceso del día. (1) **CI duro hecho** y ADR-0005 superado: el CI no tolera nada; el residual 7 del plan de A4 (`conftest.py` de la raíz fuera de `mypy.files`) se acepta, no se hace. (2) **Un hallazgo sobre el propio artefacto de un ítem se corrige dentro del ítem, con una fase nueva** (David: "un ítem saldado no debería dejar 3 más por saldar a menos que no sea buena idea corregir sus hallazgos emergentes"); lo que queda fuera de su alcance sigue recibiendo fila (regla del 5 nov). Aplicado dos veces en BE-39 (E0 → fase D; E2 → fase E). (3) **La bitácora se escribe por tramos**, en cada punto de control, no solo en el cierre. (4) **Antes de mezclar un PR se comprueban en GitHub el número de commits y los archivos cambiados**, no solo el color del CI (PR #90 mezcló un commit de veintiuno); el asunto del merge `ed98db7` quedó inexacto y se declara, no se reescribe. (5) Un commit con mensaje inexacto que no es el último no se corrige con rebase si otros artefactos citan hashes posteriores (`fb109e7`). (6) Trabajo emergente crítico (dependencias sin fijar) se hace entero el mismo día en un PR corto sin flujo, con fila y ADR. | `docs/deuda/BE-39/plan.md` (E0–E3), `docs/backlog.md` (BE-39, BE-46, BE-47), bitácora `2026-11-11` | Cap. de metodología (revisión humana del flujo; gestión de deuda emergente; errores de proceso declarados) y de pruebas (tests de rechazo con mutantes) |
 | pendiente | Pagos: puerto `PaymentGateway`, `WompiAdapter`, `FakeAdapter`, webhook idempotente. | ADR de pagos (`B-PAGOS`, tomará el siguiente número libre) | Cap. de diseño (secuencia de pago) y arquitectura |
 
 ## 7. Preguntas abiertas
@@ -305,57 +321,58 @@ la Web App la hala al reiniciar. Operación: 2 clics.
 
 ## 8. Próximo paso
 
-Dónde estamos (estado al cierre de la bitácora `2026-11-10`): **A4 saldada en `item/a4`** (nueve fases A–I, nueve auditorías
-PASS, ADR-0013): toda la configuración vive en `app/core/config.py`, la app no arranca sin sus cinco variables obligatorias y
-**la compuerta local pasa completa sin `--soft` por primera vez**: 579 tests · 96,29 % · ruff 0 · mypy 0 · 4 kept `(PLAN §6)`.
-Prueba de humo en local con el `.env` real: login, perfil, subida de imagen, creación de paquete, registro, correo y
-verificación. **AF-16** hecha en la misma rama (los agentes alcanzan Context7). **PR #88 mezclado en `2dfb564`** (20:29; CI en verde
-sin bloque `env:`): `develop` = `2dfb564` más el commit documental de post-cierre. Filas nuevas: BE-42 (`B-GUARD-TESTS`), BE-43, BE-44 y BE-45 (`B-FUTURO`). Ruta de la semana sin
-cambios (David, 9 nov): **CI duro → `B-GUARD-TESTS` → `B-GHOST-ADMIN` → puesta en `staging` → `B-RESERVAS`** `(PLAN §3)`.
+Dónde estamos (estado al cierre de la bitácora `2026-11-11`): **`B-TESTS` cerrado y `B-GUARD-TESTS m1` hecho.** El CI ejecuta la
+compuerta sin `--soft` (PR #89, `4956346`; ADR-0005 superado). BE-39 saldada (PR #91, `a0578ae`): cinco fases, cinco PASS,
+`tests/test_route_guards.py` con 45 casos y el inventario de rutas; **622 tests · 96,47 % · ruff 0 · mypy 0 · 4 kept** `(PLAN §6)`.
+Todas las dependencias fijadas en `constraints.txt` (PR #92, `6d649df`; ADR-0014, BE-46). `develop` = `a0578ae` más el commit
+documental de cierre. Ruta sin cambios: **`B-GUARD-TESTS m2` → `B-GHOST-ADMIN` → puesta en `staging` → `B-RESERVAS`** `(PLAN §3)`.
 
-0. Hecho el 10 nov por la noche: CI del PR en verde sin el bloque `env:` (MD de la fase H), merge de PR #88, filas A4 y
-   AF-16 a `Hecho`. **Pendiente al abrir:** comprobar que la Web App de `develop` arranca tras el despliegue (es el primer
-   arranque con validación de `Settings`; las cinco obligatorias ya están definidas): `/docs` responde; si no, el log de la
-   Web App nombra la variable que falta.
-1. **CI duro** (media jornada): compuerta medida en `develop` tras el merge; si 0 · 0 · 4 kept, `--soft` fuera de
-   `ci-pipeline.yml` (l.28 y l.31), línea de estado de ADR-0005 marcada superada, columna nueva en PLAN §6, `B-TESTS`
-   cerrado. De paso, residuales 5 y 7 del plan de A4: `variables: - group: VG-ECOTUR-DEV` ya no lo usa la compuerta;
-   `conftest.py` de la raíz fuera de `mypy.files`. Y **AGENTS §2/§3**: una línea con la regla de ADR-0013 ("la configuración
-   se lee solo en `app/core/config.py`; ningún `os.getenv` fuera"), commit de David (precedente: AGENTS §3 tras ADR-0010).
-2. **`B-GUARD-TESTS`** (m1 BE-39; m2 BE-40 y BE-42) y **`B-GHOST-ADMIN`** (BE-34..BE-38), completos, en ese orden `(PLAN §3)`.
-   BE-34 (bootstrap de superadmin) ya puede tomar sus credenciales de `Settings`.
+0. **Pendiente al abrir:** comprobar que la Web App de `develop` arranca tras los despliegues del 11 nov (`/docs` responde).
+   Es la primera imagen construida con `-c constraints.txt`: vuelve a FastAPI 0.135.1 desde la versión sin fijar que el CD
+   instaló ese día.
+1. **`B-GUARD-TESTS m2`:** `/deuda-verificar BE-40` en `item/be-40` desde `develop`, y después BE-42 (los dos tocan
+   `app/api/dependencies.py`). Notas ya escritas en sus filas: la Verificación final de BE-40 incluye M4 sola (debe caer
+   `test_admin_route_rejects_tourist[GET /auditoria/]`) y el guard de superadmin amplía `PROTECTED_ROUTES`
+   (`guard="superadmin"`, caso "admin → 403"); BE-42 actualiza `make_token`. Toda ruta nueva o cambiada se registra en las
+   tablas de `tests/test_route_guards.py` (AGENTS §3).
+2. **`B-GHOST-ADMIN`** (BE-34..BE-38), completo `(PLAN §3)`. BE-34 toma sus credenciales de `Settings`; **BE-47** (test de que
+   `TEST_ENVIRONMENT` cubre todos los campos) entra con ella, como fase si su verificación la mide `(backlog BE-47)`.
 3. **Puesta en `staging`** (media jornada, configuración, sin flujo): `CORS_ORIGINS` con el origen exacto del frontend en
-   las tres Web Apps (decisión 5 de `docs/deuda/SEC1/`; el origen es letra por letra el de la barra del navegador: el 10 nov
-   `127.0.0.1:3000` y `localhost:3000` se comportaron como dos sitios distintos en local); **rotar el `JWT_SECRET_KEY` de
-   `staging`** (hoy es el mismo que el de `develop`; decisión de David del 10 nov); PR `develop` → `staging`; login y registro
-   desde el cliente contra `staging` (correo real: cierra la revisión visual de BE-33 D; el botón "Verificar mi Cuenta" no
-   se vio en yopmail el 10 nov, sí en Gmail en julio); `grep` de `role` en el cliente Flutter (cierra la nota de BE-02);
-   **dump de `staging` para `B-RESERVAS m2`**. BE-43 (`.dockerignore`) si David decide halarla ese día.
-4. **`B-RESERVAS`** (m1 decide BE-31: `sqlite_where` espejo en el `Index`; la suite sobre Postgres sigue en `B-FUTURO`
-   porque sus huecos están declarados en ADR-0011 y en la fila BE-31). Luego el orden de PLAN §3. `B-PAGOS m2` ya no crea
-   `Settings`: añade el conmutador Fake/Wompi como un campo.
-5. Pendientes chicos sin `m`: en el `.env` local de David, `FRONTEND_URL=http://localhost:3000` (tenía `127.0.0.1` y el
-   enlace del correo abría en blanco) y borrar el paquete 73 de prueba; ficha `fichas/BE-02.md`, ficha BE-32 (opcional;
-   revisa D8) y **ficha de A4** (qué es `Settings`, por qué `Depends` no llega a todo, por qué `DatabaseSettings`), con las 3
-   dudas abiertas de `preguntas.md`, en una sesión Estudio (sábado por la mañana si cabe); mensaje a María Paula para fijar
-   reunión y entregarle las historias de usuario (CONTEXT §7).
+   las tres Web Apps (decisión 5 de `docs/deuda/SEC1/`); **rotar el `JWT_SECRET_KEY` de `staging`** (hoy es el mismo que el de
+   `develop`); PR `develop` → `staging`, **comprobando commits y archivos antes de mezclar**; login y registro desde el cliente
+   contra `staging` (correo real: cierra la revisión visual de BE-33 D); `grep` de `role` en el cliente Flutter (cierra la nota
+   de BE-02); **dump de `staging` para `B-RESERVAS m2`**. BE-43 (`.dockerignore`) si David decide halarla ese día.
+4. **`B-RESERVAS`** (m1 decide BE-31: `sqlite_where` espejo en el `Index`; la suite sobre Postgres sigue en `B-FUTURO`). Sus
+   rutas nacen registradas en `PROTECTED_ROUTES` o `PUBLIC_ROUTES`. Luego el orden de PLAN §3. `B-PAGOS m2` añade el
+   conmutador Fake/Wompi como un campo de `Settings`.
+5. Pendientes chicos sin `m`: **línea de ADR-0014 en AGENTS §2** (commit de David: las versiones viven en `constraints.txt`;
+   una librería nueva entra en `pyproject.toml` y en `constraints.txt` en el mismo PR); fila en la tabla de CONTEXT §0 para
+   "versión exacta de cada dependencia → `constraints.txt`" (propuesta del Mentor, la valida David); en el `.env` local,
+   `FRONTEND_URL=http://localhost:3000`, y borrar el paquete 73 de prueba; fichas `fichas/BE-02.md`, BE-32 (opcional; revisa
+   D8), **A4** y **BE-39** (qué es un mutante, por qué M4 no cae, qué vigila el inventario), con las 3 dudas abiertas de
+   `preguntas.md`, en una sesión Estudio; mensaje a María Paula para fijar reunión y entregarle las historias de usuario
+   (CONTEXT §7).
 6. **Ritual de cierre:** paso 3 con la batería de `check_docs.py` ejecutada por Claude Code (prompt en la bitácora
    `2026-11-09`, pegando la salida completa; AF-10 la hará comando) y la salida revisada por la sesión Mentor antes del
    commit de cierre. La VM del Mentor no puede correr `check_docs.py` (Python 3.10): toda edición documental del Mentor se
-   valida con `./venv/Scripts/python.exe scripts/check_docs.py` antes de commitear.
+   valida con `./venv/Scripts/python.exe scripts/check_docs.py` antes de commitear. La bitácora se escribe por tramos
+   durante el día.
 7. Pendientes de flujo (no urgentes, con dueño; pasan a filas `AF-xx` cuando se decida atacarlos): YAML estricto en
    `check_docs.py`; `/pr` con `#N`; formalizar en `docs/sesiones/` las reglas del Mentor (solo `git log`/`status`/`diff`, el
    10 nov volvió a correr un `git fetch --dry-run`; nada fuera de `docs/`; propuesta y permiso antes de escribir;
    excepciones declaradas en bitácora); `mentor.md` más ligero por cuota y **que diga Opus, no Fable**, salvo decisiones que
-   paguen su juicio `(bitácora 2026-11-02)` (el 4, el 6, el 7, el 9 y el 10 nov corrieron en Fable por excepción declarada:
-   cinco seguidas, la regla escrita ya no describe lo que se hace); conectar la carpeta del repo antes del primer mensaje
-   (cinco días seguidos sin hacerlo); deny list de plumbing de git (`commit-tree`, `update-ref`, `replace`,
+   paguen su juicio `(bitácora 2026-11-02)` (el 4, el 6, el 7, el 9, el 10 y el 11 nov corrieron en Fable por excepción declarada:
+   seis seguidas, la regla escrita ya no describe lo que se hace); conectar la carpeta del repo antes del primer mensaje
+   (seis días seguidos sin hacerlo); deny list de plumbing de git (`commit-tree`, `update-ref`, `replace`,
    `filter-branch`, `reset`) y AGENTS §9 "reescribir historia por cualquier medio" `(bitácora 2026-11-02)`;
    `.github/pull_request_template.md` diverge de la skill `pr-author` (copia sin dueño); los conteos de los RED de
    herramienta en los planes se escriben por `error:` o por id, no por líneas; un mutante se mide sobre el commit de la
    fase; "plan de una página" (AGENTS §8) frente a "plan que dicta" (A4: 641 líneas y nueve fases en una tarde): el dato
    del 10 nov favorece al plan que dicta, se delibera con ese dato `(bitácora 2026-11-06)`; dar Context7 también al
-   verificador y al auditor si alguna vez lo necesitan (AF-16 los dejó fuera por mínimo privilegio). Ya con fila: AF-08,
+   verificador y al auditor si alguna vez lo necesitan (AF-16 los dejó fuera por mínimo privilegio); añadir al ciclo típico
+   del README de sesiones "antes de mezclar: commits y archivos del PR en GitHub" (PR #90); invocar a
+   `plan-redactor` directamente para enmiendas con fases ya ejecutadas (nota en AF-09); revisar si los prompts de
+   `.claude/agents/` aún describen el trinquete de ADR-0005, ya superado (los edita David). Ya con fila: AF-08,
    AF-09 y AF-10; AF-06, AF-11, AF-14 y AF-15 en `B-FUTURO`.
 
 ## 9. Sesiones de IA
