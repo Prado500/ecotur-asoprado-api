@@ -2,7 +2,8 @@
 
 > Fuente: `docs/deuda/BE-40/verificacion.md` (confirmada; adenda de cinco decisiones de David, 12 nov, 10:30).
 > Base: `3798db4` (`41ff01d` más cuatro commits de documentación; `app/`, `tests/`, `alembic/` y `conftest.py` sin cambios,
-> `git diff --name-only 41ff01d HEAD -- app tests alembic conftest.py` vacío). Estado: **pendiente de aprobación**.
+> `git diff --name-only 41ff01d HEAD -- app tests alembic conftest.py` vacío). Estado: **aprobado por David el 12 nov 2026
+> con E0 (11:22): cuatro fases, A → D; P1–P5 resueltas y dos correcciones de dictado en "Enmiendas aprobadas", al final.**
 > Las cifras de este plan (tests, cobertura, mutantes y conteos de grep) se midieron el 12 nov sobre copias desechables
 > con el texto exacto que dicta.
 
@@ -575,6 +576,8 @@ grep -c "AuthorizationError" tests/test_audit.py tests/test_user_service.py
   resuelve las sub-dependencias antes de validar ruta, query y cuerpo. Por eso el guard responde 403 antes del 422.
 
 ## Decisiones abiertas para David
+
+> **Cerradas el 12 nov a las 11:22: ver E0 en "Enmiendas aprobadas".** Ninguna espera respuesta.
 
 - **P1: dónde viven los alias.** La adenda dice "`SuperadminDep` junto a `UserDep`/`AdminDep` (`user.py:20-21`)". El plan
   los lleva los tres a `app/api/dependencies.py`, porque `service.py` no puede usarlos sin importar otro router. Siguen
