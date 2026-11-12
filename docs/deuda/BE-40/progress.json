@@ -1,6 +1,6 @@
 {
   "plan_file": "docs/deuda/BE-40/plan.md",
-  "current_target": null,
+  "current_target": "Fase_E",
   "phases": {
     "Fase_A": {
       "status": "completed",
@@ -21,6 +21,11 @@
       "status": "completed",
       "commit": "09ec81b",
       "description": "Drop assert_can_provision_admin and assert_is_admin_plus (policy + user_service call) and their 9 tests; lookup-failure test replaces the service one. MS1 1 -> 2 failed (test_auth unmasked); MS2 2, MS3 3, M4 2 failed. Target: 618 passed, cov 96.81 %."
+    },
+    "Fase_E": {
+      "status": "pending",
+      "commit": null,
+      "description": "E1: tests/test_user_service.py only; four tests assert get_user_by_email_or_cedula awaited once with email and cedula of their payload (+12 lines, app/ untouched). ML1 1 -> 2 failed, ML2 0 -> 3 failed. Target: 618 passed, cov 96.81 %."
     }
   },
   "allowed_statuses": ["pending", "partial", "completed"],

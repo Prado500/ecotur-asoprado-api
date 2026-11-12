@@ -4,7 +4,7 @@
 > Base: `3798db4` (`41ff01d` más cuatro commits de documentación; `app/`, `tests/`, `alembic/` y `conftest.py` sin cambios,
 > `git diff --name-only 41ff01d HEAD -- app tests alembic conftest.py` vacío). Estado: **aprobado por David el 12 nov 2026
 > con E0 (11:22): cuatro fases, A → D; P1–P5 resueltas y dos correcciones de dictado en "Enmiendas aprobadas", al final.**
-> **E1 (12:38) añade la fase E** (opcional de la auditoría de D); A–D ejecutadas y auditadas PASS.
+> **E1 (12:38) añade la fase E** (opcional de la auditoría de D); A–D ejecutadas y auditadas PASS. **Fase E aprobada con E2 (12:57).**
 > Las cifras de este plan (tests, cobertura, mutantes y conteos de grep) se midieron el 12 nov sobre copias desechables
 > con el texto exacto que dicta.
 
@@ -120,6 +120,8 @@ En el handoff se pegan la última línea y los `FAILED`.
 | MS1 | `app/api/dependencies.py` | en `get_current_superadmin_user`: `if current_user.role != UserRole.superadmin:` → `if current_user.role not in [UserRole.admin, UserRole.superadmin]:` |
 | MS2 | `app/api/routers/user.py` | `Depends(get_current_superadmin_user)])` → `Depends(get_current_admin_user)])` en `superadmin_router`, y `usuario_actual: SuperadminDep,` → `usuario_actual: AdminDep,` |
 | MS3 | `app/api/dependencies.py` | en `get_current_superadmin_user`: `if current_user.role != UserRole.superadmin:` → `if False:` |
+| ML1 | `app/services/user_service.py` | l.75, en `register_tourist`: `cedula=user_data.cedula` → `cedula=user_data.email`. La l.395 tiene la misma cadena: se edita por número de línea, `sed -i '75s/cedula=user_data.cedula/cedula=user_data.email/'` (fase E) |
+| ML2 | `app/services/user_service.py` | l.395, en `create_administrative_account`: la misma edición, `sed -i '395s/cedula=user_data.cedula/cedula=user_data.email/'` (fase E) |
 
 Compuerta esperada al cerrar cada fase: exit 0, `Compuerta superada.`, `61 files already formatted`,
 `All checks passed!`, `Success: no issues found in 56 source files`, `Contracts: 4 kept, 0 broken.` y `8 warnings`.
@@ -131,6 +133,7 @@ Compuerta esperada al cerrar cada fase: exit 0, `Compuerta superada.`, `61 files
 | B | 625 passed | 96,82 % | 336 passed |
 | C | 626 passed | 96,84 % | 337 passed |
 | D | 618 passed | 96,81 % | 329 passed |
+| E | 618 passed | 96,81 % | 329 passed |
 
 Al usar cada mensaje de commit, el ejecutor sustituye `<MODELO EJECUTOR>` por su modelo real y deja el resto letra a letra.
 
@@ -501,6 +504,72 @@ Al usar cada mensaje de commit, el ejecutor sustituye `<MODELO EJECUTOR>` por su
   Co-Authored-By: <MODELO EJECUTOR> <noreply@anthropic.com>
   ```
 
+### Fase E — La búsqueda de duplicados, afirmada con sus argumentos (E1)
+
+- **Archivos (1):** `tests/test_user_service.py`. Dominio: tests del servicio de usuarios. `app/` no se toca.
+- **Cambios exactos:** cuatro tests ganan el mismo bloque de tres líneas, con la forma de `:113-115` (en una sola línea
+  pasaría de 100 columnas). Los valores salen del payload de cada test: `_tourist_payload()` (`:35-46`) y
+  `_admin_payload()` (`:49-62`).
+  ```python
+      user_repo.get_user_by_email_or_cedula.assert_awaited_once_with(
+          email="<email>", cedula="<cedula>"
+      )
+  ```
+  1. `test_register_tourist_duplicate_raises_already_exists` (`:125`): `email="turista@example.com", cedula="1005911792"`,
+     justo antes de `user_repo.create_user.assert_not_called()` (`:132`).
+  2. `test_create_administrative_account_provisions_admin` (`:320`): `email="newadmin@test.com", cedula="5555555555"`,
+     justo antes de `user_repo.create_user.assert_awaited_once_with(created_user)` (`:333`).
+  3. `test_create_administrative_account_duplicate_raises_already_exists` (`:343`): los valores de admin, justo antes de
+     `user_repo.create_user.assert_not_awaited()` (`:354`).
+  4. `test_create_administrative_account_lookup_failure_writes_nothing` (`:357`): los valores de admin, justo antes de
+     `audit_service.log_transaction.assert_not_awaited()` (`:368`).
+  - Nada más cambia: nombres, docstrings, imports y demás aserciones quedan igual. Diff: 12 líneas añadidas, 0 borradas.
+- **Tests (RED primero):**
+  - No hay RED contra el código actual: las cuatro aserciones afirman lo que el servicio ya hace. El RED es un mutante,
+    como M4 en B y MS1 en D (ML1 y ML2 en la tabla de mutantes). Medido el 12 nov en copias desechables de `4ce8db3`
+    (`app/` y `tests/` iguales a `09ec81b`):
+
+    | Mutante | Antes de E (estado D) | Después de E |
+    |---|---|---|
+    | Control | `329 passed` | `329 passed` |
+    | ML1 | `1 failed, 328 passed` (`test_register_tourist_returns_registration_result`) | `2 failed, 327 passed` (más `test_register_tourist_duplicate_raises_already_exists`) |
+    | ML2 | `329 passed`: sobrevive a toda la suite | `3 failed, 326 passed` (`test_create_administrative_account_provisions_admin`, `…_duplicate_raises_already_exists` y `…_lookup_failure_writes_nothing`) |
+
+  - ML2 confirma el dato de E1.4: hoy ningún test vigila los argumentos de la búsqueda de
+    `create_administrative_account` (`user_service.py:394-396`).
+  - M4, MS1, MS2 y MS3 re-medidos sobre el estado E: los mismos `2`, `2`, `2` y `3 failed` del estado D.
+- **Criterio de aceptación:**
+  - Compuerta como la fila E (618 passed, 96,81 %). El número de tests no cambia y la cobertura tampoco: `--cov=app` no
+    mide `tests/` (medido: `TOTAL 961 19 136 16 96.81%`).
+  - ML1 y ML2 con los resultados de la columna "Después de E".
+  - `grep -c "get_user_by_email_or_cedula.assert_awaited_once_with" tests/test_user_service.py` → `5`.
+  - `git diff --numstat 09ec81b HEAD -- app tests alembic conftest.py` → una sola línea: `12	0	tests/test_user_service.py`
+    (separada por tabuladores).
+- **Fuera de alcance:**
+  - `app/`.
+  - `test_register_tourist_returns_registration_result`, que ya afirma la búsqueda (`:113`).
+  - Los demás mocks del archivo sin aserción de argumentos y los de otros archivos (Residuales, R5).
+  - Renombrar, reordenar o reescribir tests.
+- **Commit:**
+  ```
+  test(doubles): assert the duplicate lookup with its arguments
+
+  Only one of the five tests that stub get_user_by_email_or_cedula in
+  test_user_service.py checked how it was called. A lookup with a wrong
+  cedula in create_administrative_account left the whole suite green
+  (mutant ML2): no test pinned the arguments of that call, and AGENTS 5
+  asks for mock calls with their arguments (BE-40, E1).
+
+  The tourist duplicate test and the three provisioning tests (happy
+  path, duplicate, lookup failure) now assert one awaited lookup with
+  the email and cedula of their payload.
+
+  No production code changes. Mutant ML2 now fails three tests, and
+  ML1 (the same change in register_tourist) fails two instead of one.
+
+  Co-Authored-By: <MODELO EJECUTOR> <noreply@anthropic.com>
+  ```
+
 ## Verificación final
 
 Se ejecuta desde la raíz del repo, tras la fase D. Las cifras cuentan el texto literal que dicta este plan (docstrings,
@@ -549,6 +618,23 @@ grep -c "AuthorizationError" tests/test_audit.py tests/test_user_service.py
     MS3 `3 failed, 326 passed` (los de MS1 más `test_admin_route_rejects_tourist[POST /usuarios/admin]`). Si el auditor no
     puede crear la copia, lo declara como bloqueo y no da el mutante por medido (adenda, punto 3).
 
+13. Fase E, tras su commit. Los pasos 1-12 no cambian: `tests/test_user_service.py` ya está entre los 11 archivos del
+    paso 1, y los mutantes del paso 12 dan lo mismo sobre el estado E (medido).
+
+    ```bash
+    git diff --numstat 09ec81b HEAD -- app tests alembic conftest.py                         # 12	0	tests/test_user_service.py
+    grep -c "get_user_by_email_or_cedula.assert_awaited_once_with" tests/test_user_service.py  # 5
+    grep -c 'email="newadmin@test.com", cedula="5555555555"' tests/test_user_service.py        # 3
+    grep -c 'email="turista@example.com", cedula="1005911792"' tests/test_user_service.py      # 2
+    ```
+
+14. Mutantes de la fase E sobre la copia del estado final (procedimiento común): ML1 `2 failed, 327 passed`
+    (`test_register_tourist_returns_registration_result` y `test_register_tourist_duplicate_raises_already_exists`), ML2
+    `3 failed, 326 passed` (`test_create_administrative_account_provisions_admin`,
+    `test_create_administrative_account_duplicate_raises_already_exists` y
+    `test_create_administrative_account_lookup_failure_writes_nothing`). Antes de mirar el resultado, un
+    `sed -n '75p;395p' app/services/user_service.py` sobre la copia confirma que solo cambió la línea del mutante.
+
 ## Residuales
 
 - **R1: el autor de las seis mutaciones de paquetes no lo fija ningún test.** `performed_by` solo se comprueba en
@@ -565,6 +651,14 @@ grep -c "AuthorizationError" tests/test_audit.py tests/test_user_service.py
   auditoría, que BE-40 retira". Al cerrar, la sesión Mentor anota que se retiró (fase B y D). La nota de BE-42 debe
   recoger que `get_current_superadmin_user` se apoya en `get_current_user` y que `PROTECTED_ROUTES` ya trae la fila
   `"superadmin"`.
+
+- **R5: más mocks sin argumentos en `tests/test_user_service.py`** (visto al redactar la fase E; leído, no medido con
+  mutantes). `get_user_by_cedula` se configura en `:144, 157, 172, 183` y `get_non_deleted_user_by_email` en
+  `:200, 217, 230, 241`, y ningún test afirma con qué argumentos se llamaron. `activate_user` en
+  `test_verify_email_missing_user_raises_not_found` (`:307`) tampoco. E1.4 los deja fuera. Destino sugerido: fila nueva
+  en `B-TESTS-2`, junto a BE-48. *Texto sugerido:* "En `test_user_service.py`, afirmar los argumentos de
+  `get_user_by_cedula`, `get_non_deleted_user_by_email` y `activate_user` donde se configuran; medir antes con un mutante
+  por llamada del servicio".
 
 ## Referencias
 
@@ -683,3 +777,18 @@ fase nueva (regla de David del 11 nov; precedentes: E0 y E2 de BE-39).
 5. **Cómo se invoca:** mensaje directo al subagente `plan-redactor` ("lee E1 en `docs/deuda/BE-40/plan.md` y escribe la
    fase E"), no `/deuda-planear`, que redacta el plan desde la verificación y podría reescribir fases ya ejecutadas (nota
    de BE-39 en AF-09).
+
+### E2 — 12 nov 2026, 12:57 (David, sesión Mentor; regla del retoque, README de sesiones)
+
+Texto literal de David: «se aprueba (tienes el "aprobado") y creo que hemos descubierto un hueco más hondo de lo que
+pensábamos. Se va a su propia fila en el backlog, junto a B-TESTS-2».
+
+1. **Fase E aprobada como está escrita** (sección "Fase E", filas ML1 y ML2, fila E de la compuerta, pasos 13 y 14 de la
+   Verificación final). Contraste de la sesión Mentor contra el código, sin correcciones: las cuatro inserciones caen en
+   `tests/test_user_service.py:132`, `:333`, `:354` y `:368`; los valores coinciden con `_tourist_payload()` y
+   `_admin_payload()`; el bloque de tres líneas es el de `:113-115` y en una línea mediría 114 y 116 columnas;
+   `app/services/user_service.py:75` y `:395` contienen la cadena que editan ML1 y ML2. Las cifras las repite el auditor.
+2. **R5 tiene destino:** fila **BE-49** en `docs/backlog.md`, bloque `B-TESTS-2` (PLAN §2b), junto a BE-48. Ninguna fase de
+   BE-40 lo toca.
+
+`progress.json` no cambia (`current_target: Fase_E`, escrito por el planificador).
