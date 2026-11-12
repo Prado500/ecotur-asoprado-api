@@ -136,3 +136,53 @@ Sin hallazgos. Evidencia de la auditoría (contexto fresco, `handoff-auditor`, s
   `dependencies.py`, no en un servicio), así que no hace falta excepción de dominio; la ruta ya estaba en el inventario de
   `tests/test_route_guards.py` (ADR-0012, punto 4) y cambia de guard; usuarios y cabeceras por fábricas, sin mocks;
   aserciones sobre código, cabecera y estructura, ninguna sobre texto en español; código y comentarios en inglés.
+
+## Auditoría Fase D — 2026-11-12
+**Veredicto Fase D: PASS (0 bloqueantes, 1 opcional).**
+
+[OPCIONAL] — Fase D — El test sustituto no afirma los argumentos de la búsqueda que falla. AGENTS §5 pide llamadas a mocks con argumentos; aquí solo se comprueba que las dos escrituras no ocurrieron. Una línea más lo cerraría: `user_repo.get_user_by_email_or_cedula.assert_awaited_once_with(email=…, cedula=…)`. El plan dicta el test tal como está, y el test del duplicado (`:343-354`) tiene el mismo hueco, así que no es una desviación. Va como sugerencia para `B-TESTS-2`. Evidencia: `tests/test_user_service.py:357-369`.
+
+Evidencia (auditor, contexto fresco, sobre `7d66cfc`):
+- Árbol: `git status --short` vacío. `git log` muestra `09ec81b` (fase) y `7d66cfc` (registro) sobre `b0de901` (PASS de C).
+- `progress.json`:
+  - `Fase_D` está `completed` con `commit: "09ec81b"`, y `git show --stat 09ec81b` lo confirma: 4 archivos, 16+/108−.
+  - `last_handoff` apunta a `handoff-Fase_D.md` y `edit_rules` no cambia.
+  - `current_target: null` es coherente con el sistema. `scripts/check_docs.py:473-480` solo da un ítem por `done` si `current_target` es `null` y todas sus fases están `completed`. Los 15 `progress.json` de `docs/deuda/` tienen `null`. `check_docs.py --estado` da para BE-40: "ejecutado (todas las fases); pendiente de PR o mezclado … última auditoría: PASS" (antes de este bloque).
+  - El plan no fija el valor final. E0 solo fija el valor que tenía al aprobarse (`Fase_A`).
+  - `last_handoff` habla de "8 tests" y `description` de "9 tests". Las dos cifras son coherentes: se borran 8 tests de la política y 1 del servicio se sustituye.
+- Compuerta: `./venv/Scripts/python.exe scripts/check.py` sale con 0. Resultados:
+  - `618 passed, 8 warnings`, `Total coverage: 96.81%` (`TOTAL 961 19 136 16 96.81%`).
+  - `61 files already formatted`, `All checks passed!`, `Success: no issues found in 56 source files` y `Contracts: 4 kept, 0 broken.`
+  - Cifras iguales a la fila D del plan y al handoff. La cobertura no baja de la línea base de `verificacion.md:151-152` (622 / 96,47 %).
+  - Ruff y mypy sobre los 4 archivos de la fase: `All checks passed!` y `Success: no issues found in 4 source files`.
+- Commit frente al plan:
+  - El mensaje es idéntico al del plan, con `<MODELO EJECUTOR>` sustituido (comparado con `diff`).
+  - Toca exactamente los 4 archivos de la fase.
+  - (1) `user_access_policy.py`: se borran `assert_can_provision_admin` y `assert_is_admin_plus`, y el docstring de la clase queda literal (`:15-16`). El diff no toca `assert_can_delete`, `assert_can_update`, `assert_can_recover` ni `can_see`.
+  - (2) `user_service.py`: desaparecen la llamada y la línea `AuthorizationError` de `Raises:`. El párrafo (`:379-381`) y la línea de Args en dos líneas quedan literales.
+  - (3) `test_user_access_policy.py`: se borran `TestAssertCanProvisionAdmin` (3 tests) y `TestAssertIsAdminPlus` (5 tests).
+  - (4) `test_user_service.py`: el import queda como dicta el plan y el test sustituto tiene el nombre, la firma, el docstring, el `side_effect`, el actor superadmin, el `pytest.raises` y las dos aserciones `assert_not_awaited` dictadas.
+- E0: ninguna corrección de dictado toca la fase D. E0.6 (el test de fallo de BD) se cumple. E0.8 (R1 → BE-48, `B-TESTS-2`) consta en `docs/backlog.md:95`.
+- AGENTS §5 en el test sustituto:
+  - Los mocks son los fixtures `create_autospec(…, instance=True)` (`:66-74`) y el actor sale de `make_user`. No hay texto en español.
+  - La provisión conserva dos caminos de fallo en el servicio: duplicado (`:343`) y fallo de BD (`:357`), más el camino feliz (`:320`).
+  - No hacen falta excepciones de dominio nuevas, porque la fase solo borra código.
+- Verificación final, pasos 1-10: re-ejecutados uno a uno. Salen 11 / 0 · 0 · 0 / 0 · 6 / 2 · 4 / 0 / 13 / 0 / 3 (todos en `dependencies.py:191-193`) · 7 · 0 · `42:` / 17 / 1 / 13 / 3 · 0 y 0 · `46 passed`. Todo cuadra.
+  - Nota: los predicados de la política están ahora en `:67, 75, 94, 111`. El comentario del paso 4 del plan cita l.66, 74 y 93, porque el docstring de la clase gana una línea. La cifra es la misma.
+- Paso 11: es la compuerta de arriba.
+- Paso 12: mutantes re-medidos en copias desechables nuevas (`git archive`, edición comprobada con `grep`):
+  - RED en el estado C (`b0de901`), MS1: `1 failed, 336 passed` (`test_superadmin_route_rejects_admin[POST /usuarios/admin]`).
+  - Estado D, control: `329 passed`.
+  - MS1: `2 failed, 327 passed` (más `tests/test_auth.py::test_admin_provisioning_admin_returns_403_without_row`).
+  - MS2: `2 failed, 327 passed` (los mismos).
+  - MS3: `3 failed, 326 passed` (más `test_admin_route_rejects_tourist[POST /usuarios/admin]`).
+  - M4: `2 failed, 327 passed` (`…without_token[GET /auditoria/]` y `test_admin_route_rejects_tourist[GET /auditoria/]`).
+  - Todos coinciden con el plan y con el handoff.
+- `tests/test_auth.py`, `alembic/` y los `conftest.py` siguen intactos desde `41ff01d` (paso 1, segunda línea: 0).
+
+Cierre del ítem: las cuatro fases tienen PASS y la Verificación final cuadra (pasos 1-12). Quedan pendientes los residuales que no son de ningún ejecutor:
+- R1 hecho (BE-48 en `B-TESTS-2`, `docs/backlog.md:95`).
+- R2 anotado fuera de BE-40 (`docs/CONTEXT.md`).
+- R3 pendiente: `AGENTS.md:48` sigue diciendo `"admin"` o `"user"`. Lo hace David antes de `/pr`.
+- R4 pendiente: la fila D1 (`docs/backlog.md:115`) aún cita `user_access_policy.py:130`. Faltan la nota en BE-42 y el estado de la fila BE-40. Lo hace la sesión Mentor al cerrar.
+- P3/E0.5: el cambio 422 → 403 se declara en el PR y no lo bloquea.
