@@ -11,6 +11,7 @@ from typing import Any, Literal, NamedTuple
 import pytest
 from starlette.routing import Route
 
+from app.core.security import create_verification_token
 from app.main import app
 from app.models.user import UserRole
 
@@ -142,6 +143,29 @@ def test_every_route_is_listed_as_protected_or_public() -> None:
 async def test_protected_route_rejects_request_without_token(client, route: ProtectedRoute) -> None:
     """Without a token, every protected route answers 401 with the Bearer challenge."""
     response = await client.request(route.method, _url(route), json=route.body)
+
+    assert response.status_code == 401
+    assert response.headers["www-authenticate"] == "Bearer"
+    body = response.json()
+    assert set(body) == {"detail"}
+    assert isinstance(body["detail"], str)
+
+
+@pytest.mark.parametrize("route", PROTECTED_ROUTES, ids=_route_id)
+async def test_protected_route_rejects_verification_token_as_bearer(
+    client, persist_user, route: ProtectedRoute
+) -> None:
+    """An email verification token gets 401 from every protected route, Bearer challenge included.
+
+    It belongs to an active superadmin, who passes every role guard: only the token's scope
+    can stop the request (BE-42).
+    """
+    superadmin = await persist_user(role=UserRole.superadmin)
+    token = create_verification_token(superadmin.email)
+
+    response = await client.request(
+        route.method, _url(route), json=route.body, headers={"Authorization": f"Bearer {token}"}
+    )
 
     assert response.status_code == 401
     assert response.headers["www-authenticate"] == "Bearer"

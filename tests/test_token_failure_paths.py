@@ -37,6 +37,7 @@ ENV_EXAMPLE = Path(__file__).resolve().parents[1] / ".env.example"
 PersistUser = Callable[..., Awaitable[User]]
 AuthHeaders = Callable[[User], dict[str, str]]
 MakeToken = Callable[..., str]
+SignClaims = Callable[..., str]
 
 
 def _expired_token() -> str:
@@ -164,6 +165,39 @@ async def test_token_for_unknown_user_returns_401(
     response = await client.get(PROTECTED_ROUTE, headers=_bearer(token))
 
     _assert_bearer_401(response)
+
+
+async def test_access_token_without_scope_returns_401(
+    client: AsyncClient, persist_user: PersistUser, sign_claims: SignClaims
+) -> None:
+    """Unhappy path: a token like those signed before BE-42, with no scope, opens nothing.
+
+    Same subject, role and lifespan as a login token, for an active user: only the missing
+    scope stands between it and the route.
+    """
+    user = await persist_user()
+    token = sign_claims(
+        {"sub": user.email, "role": user.role.value}, expires_delta=timedelta(minutes=30)
+    )
+
+    response = await client.get(PROTECTED_ROUTE, headers=_bearer(token))
+
+    _assert_bearer_401(response)
+
+
+async def test_verification_token_gets_the_same_detail_as_a_corrupt_token(
+    client: AsyncClient, persist_user: PersistUser
+) -> None:
+    """Edge case: a verification token is answered like a corrupt one, text unread."""
+    user = await persist_user()
+
+    verification = await client.get(
+        PROTECTED_ROUTE, headers=_bearer(create_verification_token(user.email))
+    )
+    corrupt = await client.get(PROTECTED_ROUTE, headers=_bearer(_corrupt_token()))
+
+    _assert_bearer_401(verification)
+    assert verification.json()["detail"] == corrupt.json()["detail"]
 
 
 async def test_token_for_inactive_user_returns_401(

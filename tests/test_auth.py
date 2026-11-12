@@ -133,6 +133,7 @@ async def test_login_active_user_returns_bearer_token(client, persist_user):
     )
     assert claims["sub"] == user.email
     assert claims["role"] == "tourist"
+    assert claims["scope"] == "access"
 
 
 async def test_login_inactive_user_returns_403_without_token(client, persist_user):

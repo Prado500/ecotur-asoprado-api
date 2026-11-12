@@ -1,8 +1,9 @@
 import itertools
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from unittest.mock import create_autospec, patch
 
+import jwt
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
@@ -10,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import StaticPool
 
 from app.api.dependencies import get_storage_client
+from app.core.config import get_settings
 from app.core.security import create_access_token
 from app.core.storage import AzureStorageClient
 from app.db.database import Base, get_db
@@ -210,23 +212,40 @@ def make_token():
 
     Returns:
         Callable[..., str]: Factory producing a signed bearer token with
-        the user's email and role as claims; expires_delta overrides the
+        the user's email and role as claims, plus the access scope that
+        create_access_token always sets; expires_delta overrides the
         default lifespan, and a negative one yields an already expired token.
-        extra_claims (keyword-only) are merged over the email and role claims,
-        so a test can add or override one (e.g. a scope) without signing by hand.
+        A token with another scope, or with none, comes from sign_claims.
     """
 
-    def _make_token(
-        user: User,
-        *,
-        expires_delta: timedelta | None = None,
-        extra_claims: dict[str, Any] | None = None,
-    ) -> str:
+    def _make_token(user: User, *, expires_delta: timedelta | None = None) -> str:
         claims: dict[str, Any] = {"sub": user.email, "role": user.role.value}
-        claims.update(extra_claims or {})
         return create_access_token(data=claims, expires_delta=expires_delta)
 
     return _make_token
+
+
+@pytest.fixture
+def sign_claims():
+    """
+    Centralized factory that signs the given claims as they are, with the app's key.
+
+    For the tokens the producers of app/core/security.py never sign: an access
+    token with no scope, as they were signed before BE-42, or an expired
+    verification token. Only exp is added; every other claim is the caller's.
+
+    Returns:
+        Callable[..., str]: Factory taking the claims and a keyword-only
+        expires_delta (negative for an already expired token) and producing
+        a JWT signed with the settings' key and algorithm.
+    """
+
+    def _sign_claims(claims: dict[str, Any], *, expires_delta: timedelta) -> str:
+        settings = get_settings()
+        payload = {**claims, "exp": datetime.now(UTC) + expires_delta}
+        return jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.algorithm)
+
+    return _sign_claims
 
 
 @pytest.fixture

@@ -46,6 +46,11 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     TOKEN FACTORY
 """
 
+# Value of the scope claim of each token kind. The values travel in tokens already issued:
+# changing one invalidates them.
+ACCESS_TOKEN_SCOPE = "access"
+EMAIL_VERIFICATION_SCOPE = "email_verification"
+
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     """Generates a signed JWT token with an expiration date.
@@ -55,8 +60,11 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
     the expiration date within the payload. Afterward it produces the cryptographic
     signature using the secret key and algorithm of the application settings.
 
+    The scope claim is always ACCESS_TOKEN_SCOPE, over any scope in data: no caller
+    chooses it, as create_verification_token fixes its own.
+
     Args:
-        data (dict): Claims to sign; copied, never mutated.
+        data (dict): Claims to sign; copied, never mutated. A scope in it is replaced.
         expires_delta (timedelta | None): Token lifespan. When missing, the settings'
             access_token_expire_minutes applies.
 
@@ -71,7 +79,7 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
     else:
         expire = datetime.now(UTC) + timedelta(minutes=settings.access_token_expire_minutes)
 
-    to_encode.update({"exp": expire})
+    to_encode.update({"scope": ACCESS_TOKEN_SCOPE, "exp": expire})
 
     encoded_jwt = jwt.encode(
         payload=to_encode, key=settings.jwt_secret_key, algorithm=settings.algorithm
@@ -96,7 +104,7 @@ def create_verification_token(email: str) -> str:
     settings = get_settings()
     expire = datetime.now(UTC) + timedelta(minutes=settings.verification_token_expire_minutes)
 
-    to_encode = {"sub": email, "scope": "email_verification", "exp": expire}
+    to_encode = {"sub": email, "scope": EMAIL_VERIFICATION_SCOPE, "exp": expire}
 
     encoded_jwt = jwt.encode(
         payload=to_encode, key=settings.jwt_secret_key, algorithm=settings.algorithm
