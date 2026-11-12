@@ -41,9 +41,8 @@ def get_user_access_policy() -> UserAccessPolicy:
 
 def get_audit_service(
     audit_repo: AuditRepository = Depends(get_audit_repository),
-    user_access_policy: UserAccessPolicy = Depends(get_user_access_policy),
 ) -> AuditService:
-    return AuditService(audit_repo, user_access_policy)
+    return AuditService(audit_repo)
 
 
 def get_user_service(

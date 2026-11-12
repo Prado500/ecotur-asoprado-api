@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, Query
 
-from app.api.dependencies import get_audit_service, get_current_admin_user, get_current_user
-from app.models.user import User
+from app.api.dependencies import get_audit_service, get_current_admin_user
 from app.schemas.audit import AuditLogResponse
 from app.services.audit_service import AuditService
 
@@ -21,20 +20,16 @@ async def obtener_historial_auditoria(
         None, description="Filtrar por identificador único de la entidad"
     ),
     audit_service: AuditService = Depends(get_audit_service),
-    usuario_actual: User = Depends(get_current_user),
 ):
     """Protected Endpoint: Retrieves the global audit history.
 
-    Defense in depth: the router-level dependency rejects non-administrative
-    tiers before reaching the handler, while the service layer re-asserts the
-    same administrative rule through UserAccessPolicy using the identity
-    injected here (FastAPI caches get_current_user: a single evaluation per
-    request). Utilizes limit/offset parameters to establish cursor-less
-    pagination and prevent RAM exhaustion on large datasets. Exposes explicit
-    Query Params to avoid frontend Over-fetching.
+    The router-level admin guard is the only role check on this route
+    (ADR-0012, point 3); the handler needs no identity, so it injects none.
+    Utilizes limit/offset parameters to establish cursor-less pagination and
+    prevent RAM exhaustion on large datasets. Exposes explicit Query Params to
+    avoid frontend Over-fetching.
     """
     return await audit_service.retrieve_audit_history(
-        current_user=usuario_actual,
         limit=limit,
         offset=offset,
         entity_name=entity_name,

@@ -2,13 +2,12 @@ from typing import Any
 from unittest.mock import create_autospec
 
 import pytest
+from sqlalchemy.exc import SQLAlchemyError
 
-from app.core.exceptions import AuthorizationError
 from app.models.audit import AuditAction, AuditLog
 from app.models.user import UserRole
 from app.repositories.audit_repository import AuditRepository
 from app.services.audit_service import AuditService
-from app.services.user_access_policy import UserAccessPolicy
 
 
 async def test_audit_trail_creation_and_retrieval(client, persist_user, make_auth_headers):
@@ -52,38 +51,22 @@ async def test_audit_trail_creation_and_retrieval(client, persist_user, make_aut
 # ==========================================
 
 
-class TestAuditServiceAuthorization:
-    """Freezes the service-level authorization delegation to UserAccessPolicy."""
+class TestAuditServiceHistory:
+    """Freezes the history read: a pure delegation to the repository, with no role rule."""
 
     @pytest.fixture
     def audit_repo(self) -> Any:
         """Provides a strict autospec'd AuditRepository so signature drift fails tests."""
         return create_autospec(AuditRepository, instance=True)
 
-    def _make_service(self, audit_repo) -> AuditService:
-        return AuditService(audit_repo=audit_repo, user_access_policy=UserAccessPolicy())
-
-    async def test_tourist_raises_authorization_error_and_repo_never_called(
-        self, audit_repo, make_user
-    ):
-        tourist = make_user(role=UserRole.tourist)
-        service = self._make_service(audit_repo)
-
-        with pytest.raises(AuthorizationError):
-            await service.retrieve_audit_history(current_user=tourist)
-
-        audit_repo.get_all_audit_logs.assert_not_called()
-
-    async def test_admin_calls_repo_exactly_once_with_expected_args(self, audit_repo, make_user):
-        admin = make_user(role=UserRole.admin)
+    async def test_forwards_page_and_filters_to_repository_once(self, audit_repo):
         expected_logs = [
             AuditLog(entity_name="User", entity_id="1", action=AuditAction.CREATE, performed_by="1")
         ]
         audit_repo.get_all_audit_logs.return_value = expected_logs
-        service = self._make_service(audit_repo)
+        service = AuditService(audit_repo)
 
         result = await service.retrieve_audit_history(
-            current_user=admin,
             limit=5,
             offset=10,
             entity_name="User",
@@ -97,6 +80,38 @@ class TestAuditServiceAuthorization:
             entity_id="1",
         )
         assert result == expected_logs
+
+    async def test_uses_first_page_of_twenty_without_filters_by_default(self, audit_repo):
+        audit_repo.get_all_audit_logs.return_value = []
+        service = AuditService(audit_repo)
+
+        await service.retrieve_audit_history()
+
+        audit_repo.get_all_audit_logs.assert_called_once_with(
+            limit=20, offset=0, entity_name=None, entity_id=None
+        )
+
+    async def test_returns_empty_list_when_repository_has_no_rows(self, audit_repo):
+        audit_repo.get_all_audit_logs.return_value = []
+        service = AuditService(audit_repo)
+
+        result = await service.retrieve_audit_history(entity_name="Ghost")
+
+        assert result == []
+        audit_repo.get_all_audit_logs.assert_called_once_with(
+            limit=20, offset=0, entity_name="Ghost", entity_id=None
+        )
+
+    async def test_propagates_repository_failure(self, audit_repo):
+        audit_repo.get_all_audit_logs.side_effect = SQLAlchemyError("database unavailable")
+        service = AuditService(audit_repo)
+
+        with pytest.raises(SQLAlchemyError):
+            await service.retrieve_audit_history()
+
+        audit_repo.get_all_audit_logs.assert_called_once_with(
+            limit=20, offset=0, entity_name=None, entity_id=None
+        )
 
 
 # ==========================================
@@ -123,3 +138,32 @@ async def test_audit_trail_accessible_for_admin(
     assert logs[0]["entity_name"] == "User"
     assert logs[0]["entity_id"] == "1"
     assert logs[0]["action"] == "CREATE"
+
+
+async def test_audit_history_filters_by_entity_name_and_id(
+    client, db_session, persist_user, make_auth_headers
+):
+    """Both query filters reach the query: only the log matching name and id comes back."""
+    admin = await persist_user(role=UserRole.admin)
+    audit_repo = AuditRepository(db_session)
+    for entity_name, entity_id in (("User", "1"), ("User", "2"), ("TouristService", "2")):
+        await audit_repo.create_audit_log(
+            AuditLog(
+                entity_name=entity_name,
+                entity_id=entity_id,
+                action=AuditAction.CREATE,
+                performed_by=admin.cedula,
+            )
+        )
+
+    response = await client.get(
+        "/auditoria/",
+        params={"entity_name": "User", "entity_id": "2"},
+        headers=make_auth_headers(admin),
+    )
+
+    assert response.status_code == 200
+    logs = response.json()
+    assert len(logs) == 1
+    assert logs[0]["entity_name"] == "User"
+    assert logs[0]["entity_id"] == "2"
