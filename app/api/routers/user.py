@@ -1,24 +1,17 @@
-from typing import Annotated
-
 from fastapi import APIRouter, BackgroundTasks, Depends, status
 
-from app.api.dependencies import get_current_admin_user, get_current_user, get_user_service
+from app.api.dependencies import (
+    AdminDep,
+    UserDep,
+    get_current_admin_user,
+    get_current_user,
+    get_user_service,
+)
 from app.core.config import Settings, get_settings
 from app.core.email import send_verification_email
-from app.models.user import User
 from app.schemas.token import TokenResponse
 from app.schemas.user import UserCreate, UserCreateByAdmin, UserLogin, UserResponse, UserUpdate
 from app.services.user_service import UserService
-
-# -------------------------------------------------------------------
-# DEPENDENCY TYPE ALIASES (PEP 593)
-# Reusable injection contracts that remove the repetitive manual
-# "usuario_actual: User = Depends(...)" boilerplate from every
-# endpoint signature.
-# -------------------------------------------------------------------
-
-UserDep = Annotated[User, Depends(get_current_user)]
-AdminDep = Annotated[User, Depends(get_current_admin_user)]
 
 # -------------------------------------------------------------------
 # ROUTER SEGMENTATION (RBAC at the transport boundary)

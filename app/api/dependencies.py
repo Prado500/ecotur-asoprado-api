@@ -1,3 +1,5 @@
+from typing import Annotated
+
 import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -158,3 +160,11 @@ async def get_current_admin_user(current_user: User = Depends(get_current_user))
             status_code=status.HTTP_403_FORBIDDEN, detail="Privilegios insuficientes."
         )
     return current_user
+
+
+# --- IDENTITY ALIASES (ADR-0012, point 5) ---
+# The single way a handler receives the caller under a guard: the alias names the guard, so
+# the signature says with which right the route acts.
+
+UserDep = Annotated[User, Depends(get_current_user)]
+AdminDep = Annotated[User, Depends(get_current_admin_user)]
