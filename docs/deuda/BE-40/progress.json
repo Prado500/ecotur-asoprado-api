@@ -1,6 +1,6 @@
 {
   "plan_file": "docs/deuda/BE-40/plan.md",
-  "current_target": "Fase_E",
+  "current_target": null,
   "phases": {
     "Fase_A": {
       "status": "completed",
@@ -23,12 +23,12 @@
       "description": "Drop assert_can_provision_admin and assert_is_admin_plus (policy + user_service call) and their 9 tests; lookup-failure test replaces the service one. MS1 1 -> 2 failed (test_auth unmasked); MS2 2, MS3 3, M4 2 failed. Target: 618 passed, cov 96.81 %."
     },
     "Fase_E": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "9ff32a9",
       "description": "E1: tests/test_user_service.py only; four tests assert get_user_by_email_or_cedula awaited once with email and cedula of their payload (+12 lines, app/ untouched). ML1 1 -> 2 failed, ML2 0 -> 3 failed. Target: 618 passed, cov 96.81 %."
     }
   },
   "allowed_statuses": ["pending", "partial", "completed"],
-  "last_handoff": "Fase_D completed (09ec81b): assert_can_provision_admin and assert_is_admin_plus gone from policy and user_service with their 8 tests; lookup-failure test replaces the service one; MS1 1 -> 2 failed (test_auth unmasked), MS2 2, MS3 3, M4 2 failed; gate green, 618 passed, cov 96.81 %, 4 kept; final verification steps 1-12 match. See handoff-Fase_D.md.",
+  "last_handoff": "Fase_E completed (9ff32a9): four tests of test_user_service.py assert get_user_by_email_or_cedula awaited once with email and cedula of their payload (+12 lines, app/ untouched); ML1 1 -> 2 failed, ML2 0 -> 3 failed; M4 2, MS1 2, MS2 2, MS3 3 failed; gate green, 618 passed, cov 96.81 %, 4 kept; final verification steps 1-14 match. Last phase. See handoff-Fase_E.md.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
