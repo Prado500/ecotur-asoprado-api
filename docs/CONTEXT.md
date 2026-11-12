@@ -175,12 +175,15 @@ por el equipo humano"**. → El flujo agéntico es parte de la metodología decl
   `mapped_column`) desde el 3 nov (`B-S1`), con registro explícito en `app/models/__init__.py` y test (**ADR-0010**).
 - **Hecho y verificado:** autenticación JWT, registro con hash, handlers globales de
   excepciones, `UserAccessPolicy` con ABAC jerárquico (cubre delete y update), auditoría básica
-  (`test_audit.py`). Frontera de autorización decidida el 6 nov (**ADR-0012**): rol en el guard, dato en la política; dos
-  rutas aún no la cumplen (BE-40, `B-GUARD-TESTS`). **Desde el 11 nov (BE-39, PR #91) toda ruta tiene test de rechazo:**
+  (`test_audit.py`). Frontera de autorización decidida el 6 nov (**ADR-0012**): rol en el guard, dato en la política; las dos
+  rutas que no la cumplían la cumplen desde BE-40 (PR #94): `GET /auditoria/` ya no repite la comprobación de rol en el
+  servicio, `POST /usuarios/admin` tiene guard de superadmin propio (`get_current_superadmin_user`, en un
+  `superadmin_router`) y la política no conserva reglas de solo rol; la identidad se inyecta solo con `UserDep`,
+  `AdminDep` y `SuperadminDep` (`app/api/dependencies.py`). **Desde el 11 nov (BE-39, PR #91) toda ruta tiene test de rechazo:**
   `tests/test_route_guards.py` lleva la tabla de las 17 rutas protegidas y la de las 9 públicas, un inventario que falla si
-  una ruta no está en ninguna, y 45 casos (sin token → 401; turista → 403 en las 14 admin; código exacto en las de usuario y
-  en las públicas); quitar o debilitar un guard pone la suite en rojo, salvo el de `/auditoria/`, tapado por el re-chequeo del
-  servicio hasta BE-40 `(backlog BE-39)`. **Desde el 27 oct, los cuatro contratos de capas de `import-linter` se cumplen**
+  una ruta no está en ninguna, y los casos de rechazo (sin token → 401; turista → 403 en las de admin y superadmin; admin →
+  403 en la de superadmin; código exacto en las de usuario y en las públicas); quitar o debilitar un guard pone la suite en
+  rojo, también el de `/auditoria/` desde BE-40 `(backlog BE-40)`. **Desde el 27 oct, los cuatro contratos de capas de `import-linter` se cumplen**
   (`B-BE01`: `storage.py` y `security.py` dejaron de arrastrar FastAPI; ADR-0006): ningún servicio conoce
   el transporte HTTP, ni directa ni transitivamente.
 - **Configuración (A4, 10 nov; ADR-0013):** toda la configuración se lee en `app/core/config.py` (`Settings` de
