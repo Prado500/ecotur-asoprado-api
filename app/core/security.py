@@ -46,6 +46,10 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     TOKEN FACTORY
 """
 
+# Value of the scope claim of each token kind. The values travel in tokens already issued:
+# changing one invalidates them.
+EMAIL_VERIFICATION_SCOPE = "email_verification"
+
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     """Generates a signed JWT token with an expiration date.
@@ -96,7 +100,7 @@ def create_verification_token(email: str) -> str:
     settings = get_settings()
     expire = datetime.now(UTC) + timedelta(minutes=settings.verification_token_expire_minutes)
 
-    to_encode = {"sub": email, "scope": "email_verification", "exp": expire}
+    to_encode = {"sub": email, "scope": EMAIL_VERIFICATION_SCOPE, "exp": expire}
 
     encoded_jwt = jwt.encode(
         payload=to_encode, key=settings.jwt_secret_key, algorithm=settings.algorithm

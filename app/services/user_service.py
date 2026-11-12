@@ -11,6 +11,7 @@ from app.core.exceptions import (
     NotFoundError,
 )
 from app.core.security import (
+    EMAIL_VERIFICATION_SCOPE,
     create_access_token,
     create_verification_token,
     get_password_hash,
@@ -134,7 +135,7 @@ class UserService:
         email: str | None = payload.get("sub")
         scope: str | None = payload.get("scope")
 
-        if email is None or scope != "email_verification":
+        if email is None or scope != EMAIL_VERIFICATION_SCOPE:
             raise InvalidVerificationTokenError("Token de verificación inválido.")
 
         activation_success = await self.user_repo.activate_user(email)
