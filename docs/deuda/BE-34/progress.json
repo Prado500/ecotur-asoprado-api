@@ -1,0 +1,34 @@
+{
+  "plan_file": "docs/deuda/BE-34/plan.md",
+  "current_target": "Fase_A",
+  "phases": {
+    "Fase_A": {
+      "status": "pending",
+      "commit": null,
+      "description": "BE-47: test que exige una clave de TEST_ENVIRONMENT por cada campo de Settings (runpy sobre el conftest.py de la raíz); RED por el mutante MA."
+    },
+    "Fase_B": {
+      "status": "pending",
+      "commit": null,
+      "description": "ADR-0015: primer superadmin por comando manual python -m app.cli.bootstrap_superadmin; credenciales fuera de Settings."
+    },
+    "Fase_C": {
+      "status": "pending",
+      "commit": null,
+      "description": "SuperadminBootstrapSettings(DatabaseSettings) con cinco SUPERADMIN_* (contraseña SecretStr), bloque en .env.example con contraseña de ejemplo inválida, 11 tests."
+    },
+    "Fase_D": {
+      "status": "pending",
+      "commit": null,
+      "description": "UserRepository.count_active_superadmins y núcleo bootstrap_superadmin (idempotente, sin promover cuentas, auditado con source=bootstrap); 17 tests."
+    },
+    "Fase_E": {
+      "status": "pending",
+      "commit": null,
+      "description": "Comando app/cli/bootstrap_superadmin.py (motor propio sin echo, errores sin valores, exit 0/1), app.cli en el contrato de capas; 7 tests."
+    }
+  },
+  "allowed_statuses": ["pending", "partial", "completed"],
+  "last_handoff": "Estado inicial.",
+  "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
+}
