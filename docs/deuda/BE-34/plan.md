@@ -2,7 +2,7 @@
 
 > Fuente: `docs/deuda/BE-34/verificacion.md` (confirmada; adenda de ocho decisiones de David, 13 nov, 16:28).
 > Base: `4f10660` (HEAD de `item/be-34` = `5db7641`: `git diff --name-only 4f10660 5db7641 -- app tests alembic conftest.py
-> pyproject.toml .env.example` vacío). Estado: **aprobado por David: fases A → E con E0 (13 nov 2026, 17:26) y E2 (14 nov 2026, 09:08), ejecutadas el 14 nov; fases F y G (BE-51), reescritas por E2, con E3 (14 nov 2026, 10:54). E4 (14 nov 2026, 12:22) añade una fase H, por escribir y aprobar (E5), para el opcional de la auditoría de E. Detalle en "Enmiendas aprobadas", al final.** Las cifras de este plan (tests,
+> pyproject.toml .env.example` vacío). Estado: **aprobado por David, completo, ocho fases (A → H): A → E con E0 (13 nov 2026, 17:26) y E2 (14 nov 2026, 09:08); F y G (BE-51) con E3 (14 nov 2026, 10:54); H (opcional de la auditoría de E, E4) con E5 (14 nov 2026, 16:53). A → G ejecutadas y auditadas el 14 nov. Detalle en "Enmiendas aprobadas", al final.** Las cifras de este plan (tests,
 > cobertura, mutantes, `numstat` y conteos de grep) se midieron el 13 nov sobre copias desechables de `4f10660` en el
 > scratchpad, con el texto exacto que dicta el plan.
 
@@ -30,6 +30,14 @@ reescribe, porque ningún correo guardado tiene mayúsculas (Q1 = 0). La suite p
 **Riesgo:** una fila con mayúsculas detiene la migración y el despliegue; por eso G espera Q1 = 0 en `develop`. La guía
 de OWASP recomienda guardar también el correo tal como se escribió; el plan guarda solo la forma en minúsculas y lo
 declara (decisión 2 de E3).
+
+**Fase H (E4; no se ejecuta sin E5):** el test del comando que prueba un correo ya tomado crea su turista con un
+`insert(User)` a mano, y AGENTS §5 lo prohíbe (opcional de la auditoría de E). H lo saca de `make_user` y lo escribe en
+la base de archivo del comando con una sesión sobre un motor propio. `persist_user` no sirve: escribe en la base en
+memoria de la suite. Es un archivo de tests (`18 18`), sin tocar `app/`, y las aserciones no cambian. La suite sigue en
+691 tests, 97,63 % y 8 warnings. Los cinco mutantes de `app/` que tumban ese test dan el mismo resultado antes y después
+de H. **Riesgo:** un motor sin cerrar no se ve en los 8 warnings (medido); solo aparece con `-X dev`, y el paso 23 de la
+Verificación final lo comprueba así.
 
 ## Objetivo y decisiones bloqueadas
 
@@ -122,6 +130,9 @@ documentos vivos (los cierra la sesión Mentor).
   `app/schemas/user.py`, `app/models/user.py`, `alembic/versions/b51f3c9e2a64_users_email_stored_in_lowercase.py`,
   `tests/test_user_response.py` y `tests/test_email_case.py`. G no vuelve sobre ningún archivo de A–E. La exclusión de
   `app/schemas/`, `app/models/` y `alembic/` deja de valer solo para G.
+- **Fase H (E4):** ningún archivo nuevo; siguen 18 en total. H edita `tests/test_bootstrap_superadmin_command.py`, que
+  es de la fase E: es la única fase que vuelve sobre un archivo de A–G. No toca `app/`, los dos `conftest.py` ni ningún
+  otro test.
 - **No:** cualquier otro archivo, docstring o comentario. Un hallazgo nuevo va a Residuales, nunca "de paso".
 
 ## Fases
@@ -161,6 +172,11 @@ documentos vivos (los cierra la sesión Mentor).
 | MG6 | `alembic/versions/b51f3c9e2a64_users_email_stored_in_lowercase.py` | `'email = lower(email)')` → `'email = email')` | `1 failed, 401 passed` |
 | MG7 | ídem | `        batch_op.drop_constraint('ck_users_email_lowercase', type_='check')` → `        pass` | `2 failed, 400 passed` |
 | MG8 | `app/repositories/user_repository.py` | en `activate_user`, `select(User).where(User.email == email)` → `select(User).where(func.lower(User.email) == func.lower(email))` | `1 failed, 401 passed` (solo `test_verification_token_in_another_case_is_rejected`) |
+| MH1 | `app/cli/bootstrap_superadmin.py` | borrar la línea `            file=sys.stderr,` del `print` de `AlreadyExistsError` | `1 failed, 401 passed` (solo `test_command_fails_when_the_email_belongs_to_another_account`) |
+| MH2 | ídem | `"SUPERADMIN_CEDULA o SUPERADMIN_EMAIL ya pertenecen a una cuenta; no se escribió nada.",` → `f"SUPERADMIN_CEDULA o SUPERADMIN_EMAIL ya pertenecen a una cuenta; {credentials.password}",` | `1 failed, 401 passed` (solo ese test) |
+| MH3 | `app/repositories/user_repository.py` | `select(User).where(or_(User.cedula == cedula, User.email == email))` → `select(User).where(User.cedula == cedula)` | `7 failed, 395 passed` |
+| MHT1 | `tests/test_bootstrap_superadmin_command.py` (copia con H) | en `_add`, borrar `        await session.commit()` | `1 failed, 401 passed` (solo `test_command_fails_when_the_email_belongs_to_another_account`) |
+| MHT2 | ídem | en `_add`, borrar `    await engine.dispose()` | sobrevive: `402 passed, 8 warnings`; con `-X dev`, 1 `ResourceWarning` (paso 23) |
 
 Al cerrar cada fase, la compuerta debe dar exit 0, `Compuerta superada.`, `All checks passed!`,
 `Contracts: 4 kept, 0 broken.` y `8 warnings`, y además:
@@ -175,6 +191,7 @@ Al cerrar cada fase, la compuerta debe dar exit 0, `Compuerta superada.`, `All c
 | E | 675 passed | 97,37 % (1031) | 67 files | 62 source files | 386 passed |
 | F | 675 passed | 97,37 % (1031) | 67 files | 62 source files | 386 passed |
 | G | 691 passed | 97,63 % (1034) | 68 files | 63 source files | 402 passed |
+| H | 691 passed | 97,63 % (1034) | 68 files | 63 source files | 402 passed |
 
 Todo archivo nuevo o editado se guarda en UTF-8 con fin de línea LF.
 
@@ -1905,6 +1922,97 @@ guardado está en minúsculas, y dos iguales ya los rechazaría `ix_users_email`
   Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
   ```
 
+### Fase H — El turista del test de correo tomado sale de la fábrica (E4)
+
+**Escrita el 14 nov 2026 por E4. No se ejecuta hasta que David la apruebe (E5).** Va después de G y vuelve sobre un
+archivo de E. Las cifras se midieron sobre copias desechables de `HEAD` (`23ab7a6`, con A–G) en el scratchpad; la salida
+literal está en "Aplicación de E4".
+
+- **Archivos (1):** `tests/test_bootstrap_superadmin_command.py`. Dominio: comando de operador (tests).
+- **Cambios exactos:**
+  1. Imports:
+     - Tras `import sys`, la línea `from collections.abc import Callable`.
+     - `from sqlalchemy import func, insert, select` → `from sqlalchemy import func, select`.
+     - `from sqlalchemy.ext.asyncio import create_async_engine` →
+       `from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine`.
+  2. Entre `_execute` y `_count`, con dos líneas en blanco a cada lado:
+     ```python
+     async def _add(url: str, user: User) -> None:
+         """Commits user to the database at url, in a session over an engine of its own.
+
+         Not persist_user: it writes to the suite's in-memory database, and the command reads the
+         file database at url.
+         """
+         engine = create_async_engine(url)
+         async with AsyncSession(engine) as session:
+             session.add(user)
+             await session.commit()
+         await engine.dispose()
+     ```
+  3. En `test_command_fails_when_the_email_belongs_to_another_account`:
+     - La firma `    database_url: str, capsys: pytest.CaptureFixture[str]` →
+       `    database_url: str, make_user: Callable[..., User], capsys: pytest.CaptureFixture[str]`.
+     - Las 15 líneas que siguen al docstring, de `    asyncio.run(` al `    )` que cierra el `insert(User).values(…)`, →
+       una sola:
+       ```python
+           asyncio.run(_add(database_url, make_user(cedula="2000000002", email="root@test.com")))
+       ```
+     Nada más cambia: el docstring, `assert main() == 1` y las cinco aserciones siguen como están.
+- **Tests (RED primero):** H no fija comportamiento nuevo: reescribe la preparación de un test que ya pasa. El RED es el
+  del paso 20 de la Verificación final, que hoy da 2 líneas (`:17`, el import, y `:121`, el `insert(User)`) y tras H
+  ninguna. Que el test sigue vigilando lo mismo lo prueban los mutantes (procedimiento común):
+  1. Antes de editar, sobre una copia de `HEAD`: ME2, MD5, MH1, MH2 y MH3. Medido sobre `23ab7a6`: ME2
+     `1 failed, 401 passed`; MD5 `8 failed, 394 passed`; MH1 `1 failed, 401 passed`; MH2 `1 failed, 401 passed`; MH3
+     `7 failed, 395 passed`. Los cinco tumban `test_command_fails_when_the_email_belongs_to_another_account`; ME2, MH1 y
+     MH2, solo a él. ME2 y MD5 dan otra cifra que su fila de la tabla (`385` y `372` passed) porque esa fila se midió al
+     cerrar E y D, con menos tests; no es efecto de H.
+  2. Tras el commit de H, los mismos cinco sobre una copia del commit: el mismo resultado y la misma lista de `FAILED`
+     (medido sobre la copia con A–H: idénticas, comparadas con `cmp`).
+  3. MHT1 y MHT2, sobre la copia con H. MHT1 da `1 failed, 401 passed`: si `_add` no confirma, el comando no ve al turista,
+     crea el superadmin y sale con 0. MHT2 sobrevive en la suite y da 1 `ResourceWarning` con `-X dev` (paso 23).
+  Por qué cada truco:
+  - `make_user` y no `persist_user`: `persist_user` añade la fila por `db_session`, sobre la base en memoria de la suite
+    (`StaticPool`), y el comando abre su propio motor sobre el archivo de `tmp_path`. `make_user` no está atado a una
+    sesión: es lo que hace el `_add` de G en `tests/test_email_case.py`, con una `Session` síncrona sobre su conexión.
+  - Motor propio cerrado con `dispose()`, como `_create_schema` y `_execute` del mismo archivo. Sin él, la cuenta de
+    warnings no cambia (MHT2); lo vigila el paso 23.
+  - `cedula="2000000002"`: la aserción sigue comparando esa cédula literal. La de la fábrica (`1000000000 + n`) depende
+    del orden en que corren los tests (decisión 2 de E5).
+  - `email="root@test.com"`: el valor de `SUPERADMIN_EMAIL`, en minúsculas (tras G, la base rechaza otra grafía). Va
+    literal y no como `VALID_VARIABLES["SUPERADMIN_EMAIL"]`, porque con la constante el patrón 2 contaría una línea más
+    en el archivo (decisión 3 de E5).
+  - El rol de turista es el de la fábrica (`role: UserRole = UserRole.tourist`, `tests/conftest.py:185`).
+  - `Callable[..., User]`: el archivo anota todos los parámetros. Sin la anotación, mypy también pasa (decisión 4 de E5).
+- **Criterio de aceptación:** compuerta como la fila H: exit 0, `68 files already formatted`, `All checks passed!`,
+  `Success: no issues found in 63 source files`, `Contracts: 4 kept, 0 broken.`, `691 passed, 8 warnings` y
+  `TOTAL 1034 15 148 13 97.63%`. `git show --numstat --format= <sha H>` da `18	18	tests/test_bootstrap_superadmin_command.py`.
+  `./venv/Scripts/python.exe -m pytest tests/test_bootstrap_superadmin_command.py -q -p no:cacheprovider` → `8 passed`.
+  Mutantes de los puntos 2 y 3 con el resultado de la tabla. Pasos 20 a 23 de la Verificación final con su salida
+  esperada.
+- **Fuera de alcance:** `app/` (los mutantes solo se miden); los dos `conftest.py` (ninguna fábrica nueva para bases
+  ajenas); `tests/test_email_case.py` y su `_add`; los otros siete tests del archivo y sus ayudantes (`_create_schema`,
+  `_execute`, `_count`, `database_url`); el texto de `AlreadyExistsError`; R8.
+- **Commit:**
+  ```
+  test(cli): build the taken-email tourist with the user factory
+
+  test_command_fails_when_the_email_belongs_to_another_account wrote
+  its tourist with a hand-made insert(User), and the suite takes users
+  from the central factories (AGENTS §5). The phase E audit of BE-34
+  left it as its one optional finding. persist_user cannot do it: it
+  writes to the suite's in-memory database, and the command reads a
+  file database of its own.
+
+  The tourist now comes from make_user, committed to that file
+  database by a new _add helper, in a session over an engine of its
+  own that is disposed, as the other helpers in the file do. The
+  assertions do not change: exit 1, the tourist keeps its cedula and
+  role, no audit entry, empty stdout and no password in stderr. The
+  insert import goes with its only use.
+
+  Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+  ```
+
 ## Verificación final
 
 Desde la raíz, con la rama tras la fase E. Los conteos incluyen el texto que dicta este plan (docstrings, comentarios de
@@ -1999,6 +2107,25 @@ La forma de 19c es la que midió la sesión Mentor (PostgreSQL 16.15) con la exp
 base local tiene un correo con mayúsculas, 19a se detiene: es lo esperado, y Q1 dice cuál. Si 19b lista operaciones,
 van a la bitácora y a Residuales; no se corrigen de paso.
 
+Tras la fase H (E4), desde la raíz. Medido en un clon de `HEAD` (`23ab7a6`) con H aplicada en el árbol de trabajo. H no
+cambia los pasos 1 a 15 ni el 17: el archivo que toca sigue con 16 líneas del patrón 2, así que el 2/17 da las mismas 9
+líneas (114, la suma de los `-c`), y el 7 da los mismos 17 archivos, porque ese archivo ya estaba en la lista. Cambia el
+16: 7 archivos, los 6 de F y G más `tests/test_bootstrap_superadmin_command.py`. El 18 da la fila H, igual a la G.
+
+```bash
+# 20. Ningún usuario hecho a mano en los tests de A–E (E4, punto 2) → sin salida, exit 1 (antes de H: :17 y :121)
+git grep -n -E 'insert|[^_a-zA-Z]User\(' -- tests/test_bootstrap_superadmin_command.py tests/test_superadmin_bootstrap.py tests/test_user_repository.py tests/test_config.py
+
+# 21. El turista sale de la fábrica → 2 líneas: tests/test_bootstrap_superadmin_command.py:129 (parámetro) y :132 (llamada)
+git grep -n 'make_user' -- tests/test_bootstrap_superadmin_command.py
+
+# 22. H solo toca ese archivo → tests/test_bootstrap_superadmin_command.py · 1 file changed, 18 insertions(+), 18 deletions(-)
+git diff --stat 9c9edd2 -- app tests alembic conftest.py pyproject.toml .env.example docs/adr
+
+# 23. Todo motor del archivo se cierra → imprime 0 (con MHT2, 1)
+./venv/Scripts/python.exe -X dev -m pytest -q -p no:cacheprovider tests/test_bootstrap_superadmin_command.py 2>&1 | grep -c ResourceWarning
+```
+
 ## Residuales
 
 | # | Hallazgo (evidencia) | Destino sugerido |
@@ -2040,6 +2167,8 @@ van a la bitácora y a Residuales; no se corrigen de paso.
 - OWASP Cheat Sheet Series · `master`, leída el 14 nov 2026 por Context7 · Email Validation and Verification Cheat Sheet,
   secciones "Case Sensitivity" y "Email Canonicalization" (ADR-0016):
   https://github.com/OWASP/CheatSheetSeries/blob/master/cheatsheets/Email_Validation_and_Verification_Cheat_Sheet.md
+- SQLAlchemy · 2.0.48 · `AsyncSession(engine)` como gestor de contexto, `add()` y `await session.commit()` (H):
+  https://docs.sqlalchemy.org/en/20/orm/extensions/asyncio.html
 - RFC 5321: no se leyó, así que ADR-0016 no lo cita (E2, punto 3.7).
 
 ## Enmiendas aprobadas
@@ -2352,6 +2481,151 @@ Qué debe cumplir la fase H (el cómo lo propone y lo mide el planificador, invo
    commit; y `Fase_H` (`pending`) en `progress.json`, sin tocar `current_target` ni las demás fases.
 7. **La fase H no se ejecuta hasta que David la apruebe (E5).**
 
+### Aplicación de E4 (plan-redactor, 14 nov 2026, por mensaje directo; las fases A–G no cambian)
+
+- **Sobre qué se midió.** `HEAD` = `23ab7a6` (A–G commiteadas y auditadas). Copias desechables con `git archive` en el
+  scratchpad, en directorios nuevos: una sin tocar, una con H aplicada por script (cada ancla, una sola aparición) y una
+  por mutante. Los `git grep` y `git diff` se midieron en un clon local con H en el árbol de trabajo. El árbol del repo
+  no se tocó.
+- **`HEAD` avanzó durante la medición** a `4a8508f` (David: `8412e19`, `AGENTS.md` +6 líneas, y `4a8508f`, la
+  bitácora; `git diff --stat 23ab7a6 4a8508f` → solo esos 2 archivos, nada en `app/` ni en `tests/`). La compuerta,
+  repetida sobre una copia de `4a8508f` con H → exit 0 · `68 files already formatted` · `Success: no issues found in
+  63 source files` · `Contracts: 4 kept, 0 broken.` · `--- docs (coherencia): OK en 0.2s` · `97.63%` (1034) ·
+  `691 passed, 8 warnings in 29.67s` · `Compuerta superada.` Las demás cifras no dependen de esos dos archivos.
+- **El test, tal como está** (copia de `HEAD`):
+  `pytest -q -p no:cacheprovider -rf --tb=short "tests/test_bootstrap_superadmin_command.py::test_command_fails_when_the_email_belongs_to_another_account"`
+  → `1 passed in 0.34s`.
+- **Con H** (copia con A–H): `git diff --no-index --numstat` → `18	18`; 0 `\r`. `ruff format --check` →
+  `1 file already formatted`; `ruff check` → `All checks passed!` (el `--fix` del hook no cambia nada); `mypy` →
+  `Success: no issues found in 1 source file`. El archivo → `8 passed in 2.06s`; el test con `-W error` →
+  `1 passed in 0.12s`.
+- **Suite de la copia** (sin `test_check*`): `HEAD` → `402 passed, 8 warnings in 21.79s`; con H →
+  `402 passed, 8 warnings in 21.42s`.
+- **Compuerta en la copia con H** → exit 0: `68 files already formatted` · `All checks passed!` ·
+  `Success: no issues found in 63 source files` · `Contracts: 4 kept, 0 broken.` · `--- docs (coherencia): OK en 0.2s` ·
+  `TOTAL                                       1034     15    148     13  97.63%` · `691 passed, 8 warnings in 30.06s` ·
+  `Compuerta superada.` En la copia de `HEAD`, las mismas cifras (`691 passed, 8 warnings in 30.09s`, `97.63%`). Los 8
+  warnings salen de los mismos tests en las dos (comparadas las 8 líneas `tests/…` del resumen): `test_route_guards` ×3,
+  `test_services` ×3 y `test_user_response` ×2. Ninguno es del archivo de H.
+- **Mutantes**, salida literal (`base_*` = copia de `HEAD`; `h_*` = copia con A–H; las etiquetas son las de la tabla).
+  Para cada uno de los cinco de `app/`, la lista de `FAILED` y la última línea son idénticas en las dos copias
+  (comparadas con `cmp`, sin los tiempos):
+  ```
+  === base_ME2 (copia: base, mutante: ME2)
+  FAILED tests/test_bootstrap_superadmin_command.py::test_command_fails_when_the_email_belongs_to_another_account
+  1 failed, 401 passed, 8 warnings in 20.67s
+  === h_ME2 (copia: h, mutante: ME2)
+  FAILED tests/test_bootstrap_superadmin_command.py::test_command_fails_when_the_email_belongs_to_another_account
+  1 failed, 401 passed, 8 warnings in 20.82s
+  === base_MD5 (copia: base, mutante: MD5)
+  FAILED tests/test_bootstrap_superadmin_command.py::test_command_fails_when_the_email_belongs_to_another_account
+  FAILED tests/test_email_case.py::test_bootstrap_rejects_an_email_taken_in_another_case
+  FAILED tests/test_superadmin_bootstrap.py::test_bootstrap_never_takes_over_an_existing_account[active-tourist-cedula]
+  FAILED tests/test_superadmin_bootstrap.py::test_bootstrap_never_takes_over_an_existing_account[active-tourist-email]
+  FAILED tests/test_superadmin_bootstrap.py::test_bootstrap_never_takes_over_an_existing_account[inactive-admin-cedula]
+  FAILED tests/test_superadmin_bootstrap.py::test_bootstrap_never_takes_over_an_existing_account[inactive-admin-email]
+  FAILED tests/test_superadmin_bootstrap.py::test_bootstrap_never_takes_over_an_existing_account[deleted-superadmin-cedula]
+  FAILED tests/test_superadmin_bootstrap.py::test_bootstrap_never_takes_over_an_existing_account[deleted-superadmin-email]
+  8 failed, 394 passed, 8 warnings in 22.39s
+  === h_MD5 (copia: h, mutante: MD5)
+  FAILED tests/test_bootstrap_superadmin_command.py::test_command_fails_when_the_email_belongs_to_another_account
+  FAILED tests/test_email_case.py::test_bootstrap_rejects_an_email_taken_in_another_case
+  FAILED tests/test_superadmin_bootstrap.py::test_bootstrap_never_takes_over_an_existing_account[active-tourist-cedula]
+  FAILED tests/test_superadmin_bootstrap.py::test_bootstrap_never_takes_over_an_existing_account[active-tourist-email]
+  FAILED tests/test_superadmin_bootstrap.py::test_bootstrap_never_takes_over_an_existing_account[inactive-admin-cedula]
+  FAILED tests/test_superadmin_bootstrap.py::test_bootstrap_never_takes_over_an_existing_account[inactive-admin-email]
+  FAILED tests/test_superadmin_bootstrap.py::test_bootstrap_never_takes_over_an_existing_account[deleted-superadmin-cedula]
+  FAILED tests/test_superadmin_bootstrap.py::test_bootstrap_never_takes_over_an_existing_account[deleted-superadmin-email]
+  8 failed, 394 passed, 8 warnings in 21.44s
+  === base_MH1 (copia: base, mutante: MH1)
+  FAILED tests/test_bootstrap_superadmin_command.py::test_command_fails_when_the_email_belongs_to_another_account
+  1 failed, 401 passed, 8 warnings in 20.78s
+  === h_MH1 (copia: h, mutante: MH1)
+  FAILED tests/test_bootstrap_superadmin_command.py::test_command_fails_when_the_email_belongs_to_another_account
+  1 failed, 401 passed, 8 warnings in 20.37s
+  === base_MH2 (copia: base, mutante: MH2)
+  FAILED tests/test_bootstrap_superadmin_command.py::test_command_fails_when_the_email_belongs_to_another_account
+  1 failed, 401 passed, 8 warnings in 20.45s
+  === h_MH2 (copia: h, mutante: MH2)
+  FAILED tests/test_bootstrap_superadmin_command.py::test_command_fails_when_the_email_belongs_to_another_account
+  1 failed, 401 passed, 8 warnings in 27.94s
+  === base_MH3 (copia: base, mutante: MH3)
+  FAILED tests/test_bootstrap_superadmin_command.py::test_command_fails_when_the_email_belongs_to_another_account
+  FAILED tests/test_email_case.py::test_registration_rejects_an_email_taken_in_another_case
+  FAILED tests/test_email_case.py::test_provisioning_rejects_an_email_taken_in_another_case
+  FAILED tests/test_email_case.py::test_bootstrap_rejects_an_email_taken_in_another_case
+  FAILED tests/test_superadmin_bootstrap.py::test_bootstrap_never_takes_over_an_existing_account[active-tourist-email]
+  FAILED tests/test_superadmin_bootstrap.py::test_bootstrap_never_takes_over_an_existing_account[inactive-admin-email]
+  FAILED tests/test_superadmin_bootstrap.py::test_bootstrap_never_takes_over_an_existing_account[deleted-superadmin-email]
+  7 failed, 395 passed, 8 warnings in 23.61s
+  === h_MH3 (copia: h, mutante: MH3)
+  FAILED tests/test_bootstrap_superadmin_command.py::test_command_fails_when_the_email_belongs_to_another_account
+  FAILED tests/test_email_case.py::test_registration_rejects_an_email_taken_in_another_case
+  FAILED tests/test_email_case.py::test_provisioning_rejects_an_email_taken_in_another_case
+  FAILED tests/test_email_case.py::test_bootstrap_rejects_an_email_taken_in_another_case
+  FAILED tests/test_superadmin_bootstrap.py::test_bootstrap_never_takes_over_an_existing_account[active-tourist-email]
+  FAILED tests/test_superadmin_bootstrap.py::test_bootstrap_never_takes_over_an_existing_account[inactive-admin-email]
+  FAILED tests/test_superadmin_bootstrap.py::test_bootstrap_never_takes_over_an_existing_account[deleted-superadmin-email]
+  7 failed, 395 passed, 8 warnings in 21.82s
+  === h_MHT2 (copia: h, mutante: MHT2)
+  402 passed, 8 warnings in 20.34s
+  === h_MHT1 (copia: h, mutante: MHT1)
+  FAILED tests/test_bootstrap_superadmin_command.py::test_command_fails_when_the_email_belongs_to_another_account
+  1 failed, 401 passed, 8 warnings in 21.37s
+  ```
+- **E4.5 no se cumple como se razonó** ("un motor sin cerrar añadiría uno"). Medido con MHT2: sin `await engine.dispose()`
+  en `_add`, la suite sigue en `402 passed, 8 warnings`, y el archivo pasa también con `-W error` (`8 passed`). El aviso
+  de aiosqlite (`ResourceWarning: <aiosqlite.core.Connection object at 0x…> was deleted before being closed`) sale al
+  recolectar el objeto, fuera de la captura de pytest, y solo se ve con `-X dev`. Contando las líneas `ResourceWarning`
+  de `-X dev` sobre el archivo: MHT2 → `1`; H → `0`; `HEAD` → `0`. Por eso H añade el paso 23 en vez de fiarse de los
+  8 warnings.
+- **Alternativas medidas para E5.** Sin la anotación `Callable[..., User]` (y sin su import): `17	18`, mypy
+  `Success: no issues found in 1 source file`, ruff limpio. Con `VALID_VARIABLES["SUPERADMIN_EMAIL"]` en lugar del
+  literal: la línea de la llamada da `1` con el patrón 2 (`grep -c -i -E`), así que el archivo pasaría de 16 a 17 y los
+  pasos 2/17 cambiarían.
+- **Verificación final, en el clon con H:** 1 → exit 1; 2/17 → las 9 líneas (`tests/test_bootstrap_superadmin_command.py:16`),
+  114; 3 → 4 líneas; 5 → `tests/test_config.py:243`; 6 → los 3 archivos de G, `49 insertions(+), 5 deletions(-)`; 7 → 17
+  archivos; 10 → exit 1; 11 → `:18`, `:44`, `:56`; 12 → 4 líneas; 13 → las 4 de G. Todos = plan. 16 → 7 archivos (antes
+  6). Nuevos: 20 → exit 1 (en `HEAD`: `:17` y `:121`); 21 → `:129` y `:132`; 22 → `1 file changed, 18 insertions(+),
+  18 deletions(-)`; 23 → `0`.
+- **Recalculado:** la línea "Estado", el Resumen (párrafo de H), las filas MH1–MH3 y MHT1–MHT2 de la tabla de mutantes,
+  la fila H de la compuerta, la Regla de alcance, la fase H entera con su commit, el bloque "Tras la fase H" de la
+  Verificación final (pasos 20 a 23 y los que cambian), Referencias (una línea) y `Fase_H` (`pending`) en
+  `progress.json`. `current_target` sigue en `Fase_H`; las fases A–G, su texto y sus cifras, sin tocar.
+- **Efecto sobre A–G: ninguno, medido.** H no toca `app/` ni otro test, la suite con H pasa entera y las cifras de A–G no
+  cambian. Las filas ME2 y MD5 de la tabla dan hoy `1 failed, 401 passed` y `8 failed, 394 passed`, no `385` y `372`
+  passed: son cifras de la suite al cerrar E y D, que después creció (MD5 tumba además el test del comando y
+  `test_bootstrap_rejects_an_email_taken_in_another_case`, de G). Da lo mismo con H que sin H, así que no es un efecto de
+  H, y no se corrigen.
+- **Sin ADR:** H no decide nada nuevo; aplica AGENTS §5 con el patrón que G ya usa.
+
+### E5 — 14 nov 2026, 16:53 (David, sesión Mentor; regla del retoque)
+
+Texto literal de David: «si a las 6».
+
+Responde a las seis "Decisiones pendientes de David (E5)". **La fase H queda aprobada como está escrita; el plan entero
+(A → H) está aprobado.** Contraste de la sesión Mentor contra el código, sin correcciones de dictado: el diff del plan
+frente a `4a8508f` son solo añadidos y la línea "Estado" (A–G y E0–E3, idénticas); `insert` está en
+`tests/test_bootstrap_superadmin_command.py:17` y `:121`; el bloque que H sustituye va de la l. 118 a la 132 (15 líneas);
+el `numstat` `18 18` cuadra contado a mano (3 de imports, 13 del ayudante, la firma y la llamada; 3 de imports, la firma
+y 15 del `insert`); tras H el parámetro `make_user` queda en `:129` y la llamada en `:132`; `UserRole` sigue en uso en las
+aserciones. Las cifras de la compuerta y de los mutantes las repite el auditor.
+
+1. **El ayudante `_add`** (`AsyncSession` sobre un motor propio, cerrado con `dispose()`): aprobado, opción (a).
+2. **Cédula del turista:** literal `"2000000002"` en `make_user`, opción (a).
+3. **Correo del turista:** literal `"root@test.com"`, opción (a).
+4. **`make_user: Callable[..., User]`**, con su import: opción (a).
+5. **El `dispose()` lo vigila el paso 23 de la Verificación final**, una vez, al auditar H: opción (a). Sin fila nueva.
+   **Fe de erratas de E4, punto 5:** la sesión Mentor escribió que un motor sin cerrar añadiría un warning; el
+   planificador midió que no (MHT2: `402 passed, 8 warnings`; solo `-X dev` lo muestra).
+6. **H se ejecuta y se audita antes de `/pr`, en el mismo PR que A–G:** opción (a).
+
+Nota para quien lance la fase: el import de `Callable` se usa unas 115 líneas más abajo de donde se escribe; el hook de
+ruff borró un import en esa situación en la fase A (opcional de su auditoría, fila AF-09). Se escribe en la misma edición
+que la firma que lo usa, o se comprueba el `numstat` antes de commitear.
+
+`progress.json`: sin cambios por E5 (`current_target: Fase_H`).
+
 ## Decisiones pendientes de David (E2)
 
 **Respondidas por David el 14 nov 2026 (09:08): ver E2, en "Enmiendas aprobadas".** La lista se conserva como se
@@ -2401,3 +2675,35 @@ el planificador.
    `/implementar BE-34 G`. Trade-off: un minuto, frente a apoyar la precondición en una captura ambigua.
 7. **R13 (`EmailStr` acepta un correo de 196 caracteres; la columna es `String(150)`):** fila Baja nueva o nada. **Recomendación: fila Baja,
    fuera de BE-34.** Es previo a BE-51 y no lo cambia G.
+
+## Decisiones pendientes de David (E5)
+
+**Respondidas por David el 14 nov 2026 (16:53): ver E5, en "Enmiendas aprobadas".** La lista se conserva como la escribió
+el planificador.
+
+1. **Aprobar H como queda:** el ayudante `_add` (`AsyncSession` sobre un motor propio, cerrado con `dispose()`), el
+   turista de `make_user` y el `insert` fuera. Opciones: (a) aprobar; (b) una `Session` síncrona sobre `create_engine`,
+   como el `_add` de G, que obliga a derivar de la URL del fixture otra sin `+aiosqlite` y a usar dos controladores en
+   el archivo; (c) dejar el `insert(User)` y añadir solo la frase que lo explica, que no cumple E4.2.
+   **Recomendación: (a).** Trade-off: 13 líneas de ayudante para un solo uso, a cambio de un test que sigue la regla de
+   las fábricas y explica por qué no usa `persist_user`.
+2. **Cédula del turista.** (a) `cedula="2000000002"` en `make_user`, con la aserción literal de siempre (lo que dicta H);
+   (b) la cédula de la fábrica, guardada en una variable antes de `_add` y usada en la aserción. **Recomendación: (a).**
+   La aserción no cambia ni un carácter (E4.4). Trade-off: un argumento más de lo estrictamente necesario.
+3. **Correo del turista.** (a) `"root@test.com"` literal (lo que dicta H); (b) `VALID_VARIABLES["SUPERADMIN_EMAIL"]`.
+   **Recomendación: (a).** Con (b) queda escrita la relación con la variable, pero el patrón 2 cuenta una línea más
+   (medido), y los pasos 2/17 cambiarían (el archivo, de 16 a 17). Con (a), si alguien cambia solo la constante, el test
+   no pasa en falso: el comando crea el superadmin, sale con 0 y `assert main() == 1` falla. Trade-off: el vínculo entre
+   los dos valores queda implícito.
+4. **Anotar `make_user: Callable[..., User]`.** (a) Sí, con el import de `Callable` (lo que dicta H, `18 18`); (b) sin
+   anotar: mypy también pasa (medido, `17 18`). **Recomendación: (a).** Todos los demás parámetros del archivo están
+   anotados, y así mypy comprueba que `_add` recibe un `User`. Trade-off: una línea de import.
+5. **Cómo se vigila el `dispose()`.** E4.5 suponía que un motor sin cerrar sube los warnings, y no los sube (MHT2,
+   medido). (a) El paso 23 de la Verificación final (`-X dev`, 0 `ResourceWarning`), que es lo que dicta H; (b) además,
+   una fila en el backlog para que la compuerta detecte conexiones sin cerrar en toda la suite (medido: `-W error` no
+   basta; `-X dev` sí, fuera de la captura de pytest); (c) solo la lectura del diff. **Recomendación: (a)**, y (b) solo
+   si David quiere esa vigilancia para todos los tests: hoy la compuerta no la tiene para ningún motor. Trade-off: (a)
+   es un paso manual que se corre una vez, al auditar H.
+6. **Momento de H.** (a) Ejecutar y auditar H antes de `/pr`, en el mismo PR que A–G (una carpeta, un PR; AGENTS §8);
+   (b) abrir ya el PR de A–G y dejar H para otro PR. **Recomendación: (a).** Es un archivo, y el PR de BE-34 sale sin
+   el opcional abierto. Trade-off: `/pr` espera una ejecución y una auditoría más.

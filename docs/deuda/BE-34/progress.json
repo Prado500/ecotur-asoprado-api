@@ -36,6 +36,11 @@
       "status": "completed",
       "commit": "9c9edd2",
       "description": "BE-51 (E1, E2): LowercaseEmail en UserBase, UserLogin y UserUpdate, CHECK ck_users_email_lowercase en User y migración b51f3c9e2a64 (batch); 17 tests nuevos y 1 borrado (691), mutantes MG1-MG8. No se ejecuta sin E3 ni con Q1 > 0 en develop."
+    },
+    "Fase_H": {
+      "status": "pending",
+      "commit": null,
+      "description": "E4: el turista de test_command_fails_when_the_email_belongs_to_another_account sale de make_user y se escribe en la base de archivo del comando con _add (AsyncSession sobre motor propio, dispose); sin insert(User); 1 archivo (18 18), 691 tests. No se ejecuta sin E5."
     }
   },
   "allowed_statuses": ["pending", "partial", "completed"],
