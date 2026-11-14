@@ -2,7 +2,7 @@
 
 > Fuente: `docs/deuda/BE-34/verificacion.md` (confirmada; adenda de ocho decisiones de David, 13 nov, 16:28).
 > Base: `4f10660` (HEAD de `item/be-34` = `5db7641`: `git diff --name-only 4f10660 5db7641 -- app tests alembic conftest.py
-> pyproject.toml .env.example` vacío). Estado: **aprobado por David el 13 nov 2026 con E0 (17:26): cinco fases, A → E; la fase E recibe un test más antes de ejecutarse (E0.3); E1 (17:29) añade una fase F, por escribir y aprobar, para BE-51; detalle en "Enmiendas aprobadas", al final.** Las cifras de este plan (tests,
+> pyproject.toml .env.example` vacío). Estado: **aprobado por David: fases A → E con E0 (13 nov 2026, 17:26) y E2 (14 nov 2026, 09:08; el test de E0.3 queda aceptado). Las fases F y G (BE-51, E1) se reescriben por E2 (correo en minúsculas al entrar y `CHECK` en la base) y no se ejecutan hasta E3. Detalle en "Enmiendas aprobadas", al final.** Las cifras de este plan (tests,
 > cobertura, mutantes, `numstat` y conteos de grep) se midieron el 13 nov sobre copias desechables de `4f10660` en el
 > scratchpad, con el texto exacto que dicta el plan.
 
@@ -2048,9 +2048,96 @@ fases existentes.
   dominio, más el ADR, así que se parte en F (ADR-0016) y G (código). En `progress.json` entran `Fase_F` y `Fase_G`,
   `pending`, sin tocar `current_target` ni las fases existentes. Ocho mutantes, los ocho muertos.
 
+### E2 — 14 nov 2026, 09:08 (David, sesión Mentor; regla del retoque)
+
+Texto literal de David (09:04): «mmm, pero sabes que? no te parece que las fuentes de autoridad recomiendan mejor garantizar
+que en la bd si o si un correo del tipo XcOrRReo@... se guarde como @xcorreo? o sea yo entiendo que por temas de que si
+alguien se registrase en este momento seria un problema si lo hace con mayuculas, pero prefiero argumentar que se
+estableció una ventana de mantenimiento segura bajo la cual, y tras verificar 0 correos en mayusculas, se estableció el
+mecanismo que normaliza a minusculas cada correo, porque lo que propones permite entradas irregulares a la bd y el codigo
+de la api es el que compararía con lower, pero desde la realidad práctica te digo que no hay necesidad de hacer eso porque
+se que hay 0% de probabilidades que un usuario se geistre hoy dado que tengo apagada la api». Y (09:08): «ok 1.) va la
+restricción check en la base. 2.) no. reescritura de F y G ya. 3. te aurotizp».
+
+Responde a las siete "Decisiones pendientes de David (E2)". Si un punto de arriba y E2 difieren, rige E2.
+
+1. **E0.3 aceptado como se midió:** el test `test_command_runs_without_the_web_app_secrets`, ME6 y las cifras
+   recalculadas, incluida la cifra 675 en el texto dictado de ADR-0015 (fase B). **Las fases A → E quedan aprobadas tal
+   como están escritas y no cambian por E2.**
+2. **BE-51 sigue partido en dos fases, F (ADR-0016) y G (código).**
+3. **Mecanismo: NO se aprueba el de la pasada del 13 nov** (comparar `lower(email)` con índice único funcional, sin
+   normalizar lo guardado). **David decide: todo correo se guarda en minúsculas, y la base lo garantiza.** El planificador
+   reescribe F y G con esto (el cómo lo propone y lo mide él; lo que sigue es lo que debe cumplir):
+   1. **Normalización al entrar.** Todo correo que entra por un schema llega al servicio completo en minúsculas (parte
+      local y dominio). Vale para las tres entradas: `app/schemas/user.py:33` (`UserBase`), `:128` (`UserLogin`) y `:160`
+      (`UserUpdate`). Un solo punto de normalización que las tres reutilicen: no se añade otra copia de validador (el
+      backlog ya tiene D5 por eso). Es el mismo trato que `format_title_case` da a los nombres (`app/schemas/user.py:64-74`).
+      La exclusión de `app/schemas/` de la Regla de alcance deja de valer para la fase G.
+   2. **Garantía en la base (decisión 1 de David, 09:08):** una restricción `CHECK (email = lower(email))` sobre `users`,
+      con nombre explícito, declarada en el modelo `User` y creada por una migración de Alembic (AGENTS §2; ADR-0002: la
+      invariante vive también en la base). Un correo con mayúsculas escrito por cualquier vía que no pase por el schema
+      lo rechaza la base.
+   3. **La unicidad la sostiene el índice que ya existe, `ix_users_email`.** No se crean `ix_users_email_lower` ni
+      `_same_email`; las tres consultas de `app/repositories/user_repository.py` siguen comparando exacto, porque lo que
+      llega y lo guardado ya están en minúsculas.
+   4. **Sin migración de datos.** Precondición: Q1 (correos con alguna mayúscula) = 0 en la base, antes de cada
+      despliegue que lleve la migración. Si una fila tiene mayúsculas, la migración se detiene sin cambiar nada y el CD
+      no despliega. G no se ejecuta si Q1 deja de dar 0 en `develop`. David declara la API apagada hoy (ventana de
+      mantenimiento); Q1 se repite antes de promover a `staging` y a `main`.
+   5. **Tests (RED primero) y mutantes**, como las demás fases: las seis rutas que leen o escriben un correo (registro,
+      provisión, bootstrap, login, verificación de correo, cambio por `PATCH`) con una variante en mayúsculas de la parte
+      local; que lo guardado queda en minúsculas; que la base rechaza un correo con mayúsculas insertado sin pasar por
+      el schema; y la migración (sube, baja, y se detiene con una fila en mayúsculas).
+   6. **Lo que el planificador debe medir antes de dictar, y decir qué hace con ello:**
+      - `tests/test_user_response.py:61` usa `Ana@EXAMPLE.COM` (A9: lo guardado se devuelve tal cual). Si ese test, u
+        otro, guarda en la base un correo con mayúsculas, la restricción lo tumba. Grep global de correos con mayúsculas
+        en `tests/` y `conftest.py`.
+      - Un token de verificación cuyo `sub` difiere en mayúsculas de lo guardado: la app nunca lo emite (lleva el correo
+        guardado). Decir si queda sin test o con uno que fije el rechazo.
+      - Un `PATCH` que solo cambia mayúsculas del propio correo: tras normalizar es el mismo valor.
+      - `lower()` de SQLite solo pliega ASCII; el de PostgreSQL y `str.lower()` de Python pliegan Unicode. Medido por la
+        sesión Mentor el 14 nov: SQLite `lower('ÁNGEL@X.com')` → `Ángel@x.com`; PostgreSQL 16.15 y Python → `ángel@x.com`.
+        La suite no ve esa diferencia en la restricción; se declara (junto a R12) o se cubre.
+      - Si `EmailStr` admite parte local no ASCII, y qué devuelve.
+   7. **ADR-0016 se reescribe** con esta decisión. En "Alternativas consideradas" entra la descartada el 14 nov
+      (`lower(email)` en consultas e índice funcional) con su razón verdadera: guarda grafías distintas del mismo correo
+      y deja la forma del dato sin fijar; David prefiere una sola forma en la base. La alternativa "normalizar sin
+      restricción en la base" se descarta porque la regla dependería solo del código. El ADR recoge la ventana de
+      mantenimiento (0 correos con mayúsculas en `develop`, `staging` y `main`, medido por David el 13 nov a las 17:40; API
+      apagada el 14 nov). **Ninguna fuente externa se cita de memoria:** si el ADR cita OWASP o el RFC 5321, el
+      planificador las lee antes y enlaza lo leído en Referencias.
+   8. **ADR-0010, punto 7** (un cambio de modelos se prueba con `alembic check`): la Verificación final conserva el SQL
+      fuera de línea para PostgreSQL y añade un paso **de David, antes de `/pr`**, contra su PostgreSQL local:
+      `alembic upgrade head` y `alembic check`, con la salida literal en la bitácora. Si Alembic no compara restricciones
+      `CHECK` en `autogenerate`, se declara.
+   9. **Evidencia de la sesión Mentor (14 nov), con sus límites.** En un PostgreSQL 16.15 propio, con SQLAlchemy 2.0.48 y
+      Alembic 1.18.4, sobre una réplica mínima de `users` (`id`, `cedula`, `email`; psycopg2, no asyncpg; no es una base
+      de Azure): `CheckConstraint(email == func.lower(email), name=…)` en el modelo crea
+      `CHECK (((email)::text = lower((email)::text)))`; `Root@test.com` → `CheckViolation`; un segundo `root@test.com` →
+      `UniqueViolation`; `op.create_check_constraint` con una fila `Juan@test.com` ya guardada → `CheckViolation` y 0
+      restricciones después; `compare_metadata` → `[]`. Script y salida en la bitácora `2026-11-14`. El nombre de la
+      restricción y la forma exacta son del planificador; esto no sustituye sus mediciones ni las del auditor.
+4. **Datos reales:** Q1 = 0 y Q2 = 0 filas en `develop`, `staging` y `main` (David, 13 nov, 17:40; bitácora `2026-11-13`).
+   Con el mecanismo nuevo la consulta que decide es Q1 (punto 3.4).
+5. **`ix_users_email` se queda** y deja de ser redundante: es el índice que sostiene la unicidad. R10 desaparece.
+6. **Fecha de aceptación de ADR-0016:** la de la aprobación de las fases reescritas (E3). Si E3 se da hoy, 14 nov 2026.
+7. **Límite de PostgreSQL (R12): aceptado, reducido** por el punto 3.8 (paso local de David antes de `/pr`) y el 3.9. El
+   planificador reescribe R12 con lo que quede sin ejecutar en PostgreSQL.
+
+**Qué recalcula el planificador** (invocado con mensaje directo, antes de `/implementar BE-34 A`, por decisión 2 de David
+a las 09:08: «reescritura de F y G ya»): la sección "Fases F y G", la fase F y la fase G enteras; las filas MG de la tabla
+de mutantes; las filas F y G de la tabla de la compuerta; la Regla de alcance (archivos de F y G); los pasos 10 a 18 de la
+Verificación final; el párrafo de F y G del Resumen; los residuales R2, R10, R11 y R12; Referencias; los mensajes de
+commit de F y G; y las descripciones de `Fase_F` y `Fase_G` en `progress.json`, sin tocar `current_target` ni las fases A–E.
+Si al medir algo de las fases A–E resultara afectado, se detiene y lo dice. **Las fases F y G reescritas no se ejecutan
+hasta que David las apruebe (E3).**
+
+`progress.json`: sin cambios por E2 (`current_target: Fase_A`).
+
 ## Decisiones pendientes de David (E2)
 
-Hasta que David responda, nadie ejecuta nada de lo que esta pasada añadió (el test de E0.3 ni las fases F y G).
+**Respondidas por David el 14 nov 2026 (09:08): ver E2, en "Enmiendas aprobadas".** La lista se conserva como se
+escribió el 13 nov; la decisión 3 no se aprobó y las fases F y G se reescriben.
 
 1. **E0.3 tal como se midió:** el test, ME6 y las cifras recalculadas. Incluye una sola cifra cambiada en el texto
    dictado de la fase B (ADR-0015: 674 → 675), porque B no está commiteada. ¿Se acepta, o B queda intacta con 674 y R9 va
