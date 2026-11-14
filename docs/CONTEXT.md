@@ -5,9 +5,10 @@
 > Vive en `docs/CONTEXT.md`. Regla de oro: **el contexto vive en archivos versionados, no en la
 > memoria de un chat.** Cada sesión nueva arranca leyendo esto.
 >
-> **Versión 4.3 — 12 nov 2026.** Bitácora `2026-11-12` (§4: frontera de ADR-0012 cumplida en las dos rutas, guard de superadmin, solo un token de acceso abre una
+> **Versión 4.4 — 13 nov 2026.** Bitácora `2026-11-13` (§5: lo que el flujo enseñó con BE-34 sin ejecutar ninguna fase; §6: fila de las decisiones del día;
+> §8 reescrito: BE-34 verificada y planeada en siete fases, pendiente de la revisión del Mentor y de E2). Versiones anteriores: `2026-11-12` (4.3, bitácora `2026-11-12` (§4: frontera de ADR-0012 cumplida en las dos rutas, guard de superadmin, solo un token de acceso abre una
 > ruta protegida; §5: lo que el flujo enseñó con BE-40 y BE-42; §6: fila de las decisiones del día; §7: pregunta abierta sobre el historial de auditoría;
-> §8 reescrito: `B-GHOST-ADMIN` como siguiente paso). Versiones anteriores: `2026-11-11` (4.2, bitácora `2026-11-11` (§4: CI estricto sin `--soft`, dependencias fijadas en `constraints.txt`,
+> §8 reescrito: `B-GHOST-ADMIN` como siguiente paso)); `2026-11-11` (4.2, bitácora `2026-11-11` (§4: CI estricto sin `--soft`, dependencias fijadas en `constraints.txt`,
 > toda ruta protegida con test de rechazo; §5: lo que el flujo enseñó con BE-39; §6: filas de ADR-0014 y de las decisiones del
 > día; §8 reescrito: `B-GUARD-TESTS m2` como siguiente paso)); `2026-11-10` (4.1, bitácora `2026-11-10` (§4: configuración centralizada en `Settings` y compuerta local en verde
 > sin `--soft` desde A4; §5: Context7 alcanzable desde los agentes y ritmo medido de A4; §6: fila de ADR-0013 y fila de las
@@ -276,7 +277,15 @@ la Web App la hala al reiniciar. Operación: 2 clics.
   ejecutar (un grep de aceptación que no podía dar su valor; un rango de docstring que habría duplicado una frase); E0 los
   corrigió y el auditor aplicó el criterio corregido. Un opcional de auditoría volvió a ser fase (E de BE-40) y el planificador
   midió que el hueco era real: un mutante sobrevivía a toda la suite. Las fases corrieron a ~12 min con su auditoría; lo que
-  alarga el día es lo que las rodea (verificación, adenda, plan y aprobación).
+  alarga el día es lo que las rodea (verificación, adenda, plan y aprobación). El 13 nov (BE-34: verificada y planeada,
+  ninguna fase ejecutada) la sesión Mentor no pudo conectarse al repositorio en toda la mañana y no reconstruyó el estado de
+  memoria: sin archivos no hay sesión. El planificador midió con sonda, antes de dictar, un riesgo que la adenda solo nombraba
+  (el texto de un `ValidationError` de Pydantic incluye el valor recibido, la contraseña entre ellos). Por primera vez se
+  aplicaron dos enmiendas con `plan-redactor`, por mensaje directo, **antes** de ejecutar la primera fase: una añadió un test
+  que el Mentor razonó sin poder medir, y el planificador lo midió y confirmó el mecanismo; la otra convirtió un residual del
+  plan en fila hija sin verificación propia (BE-51), con la condición de que su fase empiece midiendo lo que habría medido un
+  verificador y no se ejecute sin aprobación propia. El plan pasó de 1231 a 2067 líneas y de cinco a siete fases; de la
+  verificación escrita al plan enmendado pasaron 2 h 32 min `(bitácora 2026-11-13)`.
 - **Artefactos de datos por ítem** (`docs/deuda/<ID>/`): `verificacion.md`, `plan.md`, `progress.json`,
   `handoff-<fase>.md`, `gaps.md`. El estado de un ítem es lo que existe en su carpeta; no hay índice aparte.
 
@@ -323,6 +332,7 @@ la Web App la hala al reiniciar. Operación: 2 clics.
 | 11 nov | Versiones de dependencias fijadas: `constraints.txt` con la versión exacta de toda distribución instalada (directa o transitiva), generado del venv de desarrollo; `pyproject.toml` sigue declarando qué se necesita; el CI y la imagen instalan con `-c constraints.txt`; cambiar una versión es regenerar el archivo en el mismo PR; lo exclusivo de Linux se fija a mano desde el log del CI. | **ADR-0014**, `docs/backlog.md` (BE-46) | Cap. de despliegue y de metodología (builds reproducibles; el CI estricto atrapó una deriva de versiones el primer día) |
 | 11 nov | Decisiones de proceso del día. (1) **CI duro hecho** y ADR-0005 superado: el CI no tolera nada; el residual 7 del plan de A4 (`conftest.py` de la raíz fuera de `mypy.files`) se acepta, no se hace. (2) **Un hallazgo sobre el propio artefacto de un ítem se corrige dentro del ítem, con una fase nueva** (David: "un ítem saldado no debería dejar 3 más por saldar a menos que no sea buena idea corregir sus hallazgos emergentes"); lo que queda fuera de su alcance sigue recibiendo fila (regla del 5 nov). Aplicado dos veces en BE-39 (E0 → fase D; E2 → fase E). (3) **La bitácora se escribe por tramos**, en cada punto de control, no solo en el cierre. (4) **Antes de mezclar un PR se comprueban en GitHub el número de commits y los archivos cambiados**, no solo el color del CI (PR #90 mezcló un commit de veintiuno); el asunto del merge `ed98db7` quedó inexacto y se declara, no se reescribe. (5) Un commit con mensaje inexacto que no es el último no se corrige con rebase si otros artefactos citan hashes posteriores (`fb109e7`). (6) Trabajo emergente crítico (dependencias sin fijar) se hace entero el mismo día en un PR corto sin flujo, con fila y ADR. | `docs/deuda/BE-39/plan.md` (E0–E3), `docs/backlog.md` (BE-39, BE-46, BE-47), bitácora `2026-11-11` | Cap. de metodología (revisión humana del flujo; gestión de deuda emergente; errores de proceso declarados) y de pruebas (tests de rechazo con mutantes) |
 | 12 nov | Decisiones del día, sin ADR nuevo. **Diseño (BE-40, ADR-0012 aplicado):** el guard de superadmin sustituye al de admin en `POST /usuarios/admin`, en un router propio; `retrieve_audit_history` deja de recibir a quien consulta y `performed_by` no cambia; los alias de identidad (`UserDep`, `AdminDep`, `SuperadminDep`) viven en `app/api/dependencies.py`. **Diseño (BE-42):** el `scope` de acceso lo impone `create_access_token`, con constantes y no literales; un token de verificación o sin `scope` recibe el 401 de un token inválido. **Proceso:** (1) la aprobación de un plan se da también en la sesión del flujo; (2) un opcional sobre el artefacto del ítem se corrige en el ítem, y David puede extenderlo a los huecos homólogos del mismo archivo (fase E de BE-40); (3) bloque `B-TESTS-2`, sin fechar, para huecos de la suite hallados tras cerrar `B-TESTS`; (4) BE-50 a `B-FUTURO`, detrás de SEC3; (5) el estado del CI tiene dos fuentes, el check del PR en GitHub y el log de Azure DevOps: que falte la segunda no anula la primera; (6) la evidencia del cliente Flutter del 5 nov basta para el cambio 422 → 403 de la ruta de provisión. | `docs/deuda/BE-40/` y `docs/deuda/BE-42/` (adendas, E0–E2), `docs/backlog.md` (BE-40, BE-42, BE-48, BE-49, BE-50), `PLAN.md` §2b, bitácora `2026-11-12` | Cap. de diseño (autorización: un guard por rol; tipos de token) y de pruebas (tests de rechazo por ruta; mutantes que sobrevivían a la suite); cap. de metodología (revisión humana del flujo; errores declarados del Mentor y de David) |
+| 13 nov | Decisiones del día; ADR-0015 y ADR-0016 los dicta el plan de BE-34 y nacen al ejecutar sus fases. **Diseño (BE-34, adenda de ocho puntos):** el primer superadmin lo crea un comando manual del operador, con la lógica en `app/` y un punto de entrada `python -m`; no es ruta HTTP, no corre al arrancar la app ni es paso del CD; las credenciales se leen en una clase propia de `app/core/config.py`, hermana de `Settings`, que no gana campos; no escribe nada si ya hay un superadmin activo y no borrado, y ante una cédula o un correo ya existentes falla sin promover ni reactivar a nadie; el alta se audita con la cédula del propio superadmin; valida con `UserCreateByAdmin` y la contraseña no se imprime nunca; BE-47 entra como primera fase. **Diseño (BE-51, por aprobar):** un correo es una sola cuenta con cualquier combinación de mayúsculas, sin que ninguna cuenta existente deje de poder entrar. **Proceso:** (1) un residual de un plan puede saldarse como fase del ítem que lo halló aunque su verificación no lo midiera, si la fase empieza midiendo y no se ejecuta sin aprobación propia (BE-51, fila hija); (2) las enmiendas a un plan aprobado se aplican antes de la primera fase cuando David prefiere el plan completo antes de ejecutar; (3) el cambio de contraseña es un feature con fila en `B-FUTURO` (BE-52); (4) jornada extendida hasta las 21:00 por la mañana perdida. | `docs/deuda/BE-34/` (adenda, E0, E1), `docs/backlog.md` (BE-51, BE-52), `PLAN.md` §2b y §3, bitácora `2026-11-13` | Cap. de diseño (arranque de la plataforma: quién crea al primer administrador y por dónde viaja su contraseña; unicidad del correo) y de metodología (revisión humana del flujo, con un error declarado del Mentor; gestión de una media jornada perdida) |
 | pendiente | Pagos: puerto `PaymentGateway`, `WompiAdapter`, `FakeAdapter`, webhook idempotente. | ADR de pagos (`B-PAGOS`, tomará el siguiente número libre) | Cap. de diseño (secuencia de pago) y arquitectura |
 
 ## 7. Preguntas abiertas
@@ -341,25 +351,35 @@ la Web App la hala al reiniciar. Operación: 2 clics.
 
 ## 8. Próximo paso
 
-Dónde estamos (estado al cierre de la bitácora `2026-11-12`): **`B-GUARD-TESTS` cerrado.** BE-40 (PR #94, `deb0b1e`) aplicó la
-frontera de ADR-0012 en las dos rutas que no la cumplían y BE-42 (PR #95, `86b0617`) hizo que solo un token de acceso abra una
-ruta protegida; **638 tests · 96,82 % · ruff 0 · mypy 0 · 4 kept** `(PLAN §6)`. `develop` = `86b0617` más el PR de documentos
-del 12 nov (rama `docs/agents-test-factories`: AGENTS §2, §3 y §5 y el cierre del día). Ruta sin cambios:
+Dónde estamos (estado al cierre de la bitácora `2026-11-13`): **`B-GHOST-ADMIN` en curso, sin código todavía.** BE-34 está
+verificada (adenda de ocho puntos) y planeada en siete fases, A–G, con E0 y E1 (`docs/deuda/BE-34/`): BE-47 es la fase A y
+BE-51 (un correo, una sola cuenta) son las fases F y G `(backlog BE-51)`. **Ninguna fase se ha ejecutado**: `item/be-34` lleva
+solo commits de documentos sobre `4f10660`, y la compuerta sigue en
+**638 tests · 96,82 % · ruff 0 · mypy 0 · 4 kept** `(PLAN §6)`. Ruta sin cambios:
 **`B-GHOST-ADMIN` → puesta en `staging` → `B-RESERVAS`** `(PLAN §3)`.
 
-0. **Pendiente al abrir:** (a) `/docs` en la Web App de `develop` con la imagen de `86b0617`; una sesión abierta contra
-   `develop` recibe 401 hasta volver a iniciar sesión: es el efecto declarado de BE-42, no un fallo. (b) Leer en Azure DevOps
-   el log del CI de PR #94 (build #20261112.3: cifras y cuál es el aviso), que el 12 nov no cargaba.
-1. **`B-GHOST-ADMIN`** (BE-34..BE-38 y BE-47), completo `(PLAN §3)`: `/deuda-verificar BE-34` en `item/be-34` desde `develop`.
-   BE-34 toma sus credenciales de `Settings`; BE-47 entra con ella, como fase si su verificación la mide `(backlog BE-47)`.
-   Toda ruta nueva o cambiada se registra en las tablas de `tests/test_route_guards.py` con su guard (AGENTS §3). **Cada plan
-   se aprueba también en la sesión de Claude Code**, remitiendo al encabezado y a E0 de `plan.md`: si no, `/implementar` se
-   detiene a preguntar `(bitácora 2026-11-12)`.
+0. **Pendiente al abrir, en este orden:** (a) la sesión Mentor contrasta contra el código lo que el planificador añadió al
+   aplicar las enmiendas y que nadie ha revisado: el test en proceso hijo de la fase E (E0.3) y las fases F y G enteras. (b) David
+   responde las siete "Decisiones pendientes de David (E2)" del final de `plan.md`; la cuarta ya tiene dato: 0 correos con
+   mayúsculas y 0 colisiones en las bases de `develop`, `staging` y `main` `(bitácora 2026-11-13)`. (c) El Mentor escribe E2 y
+   actualiza la línea `Estado`; David aprueba también en la sesión de Claude Code. (d) Confirmar o corregir el re-fechado de
+   `(PLAN §3)`, que el Mentor escribió en el cierre sin que David lo validara, y decidir los comodines. Menor: el aviso del
+   build del CI de PR #94 sigue sin leerse.
+1. **`B-GHOST-ADMIN`** (BE-34..BE-38, BE-47 y BE-51) `(PLAN §3)`: `/implementar BE-34 A` … `G`, cada una con su `/auditar`; la
+   fase G no se ejecuta si la consulta de colisiones deja de dar 0 filas. Antes de `/pr`: la línea de AGENTS §3 sobre los
+   comandos de operador en `app/cli/` (residual R1 del plan; texto del Mentor, commit de David). Al cerrar el ítem: filas
+   BE-34, BE-47 y BE-51 a `Hecho`, nota en BE-35 (puede reutilizar el conteo de superadmins activos), §4 y §6 de este archivo
+   con ADR-0015 y ADR-0016, y la sección "Después" de la ficha. Luego `/deuda-verificar` de BE-35, BE-36, BE-37 y BE-38, cada
+   una por regla. **Cada plan se aprueba también en la sesión de Claude Code**, remitiendo al encabezado y a las enmiendas de
+   `plan.md` `(bitácora 2026-11-12)`. Dato para dimensionar: el bloque pide más medias jornadas que las de su secuencia
+   `(PLAN §3)`.
 2. **Puesta en `staging`** (media jornada, configuración, sin flujo): `CORS_ORIGINS` con el origen exacto del frontend en
    las tres Web Apps (decisión 5 de `docs/deuda/SEC1/`); **rotar el `JWT_SECRET_KEY` de `staging`** (hoy es el mismo que el de
    `develop`); PR `develop` → `staging`, **comprobando commits y archivos antes de mezclar**; login y registro desde el cliente
    contra `staging` (los tokens de acceso ya llevan `scope`, BE-42) (correo real: cierra la revisión visual de BE-33 D); `grep` de `role` en el cliente Flutter (cierra la nota
-   de BE-02); **dump de `staging` para `B-RESERVAS m2`**. BE-43 (`.dockerignore`) si David decide halarla ese día.
+   de BE-02); **dump de `staging` para `B-RESERVAS m2`**. **Correr una vez por entorno el
+   comando de bootstrap de BE-34**, si ya está mezclado (el `DATABASE_URL` que se le pase lleva `ssl=`, no `sslmode=`; `(bitácora 2026-11-13)`).
+   BE-43 (`.dockerignore`) si David decide halarla ese día.
 3. **`B-RESERVAS`** (m1 decide BE-31: `sqlite_where` espejo en el `Index`; la suite sobre Postgres sigue en `B-FUTURO`). Sus
    rutas nacen registradas en `PROTECTED_ROUTES` o `PUBLIC_ROUTES`. Luego el orden de PLAN §3. `B-PAGOS m2` añade el
    conmutador Fake/Wompi como un campo de `Settings`.
@@ -367,7 +387,8 @@ del 12 nov (rama `docs/agents-test-factories`: AGENTS §2, §3 y §5 y el cierre
    (propuesta del Mentor, la valida David); en el `.env` local, `FRONTEND_URL=http://localhost:3000`, y borrar el paquete 73
    de prueba; fichas `fichas/BE-02.md`, BE-32 (opcional; revisa D8), A4, BE-39, **BE-40** (por qué una comprobación duplicada
    tapa al guard; qué midió M4) y **BE-42** (qué distingue un token de acceso de uno de verificación; por qué el `scope` lo
-   impone el emisor), con las 3 dudas abiertas de `preguntas.md`, en una sesión Estudio; mensaje a María Paula para fijar
+   impone el emisor), con las 3 dudas abiertas de `preguntas.md`, en una sesión Estudio; ficha
+   `fichas/BE-34.md`: sección "Después" al cerrar el ítem; mensaje a María Paula para fijar
    reunión y entregarle las historias de usuario (CONTEXT §7); decidir la pregunta abierta de §7 sobre qué ve un admin del
    historial de auditoría.
 5. **Ritual de cierre:** paso 3 con la batería de `check_docs.py` ejecutada por Claude Code (prompt en la bitácora
@@ -379,9 +400,9 @@ del 12 nov (rama `docs/agents-test-factories`: AGENTS §2, §3 y §5 y el cierre
    `check_docs.py`; `/pr` con `#N`; formalizar en `docs/sesiones/` las reglas del Mentor (solo `git log`/`status`/`diff`, el
    10 nov volvió a correr un `git fetch --dry-run`; nada fuera de `docs/`; propuesta y permiso antes de escribir;
    excepciones declaradas en bitácora); `mentor.md` más ligero por cuota y **que diga Opus, no Fable**, salvo decisiones que
-   paguen su juicio `(bitácora 2026-11-02)` (el 4, el 6, el 7, el 9, el 10, el 11 y el 12 nov corrieron en Fable por excepción declarada:
-   siete seguidas, la regla escrita ya no describe lo que se hace); conectar la carpeta del repo antes del primer mensaje
-   (siete días seguidos sin hacerlo); deny list de plumbing de git (`commit-tree`, `update-ref`, `replace`,
+   paguen su juicio `(bitácora 2026-11-02)` (el 4, el 6, el 7, el 9, el 10, el 11, el 12 y el 13 nov corrieron en Fable por excepción declarada:
+   ocho seguidas, la regla escrita ya no describe lo que se hace); conectar la carpeta del repo antes del primer mensaje
+   (ocho días seguidos sin hacerlo; el 13 nov, además, la conexión falló toda la mañana); deny list de plumbing de git (`commit-tree`, `update-ref`, `replace`,
    `filter-branch`, `reset`) y AGENTS §9 "reescribir historia por cualquier medio" `(bitácora 2026-11-02)`;
    `.github/pull_request_template.md` diverge de la skill `pr-author` (copia sin dueño); los conteos de los RED de
    herramienta en los planes se escriben por `error:` o por id, no por líneas; un mutante se mide sobre el commit de la
@@ -392,7 +413,9 @@ del 12 nov (rama `docs/agents-test-factories`: AGENTS §2, §3 y §5 y el cierre
    `plan-redactor` directamente para enmiendas con fases ya ejecutadas (nota en AF-09); revisar si los prompts de
    `.claude/agents/` aún describen el trinquete de ADR-0005, ya superado (los edita David); que `/implementar` deje de detenerse cuando el plan se aprobó en la sesión Mentor, o que el ritual lo recuerde (hoy se aprueba
    en las dos sesiones); el Mentor actualiza la línea `Estado` del plan en el mismo acto en que escribe E0 (el 12 nov la
-   olvidó en BE-40). Ya con fila: AF-08,
+   olvidó en BE-40; el 13 nov lo hizo); al abrir, el Mentor lee enteras las dos últimas bitácoras antes de resumir (el 13 nov resumió
+   con la del 12 leída a medias); los archivos de mensaje para `git commit -F` van en `docs/` y David los borra tras commitear
+   (práctica del 13 nov, sin regla escrita). Ya con fila: AF-08,
    AF-09 y AF-10; AF-06, AF-11, AF-14 y AF-15 en `B-FUTURO`.
 
 ## 9. Sesiones de IA
