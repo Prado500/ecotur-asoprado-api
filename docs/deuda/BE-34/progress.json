@@ -1,6 +1,6 @@
 {
   "plan_file": "docs/deuda/BE-34/plan.md",
-  "current_target": "Fase_G",
+  "current_target": "Fase_H",
   "phases": {
     "Fase_A": {
       "status": "completed",
@@ -33,12 +33,12 @@
       "description": "BE-51 (E1, E2): ADR-0016, todo correo se guarda en minúsculas (LowercaseEmail en los schemas, CHECK ck_users_email_lowercase en la base, unicidad por ix_users_email, sin migración de datos). No se ejecuta sin E3."
     },
     "Fase_G": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "9c9edd2",
       "description": "BE-51 (E1, E2): LowercaseEmail en UserBase, UserLogin y UserUpdate, CHECK ck_users_email_lowercase en User y migración b51f3c9e2a64 (batch); 17 tests nuevos y 1 borrado (691), mutantes MG1-MG8. No se ejecuta sin E3 ni con Q1 > 0 en develop."
     }
   },
   "allowed_statuses": ["pending", "partial", "completed"],
-  "last_handoff": "Fase F (4eba2d2): ADR-0016 con el texto dictado y fecha 14 nov 2026 (E3); numstat 87 0; compuerta exit 0, 675 passed, 97.37 % (1031), 67 files, 62 source files, 4 kept; copia 386 passed.",
+  "last_handoff": "Fase G (9c9edd2): LowercaseEmail en UserBase/UserLogin/UserUpdate, CHECK ck_users_email_lowercase (modelo y migración batch b51f3c9e2a64), test_email_case.py (+17) y mixed_case_domain borrado; numstat = plan; compuerta exit 0, 691 passed, 97.63 % (1034), 68 files, 63 source files, 4 kept; copia 402 passed; MG1-MG8 muertos con la cifra de la tabla. Fase_H no está escrita ni aprobada (E4/E5).",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
