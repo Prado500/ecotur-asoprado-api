@@ -194,7 +194,7 @@ Evidencia de la auditoría (contexto fresco, `handoff-auditor`, HEAD `c1cefc0`, 
 ## Auditoría Fase E — 2026-11-14
 **Veredicto Fase E: PASS (0 bloqueantes, 1 opcional).**
 
-[OPCIONAL] — Fase E — `test_command_fails_when_the_email_belongs_to_another_account` crea el turista con `insert(User).values(...)` y `password_hash="hash"`, no con la fábrica (AGENTS §5: "prohibido construir usuarios a mano"). Está justificado: `persist_user` está atado a `db_session` (`tests/conftest.py:268-282`, `StaticPool` en memoria) y el comando abre su propio motor sobre la base de archivo de `tmp_path`, así que la fábrica no puede escribir donde lee el comando. Lo dicta el plan aprobado (l. 1100-1114) y lo declara el handoff ("test-sanitizer"), pero no lo explica ni el plan en "Por qué cada truco del test" ni un comentario del test. `make_user`, que no está atado a una sesión, podría construir la entidad con una sesión sobre la URL del archivo. No afecta a la corrección; si David lo quiere, va al backlog — tests/test_bootstrap_superadmin_command.py:100-114
+[OPCIONAL] — Fase E — `test_command_fails_when_the_email_belongs_to_another_account` crea el turista con `insert(User).values(...)` y `password_hash="hash"`, no con la fábrica (AGENTS §5: "prohibido construir usuarios a mano"). Está justificado: `persist_user` está atado a `db_session` (`tests/conftest.py:268-282`, `StaticPool` en memoria) y el comando abre su propio motor sobre la base de archivo de `tmp_path`, así que la fábrica no puede escribir donde lee el comando. Lo dicta el plan aprobado (l. 1100-1114) y lo declara el handoff ("test-sanitizer"), pero no lo explica ni el plan en "Por qué cada truco del test" ni un comentario del test. `make_user`, que no está atado a una sesión, podría construir la entidad con una sesión sobre la URL del archivo. No afecta a la corrección; si David lo quiere, va al backlog — tests/test_bootstrap_superadmin_command.py:100-114 — RESUELTO (5ec73d2, fase H por E4/E5; auditoría de H más abajo)
 
 Evidencia de la auditoría (contexto fresco, `handoff-auditor`, HEAD `74ac1d8`, rama `item/be-34`):
 
@@ -415,3 +415,79 @@ Evidencia de la auditoría (contexto fresco, `handoff-auditor`, HEAD `bf4ae56`, 
 - Fuera de alcance respetado: `app/repositories/`, `app/services/`, `tests/test_models_schema.py`,
   `tests/test_user_repository.py`, `tests/test_bootstrap_superadmin_command.py` (E4/H) y los demás archivos de A–E no
   aparecen en el diff.
+
+## Auditoría Fase H — 2026-11-14
+**Veredicto Fase H: PASS (0 bloqueantes, 0 opcionales).**
+
+Sin hallazgos. El opcional de la auditoría de la fase E queda RESUELTO (5ec73d2): marcado en su línea, sin borrarlo.
+
+Evidencia (re-ejecutada por el auditor, contexto fresco; copias propias en el scratchpad, el árbol del repo no se tocó):
+- Árbol y rama: `git status --short` vacío; `item/be-34`, HEAD `fe1a005` sobre `5ec73d2` sobre `0dd6770`.
+  `git show --numstat --format= 5ec73d2` → `18	18	tests/test_bootstrap_superadmin_command.py` (único archivo).
+  `fe1a005` toca solo `docs/deuda/BE-34/handoff-Fase_H.md` y `progress.json`.
+- Mensaje: `git cat-file commit 5ec73d2` = bloque "Commit" de la fase H (plan l. 1997-2013): asunto, dos párrafos y
+  trailer `Co-Authored-By`, línea por línea.
+- Byte a byte: un script aplica los tres cambios dictados (imports; `_add` con su docstring sobre `persist_user` entre
+  `_execute` y `_count`; firma con `make_user: Callable[..., User]` y las 15 líneas del `insert` → la llamada con
+  `cedula="2000000002"` y `email="root@test.com"`) al archivo de `0dd6770`, cada ancla con una sola aparición, y
+  `cmp` contra el de `5ec73d2` → idénticos. 0 `\r`. `assert completed.returncode == 0, completed.stderr` aparece una
+  sola vez (l. 203), igual que en la base: el `assert` duplicado del ejecutor no llegó al commit; `Callable` importado
+  en l. 13 y usado en l. 129.
+- Hook simulado: copia del archivo commiteado, `ruff format` + `ruff check --fix` con `--config pyproject.toml` →
+  `1 file left unchanged` · `All checks passed!`; `cmp` con el commiteado → idéntico.
+- E4.4 (aserciones): el archivo en `2bf29e5` y en `0dd6770` es el mismo (`cmp`); las 25 líneas con `assert` de la base y
+  de H son idénticas en orden y texto (`diff` vacío). El test conserva `main() == 1`, `[("2000000002",
+  UserRole.tourist)]`, `AuditLog == 0`, `output.out == ""` y `PASSWORD not in output.err`. `make_user` da
+  `role=UserRole.tourist`, `is_active=True` y `data_consent=True` por defecto (`tests/conftest.py:183-203`).
+- Compuerta (`./venv/Scripts/python.exe scripts/check.py`, exit 0): `68 files already formatted` · `All checks passed!` ·
+  `Success: no issues found in 63 source files` · `Contracts: 4 kept, 0 broken.` · `TOTAL 1034 15 148 13 97.63%` ·
+  `691 passed, 8 warnings in 20.36s` · `Compuerta superada.` = fila H del plan y = fila G (ratchet: tests, cobertura,
+  contratos, ruff y mypy sin cambio). Los 8 warnings, de los mismos tests que en G (`test_route_guards` ×3,
+  `test_services` ×3, `test_user_response` ×2). Sobre el archivo: `ruff check` limpio, `ruff format --check`
+  `1 file already formatted`, `mypy` `Success: no issues found in 1 source file`, `pytest` `8 passed in 1.93s`.
+- Mutantes (procedimiento común, `git archive` en directorios nuevos; suite sin `test_check*`). Sin mutante: base
+  (`0dd6770`) y H (`5ec73d2`) → `402 passed, 8 warnings`. ME2 → `1 failed, 401 passed`; MD5 → `8 failed, 394 passed`;
+  MH1 → `1 failed, 401 passed`; MH2 → `1 failed, 401 passed`; MH3 → `7 failed, 395 passed`, en las dos copias; las
+  listas de `FAILED` más la última línea (sin tiempos), idénticas base/H con `cmp` en los cinco, y las mismas que
+  "Aplicación de E4". ME2, MH1 y MH2 tumban solo `test_command_fails_when_the_email_belongs_to_another_account`.
+  MHT1 (sin `await session.commit()` en `_add`) → `1 failed, 401 passed`, solo ese test. MHT2 (sin
+  `await engine.dispose()`) → sobrevive, `402 passed, 8 warnings`; `-X dev` sobre el archivo → `1` `ResourceWarning`;
+  sin mutante, copia H → `0`, copia base → `0`. = tabla del plan (l. 175-179) y fe de erratas de E5.5.
+- AGENTS §5 / test-sanitizer / ADR-0011: el turista sale de `make_user` (fábrica central); no hay mocks; ningún
+  `insert(User)` ni `User(` a mano en los tests de A–E (paso 20); ninguna aserción sobre texto en español (`PASSWORD`
+  es la constante del archivo). El test no usa `client` ni `db_session`: escribe con `_add` (commit en su propia sesión,
+  antes de `main()`) y lee con `_execute` (motor nuevo, `select` de columnas), así que no hay instancia del mapa de
+  identidad que refrescar. La frase de E4.3 está en el docstring de `_add`. Motor cerrado con `dispose()`, como
+  `_create_schema` y `_execute`.
+- `progress.json` (diff `0dd6770..fe1a005`): `Fase_H` `pending`/`null` → `completed`/`"5ec73d2"`; `last_handoff`
+  reescrito; `current_target` `"Fase_H"` → `null`. Descripciones, fases A–G, `allowed_statuses` y `edit_rules` intactos;
+  JSON válido. Las ocho fases `completed` con hash real (`git log -1` de `d873b49`, `b08491b`, `f83a511`, `e9d010c`,
+  `2bf29e5`, `4eba2d2`, `9c9edd2`, `5ec73d2` → el asunto de cada fase). `null` es coherente: `edit_rules` da
+  `current_target` a la sesión que ejecuta, no hay fase siguiente, y los otros 16 ítems cerrados de `docs/deuda/`
+  tienen `current_target` `null`. `scripts/check_docs.py --estado` →
+  `BE-34: verificado → planeado → ejecutado (todas las fases); pendiente de PR o mezclado → handoffs: Fase_A, …,
+  Fase_H → última auditoría: PASS`.
+- Verificación final (última fase), repetida: 1 → sin salida, exit 1 · 2/17 → 9 líneas (`.env.example:6`,
+  `app/cli/bootstrap_superadmin.py:19`, `app/core/config.py:12`, `app/repositories/user_repository.py:1`,
+  `app/services/superadmin_bootstrap.py:3`, `tests/test_bootstrap_superadmin_command.py:16`, `tests/test_config.py:41`,
+  `tests/test_email_case.py:5`, `tests/test_superadmin_bootstrap.py:11`), 114 · 3 → 4 líneas
+  (`bootstrap_superadmin.py:90`, `superadmin_bootstrap.py:60`, `user_service.py:88`, `:412`) · 4 →
+  `dependencies.py:199`, `routers/user.py:35`, `user_access_policy.py:67`, `:72` · 5 → `tests/test_config.py:243` ·
+  6 → los 3 archivos de G, `49 insertions(+), 5 deletions(-)` · 7 → 17 archivos · 8 → `15 6` · 9/18 → la compuerta de
+  arriba · 10 → exit 1 · 11 → `:18`, `:44`, `:56` · 12 → `app/schemas/user.py:22`, `:39`, `:134`, `:166` · 13 →
+  migración `:2`, `app/models/user.py:1`, `app/schemas/user.py:1`, `tests/test_email_case.py:2` · 14 →
+  `b51f3c9e2a64 (head)` · 15 → contiene `ALTER TABLE users ADD CONSTRAINT ck_users_email_lowercase CHECK (email =
+  lower(email));` · 16 (desde `2bf29e5`) → 7 archivos (los 6 de F y G más `tests/test_bootstrap_superadmin_command.py`)
+  · 20 → sin salida, exit 1 · 21 → `:129` y `:132` · 22 → `1 file changed, 18 insertions(+), 18 deletions(-)` · 23 →
+  `0` (con MHT2, `1`). Todos = plan.
+- Paso 19 (de David; el auditor no lo ejecuta): consta en `docs/bitacora/2026-11-14.md`, sección "Paso 19 de la
+  Verificación final" (commit `4a8508f`): 19a se detuvo primero (`CheckViolationError` por una fila de prueba local con
+  mayúsculas, corregida solo en la base local) y después aplicó `Running upgrade 2cc4b57c136c -> b51f3c9e2a64`; 19b
+  `No new upgrade operations detected.`; 19c `ck_users_email_lowercase · CHECK (((email)::text = lower((email)::text)))`.
+  PostgreSQL 15 local (asyncpg), no Azure. Es la salida que pegó David, transcrita por la sesión Mentor.
+- Verificación final completa: cumplida (1-18 y 20-23 por el auditor; 19 con constancia en la bitácora).
+- Pendiente antes de `/pr` según el plan (no son hallazgos de H): R1 cerrado por `8412e19` (AGENTS §3, l. 53-58,
+  comandos de operador y correo en minúsculas); R2 saldado por F y G; R10 retirado. Quedan: R5 (`docs/CONTEXT.md` sin
+  ADR-0015/ADR-0016 ni `app/cli/`, cierre del ítem), R4 (manual técnico), R6 (nota en BE-35), R12 (declararlo en el PR),
+  R9 (si David prefiere B intacta), R3/R13 ya con fila (BE-52, BE-54), R7 y R11 sin fila salvo petición. Q1 se repite
+  antes de promover a `staging` y a `main` (plan l. 1370); la primera ejecución en Azure es el CD de `develop` con Q1 = 0.
