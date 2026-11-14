@@ -16,11 +16,18 @@ decisiones de la adenda. (C) Añade `SuperadminBootstrapSettings`, clase hermana
 superadmin activo y no borrado. Si la cédula o el correo ya están en cualquier fila, falla sin promover a nadie. Si no,
 crea un superadmin activo y lo audita como autor de su propia alta. (E) Añade el comando: valida con
 `UserCreateByAdmin`, abre su propio motor sin `echo`, no imprime nunca la contraseña y sale con 0 o 1. `app.cli` entra
-en el contrato de capas. La suite pasa de 638 a 674 tests y la cobertura de 96,82 % a 97,37 %.
+en el contrato de capas. La suite pasa de 638 a 675 tests y la cobertura de 96,82 % a 97,37 %.
 **Riesgo principal:** filtrar la contraseña, por el texto de un `ValidationError` (medido: lo incluye) o por el `echo`
 del motor (el hash). Los tests de C y E lo impiden, y cuatro mutantes lo demuestran. **No se toca:** `Settings` (sigue
 con 15 campos), guards, routers, rutas, la política (BE-35..BE-38), `create_user` (A3), `app/db/database.py` (A5),
 `alembic/`, `Dockerfile`, `docker-compose.yml` ni `cd-pipeline.yml`.
+
+**Fases F y G (BE-51, E1; no se ejecutan sin E2):** un correo pasa a ser una sola cuenta, con cualquier combinación
+de mayúsculas. (F) Escribe ADR-0016. (G) Las tres consultas por correo comparan `lower(email)` en la base, y un
+índice único sobre `lower(email)` (modelo y migración `b51e0a1c4d27`) cierra la escritura. Ningún correo guardado se
+reescribe, así que ninguna cuenta deja de entrar. La suite pasa a 690 tests y la cobertura a 97,63 %. **Riesgo:** dos
+filas que ya difieran solo en mayúsculas detienen la migración; por eso G espera las consultas de David sobre las tres
+bases.
 
 ## Objetivo y decisiones bloqueadas
 
@@ -109,6 +116,10 @@ documentos vivos (los cierra la sesión Mentor).
   `core/config.py`, `repositories/user_repository.py` y `services/superadmin_bootstrap.py`. En la raíz: `pyproject.toml`
   y `.env.example`. En `docs/`: `adr/0015-bootstrap-del-primer-superadmin.md`. En `tests/`: `test_config.py`,
   `test_user_repository.py`, `test_superadmin_bootstrap.py` y `test_bootstrap_superadmin_command.py`.
+- **Fases F y G (E1):** 4 archivos más, 16 en total. F: `docs/adr/0016-correo-sin-distinguir-mayusculas.md`. G:
+  `app/models/user.py`, `alembic/versions/b51e0a1c4d27_users_email_unique_whatever_its_case.py` y
+  `tests/test_email_case.py`, y vuelve sobre `app/repositories/user_repository.py` y `tests/test_user_repository.py`
+  (los toca D). `app/schemas/` sigue fuera.
 - **No:** cualquier otro archivo, docstring o comentario. Un hallazgo nuevo va a Residuales, nunca "de paso".
 
 ## Fases
@@ -133,12 +144,21 @@ documentos vivos (los cierra la sesión Mentor).
 | MD5 | ídem | `    if existing_user:` → `    if False:` | `6 failed, 372 passed` |
 | MD6 | ídem | `        role=UserRole.superadmin,` → `        role=credentials.role,` | `1 failed, 377 passed` |
 | MD7 | ídem | `        is_active=True,` → `        is_active=credentials.is_active,` | `1 failed, 377 passed` |
-| ME1 | `app/cli/bootstrap_superadmin.py` | borrar las dos líneas `        if field not in SuperadminBootstrapSettings.model_fields:` / `            field = f"superadmin_{field}"` | `2 failed, 383 passed` |
-| ME2 | ídem | el `return 1` tras el `print` de `AlreadyExistsError` → `return 0` | `1 failed, 384 passed` |
-| ME3 | ídem | `{created.email}")` → `{created.email} {credentials.password}")` | `2 failed, 383 passed` |
-| ME4 | ídem | `    engine = create_async_engine(database_url)` → `    engine = create_async_engine(database_url, echo=True)` | `1 failed, 384 passed` |
-| ME5 | ídem | `    sys.exit(main())` → `    main()` | `1 failed, 384 passed` |
+| ME1 | `app/cli/bootstrap_superadmin.py` | borrar las dos líneas `        if field not in SuperadminBootstrapSettings.model_fields:` / `            field = f"superadmin_{field}"` | `2 failed, 384 passed` |
+| ME2 | ídem | el `return 1` tras el `print` de `AlreadyExistsError` → `return 0` | `1 failed, 385 passed` |
+| ME3 | ídem | `{created.email}")` → `{created.email} {credentials.password}")` | `3 failed, 383 passed` |
+| ME4 | ídem | `    engine = create_async_engine(database_url)` → `    engine = create_async_engine(database_url, echo=True)` | `1 failed, 385 passed` |
+| ME5 | ídem | `    sys.exit(main())` → `    main()` | `1 failed, 385 passed` |
+| ME6 | `app/services/superadmin_bootstrap.py` | añadir `import app.core.email  # noqa: F401` antes de `from app.core.exceptions import AlreadyExistsError` | `1 failed, 385 passed` (solo `test_command_runs_without_the_web_app_secrets`) |
 | MK1 | `app/services/superadmin_bootstrap.py` | añadir `import app.cli  # noqa: F401` antes del primer `from app.` | import-linter `3 kept, 1 broken` (exit 1) |
+| MG1 | `app/repositories/user_repository.py` | `    return func.lower(User.email) == func.lower(email)` → `    return User.email == email` | `8 failed, 393 passed` |
+| MG2 | ídem | `or_(User.cedula == cedula, _same_email(email))` → `or_(User.cedula == cedula, User.email == email)` | `6 failed, 395 passed` |
+| MG3 | ídem | `where(_same_email(email), User.deleted_at.is_(None))` → `where(User.email == email, User.deleted_at.is_(None))` | `3 failed, 398 passed` |
+| MG4 | ídem | `        stmt = select(User).where(_same_email(email))` → `        stmt = select(User).where(User.email == email)` | `3 failed, 398 passed` |
+| MG5 | `app/models/user.py` | borrar la línea `    __table_args__ = (Index("ix_users_email_lower", func.lower(email), unique=True),)` | `4 failed, 397 passed` |
+| MG6 | `alembic/versions/b51e0a1c4d27_users_email_unique_whatever_its_case.py` | `unique=True)` → `unique=False)` | `1 failed, 400 passed` |
+| MG7 | ídem | `    op.drop_index('ix_users_email_lower', table_name='users')` → `    pass` | `1 failed, 400 passed` |
+| MG8 | `app/repositories/user_repository.py` | `    return func.lower(User.email) == func.lower(email)` → `    return func.lower(User.email) == email` | `10 failed, 391 passed` |
 
 Al cerrar cada fase, la compuerta debe dar exit 0, `Compuerta superada.`, `All checks passed!`,
 `Contracts: 4 kept, 0 broken.` y `8 warnings`, y además:
@@ -150,7 +170,9 @@ Al cerrar cada fase, la compuerta debe dar exit 0, `Compuerta superada.`, `All c
 | B | 639 passed | 96,82 % (965) | 61 files | 56 source files | 350 passed |
 | C | 650 passed | 97,01 % (966) | 61 files | 56 source files | 361 passed |
 | D | 667 passed | 97,07 % (988) | 64 files | 59 source files | 378 passed |
-| E | 674 passed | 97,37 % (1031) | 67 files | 62 source files | 385 passed |
+| E | 675 passed | 97,37 % (1031) | 67 files | 62 source files | 386 passed |
+| F | 675 passed | 97,37 % (1031) | 67 files | 62 source files | 386 passed |
+| G | 690 passed | 97,63 % (1034) | 68 files | 63 source files | 401 passed |
 
 Todo archivo nuevo o editado se guarda en UTF-8 con fin de línea LF.
 
@@ -272,7 +294,7 @@ Todo archivo nuevo o editado se guarda en UTF-8 con fin de línea LF.
   - Sonda del plan (13 nov, pydantic 2.12.5): `str(ValidationError)` de `UserCreateByAdmin` contiene la contraseña.
     `errors(include_input=False, include_url=False)` da `[(('password',), 'value_error')]`. `SecretStr` sale como
     `'**********'`.
-  - Copia de `4f10660` con el texto del plan: de 638 a 674 tests y de 96,82 % a 97,37 %. Con `"app.api | app.cli"`, un
+  - Copia de `4f10660` con el texto del plan: de 638 a 675 tests y de 96,82 % a 97,37 %. Con `"app.api | app.cli"`, un
     import de `app.cli` desde `app.services` da `3 kept, 1 broken`. El mutante `echo=True` en el motor del comando lo
     tumba un test.
   - Documentación: pydantic-settings, SQLAlchemy asyncio e import-linter (layers), enlaces en
@@ -964,7 +986,9 @@ Todo archivo nuevo o editado se guarda en UTF-8 con fin de línea LF.
      """
 
      import asyncio
+     import os
      import runpy
+     import subprocess
      import sys
      from pathlib import Path
      from typing import Any
@@ -988,6 +1012,16 @@ Todo archivo nuevo o editado se guarda en UTF-8 con fin de línea LF.
          "SUPERADMIN_LAST_NAME": "Diaz",
          "SUPERADMIN_PASSWORD": PASSWORD,
      }
+
+     # The required secrets of Settings: the web app needs them, the command must not (ADR-0015).
+     WEB_APP_SECRETS = (
+         "JWT_SECRET_KEY",
+         "MAIL_USERNAME",
+         "MAIL_PASSWORD",
+         "AZURE_STORAGE_CONNECTION_STRING",
+     )
+
+     REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
      async def _create_schema(url: str) -> None:
@@ -1125,10 +1159,37 @@ Todo archivo nuevo o editado se guarda en UTF-8 con fin de línea LF.
 
          assert exc_info.value.code == 1
          assert _count(database_url, User) == 0
+
+
+     def test_command_runs_without_the_web_app_secrets(database_url: str) -> None:
+         """Edge case: run as a child process with the web app secrets empty, it still creates it.
+
+         The suite's environment carries every secret (root conftest.py), so a test that calls main()
+         cannot see an import that builds Settings. Empty values beat any .env file (ADR-0013, point
+         3) and fail Field(min_length=1): if the command built Settings, the child would exit 1.
+         """
+         env = os.environ | dict.fromkeys(WEB_APP_SECRETS, "")
+
+         completed = subprocess.run(
+             [sys.executable, "-m", "app.cli.bootstrap_superadmin"],
+             cwd=REPO_ROOT,
+             env=env,
+             capture_output=True,
+             text=True,
+             timeout=60,
+             check=False,
+         )
+
+         assert completed.returncode == 0, completed.stderr
+         users = asyncio.run(_execute(database_url, select(User.cedula, User.role, User.is_active)))
+         assert [(u.cedula, u.role, u.is_active) for u in users] == [
+             ("900000001", UserRole.superadmin, True)
+         ]
+         assert PASSWORD not in completed.stdout + completed.stderr
      ```
 - **Tests (RED primero):** primero el archivo de tests, y luego
   `./venv/Scripts/python.exe -m pytest tests/test_bootstrap_superadmin_command.py -q -p no:cacheprovider --tb=line`.
-  Medido: `ModuleNotFoundError: No module named 'app.cli'`. Al final: `7 passed`. Mutantes ME1 a ME5 y MK1 con los
+  Medido: `ModuleNotFoundError: No module named 'app.cli'`. Al final: `8 passed`. Mutantes ME1 a ME6 y MK1 con los
   resultados de la tabla (MK1 se mide con
   `./venv/Scripts/python.exe -c "from importlinter.cli import lint_imports_command; lint_imports_command()"` en la copia).
   Por qué cada truco del test:
@@ -1136,10 +1197,16 @@ Todo archivo nuevo o editado se guarda en UTF-8 con fin de línea LF.
   - `delitem` antes de `runpy`: evita el `RuntimeWarning` de reejecutar un módulo ya importado, así que los warnings
     siguen en 8.
   - `caplog`: es el único canal donde se ve el `echo` (ME4).
+  - Proceso hijo con los cuatro secretos de `Settings` a cadena vacía (E0.3). La suite trae todos los secretos
+    (`conftest.py` de la raíz), así que un `main()` dentro de ella no ve un import que construya `Settings`. La cadena
+    vacía gana al `.env` (ADR-0013, punto 3) y no pasa `Field(min_length=1)`. Medido con ME6: el hijo sale con 1
+    (`4 validation errors for Settings`, `string_too_short`) y cae solo este test. Si el hijo hereda el entorno sin
+    vaciarlos, ME6 sobrevive (`8 passed`). `cwd=REPO_ROOT` hace que `-m` importe el `app/` de este árbol y no el de la
+    instalación editable del venv. La cobertura no mide al hijo: sigue en 97,37 %.
 - **Criterio de aceptación:** compuerta como la fila E, con `app\cli\bootstrap_superadmin.py` al 100 % en el informe de
   cobertura. `git show --numstat --format= <sha E>` da `1	0	app/cli/__init__.py`,
   `114	0	app/cli/bootstrap_superadmin.py`, `2	2	pyproject.toml` y
-  `169	0	tests/test_bootstrap_superadmin_command.py`. Salida de import-linter:
+  `208	0	tests/test_bootstrap_superadmin_command.py`. Salida de import-linter:
   `Capas: api | cli -> services -> repositories -> models KEPT`.
 - **Fuera de alcance:** `Dockerfile` (la imagen ya copia `app/` e instala el paquete), `cd-pipeline.yml`,
   `app/db/database.py`, el manual técnico (R4) y `AGENTS.md` (R1).
@@ -1162,9 +1229,597 @@ Todo archivo nuevo o editado se guarda en UTF-8 con fin de línea LF.
   - pyproject.toml: app.cli joins the layers contract as an independent
     sibling of app.api, so services cannot import it and the two
     adapters cannot import each other.
-  - tests: create, second run, taken email, three bad variables and the
-    python -m path, each on a file database of its own; no password in
-    stdout or stderr and no hash in stdout or the log.
+  - tests: create, second run, taken email, three bad variables, the
+    python -m path, and a child process with the web app secrets
+    empty, so an import that builds Settings fails here and not in the
+    docker run. Each runs on a file database of its own; no password
+    in stdout or stderr and no hash in stdout or the log.
+
+  Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+  ```
+
+### Fases F y G — BE-51: un correo es una sola cuenta, con cualquier combinación de mayúsculas (E1)
+
+**No se ejecutan hasta que David las apruebe (E2)**, y G además espera el resultado de las dos consultas de la
+precondición. E1 pide una fase. No cabe en una: el código son 5 archivos de un dominio (usuarios), y la decisión es no
+trivial (ADR-0016, dominio documentación). Por eso se parte como E1 prevé: **F** = el ADR, **G** = el código. Orden
+A → … → E → F → G. G depende de D, porque edita `tests/test_user_repository.py` y sus tests llaman a
+`bootstrap_superadmin`. Las cifras de G se midieron sobre E con E0.3.
+
+**Medición (lo que habría hecho un verificador).** Grep global sobre `item/be-34` (`app/` y `tests/` iguales a `4f10660`)
+y sondas sobre una copia con A–E:
+- `git grep -n -i 'email' -- app`. Entradas: `app/schemas/user.py:33` (`UserBase`), `:128` (`UserLogin`) y `:160`
+  (`UserUpdate`). Consultas exactas: `app/repositories/user_repository.py:17`, `:23` y `:35`. El token lleva el correo
+  guardado: `security.py:107` (verificación) y `user_service.py:105,172`. Lo buscan `user_service.py:141`
+  (`activate_user`), `:164` (login) y `dependencies.py:142` (cada petición autenticada). El `PATCH` no comprueba el
+  correo: `user_service.py:285` hace `setattr` y `:297` llama a `save_user`, y el conflicto llega como `IntegrityError`
+  al handler `app/main.py:100-114` (409).
+- `git grep -n -i -E 'lower\(|ilike|casefold|func\.lower|citext|collat' -- app alembic tests conftest.py scripts` → ninguna
+  sobre correos. Solo `schemas/user.py:100` (`c.islower()`, regla de contraseña) y `tests/test_main.py:78,107`
+  (cabeceras).
+- `git grep -n -i -E 'ix_users_email|email.*unique|unique.*email' -- . ':!docs'` → `alembic/versions/a0f621304d75_*.py:51,60`,
+  `app/models/user.py:39`, `tests/test_models_schema.py:70` y `tests/conftest.py:173` (solo texto).
+- `git grep -n -E '"[^" ]*[A-Z][^" ]*@[^" ]*"' -- tests conftest.py` → solo `tests/test_user_response.py:61`
+  (`Ana@EXAMPLE.COM`). Congela que el correo guardado se devuelve tal cual (A9), y la solución lo respeta.
+- Alembic: cabeza `2cc4b57c136c`. Ningún test ejecuta migraciones (`git grep -n -i alembic -- tests` solo da docstrings).
+  El CD corre `alembic upgrade head` antes del webhook (`cd-pipeline.yml:62,91,120`), así que una migración fallida deja
+  la imagen sin desplegar.
+- Sondas antes de G (P0–P6). `EmailStr` da `Root@test.com` para `Root@Test.COM` en `UserCreate`, `UserLogin` y
+  `UserUpdate`. Con `Root@test.com` guardado y una variante en mayúsculas:
+
+  | Ruta | Antes de G | Después de G |
+  |---|---|---|
+  | Registro | 201, dos filas | 400, una fila |
+  | Login | 401 | 200 |
+  | `PATCH` | 200, la variante queda guardada | 409 |
+  | Enlace de verificación | 404, la cuenta sigue inactiva | 200, activa |
+  | Bootstrap | crea la segunda cuenta | `AlreadyExistsError` |
+  | Provisión | 201 | 400 |
+- `inspect(conn).get_indexes("users")` no refleja índices de expresión en SQLite (`SAWarning`, que subiría los warnings a
+  9). Por eso el test lee `sqlite_master`.
+- El SQL fuera de línea para PostgreSQL (`alembic upgrade 2cc4b57c136c:b51e0a1c4d27 --sql`, sin base) da
+  `CREATE UNIQUE INDEX ix_users_email_lower ON users (lower(email));` entre `BEGIN;` y `COMMIT;`.
+
+**Mecanismo elegido y por qué** (E1, punto 3: ninguna cuenta existente deja de poder entrar). Las consultas comparan
+`lower(email) = lower(:email)`, y un índice único sobre `lower(email)` cierra la escritura. **Ningún dato se reescribe**:
+cada cuenta entra con lo que tiene, los tokens ya emitidos (llevan el correo guardado) siguen valiendo y
+`UserResponse` devuelve lo guardado (A9). Los schemas no cambian. Se descarta pasar a minúsculas y reescribir las filas:
+no tiene vuelta atrás, invalida los tokens y enlaces vigentes de las cuentas con mayúsculas y cambia la salida. Las
+demás alternativas están en ADR-0016. **Lo que no se puede medir desde aquí:** los datos reales y el comportamiento en
+PostgreSQL. Si dos filas difieren solo en mayúsculas, `CREATE UNIQUE INDEX` falla, el DDL transaccional no deja nada a
+medias y el CD se detiene antes del webhook.
+
+**Precondición de G (E1, punto 4).** David corre en `develop`, `staging` y `main`, y pega el resultado en la bitácora
+antes de E2:
+```sql
+-- Q1: correos guardados con alguna mayúscula (informativo; siguen entrando tras G)
+SELECT count(*) AS mixed_case FROM users WHERE email <> lower(email);
+-- Q2: colisiones (deben ser 0 filas en las tres bases)
+SELECT lower(email) AS email_lower, count(*) AS accounts FROM users GROUP BY lower(email) HAVING count(*) > 1;
+```
+Si Q2 devuelve alguna fila en cualquier base, G no se ejecuta (E1, punto 6): decidir qué cuenta conserva el correo es
+una decisión de producto, con su propio ítem.
+
+### Fase F — ADR-0016
+
+- **Archivos (1):** `docs/adr/0016-correo-sin-distinguir-mayusculas.md` (nuevo). Dominio: decisiones (docs).
+- **Cambios exactos:** crear el archivo con este texto. `<FECHA>` es la fecha de E2 que la sesión Mentor anote en este
+  plan; si no figura, la fase se detiene.
+  ```markdown
+  # ADR-0016 — Un correo es una sola cuenta, escrito con cualquier combinación de mayúsculas: `lower(email)` en las consultas y en un índice único
+
+  - **Estado:** aceptado (David, <FECHA>, al aprobar las fases F y G del plan de BE-34)
+  - **Propuesta:** Claude, `plan-redactor` (13 nov 2026), sobre la enmienda E1 de David al plan de BE-34 (13 nov, 17:29)
+  - **Ubicación en el repo:** `docs/adr/0016-correo-sin-distinguir-mayusculas.md`
+  - **Origen:** backlog BE-51 (residual R2 del plan de BE-34); `docs/deuda/BE-34/plan.md`, fases F y G. Relación: ADR-0002
+    (la invariante vive también en la base), ADR-0009 (no es un addendum de ADR-0015: amplía el alcance al registro y al
+    login de todos los usuarios), backlog A9 (lo guardado se devuelve tal cual).
+
+  ## Contexto
+
+  `EmailStr` solo pasa a minúsculas el dominio: `Root@Test.COM` llega como `Root@test.com` a `UserCreate`, `UserLogin` y
+  `UserUpdate`. Las tres consultas por correo de `UserRepository` comparan exacto, y el índice único `ix_users_email`
+  también. Medido el 13 nov sobre una copia con las fases A–E de BE-34: un segundo registro con `root@test.com` junto a
+  `Root@test.com` da 201 y deja dos cuentas; la provisión y el bootstrap también crean la segunda; el login con
+  `root@test.com` da 401; un `PATCH` a `ROOT@test.com` da 200; un enlace de verificación con `root@test.com` da 404. Los
+  tokens llevan el correo tal como está guardado, y las bases de `develop`, `staging` y `main` ya tienen correos guardados.
+
+  ## Decisión
+
+  1. **Un correo es una sola cuenta, escrito con cualquier combinación de mayúsculas.** Vale para el registro, la provisión,
+     el bootstrap, el login, la verificación de correo y el cambio de correo por `PATCH`.
+  2. **Las consultas comparan `lower(email) = lower(:email)` en la base**, desde un solo punto: `_same_email`, en
+     `app/repositories/user_repository.py`. Python no pasa nada a minúsculas: el motor aplica la misma función a la
+     columna, al parámetro y al índice.
+  3. **Índice único `ix_users_email_lower` sobre `lower(email)`**, declarado en el modelo `User` y creado por la migración
+     `b51e0a1c4d27`. Es la invariante en la base (ADR-0002): un `PATCH` o una carrera que la rompan reciben el 409 del
+     handler de `IntegrityError`.
+  4. **Ningún correo guardado se reescribe.** Cada cuenta entra con el correo que tiene, escrito como sea, y los tokens ya
+     emitidos siguen valiendo. Los schemas no cambian, y `UserResponse` devuelve el correo tal como está guardado (A9).
+  5. **Si dos filas ya difieren solo en mayúsculas, la migración se detiene**: la base no construye el índice, el DDL
+     transaccional no deja nada a medias y el CD no llega a desplegar la imagen. Antes de desplegar se consulta cada base.
+     Una colisión es una decisión de producto (qué cuenta conserva el correo), fuera de este ADR.
+  6. **`ix_users_email` (único y exacto) se queda.** El índice nuevo lo vuelve redundante; quitarlo es otro cambio de
+     esquema.
+
+  ## Consecuencias
+
+  - Toda consulta nueva por correo pasa por `_same_email`. Una comparación exacta reabriría el hueco en la lectura; el
+    índice lo sigue cerrando en la escritura.
+  - El correo se guarda como lo escribió el usuario. Un `PATCH` que solo cambia mayúsculas sobre la propia cuenta se acepta.
+  - Ambos lados usan el `lower()` del motor: en SQLite (la suite) solo pliega ASCII; en PostgreSQL, según la configuración
+    regional de la base. Comparación e índice coinciden siempre dentro del mismo motor.
+  - `users` gana un índice: cada escritura es algo más cara, sin efecto al volumen del MVP.
+  - La suite ejecuta la migración sobre SQLite. En PostgreSQL solo se ha visto su SQL fuera de línea
+    (`alembic upgrade … --sql`); la primera ejecución real es el CD de `develop`.
+
+  ## Alternativas consideradas
+
+  1. **Pasar a minúsculas en los schemas y reescribir los correos guardados** (migración de datos). Deja los datos
+     uniformes, pero reescribe filas de las tres bases sin vuelta atrás (el `downgrade` no recupera la grafía), invalida
+     los tokens de acceso y los enlaces de verificación vigentes de las cuentas con mayúsculas y cambia lo que devuelve
+     `UserResponse` (A9).
+  2. **Pasar a minúsculas solo las entradas nuevas.** Las cuentas guardadas con mayúsculas dejarían de entrar. Incumple
+     la condición de E1: ninguna cuenta existente deja de poder entrar.
+  3. **Tipo `citext` de PostgreSQL.** Exige la extensión en las tres bases de Azure y no existe en SQLite, así que la suite
+     dejaría de probar la invariante.
+  4. **No hacer nada.** Una persona podría tener dos cuentas, y escribir su correo con otras mayúsculas le impediría entrar.
+
+  ## Evidencia
+
+  - Sondas del plan (13 nov, SQLAlchemy 2.0.48, Alembic 1.18.4): las seis rutas antes y después del cambio; cifras en
+    `docs/deuda/BE-34/plan.md`, fases F y G.
+  - SQL fuera de línea de la migración para PostgreSQL: `CREATE UNIQUE INDEX ix_users_email_lower ON users (lower(email));`
+    entre `BEGIN;` y `COMMIT;`.
+  - Copia con las fases A–G: de 675 a 690 tests y de 97,37 % a 97,63 %. Ocho mutantes, los ocho muertos.
+  - Documentación: SQLAlchemy (índices funcionales) y Alembic (`op.create_index` con `text()`), enlaces en
+    `docs/deuda/BE-34/plan.md`, sección Referencias.
+  ```
+- **Tests (RED primero):** no aplica (documento). Medido: `check_docs` lo acepta (`Documentación coherente`) y la
+  compuerta queda como la fila F.
+- **Criterio de aceptación:** compuerta como la fila F. `git show --stat --format= <sha F>` lista solo el ADR. La línea
+  "Estado" lleva una fecha real, no `<FECHA>`.
+- **Fuera de alcance:** el código (fase G), ADR-0015 (no se edita), `AGENTS.md`, `docs/CONTEXT.md` y la fila BE-51 (cierre
+  de la sesión Mentor).
+- **Commit:**
+  ```
+  docs(adr): add ADR-0016, an email names one account whatever its case
+
+  EmailStr lowers only the domain, and every lookup and the unique
+  index compare emails exactly, so Root@test.com and root@test.com
+  can be two accounts and a user who types another case cannot sign
+  in (BE-51). David chose to close it inside BE-34 (amendment E1).
+
+  The ADR records how before the code that cites it lands: queries
+  compare lower(email) in the database, a unique index on lower(email)
+  keeps the invariant, no stored email is rewritten so every account
+  keeps signing in, and a collision stops the migration. It lists the
+  rejected paths (normalize and rewrite, normalize new input only,
+  citext, nothing) and their reasons.
+
+  Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+  ```
+
+### Fase G — Comparación sin mayúsculas, índice único sobre `lower(email)` y su migración
+
+- **Archivos (5):** `app/models/user.py`, `app/repositories/user_repository.py`,
+  `alembic/versions/b51e0a1c4d27_users_email_unique_whatever_its_case.py` (nuevo), `tests/test_user_repository.py`,
+  `tests/test_email_case.py` (nuevo). Dominio: usuarios. La exclusión de `app/models/` y `alembic/` de la Regla de
+  alcance deja de valer solo para esta fase (E1, punto 3). `app/schemas/` no se toca.
+- **Cambios exactos:**
+  1. `app/models/user.py`: `from sqlalchemy import DateTime, Enum, String` →
+     `from sqlalchemy import DateTime, Enum, Index, String`. Tras la línea `deleted_at: …`, última del cuerpo de `User`,
+     una línea en blanco y:
+     ```python
+         # One account per email whatever its case (BE-51, ADR-0016): the repository compares
+         # lower(email), and this index makes the database refuse a second spelling.
+         __table_args__ = (Index("ix_users_email_lower", func.lower(email), unique=True),)
+     ```
+  2. `app/repositories/user_repository.py`: `from sqlalchemy import func` →
+     `from sqlalchemy import ColumnElement, func`. Entre `from app.models.user import User, UserRole` y
+     `class UserRepository:`, con dos líneas en blanco a cada lado:
+     ```python
+     def _same_email(email: str) -> ColumnElement[bool]:
+         """Matches User.email whatever its case, as the unique index on lower(email) does.
+
+         The database lowers both sides, so the comparison and the index agree (ADR-0016).
+
+         Args:
+             email (str): The address as typed, or as carried by a token.
+
+         Returns:
+             ColumnElement[bool]: lower(users.email) = lower(:email).
+         """
+         return func.lower(User.email) == func.lower(email)
+     ```
+     En los tres métodos, la firma y el resto del cuerpo no cambian. El docstring va tras la firma y sustituye a la
+     línea `stmt = …`, o al docstring y a esa línea en `activate_user`:
+     ```python
+         async def get_user_by_email_or_cedula(self, email: str, cedula: str) -> User | None:
+             """Finds an account, deleted or not, holding this cedula or this email in any case.
+
+             Args:
+                 email (str): Email to look for, compared without case (ADR-0016).
+                 cedula (str): Cedula to look for, compared exactly.
+
+             Returns:
+                 User | None: The first matching account, or None.
+             """
+             stmt = select(User).where(or_(User.cedula == cedula, _same_email(email)))
+     ```
+     ```python
+         async def get_non_deleted_user_by_email(self, email: str) -> User | None:
+             """Finds the account that is not soft-deleted with this email, in any case.
+
+             Args:
+                 email (str): Email typed at login or carried by an access token (ADR-0016).
+
+             Returns:
+                 User | None: The account, or None when none matches or it is deleted.
+             """
+             stmt = select(User).where(_same_email(email), User.deleted_at.is_(None))
+     ```
+     ```python
+             """Sets is_active to True on the account with this email in any case; False if none."""
+             stmt = select(User).where(_same_email(email))
+     ```
+  3. `alembic/versions/b51e0a1c4d27_users_email_unique_whatever_its_case.py`, escrito a mano (el id y la fecha son los del
+     plan, no los de `alembic revision`), con el estilo de la plantilla `script.py.mako` (`alembic/versions` está fuera de
+     ruff):
+     ```python
+     """users: email unique whatever its case (BE-51)
+
+     Revision ID: b51e0a1c4d27
+     Revises: 2cc4b57c136c
+     Create Date: 2026-11-13 18:00:00.000000
+
+     """
+     from typing import Sequence, Union
+
+     from alembic import op
+     import sqlalchemy as sa
+
+
+     # revision identifiers, used by Alembic.
+     revision: str = 'b51e0a1c4d27'
+     down_revision: Union[str, Sequence[str], None] = '2cc4b57c136c'
+     branch_labels: Union[str, Sequence[str], None] = None
+     depends_on: Union[str, Sequence[str], None] = None
+
+
+     def upgrade() -> None:
+         """Adds a unique index on lower(email): Root@test.com and root@test.com are one account.
+
+         No stored email is rewritten, so every account keeps signing in with what it has. If two
+         rows already differ only in case, the database refuses to build the index and the
+         migration stops without changing anything (ADR-0016).
+         """
+         op.create_index('ix_users_email_lower', 'users', [sa.text('lower(email)')], unique=True)
+
+
+     def downgrade() -> None:
+         """Drops the index; ix_users_email still keeps each exact email unique."""
+         op.drop_index('ix_users_email_lower', table_name='users')
+     ```
+  4. `tests/test_user_repository.py`: el docstring del módulo pasa a
+     `"""Tests for UserRepository: superadmins that can sign in, and email lookups in any case."""`. Añadir
+     `from sqlalchemy.exc import IntegrityError` tras `import pytest`. Al final del archivo, con dos líneas en blanco antes:
+     ```python
+     @pytest.mark.parametrize("typed", ["Root@test.com", "rOOT@test.com", "ROOT@TEST.COM"])
+     async def test_email_lookups_ignore_case(db_session, persist_user, typed):
+         """Happy path: the three lookups by email find the account whatever case is typed."""
+         user = await persist_user(email="Root@test.com", is_active=False)
+         repo = UserRepository(db_session)
+
+         assert await repo.activate_user(typed) is True
+         await db_session.refresh(user)
+         assert user.is_active is True
+         assert await repo.get_user_by_email_or_cedula(email=typed, cedula="0") is user
+         assert await repo.get_non_deleted_user_by_email(typed) is user
+
+
+     async def test_email_lookups_do_not_match_another_address(db_session, persist_user):
+         """Unhappy path: ignoring case is not a partial match; another address finds nothing."""
+         await persist_user(email="Root@test.com")
+         repo = UserRepository(db_session)
+
+         assert await repo.get_user_by_email_or_cedula(email="root2@test.com", cedula="0") is None
+         assert await repo.get_non_deleted_user_by_email("root2@test.com") is None
+         assert await repo.activate_user("root2@test.com") is False
+
+
+     async def test_soft_deleted_account_keeps_its_email_in_any_case(db_session, persist_user):
+         """Edge case: login skips a deleted account; uniqueness still counts it (BE-34 bootstrap)."""
+         user = await persist_user(email="Root@test.com", deleted_at=datetime(2026, 1, 1, tzinfo=UTC))
+         repo = UserRepository(db_session)
+
+         assert await repo.get_non_deleted_user_by_email("root@test.com") is None
+         assert await repo.get_user_by_email_or_cedula(email="root@test.com", cedula="0") is user
+
+
+     async def test_database_rejects_an_email_that_differs_only_in_case(
+         db_session, persist_user, make_user
+     ):
+         """Unhappy path: the unique index on lower(email) refuses a second spelling (ADR-0002)."""
+         await persist_user(email="Root@test.com")
+         db_session.add(make_user(email="root@TEST.com"))
+
+         with pytest.raises(IntegrityError):
+             await db_session.commit()
+     ```
+  5. `tests/test_email_case.py`:
+     ```python
+     """Tests for BE-51: an email names one account, whatever its case (ADR-0016).
+
+     One test per path that reads or writes an email (registration, provisioning, bootstrap, login,
+     email verification and the change by PATCH), and the migration that adds the index.
+     """
+
+     import runpy
+     from pathlib import Path
+
+     import jwt
+     import pytest
+     from alembic.migration import MigrationContext
+     from alembic.operations import Operations
+     from sqlalchemy import Connection, func, select, text
+     from sqlalchemy.exc import IntegrityError
+
+     from app.core.config import get_settings
+     from app.core.exceptions import AlreadyExistsError
+     from app.core.security import create_verification_token, get_password_hash
+     from app.models.audit import AuditLog
+     from app.models.user import User, UserRole
+     from app.repositories.audit_repository import AuditRepository
+     from app.repositories.user_repository import UserRepository
+     from app.schemas.user import UserCreateByAdmin
+     from app.schemas.user import UserRole as SchemaUserRole
+     from app.services.audit_service import AuditService
+     from app.services.superadmin_bootstrap import bootstrap_superadmin
+
+     PASSWORD = "Password123"
+     STORED = "Root@test.com"
+     OTHER_CASE = "rOOT@test.com"
+
+     ALEMBIC_VERSIONS = Path(__file__).resolve().parents[1] / "alembic" / "versions"
+     MIGRATION = ALEMBIC_VERSIONS / "b51e0a1c4d27_users_email_unique_whatever_its_case.py"
+
+
+     async def _emails(db_session) -> list[str]:
+         return list(await db_session.scalars(select(User.email).order_by(User.id)))
+
+
+     async def _count(db_session, model: type[User] | type[AuditLog]) -> int:
+         return int(await db_session.scalar(select(func.count()).select_from(model)))
+
+
+     def _migrate(connection: Connection, step: str) -> None:
+         """Runs upgrade() or downgrade() of the BE-51 migration on this connection."""
+         migration = runpy.run_path(str(MIGRATION))
+         with Operations.context(MigrationContext.configure(connection)):
+             migration[step]()
+
+
+     async def _has_email_index(db_session) -> bool:
+         """Reads sqlite_master: SQLAlchemy does not reflect expression-based indexes on SQLite."""
+         found = await db_session.scalar(
+             text("SELECT name FROM sqlite_master WHERE type = 'index' AND name = :name"),
+             {"name": "ix_users_email_lower"},
+         )
+         return found is not None
+
+
+     async def test_login_accepts_the_email_in_another_case(client, persist_user):
+         """Happy path: the account signs in with its email typed in another case."""
+         user = await persist_user(email=STORED, password_hash=get_password_hash(PASSWORD))
+
+         response = await client.post(
+             "/usuarios/login", json={"email": OTHER_CASE, "password": PASSWORD}
+         )
+
+         assert response.status_code == 200
+         settings = get_settings()
+         claims = jwt.decode(
+             response.json()["access_token"], settings.jwt_secret_key, algorithms=[settings.algorithm]
+         )
+         assert claims["sub"] == user.email == STORED
+
+
+     async def test_registration_rejects_an_email_taken_in_another_case(
+         client, db_session, persist_user, mock_send_email
+     ):
+         """Unhappy path: 400, no second row and no verification email."""
+         await persist_user(email=STORED)
+         payload = {
+             "cedula": "1005911792",
+             "email": OTHER_CASE,
+             "first_name": "Juan",
+             "last_name": "Perez",
+             "password": PASSWORD,
+             "data_consent": True,
+         }
+
+         response = await client.post("/usuarios/registro", json=payload)
+
+         assert response.status_code == 400
+         assert set(response.json()) == {"detail"}
+         assert await _emails(db_session) == [STORED]
+         mock_send_email.assert_not_called()
+
+
+     async def test_provisioning_rejects_an_email_taken_in_another_case(
+         client, db_session, persist_user, make_auth_headers
+     ):
+         """Unhappy path: a superadmin cannot provision a second account for the same email."""
+         superadmin = await persist_user(role=UserRole.superadmin)
+         await persist_user(email=STORED)
+         payload = {
+             "cedula": "555555",
+             "email": OTHER_CASE,
+             "first_name": "New",
+             "last_name": "Admin",
+             "password": PASSWORD,
+             "role": "admin",
+             "data_consent": True,
+             "is_active": True,
+         }
+
+         response = await client.post(
+             "/usuarios/admin", json=payload, headers=make_auth_headers(superadmin)
+         )
+
+         assert response.status_code == 400
+         assert set(response.json()) == {"detail"}
+         assert await _emails(db_session) == [superadmin.email, STORED]
+
+
+     async def test_bootstrap_rejects_an_email_taken_in_another_case(db_session, persist_user):
+         """Unhappy path: the bootstrap stops as with an exact match; nothing is written."""
+         await persist_user(email=STORED)
+         credentials = UserCreateByAdmin(
+             cedula="900000001",
+             email=OTHER_CASE,
+             first_name="Ana",
+             last_name="Diaz",
+             password=PASSWORD,
+             data_consent=True,
+             role=SchemaUserRole.superadmin,
+             is_active=True,
+         )
+
+         with pytest.raises(AlreadyExistsError):
+             await bootstrap_superadmin(
+                 credentials, UserRepository(db_session), AuditService(AuditRepository(db_session))
+             )
+
+         assert await _emails(db_session) == [STORED]
+         assert await _count(db_session, AuditLog) == 0
+
+
+     async def test_verification_link_in_another_case_activates_the_account(
+         client, db_session, persist_user
+     ):
+         """Edge case: a token whose subject differs only in case activates the stored account."""
+         user = await persist_user(email=STORED, is_active=False)
+         token = create_verification_token(OTHER_CASE)
+
+         response = await client.get(f"/usuarios/verificar-email?token={token}")
+
+         assert response.status_code == 200
+         assert response.json()["success"] is True
+         await db_session.refresh(user)
+         assert user.is_active is True
+
+
+     async def test_patch_cannot_take_an_email_in_another_case(
+         client, db_session, persist_user, make_auth_headers
+     ):
+         """Unhappy path: 409 from the unique index; the target keeps its email."""
+         admin = await persist_user(role=UserRole.admin)
+         await persist_user(email=STORED)
+         tourist = await persist_user()
+         original_email = tourist.email
+
+         response = await client.patch(
+             f"/usuarios/{tourist.cedula}",
+             json={"email": OTHER_CASE},
+             headers=make_auth_headers(admin),
+         )
+
+         assert response.status_code == 409
+         assert set(response.json()) == {"detail"}
+         await db_session.refresh(tourist)
+         assert tourist.email == original_email
+
+
+     async def test_patch_may_change_only_the_case_of_its_own_email(
+         client, db_session, persist_user, make_auth_headers
+     ):
+         """Edge case: the same account may rewrite its email in another case."""
+         user = await persist_user(email=STORED)
+
+         response = await client.patch(
+             f"/usuarios/{user.cedula}", json={"email": OTHER_CASE}, headers=make_auth_headers(user)
+         )
+
+         assert response.status_code == 200
+         await db_session.refresh(user)
+         assert user.email == OTHER_CASE
+
+
+     async def test_migration_adds_the_index_without_rewriting_emails(db_session, persist_user):
+         """Happy path: upgrade indexes mixed-case rows as stored; downgrade drops the index."""
+         await db_session.execute(text("DROP INDEX ix_users_email_lower"))
+         await db_session.commit()
+         await persist_user(email=STORED)
+         await persist_user(email="other@test.com")
+         connection = await db_session.connection()
+
+         await connection.run_sync(_migrate, "upgrade")
+
+         assert await _has_email_index(db_session) is True
+         assert await _emails(db_session) == [STORED, "other@test.com"]
+         await connection.run_sync(_migrate, "downgrade")
+         assert await _has_email_index(db_session) is False
+
+
+     async def test_migration_stops_on_emails_that_differ_only_in_case(db_session, persist_user):
+         """Unhappy path: two rows that differ only in case stop the upgrade; nothing changes."""
+         await db_session.execute(text("DROP INDEX ix_users_email_lower"))
+         await db_session.commit()
+         await persist_user(email=STORED)
+         await persist_user(email=OTHER_CASE)
+         connection = await db_session.connection()
+
+         with pytest.raises(IntegrityError):
+             await connection.run_sync(_migrate, "upgrade")
+
+         await db_session.rollback()
+         assert await _emails(db_session) == [STORED, OTHER_CASE]
+         assert await _has_email_index(db_session) is False
+     ```
+- **Tests (RED primero):**
+  1. Primero los tests (pasos 4 y 5) y luego
+     `./venv/Scripts/python.exe -m pytest tests/test_email_case.py tests/test_user_repository.py -q -p no:cacheprovider -rf --tb=no`.
+     Medido: `12 failed, 8 passed`. Pasan los 5 de la fase D, `test_email_lookups_ignore_case[Root@test.com]`,
+     `test_email_lookups_do_not_match_another_address` y `test_patch_may_change_only_the_case_of_its_own_email`.
+  2. Después el modelo y la migración (pasos 1 y 3). Medido: `8 failed, 12 passed`: login, registro, provisión,
+     bootstrap, verificación, dos parámetros de `test_email_lookups_ignore_case` y
+     `test_soft_deleted_account_keeps_its_email_in_any_case`.
+  3. Al final, el repositorio (paso 2): `20 passed`. Mutantes MG1 a MG8 con los resultados de la tabla.
+  Por qué cada truco del test:
+  - Variante `rOOT@test.com`: `EmailStr` ya pasa el dominio a minúsculas, así que la variante cambia la parte local.
+  - `DROP INDEX` antes de la migración: reproduce el esquema previo a `b51e0a1c4d27` sobre la base de la suite.
+  - `sqlite_master`: ver la sonda de la reflexión.
+  - `Operations.context(MigrationContext.configure(connection))`: ejecuta `upgrade()`/`downgrade()` del archivo real, con
+    su `op`, sobre la conexión del test.
+- **Criterio de aceptación:** compuerta como la fila G. `git show --numstat --format= <sha G>` da
+  `33	0	alembic/versions/b51e0a1c4d27_users_email_unique_whatever_its_case.py`, `5	1	app/models/user.py`,
+  `36	5	app/repositories/user_repository.py`, `228	0	tests/test_email_case.py` y `45	1	tests/test_user_repository.py`.
+  Pasos 10 a 18 de la Verificación final con su salida esperada.
+- **Fuera de alcance:** `app/schemas/` (nada se pasa a minúsculas en Python); `app/services/` (delegan en el repositorio;
+  el `PATCH` queda cubierto por el índice); `ix_users_email` (R10); `tests/test_models_schema.py` (las columnas no
+  cambian); los datos de las tres bases; el texto del handler de `IntegrityError`.
+- **Commit:**
+  ```
+  fix(users): treat emails that differ only in case as the same account
+
+  Registration, provisioning, the bootstrap, login, email verification
+  and the email change by PATCH all compared emails exactly, so
+  Root@test.com and root@test.com could be two accounts and a user who
+  typed another case could not sign in (BE-51, ADR-0016).
+
+  - app/repositories/user_repository.py: the three lookups by email go
+    through _same_email, lower(email) = lower(:email) in the database.
+  - app/models/user.py and migration b51e0a1c4d27: a unique index on
+    lower(email), so the database refuses a second spelling; a PATCH
+    that tries gets the 409 of the IntegrityError handler.
+  - No stored email is rewritten: every account keeps signing in with
+    what it has, and issued tokens stay valid. If two rows already
+    differ only in case, the migration stops and changes nothing.
+  - tests: the six paths with a case variant, the lookups and the index
+    at repository level, and the migration upgrading, downgrading and
+    stopping on a collision.
 
   Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
   ```
@@ -1178,9 +1833,9 @@ Desde la raíz, con la rama tras la fase E. Los conteos incluyen el texto que di
 # 1. Patrón 1 de la verificación: sigue en 0 (el nombre es "bootstrap", que mide el patrón 2) → exit 1
 git grep -n -i -E 'seed|create_superuser|create_superadmin' -- app alembic scripts
 
-# 2. Patrón 2 por archivo → exactamente estas 8 líneas (108 coincidencias en total):
+# 2. Patrón 2 por archivo → exactamente estas 8 líneas (109 coincidencias en total):
 #    .env.example:6 · app/cli/bootstrap_superadmin.py:19 · app/core/config.py:12 · app/repositories/user_repository.py:1
-#    app/services/superadmin_bootstrap.py:3 · tests/test_bootstrap_superadmin_command.py:15 · tests/test_config.py:41
+#    app/services/superadmin_bootstrap.py:3 · tests/test_bootstrap_superadmin_command.py:16 · tests/test_config.py:41
 #    tests/test_superadmin_bootstrap.py:11
 git grep -c -i -E 'bootstrap|first_superadmin|initial_admin|superadmin_(email|password|cedula|first_name|last_name)' -- app alembic scripts tests conftest.py .env.example Dockerfile docker-compose.yml .azure-pipelines
 
@@ -1203,7 +1858,41 @@ git diff --name-only 4f10660 -- app tests pyproject.toml .env.example docs/adr
 # 8. Settings sigue en 15 campos; la clase nueva tiene 6 → "15 6"
 ./venv/Scripts/python.exe -c "from app.core.config import Settings as S, SuperadminBootstrapSettings as B; print(len(S.model_fields), len(B.model_fields))"
 
-# 9. Compuerta → exit 0; 674 passed, 8 warnings; TOTAL 1031 stmts, 97.37 %; 67 files; 62 source files; 4 kept
+# 9. Compuerta → exit 0; 675 passed, 8 warnings; TOTAL 1031 stmts, 97.37 %; 67 files; 62 source files; 4 kept
+./venv/Scripts/python.exe scripts/check.py
+```
+
+Tras la fase G (E1), desde la raíz. Los pasos 1 a 9 valen tras E. Tras G cambian el 2 (ver el 17), el 6 (G toca
+`app/models` y `alembic`), el 7 (pasa a 16 archivos) y el 9 (ver el 18).
+
+```bash
+# 10. Ninguna consulta compara el correo exacto → exit 1 (en 4f10660: user_repository.py:17, :23 y :35)
+git grep -n -E 'User\.email ==' -- app
+
+# 11. Un solo punto de comparación → 4 líneas: la definición de _same_email y sus tres usos
+git grep -n '_same_email' -- app
+
+# 12. func.lower → 2 líneas: app/models/user.py (el índice) y app/repositories/user_repository.py (_same_email)
+git grep -n 'func\.lower' -- app alembic tests
+
+# 13. Nombre del índice → alembic/versions/b51e0a1c4d27_users_email_unique_whatever_its_case.py:2 ·
+#     app/models/user.py:1 · tests/test_email_case.py:3
+git grep -c 'ix_users_email_lower' -- app alembic tests
+
+# 14. Una sola cabeza de Alembic → "b51e0a1c4d27 (head)"
+DATABASE_URL=postgresql+asyncpg://u:p@localhost:5432/db ./venv/Scripts/python.exe -m alembic heads
+
+# 15. SQL de PostgreSQL sin base → contiene "CREATE UNIQUE INDEX ix_users_email_lower ON users (lower(email));"
+DATABASE_URL=postgresql+asyncpg://u:p@localhost:5432/db ./venv/Scripts/python.exe -m alembic upgrade 2cc4b57c136c:b51e0a1c4d27 --sql
+
+# 16. Archivos de F y G → exactamente 6 (el ADR, los 2 nuevos de G y los 3 que G edita)
+git diff --name-only <sha E> -- app tests alembic docs/adr
+
+# 17. Patrón 2 de BE-34 tras G → 10 líneas (115 coincidencias): las 8 del paso 2 más tests/test_email_case.py:5 y
+#     tests/test_user_repository.py:1
+git grep -c -i -E 'bootstrap|first_superadmin|initial_admin|superadmin_(email|password|cedula|first_name|last_name)' -- app alembic scripts tests conftest.py .env.example Dockerfile docker-compose.yml .azure-pipelines
+
+# 18. Compuerta → exit 0; 690 passed, 8 warnings; TOTAL 1034 stmts, 97.63 %; 68 files; 63 source files; 4 kept
 ./venv/Scripts/python.exe scripts/check.py
 ```
 
@@ -1218,6 +1907,10 @@ git diff --name-only 4f10660 -- app tests pyproject.toml .env.example docs/adr
 | R5 | `docs/CONTEXT.md` no menciona ADR-0015 ni `app/cli/`. | Cierre del ítem, sesión Mentor. |
 | R6 | BE-35 ("siempre queda al menos un superadmin activo") puede reutilizar `UserRepository.count_active_superadmins`. | Nota en la fila BE-35. |
 | R7 | import-linter no prohíbe `fastapi`/`starlette` en `app.cli`: el contrato de capas solo fija la dirección. | Opcional; sin fila salvo que David lo pida. |
+| R9 | E0.3 cambió la cifra que ADR-0015 cita (674 → 675 tests). La fase B no está commiteada, así que se corrigió esa cifra en su texto dictado, como prevé E0.3; nada más de B cambia. | Si David prefiere B intacta, se devuelve la cifra a 674 y este residual pasa al PR. |
+| R10 | Tras G, `ix_users_email` (único y exacto; `a0f621304d75_*.py:51`, `app/models/user.py:39`) es redundante con `ix_users_email_lower`. | Fila Baja opcional ("retirar el índice exacto"); cambiaría `tests/test_models_schema.py:70`. |
+| R11 | `update_user_account` no comprueba el correo antes de guardar (`user_service.py:285,297`): un `PATCH` con un correo ajeno, exacto o en otra grafía, recibe el 409 genérico del handler de `IntegrityError`, no un `AlreadyExistsError`. Ya pasaba antes de G. | Sin fila salvo que David la pida. |
+| R12 | Ni la suite ni las sondas ejecutan PostgreSQL (BE-31). La migración de G solo se vio como SQL fuera de línea. El `lower()` de PostgreSQL pliega Unicode según la configuración regional; el de SQLite, solo ASCII. | Declararlo en el PR. La primera ejecución real es el CD de `develop`, después de Q2. |
 
 ## Referencias
 
@@ -1229,6 +1922,13 @@ git diff --name-only 4f10660 -- app tests pyproject.toml .env.example docs/adr
 - import-linter · 2.15 · capas con hermanos independientes (`"a | b"`):
   https://github.com/seddonym/import-linter/blob/v2.15/docs/contract_types/layers.md
 - Python · 3.14 · `runpy.run_path` / `runpy.run_module`: https://docs.python.org/3/library/runpy.html
+- Python · 3.14 · `subprocess.run(env=…, cwd=…, timeout=…)` (E0.3): https://docs.python.org/3/library/subprocess.html#subprocess.run
+- SQLAlchemy · 2.0.48 · índice funcional `Index("…", func.lower(col), unique=True)` en `__table_args__` (G; medido:
+  `CREATE UNIQUE INDEX … ON users (lower(email))`): https://docs.sqlalchemy.org/en/20/core/constraints.html#functional-indexes
+- Alembic · 1.18.4 · `op.create_index(…, [text("lower(email)")], unique=True)`:
+  https://alembic.sqlalchemy.org/en/latest/ops.html#alembic.operations.Operations.create_index ; `Operations.context` y
+  `MigrationContext.configure` fuera de `env.py` (tests de G):
+  https://alembic.sqlalchemy.org/en/latest/api/runtime.html#alembic.runtime.migration.MigrationContext.configure
 
 ## Enmiendas aprobadas
 
@@ -1330,3 +2030,38 @@ Qué debe cumplir la fase F (el cómo lo propone y lo mide el planificador):
 
 `progress.json`: el planificador añade `Fase_F` (`pending`) cuando escriba la fase, sin tocar `current_target` ni las
 fases existentes.
+
+### Aplicación de E0.3 y E1 (plan-redactor, 13 nov 2026, por mensaje directo; las fases A–D no cambian)
+
+- **E0.3, medido en una copia de A–E en el scratchpad.** El test nuevo es `test_command_runs_without_the_web_app_secrets`.
+  Ejecuta `python -m app.cli.bootstrap_superadmin` con `subprocess`, `sys.executable` y `cwd=REPO_ROOT`, con las seis
+  variables del comando y los cuatro secretos de `Settings` a `""`. El mecanismo razonado por la sesión Mentor se
+  comporta como se razonó. Sobre E pasa (`8 passed` en el archivo). Con ME6 (`import app.core.email` en el núcleo) el hijo
+  sale con 1, `4 validation errors for Settings` (`string_too_short`): `1 failed, 385 passed`, y solo cae él. Si el hijo
+  hereda el entorno sin vaciar los secretos, ME6 sobrevive (`8 passed`), y por eso la cadena vacía es necesaria.
+  Recalculado: filas ME1 a ME5 de la tabla de mutantes (la suite de la copia pasa de 385 a 386; ME3 tumba también el test
+  nuevo: 3 failed), fila ME6, fila E de la compuerta (675 · 97,37 % · 1031 sin cambio: la cobertura no mide al hijo ·
+  386), `numstat` del test (169 → 208), "Tests (RED primero)" y "Por qué" de E, cuerpo del commit de E, pasos 2 y 9 de
+  la Verificación final, cifra del Resumen, la cifra de ADR-0015 en el texto de la fase B (R9) y la descripción de
+  `Fase_E` en `progress.json`.
+- **E1.** BE-51 se midió con grep global y sondas (sección de las fases F y G). Cabe en 5 archivos de código y un
+  dominio, más el ADR, así que se parte en F (ADR-0016) y G (código). En `progress.json` entran `Fase_F` y `Fase_G`,
+  `pending`, sin tocar `current_target` ni las fases existentes. Ocho mutantes, los ocho muertos.
+
+## Decisiones pendientes de David (E2)
+
+Hasta que David responda, nadie ejecuta nada de lo que esta pasada añadió (el test de E0.3 ni las fases F y G).
+
+1. **E0.3 tal como se midió:** el test, ME6 y las cifras recalculadas. Incluye una sola cifra cambiada en el texto
+   dictado de la fase B (ADR-0015: 674 → 675), porque B no está commiteada. ¿Se acepta, o B queda intacta con 674 y R9 va
+   al PR?
+2. **Partir BE-51 en dos fases, F (ADR-0016) y G (código),** en lugar de la única fase F de E1. Motivo: ≤ 5 archivos y un
+   dominio por fase.
+3. **Mecanismo:** comparar `lower(email)` en la base, con un índice único funcional, sin reescribir ningún correo
+   guardado (ADR-0016), frente a pasar a minúsculas y reescribir las filas. ¿Se aprueba?
+4. **Datos reales (E1, punto 4):** resultado de Q1 y Q2 en `develop`, `staging` y `main`. G solo se ejecuta si Q2 da 0
+   filas en las tres; con una colisión, G se detiene (E1, punto 6).
+5. **`ix_users_email` se queda**, aunque tras G sea redundante (R10). ¿Se queda, o quiere fila para retirarlo?
+6. **Fecha de aceptación de ADR-0016** para su línea "Estado": la de E2.
+7. **Límite aceptado o no:** la migración de G no se ejecuta en PostgreSQL antes del CD de `develop`; solo se ve su SQL
+   fuera de línea (R12, BE-31).
