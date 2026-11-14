@@ -1,6 +1,6 @@
 {
   "plan_file": "docs/deuda/BE-34/plan.md",
-  "current_target": "Fase_D",
+  "current_target": "Fase_E",
   "phases": {
     "Fase_A": {
       "status": "completed",
@@ -18,8 +18,8 @@
       "description": "SuperadminBootstrapSettings(DatabaseSettings) con cinco SUPERADMIN_* (contraseña SecretStr), bloque en .env.example con contraseña de ejemplo inválida, 11 tests."
     },
     "Fase_D": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "e9d010c",
       "description": "UserRepository.count_active_superadmins y núcleo bootstrap_superadmin (idempotente, sin promover cuentas, auditado con source=bootstrap); 17 tests."
     },
     "Fase_E": {
@@ -39,6 +39,6 @@
     }
   },
   "allowed_statuses": ["pending", "partial", "completed"],
-  "last_handoff": "Fase C (f83a511): SuperadminBootstrapSettings (6 campos, contraseña SecretStr) y bloque SUPERADMIN_* en .env.example; numstat 11 0 / 24 1 / 93 0; compuerta exit 0, 650 passed, 97.01 % (966); copia 361 passed; MC1 3 failed, MC2 1 failed, MC3 1 failed.",
+  "last_handoff": "Fase D (e9d010c): count_active_superadmins y bootstrap_superadmin; numstat 22 1 / 74 0 / 159 0 / 41 0; compuerta exit 0, 667 passed, 97.07 % (988); copia 378 passed; MD1-MD7 = tabla (2, 1, 3, 2, 6, 1, 1 failed).",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
