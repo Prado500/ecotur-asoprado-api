@@ -190,3 +190,91 @@ Evidencia de la auditoría (contexto fresco, `handoff-auditor`, HEAD `c1cefc0`, 
   Categorías: 2 caminos felices; fallo: cuenta existente (6 casos), superadmin activo existente, inactivos/borrados no
   cuentan (3); borde: base vacía, segunda corrida, superadmins que no pueden entrar (2), credenciales con rol/estado ajenos.
 - No es la última fase: la "Verificación final" del plan no aplica todavía.
+
+## Auditoría Fase E — 2026-11-14
+**Veredicto Fase E: PASS (0 bloqueantes, 1 opcional).**
+
+[OPCIONAL] — Fase E — `test_command_fails_when_the_email_belongs_to_another_account` crea el turista con `insert(User).values(...)` y `password_hash="hash"`, no con la fábrica (AGENTS §5: "prohibido construir usuarios a mano"). Está justificado: `persist_user` está atado a `db_session` (`tests/conftest.py:268-282`, `StaticPool` en memoria) y el comando abre su propio motor sobre la base de archivo de `tmp_path`, así que la fábrica no puede escribir donde lee el comando. Lo dicta el plan aprobado (l. 1100-1114) y lo declara el handoff ("test-sanitizer"), pero no lo explica ni el plan en "Por qué cada truco del test" ni un comentario del test. `make_user`, que no está atado a una sesión, podría construir la entidad con una sesión sobre la URL del archivo. No afecta a la corrección; si David lo quiere, va al backlog — tests/test_bootstrap_superadmin_command.py:100-114
+
+Evidencia de la auditoría (contexto fresco, `handoff-auditor`, HEAD `74ac1d8`, rama `item/be-34`):
+
+- Árbol: `git status --short` vacío antes de la auditoría (después solo cambia este `gaps.md`).
+- Commit de la fase: `2bf29e5` existe y su padre es `1beb91d`. `git diff --name-only 1beb91d 2bf29e5` → solo los cuatro
+  archivos de la fase. `git show --numstat --format= 2bf29e5` → `1 0 app/cli/__init__.py` ·
+  `114 0 app/cli/bootstrap_superadmin.py` · `2 2 pyproject.toml` · `208 0 tests/test_bootstrap_superadmin_command.py`
+  (= criterio de aceptación). El mensaje (`git log -1 --format=%B`) coincide byte a byte con el bloque "Commit" de la fase
+  E (l. 1217-1240 de `plan.md` sin la sangría), trailer incluido.
+- Segundo commit `74ac1d8` (`docs(progress): record BE-34 Fase_E completion`, padre `2bf29e5`): solo `handoff-Fase_E.md`
+  y `progress.json`.
+- `progress.json` (diff de `74ac1d8`): `Fase_E` `completed`, `commit: "2bf29e5"` (hash real); `current_target`
+  `Fase_E` → `Fase_F`; `last_handoff` presente; `edit_rules` y `allowed_statuses` intactos; la descripción de `Fase_E` no
+  cambia; F y G sin tocar. JSON válido.
+- Enmiendas: E0.3 añade a E el test del proceso hijo y ME6; su "Aplicación" fija 675 · 97,37 % · 1031 · 8 tests · 386;
+  E2 punto 1 aprueba A–E "tal como están escritas". El cuerpo de la fase E ya incorpora E0.3; no hay diferencia que dirimir.
+- Cambios exactos contra el diff, comparados por script (bloques dictados sin la sangría de 5 espacios frente a
+  `git show 2bf29e5:<archivo>`): `app/cli/bootstrap_superadmin.py` (l. 866-979, 4442 bytes) `IDENTICAL`;
+  `tests/test_bootstrap_superadmin_command.py` (l. 983-1190, 7279 bytes) `IDENTICAL`; `app/cli/__init__.py` igual a la
+  línea dictada más `\n`. `pyproject.toml`: exactamente los dos cambios del punto 2 (`name = "Capas: api | cli -> ..."` y
+  `"app.api | app.cli",`). Los tres `.py` en UTF-8 sin BOM y sin `\r`.
+- Hook de ruff no disparado (handoff, "Cómo se escribió"): sobre una copia `git archive 2bf29e5` se aplicó lo mismo que
+  `.claude/hooks/ruff_on_edit.py` (`ruff format <f>` + `ruff check --fix <f>`) a los tres `.py` → `3 files left
+  unchanged` · `All checks passed!`, y `cmp` contra los blobs de `2bf29e5` → idénticos los tres. No es hallazgo.
+- Archivos tocados en el repo: `ruff check` (los tres `.py` y `pyproject.toml`) → `All checks passed!`; `mypy` (los tres)
+  → `Success: no issues found in 3 source files`.
+- Compuerta re-ejecutada (`./venv/Scripts/python.exe scripts/check.py`) → exit 0: `67 files already formatted` ·
+  `All checks passed!` · `Success: no issues found in 62 source files` ·
+  `Capas: api | cli -> services -> repositories -> models KEPT` · `Contracts: 4 kept, 0 broken.` · docs coherente ·
+  `675 passed, 8 warnings` · `TOTAL 1031 17 148 14 97.37%`. `coverage report --include='app/cli/*'` con los datos de esa
+  corrida → `TOTAL 43 0 8 0 100.00%` (`1 empty file skipped`, el `__init__.py`). Igual a la fila E del plan y a lo que
+  pegó el ejecutor. Frente a la línea base de `verificacion.md` (638 · 96,82 % · 61 · 56 · 4 kept) y a la fase D (667 ·
+  97,07 %): +8 tests, la cobertura sube, 0 errores de ruff y mypy.
+- Mutantes repetidos por el auditor (directorios nuevos `scratchpad/auditE/mut_*`, `git archive 2bf29e5`, comando común
+  del plan, sin `test_check*`; cada edición exige una sola aparición del original y se comprobó con `git diff --no-index`):
+  - copia limpia: `386 passed, 8 warnings` (= columna "Suite de la copia" de la fila E);
+  - ME1 (borrar las dos líneas de `superadmin_{field}`): `2 failed, 384 passed` — `…naming_only_the_variable[weak-password]`
+    y `[short-cedula]` (= tabla);
+  - ME2 (`return 1` → `return 0` en la rama de `AlreadyExistsError`, l. 104; `diff` contra el blob: solo `104c104`):
+    `1 failed, 385 passed` — `test_command_fails_when_the_email_belongs_to_another_account` (= tabla). Confirma la
+    repetición que declaró el ejecutor tras su ancla fallida;
+  - ME3 (añadir `{credentials.password}` al `print` de éxito): `3 failed, 383 passed` — `…creates_the_superadmin_without_writing_secrets`,
+    `…second_run_exits_zero_and_writes_nothing`, `…runs_without_the_web_app_secrets` (= tabla);
+  - ME4 (`echo=True` en el motor del comando): `1 failed, 385 passed` — `…creates_the_superadmin_without_writing_secrets` (= tabla);
+  - ME5 (`sys.exit(main())` → `main()`): `1 failed, 385 passed` — `…runs_as_a_module_and_exits_with_the_code_of_main` (= tabla);
+  - ME6 (`import app.core.email  # noqa: F401` en el núcleo): `1 failed, 385 passed` — solo
+    `test_command_runs_without_the_web_app_secrets` (= tabla);
+  - MK1 (`import app.cli  # noqa: F401` antes del primer `from app.` del núcleo), entry point de import-linter en la copia
+    → exit 1, `Capas: api | cli -> ... BROKEN`, `Contracts: 3 kept, 1 broken.`,
+    `app.services.superadmin_bootstrap -> app.cli (l.8)` (= tabla).
+- ADR-0015 y ADR-0013: el comando lee la configuración solo con `SuperadminBootstrapSettings()` de `app/core/config.py`;
+  `git grep -E 'getenv|load_dotenv|os\.environ|fastapi|starlette|get_settings|commit\(' -- app/cli` → vacío. No construye
+  `Settings` (lo prueba el test del proceso hijo, y ME6 lo demuestra). Motor propio sin `echo`, con `dispose()` en
+  `finally`. No imprime ningún secreto: la contraseña sale de `SecretStr` solo para `UserCreateByAdmin`; los errores van
+  como `VARIABLE: tipo` con `errors(include_input=False, include_url=False)`; `UserCreateByAdmin` no tiene
+  `model_validator`, así que todo `loc` tiene al menos un elemento y `_report` no puede caer en `IndexError`. El éxito
+  imprime el correo (no es secreto; lo dicta el plan). R8 (`IntegrityError` con parámetros si dos operadores corren el
+  comando a la vez) sigue declarado, sin arreglo.
+- AGENTS §3 y §4: `app.cli` es un adaptador hermano de `app.api` en el contrato; no hay excepción de dominio nueva
+  (`AlreadyExistsError` ya está registrada); identificadores, docstrings y comentarios en inglés; los textos en español
+  son salida para el operador (§4 c). Fuera de alcance respetado: `Dockerfile`, `cd-pipeline.yml`, `app/db/database.py` y
+  `AGENTS.md` sin cambios.
+- AGENTS §5 y `test-sanitizer`: sin mocks (comando real sobre una base de archivo propia); aserciones sobre código de
+  salida, filas (cédula, rol, `is_active`), hash verificado con `verify_password`, conteos de `users` y `audit_logs`, y
+  ausencia de contraseña y hash en stdout, stderr y `caplog`; la única igualdad de texto es `VARIABLE: tipo`
+  (identificadores) o la cadena vacía; nada en español en las aserciones. Categorías: 1 camino feliz; fallo: correo tomado
+  y 3 configuraciones inválidas; borde: segunda corrida, `python -m` y proceso hijo sin secretos. La fábrica: ver el
+  opcional.
+- Verificación final, pasos 1-8 (los que valen tras E; F y G siguen `pending`, así que no es la última fase):
+  1. `git grep ... 'seed|create_superuser|create_superadmin'` → sin salida, exit 1.
+  2. Patrón 2 → las 8 líneas exactas (`.env.example:6` · `app/cli/bootstrap_superadmin.py:19` · `app/core/config.py:12` ·
+     `app/repositories/user_repository.py:1` · `app/services/superadmin_bootstrap.py:3` ·
+     `tests/test_bootstrap_superadmin_command.py:16` · `tests/test_config.py:41` · `tests/test_superadmin_bootstrap.py:11`),
+     109 en total.
+  3. Patrón 3 → 4 líneas: `app/cli/bootstrap_superadmin.py:90`, `app/services/superadmin_bootstrap.py:60`,
+     `app/services/user_service.py:88` y `:412`.
+  4. Patrón 4 → `dependencies.py:199`, `routers/user.py:35`, `user_access_policy.py:67` y `:72`.
+  5. `TEST_ENVIRONMENT` → 1 línea, `tests/test_config.py:243`.
+  6. `git diff --stat 4f10660 -- <lo que no se toca>` → vacío.
+  7. `git diff --name-only 4f10660 -- app tests pyproject.toml .env.example docs/adr` → 12 archivos, los de la Regla de
+     alcance.
+  8. `15 6`.
+  (El paso 9 es la compuerta de arriba.)
