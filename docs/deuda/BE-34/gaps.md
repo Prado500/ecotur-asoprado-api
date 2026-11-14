@@ -333,3 +333,85 @@ Evidencia de la auditoría (contexto fresco, `handoff-auditor`, HEAD `2570c03`, 
 - Fuera de alcance respetado: el código de G, ADR-0015, `AGENTS.md`, `docs/CONTEXT.md` y `docs/backlog.md` no aparecen en
   el diff. Nada de la fase H (E4).
 - No es la última fase (G pendiente; H por escribir): la "Verificación final" del plan no aplica todavía.
+
+## Auditoría Fase G — 2026-11-14
+**Veredicto Fase G: PASS (0 bloqueantes, 0 opcionales).**
+
+Sin hallazgos.
+
+Evidencia de la auditoría (contexto fresco, `handoff-auditor`, HEAD `bf4ae56`, rama `item/be-34`):
+
+- Árbol: `git status --short` vacío antes de la auditoría (después solo cambia este `gaps.md`).
+- Commit de la fase: `9c9edd2` existe, `parent 06c8929acb4dac7e5001397f1fdac9a004797e1f` (`git cat-file commit`).
+  `git diff --name-only 06c8929 9c9edd2` → los 5 archivos de G y nada más; ninguno de A–E.
+  `git show --numstat --format= 9c9edd2` → `35 0` migración · `4 1 app/models/user.py` · `10 4 app/schemas/user.py` ·
+  `299 0 tests/test_email_case.py` · `0 2 tests/test_user_response.py` (= criterio de aceptación).
+- Mensaje, byte a byte: cuerpo de `git cat-file commit 9c9edd2` frente a l. 1882-1905 de `plan.md` sin la sangría de dos
+  espacios → `diff` vacío (incluye el trailer `Co-Authored-By`).
+- Código, byte a byte (copias en el scratchpad de la auditoría):
+  - Migración: l. 1513-1547 del plan sin los 5 espacios de sangría (0 líneas no vacías sin ella) frente a
+    `git show 9c9edd2:alembic/versions/b51f3c9e2a64_users_email_stored_in_lowercase.py` → `cmp` idéntico, 35 líneas,
+    0 `\r`.
+  - `tests/test_email_case.py`: l. 1553-1851 → `cmp` idéntico, 299 líneas, 0 `\r`.
+  - `app/schemas/user.py`, `app/models/user.py` y `tests/test_user_response.py`: reconstruidos aplicando a la versión de
+    `06c8929` cada sustitución dictada (cada ancla aparece una sola vez) → iguales a los de `9c9edd2` (`True` ×3), LF.
+- Hook simulado sobre copias de los cuatro `.py` fuera de `alembic/`: `ruff format` → `4 files left unchanged`;
+  `ruff check --fix` → `All checks passed!`; `cmp` con el original → idénticos los cuatro. En el repo,
+  `ruff check` / `ruff format --check` / `mypy` de esos cuatro → `All checks passed!` · `4 files already formatted` ·
+  `Success: no issues found in 4 source files`.
+- Migración fuera de ruff y mypy, igual que las existentes: `pyproject.toml:61` `extend-exclude = ["alembic/versions", …]`
+  y `[tool.mypy] files = ["app", "scripts/check_docs.py", "scripts/check.py", "tests"]` (`:90`). `ruff check
+  --force-exclude` sobre ella → sin archivos. Forzada junto a `2cc4b57c136c`, las dos dan los avisos de la plantilla
+  `script.py.mako` (`UP007`, `UP035`, `I001`; `E501` solo en la existente). El estilo es el que dicta el plan.
+- Compuerta re-ejecutada (`./venv/Scripts/python.exe scripts/check.py`) → exit 0: `68 files already formatted` ·
+  `All checks passed!` · `Success: no issues found in 63 source files` · `Contracts: 4 kept, 0 broken.` ·
+  `691 passed, 8 warnings` · `TOTAL 1034 15 148 13 97.63%` · `Compuerta superada.` = fila G y = handoff. Frente a la
+  línea base (638 · 96,82 % · 61 · 56 · 4 kept) y a F (675 · 97,37 %): sin retroceso. Los 8 warnings son los mismos
+  `StarletteDeprecationWarning` de siempre (`test_route_guards` ×3, `test_services` ×3, `test_user_response` ×2);
+  ninguno de `test_email_case.py`, que con `-W error` da `17 passed`.
+- Mutantes (directorio nuevo por copia, `git archive HEAD`, comando común sin `test_check*`): limpia `402 passed`;
+  MG1 `11 failed, 391 passed`; MG2 `5 failed, 397 passed`; MG3 `3 failed, 399 passed`; MG4 `3 failed, 399 passed`; MG5
+  `1 failed, 399 passed, 2 errors` (errores en `pre_migration_db`: `ValueError: No such constraint:
+  'ck_users_email_lowercase'`); MG6 `1 failed, 401 passed` (`test_migration_stops_on_an_email_with_an_uppercase_letter`);
+  MG7 `2 failed, 400 passed` (los dos de la migración); MG8 `1 failed, 401 passed` (solo
+  `test_verification_token_in_another_case_is_rejected`). Las ocho cifras = tabla del plan; los `FAILED` = handoff.
+- Base de la suite sin restos: sonda en una copia aparte, un test que corre tras `tests/test_email_case.py` y lista las
+  tablas de `engine_test` → `TABLES []`, sin `_alembic_tmp_users` (`18 passed`). `pre_migration_db` usa
+  `create_engine("sqlite://")` propio y lo cierra con `engine.dispose()`.
+- AGENTS §5 / test-sanitizer / ADR-0011: usuarios por `persist_user`/`make_user` (en la base propia, `_add` con
+  `make_user`); único doble, `mock_send_email` (`autospec=True`, `tests/conftest.py:156`), afirmado con
+  `assert_called_once_with(...)` y `assert_not_called()`; aserciones sobre código HTTP, claves `{"detail"}`, filas,
+  claims del JWT y restricción por nombre (`match=CHECK_NAME`); ningún texto humano en español (`ÁNGEL@Test.com` es un
+  dato). Commit antes: todo lo previo va por `persist_user`. Refresh después: `refresh(user)`/`refresh(tourist)` antes de
+  leer atributos; `_emails` lee columnas con un `select` nuevo, no instancias del mapa de identidad.
+- AGENTS §3: `CheckConstraint` con nombre explícito y texto SQL (`app/models/user.py:38`); DDL compilado para PostgreSQL y
+  SQLite → `CONSTRAINT ck_users_email_lowercase CHECK (email = lower(email))`; ningún `naming_convention` en `Base` lo
+  altera. No hay columnas nuevas (S1 no cambia). Un solo punto de normalización: `git grep LowercaseEmail -- app` → 4
+  líneas en `app/schemas/user.py`; ningún `field_validator` de correo ni `.lower()` nuevo (D5 no crece). A9:
+  `UserResponse(BaseModel)` sigue con `email: str` (`app/schemas/user.py:147`) y `app/schemas/token.py:22` con
+  `email: str`; ningún DTO de salida usa `LowercaseEmail` ni hereda de `UserBase` (los `response_model` de
+  `app/api/routers/user.py` son `UserResponse` y `TokenResponse`). Correcto: la salida devuelve lo guardado tal cual. La
+  migración tiene `upgrade` y `downgrade`, ambos con `batch_alter_table`.
+- Verificación final, pasos 10-18 (repetidos): 10 sin salida, exit 1 · 11 `user_repository.py:18`, `:44`, `:56` · 12
+  `:22`, `:39`, `:134`, `:166` · 13 migración `:2`, `app/models/user.py:1`, `app/schemas/user.py:1`,
+  `tests/test_email_case.py:2` · 14 `b51f3c9e2a64 (head)` · 15 `ALTER TABLE users ADD CONSTRAINT
+  ck_users_email_lowercase CHECK (email = lower(email));` entre `BEGIN;`/`COMMIT;` (downgrade: `ALTER TABLE users DROP
+  CONSTRAINT ck_users_email_lowercase;`) · 16 desde `2bf29e5` → 6 archivos (ADR-0016 y los 5 de G) · 17 9 líneas, 114
+  coincidencias (las 8 del paso 2 más `tests/test_email_case.py:5`) · 18 la compuerta de arriba. También 1 (exit 1), 3
+  (4 líneas), 4 (las 4 de la base), 5 (1 línea), 6 tras G (solo los 3 archivos que el plan anuncia,
+  `49 insertions(+), 5 deletions(-)`), 7 tras G (17 archivos) y 8 (`15 6`): todos = plan. Paso 19 (David, PostgreSQL
+  local, antes de `/pr`): no lo ejecuta la auditoría; pendiente.
+- `progress.json` (diff de `bf4ae56`): `Fase_G` `pending`/`null` → `completed`/`"9c9edd2"` (hash real); `last_handoff`
+  reescrito; `current_target` `Fase_G` → `Fase_H`. Descripciones, fases A–F, `allowed_statuses` y `edit_rules` intactos;
+  JSON válido, 0 `\r`. `Fase_H` aún no es clave de `phases`, y no es hallazgo: `edit_rules` da `current_target` a la
+  sesión que ejecuta; `fase-ejecutor` (paso 4) lo manda a la "siguiente fase", y E4 fija que la siguiente es H; E4.6 hace
+  que el planificador añada `Fase_H` (`pending`) "sin tocar `current_target`", así que el valor queda bien en cuanto
+  exista la clave. `null` sería falso: `check_docs --estado` leería el ítem como "ejecutado (todas las fases)" con H
+  pendiente; hoy dice `en ejecución (objetivo: Fase_H)`, y es cierto. `/implementar BE-34 H` no puede arrancar antes de E5.
+- Verificación final completa: cumplida para A–G (pasos 1-18), salvo el paso 19, que es de David. Lo que depende de H
+  queda abierto: el paso nuevo que dicte H (ningún usuario hecho a mano en `tests/test_bootstrap_superadmin_command.py`),
+  la fila H de la compuerta y volver a contar los pasos 2/17 y 7, porque H vuelve a tocar ese archivo, que el patrón 2
+  cuenta (16 coincidencias hoy).
+- Fuera de alcance respetado: `app/repositories/`, `app/services/`, `tests/test_models_schema.py`,
+  `tests/test_user_repository.py`, `tests/test_bootstrap_superadmin_command.py` (E4/H) y los demás archivos de A–E no
+  aparecen en el diff.
