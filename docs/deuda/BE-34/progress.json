@@ -1,6 +1,6 @@
 {
   "plan_file": "docs/deuda/BE-34/plan.md",
-  "current_target": "Fase_F",
+  "current_target": "Fase_G",
   "phases": {
     "Fase_A": {
       "status": "completed",
@@ -28,8 +28,8 @@
       "description": "Comando app/cli/bootstrap_superadmin.py (motor propio sin echo, errores sin valores, exit 0/1), app.cli en el contrato de capas; 8 tests, uno en proceso hijo con los secretos de la web app vacíos (E0.3, mutante ME6)."
     },
     "Fase_F": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "4eba2d2",
       "description": "BE-51 (E1, E2): ADR-0016, todo correo se guarda en minúsculas (LowercaseEmail en los schemas, CHECK ck_users_email_lowercase en la base, unicidad por ix_users_email, sin migración de datos). No se ejecuta sin E3."
     },
     "Fase_G": {
@@ -39,6 +39,6 @@
     }
   },
   "allowed_statuses": ["pending", "partial", "completed"],
-  "last_handoff": "Fase E (2bf29e5): app.cli.bootstrap_superadmin y app.cli en el contrato de capas; numstat 1 0 / 114 0 / 2 2 / 208 0; compuerta exit 0, 675 passed, 97.37 % (1031), cli al 100 %; copia 386 passed; ME1-ME6 = tabla (2, 1, 3, 1, 1, 1 failed); MK1 3 kept, 1 broken.",
+  "last_handoff": "Fase F (4eba2d2): ADR-0016 con el texto dictado y fecha 14 nov 2026 (E3); numstat 87 0; compuerta exit 0, 675 passed, 97.37 % (1031), 67 files, 62 source files, 4 kept; copia 386 passed.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
