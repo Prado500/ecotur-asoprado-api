@@ -10,12 +10,13 @@ import os
 import runpy
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 import pytest
-from sqlalchemy import func, insert, select
-from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 from app.cli.bootstrap_superadmin import main
 from app.core.security import verify_password
@@ -60,6 +61,19 @@ async def _execute(url: str, statement: Any) -> list[Any]:
         rows = list(result.all()) if result.returns_rows else []
     await engine.dispose()
     return rows
+
+
+async def _add(url: str, user: User) -> None:
+    """Commits user to the database at url, in a session over an engine of its own.
+
+    Not persist_user: it writes to the suite's in-memory database, and the command reads the
+    file database at url.
+    """
+    engine = create_async_engine(url)
+    async with AsyncSession(engine) as session:
+        session.add(user)
+        await session.commit()
+    await engine.dispose()
 
 
 def _count(url: str, model: type[User] | type[AuditLog]) -> int:
@@ -112,24 +126,10 @@ def test_command_second_run_exits_zero_and_writes_nothing(
 
 
 def test_command_fails_when_the_email_belongs_to_another_account(
-    database_url: str, capsys: pytest.CaptureFixture[str]
+    database_url: str, make_user: Callable[..., User], capsys: pytest.CaptureFixture[str]
 ) -> None:
     """Unhappy path: exit 1 with nothing written; the tourist keeps its role."""
-    asyncio.run(
-        _execute(
-            database_url,
-            insert(User).values(
-                cedula="2000000002",
-                email="root@test.com",
-                password_hash="hash",
-                first_name="Luis",
-                last_name="Rojas",
-                role=UserRole.tourist,
-                data_consent=True,
-                is_active=True,
-            ),
-        )
-    )
+    asyncio.run(_add(database_url, make_user(cedula="2000000002", email="root@test.com")))
 
     assert main() == 1
 
