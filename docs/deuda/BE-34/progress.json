@@ -1,6 +1,6 @@
 {
   "plan_file": "docs/deuda/BE-34/plan.md",
-  "current_target": "Fase_E",
+  "current_target": "Fase_F",
   "phases": {
     "Fase_A": {
       "status": "completed",
@@ -23,8 +23,8 @@
       "description": "UserRepository.count_active_superadmins y núcleo bootstrap_superadmin (idempotente, sin promover cuentas, auditado con source=bootstrap); 17 tests."
     },
     "Fase_E": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "2bf29e5",
       "description": "Comando app/cli/bootstrap_superadmin.py (motor propio sin echo, errores sin valores, exit 0/1), app.cli en el contrato de capas; 8 tests, uno en proceso hijo con los secretos de la web app vacíos (E0.3, mutante ME6)."
     },
     "Fase_F": {
@@ -39,6 +39,6 @@
     }
   },
   "allowed_statuses": ["pending", "partial", "completed"],
-  "last_handoff": "Fase D (e9d010c): count_active_superadmins y bootstrap_superadmin; numstat 22 1 / 74 0 / 159 0 / 41 0; compuerta exit 0, 667 passed, 97.07 % (988); copia 378 passed; MD1-MD7 = tabla (2, 1, 3, 2, 6, 1, 1 failed).",
+  "last_handoff": "Fase E (2bf29e5): app.cli.bootstrap_superadmin y app.cli en el contrato de capas; numstat 1 0 / 114 0 / 2 2 / 208 0; compuerta exit 0, 675 passed, 97.37 % (1031), cli al 100 %; copia 386 passed; ME1-ME6 = tabla (2, 1, 3, 1, 1, 1 failed); MK1 3 kept, 1 broken.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
