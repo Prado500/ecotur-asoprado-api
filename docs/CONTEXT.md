@@ -359,15 +359,15 @@ solo commits de documentos sobre `4f10660`, y la compuerta sigue en
 **638 tests · 96,82 % · ruff 0 · mypy 0 · 4 kept** `(PLAN §6)`. Ruta sin cambios:
 **`B-GHOST-ADMIN` → puesta en `staging` → `B-RESERVAS`** `(PLAN §3)`.
 
-0. **Estado a media mañana del 14 nov `(bitácora 2026-11-14)`:** la sesión Mentor revisó las fases E, F y G contra el código, sin
-   correcciones de dictado, y David respondió las siete decisiones con **E2** (`docs/deuda/BE-34/plan.md`): las fases A–E quedan
-   aprobadas como están y **el mecanismo de BE-51 cambia** `(backlog BE-51)`: todo correo se guarda en minúsculas, normalizado al
-   entrar por los schemas, y la base lo garantiza con una restricción `CHECK`. `plan-redactor` reescribe F y G antes de ejecutar
-   ninguna fase. **Pendiente, en este orden:** (a) la sesión Mentor contrasta contra el código las fases F y G reescritas; (b) David
-   las aprueba (**E3**), también en la sesión de Claude Code; (c) antes de `/pr`, David corre `alembic upgrade head` y
-   `alembic check` contra su PostgreSQL local, con la salida en la bitácora (ADR-0010, punto 7; E2); (d) confirmar o corregir el
-   re-fechado de `(PLAN §3)` escrito por el Mentor el 13 nov: David no lo ha decidido y lo deja para el cierre. Menor: el aviso
-   del build del CI de PR #94 sigue sin leerse.
+0. **Estado del 14 nov a las 11:00 `(bitácora 2026-11-14)`: el plan de BE-34 está aprobado entero, siete fases, sin ejecutar.** E2
+   cambió el mecanismo de BE-51 `(backlog BE-51)`: todo correo se guarda en minúsculas, normalizado al entrar por los schemas, y
+   la base lo garantiza con una restricción `CHECK`; `plan-redactor` reescribió F y G y David las aprobó con **E3**
+   (`docs/deuda/BE-34/plan.md`). ADR-0016 se aparta a sabiendas de la guía de OWASP sobre correos y lo declara `(backlog BE-53)`.
+   **Pendiente, en este orden:** (a) aprobar también en la sesión de Claude Code, remitiendo al encabezado y a E0–E3; (b)
+   `/implementar BE-34 A` … `G`; (c) antes de `/pr`, David corre el paso 19 de la Verificación final del plan contra su
+   PostgreSQL local (`alembic upgrade head`, `alembic check` y la consulta a `pg_constraint`), con la salida en la bitácora
+   (ADR-0010, punto 7); (d) confirmar o corregir el re-fechado de `(PLAN §3)` escrito por el Mentor el 13 nov: David lo deja
+   para el cierre. Menor: el aviso del build del CI de PR #94 sigue sin leerse.
 1. **`B-GHOST-ADMIN`** (BE-34..BE-38, BE-47 y BE-51) `(PLAN §3)`: `/implementar BE-34 A` … `G`, cada una con su `/auditar`; la
    fase G no se ejecuta si la consulta de correos con mayúsculas deja de dar 0 (E2 del plan). Antes de `/pr`: la línea de AGENTS §3 sobre los
    comandos de operador en `app/cli/` (residual R1 del plan; texto del Mentor, commit de David). Al cerrar el ítem: filas
