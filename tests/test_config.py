@@ -6,6 +6,7 @@ Each test builds its environment with monkeypatch only and reads it with
 passes its own file.
 """
 
+import runpy
 from collections.abc import Callable
 from pathlib import Path
 
@@ -45,6 +46,7 @@ OPTIONAL_DEFAULTS = {
 ALL_FIELDS = (*REQUIRED, *OPTIONAL_DEFAULTS)
 
 ENV_EXAMPLE = Path(__file__).resolve().parents[1] / ".env.example"
+ROOT_CONFTEST = Path(__file__).resolve().parents[1] / "conftest.py"
 
 VALID_REQUIRED = {
     "database_url": "sqlite+aiosqlite:///:memory:",
@@ -217,3 +219,10 @@ def test_env_example_is_a_valid_configuration(monkeypatch: pytest.MonkeyPatch) -
 def test_env_example_documents_every_setting() -> None:
     """Edge case: every Settings field has its upper-case key in .env.example."""
     assert {n.upper() for n in Settings.model_fields} <= set(dotenv_values(ENV_EXAMPLE))
+
+
+def test_test_environment_fixes_every_setting() -> None:
+    """Edge case: the root conftest.py gives every Settings field a test value (ADR-0013, 6)."""
+    test_environment = runpy.run_path(str(ROOT_CONFTEST))["TEST_ENVIRONMENT"]
+
+    assert {n.upper() for n in Settings.model_fields} <= set(test_environment)
