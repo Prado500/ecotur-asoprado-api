@@ -1,10 +1,10 @@
 {
   "plan_file": "docs/deuda/BE-34/plan.md",
-  "current_target": "Fase_A",
+  "current_target": "Fase_B",
   "phases": {
     "Fase_A": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "d873b49",
       "description": "BE-47: test que exige una clave de TEST_ENVIRONMENT por cada campo de Settings (runpy sobre el conftest.py de la raíz); RED por el mutante MA."
     },
     "Fase_B": {
@@ -39,6 +39,6 @@
     }
   },
   "allowed_statuses": ["pending", "partial", "completed"],
-  "last_handoff": "Estado inicial.",
+  "last_handoff": "Fase A (d873b49): test_test_environment_fixes_every_setting en tests/test_config.py; MA 1 failed, 349 passed; compuerta exit 0, 639 passed, 96.82 %.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
