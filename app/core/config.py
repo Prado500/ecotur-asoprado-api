@@ -9,7 +9,7 @@ HTTP layer injects them with ``Depends(get_settings)``; code with no request cal
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Repository-root .env, located by this file and not by the working directory. Optional:
@@ -71,6 +71,29 @@ class Settings(DatabaseSettings):
             str: The address the verification email is sent from.
         """
         return self.mail_from or self.mail_username
+
+
+class SuperadminBootstrapSettings(DatabaseSettings):
+    """Credentials of the first superadmin, read only by the bootstrap command (ADR-0015).
+
+    A sibling of Settings, not a part of it: the web app never asks for nor keeps the
+    superadmin password, and the command runs with the database URL and these five variables
+    alone, as the migrations do. This class only reads them: the account rules (cedula, names,
+    password strength) belong to UserCreateByAdmin and are not repeated here.
+
+    Attributes:
+        superadmin_cedula: Cedula of the account to create. Required.
+        superadmin_email: Email of the account to create. Required.
+        superadmin_first_name: First name(s). Required.
+        superadmin_last_name: Last name(s). Required.
+        superadmin_password: Initial password; SecretStr keeps it out of repr and logs. Required.
+    """
+
+    superadmin_cedula: str
+    superadmin_email: str
+    superadmin_first_name: str
+    superadmin_last_name: str
+    superadmin_password: SecretStr
 
 
 @lru_cache

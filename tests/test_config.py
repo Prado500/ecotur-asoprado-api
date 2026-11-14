@@ -18,9 +18,11 @@ from app.core.config import (
     ENV_FILE,
     DatabaseSettings,
     Settings,
+    SuperadminBootstrapSettings,
     get_database_settings,
     get_settings,
 )
+from app.schemas.user import UserCreateByAdmin, UserRole
 
 REQUIRED = (
     "database_url",
@@ -56,10 +58,25 @@ VALID_REQUIRED = {
     "azure_storage_connection_string": "UseDevelopmentStorage=true",
 }
 
+BOOTSTRAP_VALUES = {
+    "database_url": "sqlite+aiosqlite:///:memory:",
+    "superadmin_cedula": "900000001",
+    "superadmin_email": "root@test.com",
+    "superadmin_first_name": "Ana",
+    "superadmin_last_name": "Diaz",
+    "superadmin_password": "Bootstrap-sentinel-1",
+}
+
 
 def _set_required(monkeypatch: pytest.MonkeyPatch) -> None:
     """Gives every required setting a valid value in the process environment."""
     for name, value in VALID_REQUIRED.items():
+        monkeypatch.setenv(name.upper(), value)
+
+
+def _set_bootstrap(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Gives every bootstrap credential, and the database URL, a valid value."""
+    for name, value in BOOTSTRAP_VALUES.items():
         monkeypatch.setenv(name.upper(), value)
 
 
@@ -226,3 +243,79 @@ def test_test_environment_fixes_every_setting() -> None:
     test_environment = runpy.run_path(str(ROOT_CONFTEST))["TEST_ENVIRONMENT"]
 
     assert {n.upper() for n in Settings.model_fields} <= set(test_environment)
+
+
+@pytest.mark.parametrize("field", tuple(BOOTSTRAP_VALUES))
+def test_missing_bootstrap_variable_fails_naming_it(
+    monkeypatch: pytest.MonkeyPatch, field: str
+) -> None:
+    """Unhappy path: the bootstrap command needs every credential; a missing one is named."""
+    _set_bootstrap(monkeypatch)
+    monkeypatch.delenv(field.upper())
+
+    with pytest.raises(ValidationError) as exc_info:
+        SuperadminBootstrapSettings(_env_file=None)
+
+    assert [(e["type"], e["loc"]) for e in exc_info.value.errors()] == [("missing", (field,))]
+
+
+def test_bootstrap_settings_need_no_web_app_secret(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Happy path: the command runs without the JWT, mail and storage secrets of the web app."""
+    _clear(monkeypatch, REQUIRED)
+    _set_bootstrap(monkeypatch)
+
+    settings = SuperadminBootstrapSettings(_env_file=None)
+
+    assert set(SuperadminBootstrapSettings.model_fields) == set(BOOTSTRAP_VALUES)
+    assert settings.superadmin_cedula == "900000001"
+    assert settings.superadmin_password.get_secret_value() == "Bootstrap-sentinel-1"
+
+
+def test_bootstrap_password_never_shows_in_repr(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Edge case: printing or logging the settings object never reveals the password."""
+    _set_bootstrap(monkeypatch)
+
+    settings = SuperadminBootstrapSettings(_env_file=None)
+
+    assert "Bootstrap-sentinel-1" not in repr(settings)
+    assert "Bootstrap-sentinel-1" not in str(settings.model_dump())
+
+
+def test_bootstrap_validation_errors_do_not_echo_values(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Unhappy path: a missing credential fails without printing the password already read."""
+    _set_bootstrap(monkeypatch)
+    monkeypatch.delenv("SUPERADMIN_EMAIL")
+
+    with pytest.raises(ValidationError) as exc_info:
+        SuperadminBootstrapSettings(_env_file=None)
+
+    assert "Bootstrap-sentinel-1" not in str(exc_info.value)
+
+
+def test_env_example_documents_every_bootstrap_variable() -> None:
+    """Edge case: every SuperadminBootstrapSettings field has its upper-case key in .env.example."""
+    assert {n.upper() for n in SuperadminBootstrapSettings.model_fields} <= set(
+        dotenv_values(ENV_EXAMPLE)
+    )
+
+
+def test_env_example_password_is_not_a_usable_credential(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Edge case: the example password, copied as is, fails the account rules (ADR-0015)."""
+    _clear(monkeypatch, tuple(BOOTSTRAP_VALUES))
+    settings = SuperadminBootstrapSettings(_env_file=ENV_EXAMPLE)
+
+    with pytest.raises(ValidationError) as exc_info:
+        UserCreateByAdmin(
+            cedula=settings.superadmin_cedula,
+            email=settings.superadmin_email,
+            first_name=settings.superadmin_first_name,
+            last_name=settings.superadmin_last_name,
+            password=settings.superadmin_password.get_secret_value(),
+            data_consent=True,
+            role=UserRole.superadmin,
+            is_active=True,
+        )
+
+    assert [(e["type"], e["loc"]) for e in exc_info.value.errors()] == [
+        ("value_error", ("password",))
+    ]
