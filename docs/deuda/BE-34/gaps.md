@@ -125,3 +125,68 @@ Evidencia de la auditoría (contexto fresco, `handoff-auditor`, HEAD `9c0eae7`, 
   (`Nombre`/`Apellido` de `.env.example` son datos, no aserciones); nombres y docstrings en inglés, cada docstring con su
   categoría (1 camino feliz; 2 de fallo, 6 + 1 casos; 3 de borde); anotados.
 - No es la última fase: la "Verificación final" del plan no aplica todavía.
+
+## Auditoría Fase D — 2026-11-14
+**Veredicto Fase D: PASS (0 bloqueantes, 0 opcionales).**
+
+Evidencia de la auditoría (contexto fresco, `handoff-auditor`, HEAD `c1cefc0`, rama `item/be-34`):
+
+- Árbol: `git status --short` vacío antes de la auditoría (después solo cambia este `gaps.md`).
+- Commit de la fase: `e9d010c` existe, su padre es `a5cd7b5`; `git diff --name-only a5cd7b5 e9d010c` → solo los cuatro
+  archivos de la fase. `git show --numstat --format= e9d010c` → `22 1 app/repositories/user_repository.py` ·
+  `74 0 app/services/superadmin_bootstrap.py` · `159 0 tests/test_superadmin_bootstrap.py` ·
+  `41 0 tests/test_user_repository.py` (= criterio de aceptación). El mensaje coincide byte a byte con el bloque "Commit"
+  de la fase D (l. 831-850 de `plan.md` sin sangría, `diff` vacío), trailer incluido.
+- Segundo commit `c1cefc0` (`docs(progress): record BE-34 Fase_D completion`): solo `handoff-Fase_D.md` y `progress.json`.
+- `progress.json` (diff de `c1cefc0`): `Fase_D` `completed`, `commit: "e9d010c"` (hash real); `current_target`
+  `Fase_D` → `Fase_E`; `last_handoff` presente; `edit_rules` y `allowed_statuses` intactos; E, F y G sin tocar. JSON válido
+  (`python -m json.tool`).
+- Enmiendas: E0 aprueba A–D "como están escritas" (y acepta `"source": "bootstrap"`, E0.2); E2/E3 tocan F y G. Rige el
+  cuerpo de la fase D.
+- Cambios exactos contra el diff, comparados por script (bloques dictados sin la sangría de 5 espacios frente a
+  `git show e9d010c:<archivo>`): `app/services/superadmin_bootstrap.py` (l. 535-608) `IDENTICAL`;
+  `tests/test_user_repository.py` (l. 612-652) `IDENTICAL`; `tests/test_superadmin_bootstrap.py` (l. 657-815)
+  `IDENTICAL`; el método `count_active_superadmins` (l. 513-531) está contenido literalmente en `user_repository.py`, entre
+  `get_user_by_email_or_cedula` y `get_non_deleted_user_by_email`; `from sqlalchemy import func` antes de
+  `from sqlalchemy.ext.asyncio import AsyncSession` y `from app.models.user import User, UserRole`. Nada más cambia.
+- Codificación: los cuatro blobs de `e9d010c` en UTF-8 sin BOM, 0 bytes `\r`, `\n` final (medido en Python).
+- Fuera de alcance respetado: `git diff --stat a5cd7b5 e9d010c -- conftest.py tests/conftest.py alembic app/api app/main.py
+  pyproject.toml app/core app/models app/schemas app/services/user_service.py app/services/user_access_policy.py` → vacío.
+  `create_user` y su `commit()` (A3) sin cambios.
+- Compuerta re-ejecutada (`./venv/Scripts/python.exe scripts/check.py`) → exit 0: `64 files already formatted` ·
+  `All checks passed!` · `Success: no issues found in 59 source files` · `Contracts: 4 kept, 0 broken.` · docs coherente ·
+  `667 passed, 8 warnings` · `TOTAL 988 18 140 15 97.07%` (`superadmin_bootstrap.py` al 100 %, no aparece por
+  `skip_covered`; las líneas sin cubrir de `user_repository.py`, 61 y 80, son previas y ajenas al método nuevo). Igual a la
+  fila D del plan y a lo que pegó el ejecutor. Frente a la línea base de `verificacion.md` (638 · 96.82 % · 61 · 56 · 4
+  kept) y a la fase C (650 · 97.01 %): +17 tests, cobertura sube, 0 errores de ruff y mypy.
+- Archivos tocados: `ruff format --check` (los 4) → `4 files already formatted`; `ruff check` → `All checks passed!`;
+  `mypy` → `Success: no issues found in 4 source files`.
+- Hook de ruff no disparado (handoff, "Cómo se escribió"): sobre una copia `git archive e9d010c` se aplicó lo mismo que hace
+  `.claude/hooks/ruff_on_edit.py` (`ruff format <f>` + `ruff check --fix <f>`) a los cuatro archivos → `4 files left
+  unchanged` · `All checks passed!`, y `cmp` contra los blobs de `e9d010c` → idénticos los cuatro. El estado commiteado es
+  el que habría dejado el hook, y la compuerta cubre lo mismo (`ruff format --check` y `ruff check`). No es hallazgo.
+- Mutantes repetidos por el auditor (directorios nuevos `scratchpad/auditD/mut_*`, `git archive e9d010c`, comando común del
+  plan, sin `test_check*`; cada edición exige una sola aparición del original):
+  - copia limpia: `378 passed, 8 warnings` (= columna "Suite de la copia" de la fila D);
+  - MD1 (borrar `User.is_active.is_(True),`): `2 failed, 376 passed` — `test_bootstrap_creates_when_no_superadmin_can_sign_in[inactive]`,
+    `test_count_active_superadmins_skips_those_who_cannot_sign_in[inactive]` (= tabla);
+  - MD2 (borrar `User.deleted_at.is_(None),`): `1 failed, 377 passed` — `…skips_those_who_cannot_sign_in[deleted-but-active-flag]` (= tabla);
+  - MD3 (borrar `User.role == UserRole.superadmin,`): `3 failed, 375 passed` — `…never_takes_over_an_existing_account[active-tourist-cedula|email]`,
+    `test_count_active_superadmins_counts_each_active_one` (= tabla);
+  - MD4 (`> 0:` → `> 1:`): `2 failed, 376 passed` — `…writes_nothing_when_an_active_superadmin_exists`, `…second_run_writes_nothing` (= tabla);
+  - MD5 (`if existing_user:` → `if False:`): `6 failed, 372 passed` — los 6 casos de `…never_takes_over_an_existing_account` (= tabla);
+  - MD6 (`role=UserRole.superadmin,` → `role=credentials.role,`): `1 failed, 377 passed` — `…always_creates_an_active_superadmin` (= tabla);
+  - MD7 (`is_active=True,` → `is_active=credentials.is_active,`): `1 failed, 377 passed` — `…always_creates_an_active_superadmin` (= tabla).
+- AGENTS §3: `app/services/superadmin_bootstrap.py` no importa `fastapi` ni `starlette` (grep vacío) y no hace `commit()`;
+  el método nuevo del repositorio solo hace `execute` + `scalar_one` (sin `commit`). `AlreadyExistsError` ya existe
+  (`app/core/exceptions.py:67`) y está registrada (`app/main.py:124`, 400). Su texto en español es `detail` para el usuario
+  final (AGENTS §4 c). No hay excepción nueva.
+- AGENTS §5 y `test-sanitizer`: sin mocks (repositorios reales sobre la base de prueba); usuarios previos con la fábrica
+  `persist_user` (sin `User(` a mano en los tests); las credenciales del bootstrap son un DTO de entrada, no un usuario de
+  fábrica. Aserciones estrictas sobre filas, roles, banderas, `deleted_at`, hash verificable, conteos de `User` y `AuditLog`
+  y el `changes` de la auditoría; ninguna sobre texto en español (0 caracteres acentuados en los dos archivos de test).
+  ADR-0011: no hay petición HTTP (el núcleo se llama con `db_session`); `persist_user` confirma antes, y los objetos ya
+  cargados se releen con `refresh` después (`account` en la matriz de toma, `created` en el caso de rol/estado ignorados).
+  Categorías: 2 caminos felices; fallo: cuenta existente (6 casos), superadmin activo existente, inactivos/borrados no
+  cuentan (3); borde: base vacía, segunda corrida, superadmins que no pueden entrar (2), credenciales con rol/estado ajenos.
+- No es la última fase: la "Verificación final" del plan no aplica todavía.
