@@ -2,7 +2,7 @@
 
 > Fuente: `docs/deuda/BE-34/verificacion.md` (confirmada; adenda de ocho decisiones de David, 13 nov, 16:28).
 > Base: `4f10660` (HEAD de `item/be-34` = `5db7641`: `git diff --name-only 4f10660 5db7641 -- app tests alembic conftest.py
-> pyproject.toml .env.example` vacío). Estado: **aprobado por David, completo: fases A → E con E0 (13 nov 2026, 17:26) y E2 (14 nov 2026, 09:08); fases F y G (BE-51), reescritas por E2, con E3 (14 nov 2026, 10:54). Siete fases, A → G. Detalle en "Enmiendas aprobadas", al final.** Las cifras de este plan (tests,
+> pyproject.toml .env.example` vacío). Estado: **aprobado por David: fases A → E con E0 (13 nov 2026, 17:26) y E2 (14 nov 2026, 09:08), ejecutadas el 14 nov; fases F y G (BE-51), reescritas por E2, con E3 (14 nov 2026, 10:54). E4 (14 nov 2026, 12:22) añade una fase H, por escribir y aprobar (E5), para el opcional de la auditoría de E. Detalle en "Enmiendas aprobadas", al final.** Las cifras de este plan (tests,
 > cobertura, mutantes, `numstat` y conteos de grep) se midieron el 13 nov sobre copias desechables de `4f10660` en el
 > scratchpad, con el texto exacto que dicta el plan.
 
@@ -2317,6 +2317,40 @@ tres consultas quedan en `user_repository.py:18`, `:44` y `:56` tras D; el caso 
 7. **R13 recibe fila, BE-54, Baja, `Sale → B-FUTURO`**, fuera de BE-34.
 
 `progress.json`: sin cambios por E3 (`current_target: Fase_A`).
+
+### E4 — 14 nov 2026, 12:22 (David, sesión Mentor; regla del retoque)
+
+Texto literal de David: «ok, nos vamos por la fase H. deja anotado todo lo pertinente y avisame cuando este».
+
+**El opcional de la auditoría de la fase E se corrige dentro del ítem, con una fase nueva, H, después de G** (regla de
+David del 11 nov: un hallazgo sobre el propio artefacto del ítem se corrige en el ítem). Las fases A–E están ejecutadas
+y auditadas (PASS) y no se tocan; F y G, aprobadas por E3, no cambian y pueden ejecutarse antes de que H esté escrita.
+
+El hallazgo (`docs/deuda/BE-34/gaps.md`, auditoría de la fase E): `tests/test_bootstrap_superadmin_command.py`, en
+`test_command_fails_when_the_email_belongs_to_another_account`, crea el turista con `insert(User).values(…)` (l. 121 en
+`2bf29e5`) y no con la fábrica (AGENTS §5). Tiene causa: `persist_user` escribe en la base en memoria de la suite y el
+comando lee su propia base de archivo. Pero ni el plan ni el test lo explican, y la fase G de este mismo plan resuelve el
+mismo problema con la fábrica (`_add(connection, make_user(…))`). Medido por la sesión Mentor:
+`git grep -n -E 'insert\(|[^_a-zA-Z]User\(' -- tests/test_bootstrap_superadmin_command.py tests/test_superadmin_bootstrap.py
+tests/test_user_repository.py tests/test_config.py` da esa sola línea; no hay más usuarios hechos a mano en los tests de A–E.
+
+Qué debe cumplir la fase H (el cómo lo propone y lo mide el planificador, invocado con mensaje directo):
+
+1. **Un archivo:** `tests/test_bootstrap_superadmin_command.py`. Sin tocar `app/` ni ningún otro test.
+2. **El turista de ese test sale de `make_user`** y se escribe en la base de archivo del comando por una sesión sobre un
+   motor propio. Ningún `insert(User)` ni `User(…)` a mano en el archivo; si `insert` queda sin uso, su import sale.
+3. **Una frase en el test o en su ayudante dice por qué no se usa `persist_user`** (escribe en la base en memoria de la
+   suite; el comando lee la suya).
+4. **Las aserciones no se debilitan:** código de salida 1; el turista conserva cédula y rol; 0 entradas de auditoría;
+   stdout vacío; la contraseña no aparece en stderr. El correo del turista sigue siendo el de `SUPERADMIN_EMAIL`, en
+   minúsculas (tras G, la base rechaza otra grafía).
+5. **Medir que el test sigue vigilando lo mismo:** los mutantes que hoy lo tumban (ME2 y los que el planificador mida)
+   dan el mismo resultado sobre la copia con A–H. La cuenta de tests no cambia (691 tras G), ni la cobertura, ni los 8
+   warnings (un motor sin cerrar añadiría uno).
+6. **Recalcular lo que dependa:** fila H en la tabla de la compuerta; Regla de alcance (H vuelve sobre un archivo de E);
+   un paso de la Verificación final que fije que no queda ningún usuario a mano en ese archivo; el Resumen; el mensaje de
+   commit; y `Fase_H` (`pending`) en `progress.json`, sin tocar `current_target` ni las demás fases.
+7. **La fase H no se ejecuta hasta que David la apruebe (E5).**
 
 ## Decisiones pendientes de David (E2)
 
