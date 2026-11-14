@@ -278,3 +278,58 @@ Evidencia de la auditoría (contexto fresco, `handoff-auditor`, HEAD `74ac1d8`, 
      alcance.
   8. `15 6`.
   (El paso 9 es la compuerta de arriba.)
+
+## Auditoría Fase F — 2026-11-14
+**Veredicto Fase F: PASS (0 bloqueantes, 0 opcionales).**
+
+Sin hallazgos.
+
+Evidencia de la auditoría (contexto fresco, `handoff-auditor`, HEAD `2570c03`, rama `item/be-34`):
+
+- Árbol: `git status --short` vacío antes de la auditoría (después solo cambia este `gaps.md`).
+- Commit de la fase: `4eba2d2` existe; `git cat-file -p 4eba2d2` → `parent a631612c51d05a0a1ec43caf4acbc0aecf9647f2`.
+  `git show --numstat --format= 4eba2d2` → `87	0	docs/adr/0016-correo-en-minusculas.md` (1 file changed, solo el ADR;
+  = criterio de aceptación). `git diff --stat a631612 2570c03` → el ADR, `handoff-Fase_F.md` y `progress.json`, nada más.
+- Mensaje del commit, byte a byte: cuerpo de `git cat-file commit 4eba2d2` (todo lo que sigue a la primera línea vacía)
+  frente a las l. 1458-1476 de `plan.md` sin los dos espacios de sangría → `cmp` idéntico, 0 `\r`, 0 espacios finales,
+  termina en un único `\n` tras el trailer `Co-Authored-By`. No hay diferencia real en el objeto commit: la "línea en
+  blanco final" que cita el handoff es solo el separador que añade `git log --format=%B` al mostrarlo.
+- Texto del ADR, carácter a carácter: l. 1362-1448 de `plan.md` sin la sangría de dos espacios y con `<FECHA>` →
+  `14 nov 2026` (E3, punto 1) frente a `git show 4eba2d2:docs/adr/0016-correo-en-minusculas.md` → `cmp` idéntico, 87
+  líneas en ambos (incluye las dos líneas de E3, punto 2, en "Consecuencias": criterio `87 0`). UTF-8 sin `\r`, 0
+  espacios finales, `\n` final. La línea "Estado" lleva `14 nov 2026`, no `<FECHA>`.
+- Coherencia del ADR con E2, E3 y la fase G:
+  - Nombres: `LowercaseEmail = Annotated[EmailStr, AfterValidator(str.lower)]` en `app/schemas/user.py` sobre `UserBase`,
+    `UserLogin` y `UserUpdate` (= G, cambio 1); `CHECK (email = lower(email))` con nombre `ck_users_email_lowercase`
+    en el modelo `User` y en la migración `b51f3c9e2a64` (= G, cambios 2 y 3; E2, punto 3.2). `ix_users_email` existe
+    (`alembic/versions/a0f621304d75_init_esquema_inicial_limpio.py:51`) y sigue dando la unicidad (E2, punto 5). La
+    revisión base de G, `2cc4b57c136c`, es la cabeza actual (ningún otro archivo de `alembic/versions` la cita como padre).
+  - Las tres consultas que el ADR dice exactas siguen así: `app/repositories/user_repository.py:18`, `:44` y `:56` (= E3).
+  - Ventana de mantenimiento: Q1 = Q2 = 0 en `develop`, `staging` y `main` (13 nov, 17:40) y API apagada el 14 nov
+    (= E2, puntos 3.4, 3.7 y 4). Sin migración de datos y precondición de cada despliegue (= E2, punto 3.4).
+  - Tokens que comparan exacto (decisión 6) = E3, punto 3 y el test que G dicta para el 404.
+  - Desviaciones de OWASP declaradas: la parte local sensible a mayúsculas (primera viñeta de Consecuencias), el pliegue
+    por defecto (segunda, añadida por E3, punto 2) y "Store both" (alternativa 3) = E3, punto 2 (opción a). Las citas en
+    inglés las comprobó la sesión Mentor contra la página (E3, punto 2); el enlace está en Referencias del plan
+    (l. 2040-2042), como exige E2, punto 3.7. RFC 5321 no se cita (l. 2043).
+  - Alternativas que E2, punto 3.7 exige con su razón: `lower(email)` en consultas con índice funcional (alternativa 1) y
+    normalizar sin `CHECK` (alternativa 2), presentes.
+  - Evidencia: `rOOT@Test.com` y `ÁNGEL@Test.com` son los valores de G (l. 1590, l. 1286); 675 → 691 tests y 97,37 % →
+    97,63 % (= fila G); límite de SQLite y de `alembic check` declarados (= R12, E2 punto 3.8).
+  - Relaciones citadas existen: ADR-0002, ADR-0009 (addenda), ADR-0010 punto 7 (`alembic check`, l. 31-32), backlog A9,
+    D5 y BE-51.
+  - Formato Nygard (AGENTS §7): Estado, Contexto, Decisión, Consecuencias, Alternativas consideradas, Evidencia.
+- `progress.json` (diff de `2570c03`, 4 líneas cambiadas): `current_target` `Fase_F` → `Fase_G`; `Fase_F.status`
+  `pending` → `completed`; `Fase_F.commit` `null` → `"4eba2d2"` (hash real); `last_handoff` reescrito. Nada más: la
+  descripción de `Fase_F`, las fases A–E y G, `allowed_statuses` (misma línea, mismo formato en línea) y `edit_rules`
+  intactos. JSON válido, 0 `\r`, mismo final (`\n}\n`) que en `a631612`.
+- Compuerta re-ejecutada (`./venv/Scripts/python.exe scripts/check.py`) → exit 0: `67 files already formatted` ·
+  `All checks passed!` · `Success: no issues found in 62 source files` · `Contracts: 4 kept, 0 broken.` ·
+  `docs (coherencia): OK` · `675 passed, 8 warnings` · `TOTAL 1031 17 148 14 97.37%`. Igual a la fila F del plan y a lo
+  que pegó el ejecutor. Frente a la línea base de `verificacion.md` (638 · 96,82 % · 61 · 56 · 4 kept) y a la fase E
+  (675 · 97,37 %): sin retroceso. Ningún `.py` tocado: ruff y mypy por archivo no aplican.
+- Suite de la copia (directorio nuevo `scratchpad/auditF_copy_4eba2d2`, `git archive 4eba2d2`, comando común del plan,
+  sin `test_check*`): `386 passed, 8 warnings` (= fila F).
+- Fuera de alcance respetado: el código de G, ADR-0015, `AGENTS.md`, `docs/CONTEXT.md` y `docs/backlog.md` no aparecen en
+  el diff. Nada de la fase H (E4).
+- No es la última fase (G pendiente; H por escribir): la "Verificación final" del plan no aplica todavía.
