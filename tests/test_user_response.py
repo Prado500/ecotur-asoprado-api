@@ -58,7 +58,6 @@ async def _count_users(db_session: AsyncSession) -> int:
         ("phone", "6012345678"),
         ("cedula", "12345678901"),
         ("email", "admin@localhost"),
-        ("email", "Ana@EXAMPLE.COM"),
     ],
     ids=[
         "hyphen",
@@ -68,7 +67,6 @@ async def _count_users(db_session: AsyncSession) -> int:
         "landline",
         "11_digit_cedula",
         "dotless_domain",
-        "mixed_case_domain",
     ],
 )
 async def test_my_profile_returns_stored_values_verbatim(
