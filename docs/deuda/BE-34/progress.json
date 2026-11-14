@@ -1,6 +1,6 @@
 {
   "plan_file": "docs/deuda/BE-34/plan.md",
-  "current_target": "Fase_C",
+  "current_target": "Fase_D",
   "phases": {
     "Fase_A": {
       "status": "completed",
@@ -13,8 +13,8 @@
       "description": "ADR-0015: primer superadmin por comando manual python -m app.cli.bootstrap_superadmin; credenciales fuera de Settings."
     },
     "Fase_C": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "f83a511",
       "description": "SuperadminBootstrapSettings(DatabaseSettings) con cinco SUPERADMIN_* (contraseña SecretStr), bloque en .env.example con contraseña de ejemplo inválida, 11 tests."
     },
     "Fase_D": {
@@ -39,6 +39,6 @@
     }
   },
   "allowed_statuses": ["pending", "partial", "completed"],
-  "last_handoff": "Fase B (b08491b): docs/adr/0015-bootstrap-del-primer-superadmin.md con el texto dictado y Estado 13 nov 2026 (E0); numstat 76 0; compuerta exit 0, 639 passed, 96.82 %; copia 350 passed.",
+  "last_handoff": "Fase C (f83a511): SuperadminBootstrapSettings (6 campos, contraseña SecretStr) y bloque SUPERADMIN_* en .env.example; numstat 11 0 / 24 1 / 93 0; compuerta exit 0, 650 passed, 97.01 % (966); copia 361 passed; MC1 3 failed, MC2 1 failed, MC3 1 failed.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
