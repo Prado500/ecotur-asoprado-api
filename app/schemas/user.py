@@ -1,7 +1,8 @@
 from datetime import datetime
 from enum import Enum
+from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import AfterValidator, BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
 class UserRole(str, Enum):  # noqa: UP042 (backlog D2)
@@ -14,6 +15,11 @@ class UserRole(str, Enum):  # noqa: UP042 (backlog D2)
     superadmin = "superadmin"
     admin = "admin"
     tourist = "tourist"
+
+
+# Every email enters lowercased, local part included (BE-51, ADR-0016). EmailStr lowers only
+# the domain; the database refuses any other spelling (CHECK ck_users_email_lowercase).
+LowercaseEmail = Annotated[EmailStr, AfterValidator(str.lower)]
 
 
 class UserBase(BaseModel):
@@ -30,7 +36,7 @@ class UserBase(BaseModel):
         ),
     )
 
-    email: EmailStr = Field(..., description="Correo electrónico debe ser válido")
+    email: LowercaseEmail = Field(..., description="Correo electrónico debe ser válido")
 
     first_name: str = Field(
         ...,
@@ -125,7 +131,7 @@ class UserCreateByAdmin(UserCreate):
 
 
 class UserLogin(BaseModel):
-    email: EmailStr
+    email: LowercaseEmail
     password: str
 
 
@@ -157,7 +163,7 @@ class UserUpdate(BaseModel):
     excluded to prevent unauthorized architectural mutations.
     """
 
-    email: EmailStr | None = Field(None, description="Correo electrónico válido")
+    email: LowercaseEmail | None = Field(None, description="Correo electrónico válido")
     first_name: str | None = Field(
         None,
         min_length=2,

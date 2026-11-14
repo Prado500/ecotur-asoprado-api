@@ -1,0 +1,49 @@
+{
+  "plan_file": "docs/deuda/BE-34/plan.md",
+  "current_target": null,
+  "phases": {
+    "Fase_A": {
+      "status": "completed",
+      "commit": "d873b49",
+      "description": "BE-47: test que exige una clave de TEST_ENVIRONMENT por cada campo de Settings (runpy sobre el conftest.py de la raíz); RED por el mutante MA."
+    },
+    "Fase_B": {
+      "status": "completed",
+      "commit": "b08491b",
+      "description": "ADR-0015: primer superadmin por comando manual python -m app.cli.bootstrap_superadmin; credenciales fuera de Settings."
+    },
+    "Fase_C": {
+      "status": "completed",
+      "commit": "f83a511",
+      "description": "SuperadminBootstrapSettings(DatabaseSettings) con cinco SUPERADMIN_* (contraseña SecretStr), bloque en .env.example con contraseña de ejemplo inválida, 11 tests."
+    },
+    "Fase_D": {
+      "status": "completed",
+      "commit": "e9d010c",
+      "description": "UserRepository.count_active_superadmins y núcleo bootstrap_superadmin (idempotente, sin promover cuentas, auditado con source=bootstrap); 17 tests."
+    },
+    "Fase_E": {
+      "status": "completed",
+      "commit": "2bf29e5",
+      "description": "Comando app/cli/bootstrap_superadmin.py (motor propio sin echo, errores sin valores, exit 0/1), app.cli en el contrato de capas; 8 tests, uno en proceso hijo con los secretos de la web app vacíos (E0.3, mutante ME6)."
+    },
+    "Fase_F": {
+      "status": "completed",
+      "commit": "4eba2d2",
+      "description": "BE-51 (E1, E2): ADR-0016, todo correo se guarda en minúsculas (LowercaseEmail en los schemas, CHECK ck_users_email_lowercase en la base, unicidad por ix_users_email, sin migración de datos). No se ejecuta sin E3."
+    },
+    "Fase_G": {
+      "status": "completed",
+      "commit": "9c9edd2",
+      "description": "BE-51 (E1, E2): LowercaseEmail en UserBase, UserLogin y UserUpdate, CHECK ck_users_email_lowercase en User y migración b51f3c9e2a64 (batch); 17 tests nuevos y 1 borrado (691), mutantes MG1-MG8. No se ejecuta sin E3 ni con Q1 > 0 en develop."
+    },
+    "Fase_H": {
+      "status": "completed",
+      "commit": "5ec73d2",
+      "description": "E4: el turista de test_command_fails_when_the_email_belongs_to_another_account sale de make_user y se escribe en la base de archivo del comando con _add (AsyncSession sobre motor propio, dispose); sin insert(User); 1 archivo (18 18), 691 tests. No se ejecuta sin E5."
+    }
+  },
+  "allowed_statuses": ["pending", "partial", "completed"],
+  "last_handoff": "Fase H (5ec73d2): el turista de test_command_fails_when_the_email_belongs_to_another_account sale de make_user por _add (AsyncSession sobre motor propio, dispose); insert fuera; numstat 18 18; compuerta exit 0, 691 passed, 8 warnings, 97.63 % (1034), 68 files, 63 source files, 4 kept; ME2, MD5, MH1-MH3 identicos antes y despues de H; MHT1 muere, MHT2 sobrevive (1 ResourceWarning con -X dev); pasos 20-23 = plan. Plan completo (A-H); falta la auditoria de H.",
+  "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
+}

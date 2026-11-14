@@ -50,6 +50,12 @@ sobreingeniería. Explicas el trade-off de cada decisión no trivial. Dices las 
   entra sola en `ADMIN_ROUTES` (caso turista → 403) y en `SUPERADMIN_ROUTES` (caso admin → 403). Una ruta de usuario
   anota además su código esperado en `_TOURIST_PAST_USER_GUARD`, y una pública en `_ANONYMOUS_ON_PUBLIC_ROUTE`. Si
   falta, la suite falla.
+- **Comandos de operador (ADR-0015):** lo que un operador ejecuta a mano con `python -m` vive en `app/cli/`, un segundo
+  adaptador junto al HTTP: lee su configuración, valida con los schemas, llama a un servicio y traduce el resultado a
+  un código de salida. No importa `app.api` ni lo importa ningún servicio (contrato de capas `app.api | app.cli`), y
+  nunca imprime un secreto.
+- **Correo en minúsculas (ADR-0016):** todo campo de entrada que reciba un correo usa el tipo `LowercaseEmail`
+  (`app/schemas/user.py`); la base rechaza cualquier otra grafía (`ck_users_email_lowercase`).
 - Invariantes de negocio críticas viven también en la base de datos (índices únicos, FK, CHECK), no solo
   en Python (ADR-0002).
 - SOLID, KISS, DRY, YAGNI. Código aburrido y predecible. Nada de generalidad especulativa.

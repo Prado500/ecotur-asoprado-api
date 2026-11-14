@@ -1,10 +1,11 @@
 from datetime import UTC, datetime
 
+from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.sql.operators import or_
 
-from app.models.user import User
+from app.models.user import User, UserRole
 
 
 class UserRepository:
@@ -18,6 +19,26 @@ class UserRepository:
         result = await self.db.execute(stmt)
 
         return result.scalars().first()
+
+    async def count_active_superadmins(self) -> int:
+        """Counts the superadmins that can still sign in: active and not soft-deleted.
+
+        The bootstrap command (BE-34) creates a superadmin only when this count is zero.
+
+        Returns:
+            int: Number of rows with role superadmin, is_active true and no deleted_at.
+        """
+        stmt = (
+            select(func.count())
+            .select_from(User)
+            .where(
+                User.role == UserRole.superadmin,
+                User.is_active.is_(True),
+                User.deleted_at.is_(None),
+            )
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one()
 
     async def get_non_deleted_user_by_email(self, email: str) -> User | None:
         stmt = select(User).where(User.email == email, User.deleted_at.is_(None))

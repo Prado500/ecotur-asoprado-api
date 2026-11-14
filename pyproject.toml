@@ -104,10 +104,10 @@ include_external_packages = true
 
 # Capas (ADR-0003 y AGENTS.md): una capa solo importa hacia abajo.
 [[tool.importlinter.contracts]]
-name = "Capas: api -> services -> repositories -> models"
+name = "Capas: api | cli -> services -> repositories -> models"
 type = "layers"
 layers = [
-    "app.api",
+    "app.api | app.cli",
     "app.services",
     "app.repositories",
     "app.models",
