@@ -70,3 +70,58 @@ Evidencia de la auditoría (contexto fresco, `handoff-auditor`, HEAD `29b61b8`, 
 - Fuera de alcance respetado: `AGENTS.md`, `docs/CONTEXT.md`, el manual técnico y ADR-0013 no aparecen en el diff.
 - AGENTS §7: el ADR sigue el formato Nygard (Contexto, Decisión, Consecuencias, Alternativas consideradas, Evidencia).
 - No es la última fase: la "Verificación final" del plan no aplica todavía.
+
+## Auditoría Fase C — 2026-11-14
+**Veredicto Fase C: PASS (0 bloqueantes, 0 opcionales).**
+
+Sin hallazgos.
+
+Evidencia de la auditoría (contexto fresco, `handoff-auditor`, HEAD `9c0eae7`, rama `item/be-34`):
+
+- Árbol: `git status --short` vacío antes de la auditoría (después solo cambia este `gaps.md`).
+- Commit de la fase: `f83a511` existe, su padre es `846efe0`; `git show --numstat --format= f83a511` →
+  `11	0	.env.example` · `24	1	app/core/config.py` · `93	0	tests/test_config.py` (= criterio de aceptación).
+  `git diff --name-only 846efe0 HEAD` → esos tres más `handoff-Fase_C.md` y `progress.json`. El mensaje
+  (`git cat-file commit`, comparado en Python con las l. 483-501 de `plan.md` sin la sangría) → `IDENTICAL`, trailer incluido.
+- Segundo commit `9c0eae7` (`docs(progress): record BE-34 Fase_C completion`): solo `handoff-Fase_C.md` y `progress.json`
+  (paso 6 de `fase-ejecutor`, como en A y B). No es hallazgo.
+- Enmiendas: E0–E3 no cambian la fase C (E0 aprueba A–D "como están escritas"; E2 y E3 tocan F y G). Rige el cuerpo.
+- Cambios exactos contra el diff: (1) `from pydantic import Field, SecretStr`; la clase `SuperadminBootstrapSettings(DatabaseSettings)`
+  entre el final de `Settings` (`return self.mail_from or self.mail_username`) y `@lru_cache`, docstring y cinco campos
+  idénticos al dictado (`superadmin_password: SecretStr`); (2) bloque `SUPERADMIN_*` de `.env.example` tras
+  `CORS_ORIGINS=…` con una línea en blanco, texto idéntico; (3) en `tests/test_config.py`, el import de
+  `SuperadminBootstrapSettings` tras `Settings,`, `from app.schemas.user import UserCreateByAdmin, UserRole`,
+  `BOOTSTRAP_VALUES`, `_set_bootstrap` entre `_set_required` y `_clear`, y los 6 tests (11 casos con el parametrizado) al
+  final, texto idéntico. Nada más cambia.
+- Archivos en UTF-8 sin BOM, LF (blob de `f83a511`: 0 `\r` en los tres, medido en Python), con `\n` final.
+- Fuera de alcance respetado: `git diff 846efe0 f83a511 -- conftest.py tests/conftest.py alembic app/api app/main.py
+  pyproject.toml app/schemas app/models` → vacío; `Settings`, `REQUIRED` y `OPTIONAL_DEFAULTS` sin cambios.
+  `python -c "…print(len(S.model_fields), len(B.model_fields))"` → `15 6` (= plan).
+- `progress.json` (diff de `9c0eae7`): `Fase_C` `completed`, `commit: "f83a511"` (hash real); `current_target`
+  `Fase_C` → `Fase_D`; `last_handoff` presente; `edit_rules` y `allowed_statuses` intactos; las demás fases sin tocar.
+  JSON válido.
+- Compuerta re-ejecutada (`./venv/Scripts/python.exe scripts/check.py`) → exit 0: `61 files already formatted` ·
+  `All checks passed!` · `Success: no issues found in 56 source files` · `Contracts: 4 kept, 0 broken.` ·
+  `docs (coherencia): OK` · `650 passed, 8 warnings` · `TOTAL 966 18 136 15 97.01%`. Igual a la fila C del plan y a lo que
+  pegó el ejecutor. Frente a la línea base de `verificacion.md` (638 · 96.82 % · 61 · 56 · 4 kept) y a la fase B
+  (639 · 96.82 %): +11 tests, cobertura sube, 0 errores de ruff y mypy.
+- Archivos tocados: `ruff check app/core/config.py tests/test_config.py` → `All checks passed!`; `ruff format --check` →
+  `2 files already formatted`; `mypy` → `Success: no issues found in 2 source files`.
+- Mutantes repetidos por el auditor (directorios nuevos `scratchpad/audit_C_*`, `git archive f83a511`, comando común del
+  plan, sin `test_check*`):
+  - copia limpia: `361 passed, 8 warnings` (= columna "Suite de la copia" de la fila C);
+  - MC1 (`SecretStr` → `str`): `FAILED test_bootstrap_settings_need_no_web_app_secret` ·
+    `FAILED test_bootstrap_password_never_shows_in_repr` · `FAILED test_env_example_password_is_not_a_usable_credential` ·
+    `3 failed, 358 passed` (= tabla);
+  - MC2 (`(DatabaseSettings)` → `(Settings)`): `FAILED test_bootstrap_settings_need_no_web_app_secret` ·
+    `1 failed, 360 passed` (= tabla);
+  - MC3 (`.env.example`, contraseña → `Superadmin2026`): `FAILED test_env_example_password_is_not_a_usable_credential` ·
+    `1 failed, 360 passed` (= tabla).
+  - Sonda adicional del auditor sobre la observación del handoff (MC1 no tumba `test_bootstrap_validation_errors_do_not_echo_values`):
+    con `hide_input_in_errors=False` en `DatabaseSettings` (l. 34) ese test sí cae (`2 failed, 33 passed` en
+    `tests/test_config.py`, junto a `test_validation_errors_do_not_echo_values`). El test protege algo real; no es teatro.
+- AGENTS §5 y `test-sanitizer`: sin mocks; sin fábricas de usuario o token que centralizar (son valores de configuración);
+  aserciones sobre tipos y `loc` de errores, conjuntos de campos y valores centinela propios, nunca sobre texto en español
+  (`Nombre`/`Apellido` de `.env.example` son datos, no aserciones); nombres y docstrings en inglés, cada docstring con su
+  categoría (1 camino feliz; 2 de fallo, 6 + 1 casos; 3 de borde); anotados.
+- No es la última fase: la "Verificación final" del plan no aplica todavía.
