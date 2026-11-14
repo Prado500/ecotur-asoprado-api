@@ -2,7 +2,7 @@
 
 > Fuente: `docs/deuda/BE-34/verificacion.md` (confirmada; adenda de ocho decisiones de David, 13 nov, 16:28).
 > Base: `4f10660` (HEAD de `item/be-34` = `5db7641`: `git diff --name-only 4f10660 5db7641 -- app tests alembic conftest.py
-> pyproject.toml .env.example` vacío). Estado: **aprobado por David: fases A → E con E0 (13 nov 2026, 17:26) y E2 (14 nov 2026, 09:08; el test de E0.3 queda aceptado). Las fases F y G (BE-51, E1) se reescriben por E2 (correo en minúsculas al entrar y `CHECK` en la base) y no se ejecutan hasta E3. Detalle en "Enmiendas aprobadas", al final.** Las cifras de este plan (tests,
+> pyproject.toml .env.example` vacío). Estado: **aprobado por David, completo: fases A → E con E0 (13 nov 2026, 17:26) y E2 (14 nov 2026, 09:08); fases F y G (BE-51), reescritas por E2, con E3 (14 nov 2026, 10:54). Siete fases, A → G. Detalle en "Enmiendas aprobadas", al final.** Las cifras de este plan (tests,
 > cobertura, mutantes, `numstat` y conteos de grep) se midieron el 13 nov sobre copias desechables de `4f10660` en el
 > scratchpad, con el texto exacto que dicta el plan.
 
@@ -22,12 +22,14 @@ del motor (el hash). Los tests de C y E lo impiden, y cuatro mutantes lo demuest
 con 15 campos), guards, routers, rutas, la política (BE-35..BE-38), `create_user` (A3), `app/db/database.py` (A5),
 `alembic/`, `Dockerfile`, `docker-compose.yml` ni `cd-pipeline.yml`.
 
-**Fases F y G (BE-51, E1; no se ejecutan sin E2):** un correo pasa a ser una sola cuenta, con cualquier combinación
-de mayúsculas. (F) Escribe ADR-0016. (G) Las tres consultas por correo comparan `lower(email)` en la base, y un
-índice único sobre `lower(email)` (modelo y migración `b51e0a1c4d27`) cierra la escritura. Ningún correo guardado se
-reescribe, así que ninguna cuenta deja de entrar. La suite pasa a 690 tests y la cobertura a 97,63 %. **Riesgo:** dos
-filas que ya difieran solo en mayúsculas detienen la migración; por eso G espera las consultas de David sobre las tres
-bases.
+**Fases F y G (BE-51; reescritas por E2, no se ejecutan sin E3):** un correo es una sola cuenta y se guarda en una sola
+forma, en minúsculas. (F) Escribe ADR-0016. (G) Los tres schemas que reciben un correo usan el tipo `LowercaseEmail`, que
+lo pasa a minúsculas, y una restricción `CHECK (email = lower(email))` (modelo y migración `b51f3c9e2a64`) hace que la
+base rechace cualquier otra grafía. La unicidad la sigue dando `ix_users_email`. Las consultas no cambian y ningún dato se
+reescribe, porque ningún correo guardado tiene mayúsculas (Q1 = 0). La suite pasa a 691 tests y la cobertura a 97,63 %.
+**Riesgo:** una fila con mayúsculas detiene la migración y el despliegue; por eso G espera Q1 = 0 en `develop`. La guía
+de OWASP recomienda guardar también el correo tal como se escribió; el plan guarda solo la forma en minúsculas y lo
+declara (decisión 2 de E3).
 
 ## Objetivo y decisiones bloqueadas
 
@@ -116,10 +118,10 @@ documentos vivos (los cierra la sesión Mentor).
   `core/config.py`, `repositories/user_repository.py` y `services/superadmin_bootstrap.py`. En la raíz: `pyproject.toml`
   y `.env.example`. En `docs/`: `adr/0015-bootstrap-del-primer-superadmin.md`. En `tests/`: `test_config.py`,
   `test_user_repository.py`, `test_superadmin_bootstrap.py` y `test_bootstrap_superadmin_command.py`.
-- **Fases F y G (E1):** 4 archivos más, 16 en total. F: `docs/adr/0016-correo-sin-distinguir-mayusculas.md`. G:
-  `app/models/user.py`, `alembic/versions/b51e0a1c4d27_users_email_unique_whatever_its_case.py` y
-  `tests/test_email_case.py`, y vuelve sobre `app/repositories/user_repository.py` y `tests/test_user_repository.py`
-  (los toca D). `app/schemas/` sigue fuera.
+- **Fases F y G (E1, E2):** 6 archivos más, 18 en total. F: `docs/adr/0016-correo-en-minusculas.md`. G:
+  `app/schemas/user.py`, `app/models/user.py`, `alembic/versions/b51f3c9e2a64_users_email_stored_in_lowercase.py`,
+  `tests/test_user_response.py` y `tests/test_email_case.py`. G no vuelve sobre ningún archivo de A–E. La exclusión de
+  `app/schemas/`, `app/models/` y `alembic/` deja de valer solo para G.
 - **No:** cualquier otro archivo, docstring o comentario. Un hallazgo nuevo va a Residuales, nunca "de paso".
 
 ## Fases
@@ -151,14 +153,14 @@ documentos vivos (los cierra la sesión Mentor).
 | ME5 | ídem | `    sys.exit(main())` → `    main()` | `1 failed, 385 passed` |
 | ME6 | `app/services/superadmin_bootstrap.py` | añadir `import app.core.email  # noqa: F401` antes de `from app.core.exceptions import AlreadyExistsError` | `1 failed, 385 passed` (solo `test_command_runs_without_the_web_app_secrets`) |
 | MK1 | `app/services/superadmin_bootstrap.py` | añadir `import app.cli  # noqa: F401` antes del primer `from app.` | import-linter `3 kept, 1 broken` (exit 1) |
-| MG1 | `app/repositories/user_repository.py` | `    return func.lower(User.email) == func.lower(email)` → `    return User.email == email` | `8 failed, 393 passed` |
-| MG2 | ídem | `or_(User.cedula == cedula, _same_email(email))` → `or_(User.cedula == cedula, User.email == email)` | `6 failed, 395 passed` |
-| MG3 | ídem | `where(_same_email(email), User.deleted_at.is_(None))` → `where(User.email == email, User.deleted_at.is_(None))` | `3 failed, 398 passed` |
-| MG4 | ídem | `        stmt = select(User).where(_same_email(email))` → `        stmt = select(User).where(User.email == email)` | `3 failed, 398 passed` |
-| MG5 | `app/models/user.py` | borrar la línea `    __table_args__ = (Index("ix_users_email_lower", func.lower(email), unique=True),)` | `4 failed, 397 passed` |
-| MG6 | `alembic/versions/b51e0a1c4d27_users_email_unique_whatever_its_case.py` | `unique=True)` → `unique=False)` | `1 failed, 400 passed` |
-| MG7 | ídem | `    op.drop_index('ix_users_email_lower', table_name='users')` → `    pass` | `1 failed, 400 passed` |
-| MG8 | `app/repositories/user_repository.py` | `    return func.lower(User.email) == func.lower(email)` → `    return func.lower(User.email) == email` | `10 failed, 391 passed` |
+| MG1 | `app/schemas/user.py` | `AfterValidator(str.lower)]` → `AfterValidator(str.strip)]` | `11 failed, 391 passed` |
+| MG2 | ídem | en `UserBase`, `    email: LowercaseEmail = Field(` → `    email: EmailStr = Field(` | `5 failed, 397 passed` |
+| MG3 | ídem | en `UserLogin`, `    email: LowercaseEmail` → `    email: EmailStr` | `3 failed, 399 passed` |
+| MG4 | ídem | en `UserUpdate`, `    email: LowercaseEmail \| None = Field(` → `    email: EmailStr \| None = Field(` | `3 failed, 399 passed` |
+| MG5 | `app/models/user.py` | borrar la línea `    __table_args__ = (CheckConstraint("email = lower(email)", name="ck_users_email_lowercase"),)` | `1 failed, 399 passed, 2 errors` (los errores: el `downgrade()` del fixture de la migración no encuentra la restricción) |
+| MG6 | `alembic/versions/b51f3c9e2a64_users_email_stored_in_lowercase.py` | `'email = lower(email)')` → `'email = email')` | `1 failed, 401 passed` |
+| MG7 | ídem | `        batch_op.drop_constraint('ck_users_email_lowercase', type_='check')` → `        pass` | `2 failed, 400 passed` |
+| MG8 | `app/repositories/user_repository.py` | en `activate_user`, `select(User).where(User.email == email)` → `select(User).where(func.lower(User.email) == func.lower(email))` | `1 failed, 401 passed` (solo `test_verification_token_in_another_case_is_rejected`) |
 
 Al cerrar cada fase, la compuerta debe dar exit 0, `Compuerta superada.`, `All checks passed!`,
 `Contracts: 4 kept, 0 broken.` y `8 warnings`, y además:
@@ -172,7 +174,7 @@ Al cerrar cada fase, la compuerta debe dar exit 0, `Compuerta superada.`, `All c
 | D | 667 passed | 97,07 % (988) | 64 files | 59 source files | 378 passed |
 | E | 675 passed | 97,37 % (1031) | 67 files | 62 source files | 386 passed |
 | F | 675 passed | 97,37 % (1031) | 67 files | 62 source files | 386 passed |
-| G | 690 passed | 97,63 % (1034) | 68 files | 63 source files | 401 passed |
+| G | 691 passed | 97,63 % (1034) | 68 files | 63 source files | 402 passed |
 
 Todo archivo nuevo o editado se guarda en UTF-8 con fin de línea LF.
 
@@ -1238,82 +1240,135 @@ Todo archivo nuevo o editado se guarda en UTF-8 con fin de línea LF.
   Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
   ```
 
-### Fases F y G — BE-51: un correo es una sola cuenta, con cualquier combinación de mayúsculas (E1)
+### Fases F y G — BE-51: un correo es una sola cuenta, guardado siempre en minúsculas (E1, E2)
 
-**No se ejecutan hasta que David las apruebe (E2)**, y G además espera el resultado de las dos consultas de la
-precondición. E1 pide una fase. No cabe en una: el código son 5 archivos de un dominio (usuarios), y la decisión es no
-trivial (ADR-0016, dominio documentación). Por eso se parte como E1 prevé: **F** = el ADR, **G** = el código. Orden
-A → … → E → F → G. G depende de D, porque edita `tests/test_user_repository.py` y sus tests llaman a
-`bootstrap_superadmin`. Las cifras de G se midieron sobre E con E0.3.
+**Reescritas por E2 (14 nov 2026). No se ejecutan hasta que David las apruebe (E3).** El mecanismo es el de E2, punto 3:
+el correo se pasa a minúsculas al entrar por los schemas, una restricción `CHECK` en la base lo garantiza y la unicidad
+la sigue dando `ix_users_email`. Siguen partidas (E2, punto 2): **F** = ADR-0016 (dominio documentación) y **G** = el
+código (5 archivos, dominio usuarios). Orden A → … → E → F → G. **G no toca ningún archivo de A–E** (la versión del
+13 nov editaba `user_repository.py` y `tests/test_user_repository.py`); depende de D solo porque un test suyo llama a
+`bootstrap_superadmin`. Las cifras de F y G se midieron el 14 nov sobre copias de `HEAD` con los 12 archivos de A–E; la
+compuerta de esa copia da la fila E exacta (`675 passed`, `97.37%`, `1031` stmts, `67 files`, `62 source files`).
 
-**Medición (lo que habría hecho un verificador).** Grep global sobre `item/be-34` (`app/` y `tests/` iguales a `4f10660`)
-y sondas sobre una copia con A–E:
-- `git grep -n -i 'email' -- app`. Entradas: `app/schemas/user.py:33` (`UserBase`), `:128` (`UserLogin`) y `:160`
-  (`UserUpdate`). Consultas exactas: `app/repositories/user_repository.py:17`, `:23` y `:35`. El token lleva el correo
-  guardado: `security.py:107` (verificación) y `user_service.py:105,172`. Lo buscan `user_service.py:141`
-  (`activate_user`), `:164` (login) y `dependencies.py:142` (cada petición autenticada). El `PATCH` no comprueba el
-  correo: `user_service.py:285` hace `setattr` y `:297` llama a `save_user`, y el conflicto llega como `IntegrityError`
-  al handler `app/main.py:100-114` (409).
-- `git grep -n -i -E 'lower\(|ilike|casefold|func\.lower|citext|collat' -- app alembic tests conftest.py scripts` → ninguna
-  sobre correos. Solo `schemas/user.py:100` (`c.islower()`, regla de contraseña) y `tests/test_main.py:78,107`
-  (cabeceras).
-- `git grep -n -i -E 'ix_users_email|email.*unique|unique.*email' -- . ':!docs'` → `alembic/versions/a0f621304d75_*.py:51,60`,
-  `app/models/user.py:39`, `tests/test_models_schema.py:70` y `tests/conftest.py:173` (solo texto).
-- `git grep -n -E '"[^" ]*[A-Z][^" ]*@[^" ]*"' -- tests conftest.py` → solo `tests/test_user_response.py:61`
-  (`Ana@EXAMPLE.COM`). Congela que el correo guardado se devuelve tal cual (A9), y la solución lo respeta.
-- Alembic: cabeza `2cc4b57c136c`. Ningún test ejecuta migraciones (`git grep -n -i alembic -- tests` solo da docstrings).
-  El CD corre `alembic upgrade head` antes del webhook (`cd-pipeline.yml:62,91,120`), así que una migración fallida deja
-  la imagen sin desplegar.
-- Sondas antes de G (P0–P6). `EmailStr` da `Root@test.com` para `Root@Test.COM` en `UserCreate`, `UserLogin` y
-  `UserUpdate`. Con `Root@test.com` guardado y una variante en mayúsculas:
+**Medición (E2, punto 3.6), sobre la copia con A–E.** Cada punto dice qué se hace con lo medido.
+- **Correos con mayúsculas en los tests.** El grep de E2,
+  `grep -rnE '"[^" ]*[A-Z][^" ]*@[^" ]*"' tests conftest.py`, da una sola línea:
+  `tests/test_user_response.py:61:        ("email", "Ana@EXAMPLE.COM"),`. Con comillas simples, 0. Con cualquier token `x@y`
+  que lleve mayúsculas, la misma línea. Las fábricas generan `user{n}@test.com` (`tests/conftest.py:193`). Con el modelo
+  y los schemas de G, y ese test sin tocar: `1 failed, 385 passed`. Solo cae
+  `test_my_profile_returns_stored_values_verbatim[mixed_case_domain]`, con
+  `CHECK constraint failed: ck_users_email_lowercase`. **Qué se hace:** G borra ese caso (el par y su id, 2 líneas). La
+  base ya no puede guardar ese valor, así que el caso deja de describir un dato posible. A9 sigue cubriendo el correo con
+  `dotless_domain`.
+- **Un token de verificación cuyo `sub` difiere en mayúsculas.** `activate_user` compara exacto
+  (`user_repository.py:56` tras D) y `verify_email_account` responde `NotFoundError` (`user_service.py:141-144`): 404 y
+  la cuenta sigue inactiva. **Qué se hace:** un test fija el rechazo (`test_verification_token_in_another_case_is_rejected`).
+  El mutante MG8, que compara `lower()` en `activate_user`, lo tumba, y solo a él.
+- **Un `PATCH` que solo cambia las mayúsculas del propio correo.** Llega en minúsculas, así que es el mismo valor: 200 y
+  el correo no cambia. **Qué se hace:** lo fija `test_patch_changing_only_the_case_keeps_the_email`. Como todo `PATCH`
+  con campos, deja una entrada `UPDATE` en la auditoría (`user_service.py:288-295`). Es comportamiento previo, sin cambio.
+- **`lower()` en SQLite, en PostgreSQL y en Python.** Sonda P2, sobre SQLite: `lower('ÁNGEL@x.com')` da `'Ángel@x.com'`.
+  Con la restricción, SQLite rechaza `Root@test.com` insertado sin schema, pero acepta `Ángel@x.com`. **Qué se hace:**
+  se declara en ADR-0016 y en R12, y no se cubre: cubrirlo exige PostgreSQL en la suite (BE-31). Por los schemas no
+  llega, porque `str.lower()` pliega Unicode (tabla siguiente).
+- **`EmailStr` admite la parte local no ASCII y no la toca; solo pasa el dominio a minúsculas.** Sonda P1 (pydantic
+  2.12.5, email-validator 2.3.0):
 
-  | Ruta | Antes de G | Después de G |
+  | Entrada | `EmailStr` | `LowercaseEmail` |
   |---|---|---|
-  | Registro | 201, dos filas | 400, una fila |
-  | Login | 401 | 200 |
-  | `PATCH` | 200, la variante queda guardada | 409 |
-  | Enlace de verificación | 404, la cuenta sigue inactiva | 200, activa |
-  | Bootstrap | crea la segunda cuenta | `AlreadyExistsError` |
-  | Provisión | 201 | 400 |
-- `inspect(conn).get_indexes("users")` no refleja índices de expresión en SQLite (`SAWarning`, que subiría los warnings a
-  9). Por eso el test lee `sqlite_master`.
-- El SQL fuera de línea para PostgreSQL (`alembic upgrade 2cc4b57c136c:b51e0a1c4d27 --sql`, sin base) da
-  `CREATE UNIQUE INDEX ix_users_email_lower ON users (lower(email));` entre `BEGIN;` y `COMMIT;`.
+  | `Root@Test.COM` | `Root@test.com` | `root@test.com` |
+  | `ÁNGEL@X.com` | `ÁNGEL@x.com` | `ángel@x.com` |
+  | `Straße@x.com` | `Straße@x.com` | `straße@x.com` |
+  | `İSTANBUL@x.com` | `İSTANBUL@x.com` | `i̇stanbul@x.com` (`i` + U+0307: `str.lower()` alarga la cadena) |
+  | `  Root@test.com  ` | `Root@test.com` | `root@test.com` |
 
-**Mecanismo elegido y por qué** (E1, punto 3: ninguna cuenta existente deja de poder entrar). Las consultas comparan
-`lower(email) = lower(:email)`, y un índice único sobre `lower(email)` cierra la escritura. **Ningún dato se reescribe**:
-cada cuenta entra con lo que tiene, los tokens ya emitidos (llevan el correo guardado) siguen valiendo y
-`UserResponse` devuelve lo guardado (A9). Los schemas no cambian. Se descarta pasar a minúsculas y reescribir las filas:
-no tiene vuelta atrás, invalida los tokens y enlaces vigentes de las cuentas con mayúsculas y cambia la salida. Las
-demás alternativas están en ADR-0016. **Lo que no se puede medir desde aquí:** los datos reales y el comportamiento en
-PostgreSQL. Si dos filas difieren solo en mayúsculas, `CREATE UNIQUE INDEX` falla, el DDL transaccional no deja nada a
-medias y el CD se detiene antes del webhook.
+  `LowercaseEmail` es idempotente en los cinco casos (`v == v.lower()`). **Qué se hace:** un test fija
+  `ÁNGEL@Test.com` → `ángel@test.com`.
+- **Vías que escriben un correo** (`git grep -n -E '\bUser\(|setattr' -- app` y los usos de los schemas): las altas
+  (`user_service.py:81` y `:405`; tras D, también `superadmin_bootstrap.py`) toman el correo de `UserCreate` o
+  `UserCreateByAdmin`, y el `PATCH` (`user_service.py:285`) lo toma de `UserUpdate`. Ninguna escribe un correo sin pasar
+  por los tres schemas. Hoy no se pasa ningún correo a minúsculas:
+  `git grep -n -i -E 'lower\(|ilike|casefold|func\.lower|citext|collat' -- app alembic tests conftest.py scripts` da solo
+  `schemas/user.py:100` (`c.islower()`) y `tests/test_main.py:78,107` (cabeceras). Ninguna restricción `CHECK` en el
+  repo: `git grep -n -i -E 'CheckConstraint|create_check_constraint|ck_users' -- . ':!docs'` sale vacío. Esta es la
+  primera.
+- **Alembic.** Cabeza actual: `2cc4b57c136c (head)`. `alembic/env.py` no usa `render_as_batch`. Ninguna FK apunta a
+  `users` (`git grep -n ForeignKey -- app/models` → solo `service.py:58`), así que reconstruir la tabla en SQLite no
+  arrastra dependencias. Sonda P2b: `op.create_check_constraint` sin modo batch, sobre SQLite, da `NotImplementedError:
+  No support for ALTER of constraints in SQLite dialect`. Por eso la migración usa `batch_alter_table`.
+- **La migración en un SQLite propio** (sonda P2, el texto exacto del paso 3). `downgrade` deja 0 restricciones.
+  `upgrade` sobre filas en minúsculas da
+  `[{'sqltext': 'email = lower(email)', 'name': 'ck_users_email_lowercase'}]`, conserva las filas y conserva los
+  índices únicos `ix_users_cedula` y `ix_users_email`. `upgrade` con una fila `Juan@test.com` lanza `IntegrityError`
+  (`CHECK constraint failed: ck_users_email_lowercase`), y `users` queda sin restricción y con su fila. **Pero queda la
+  tabla `_alembic_tmp_users`**: tras el fallo la conexión está fuera de transacción (`in_transaction()` → `False`) y el
+  `CREATE TABLE` del batch no se deshace. Por eso los dos tests de la migración
+  usan un motor propio y no la base compartida de la suite. En PostgreSQL es una sola sentencia (SQL de abajo) y la
+  sesión Mentor midió 0 restricciones tras el fallo.
+- **`compare_metadata`**, con el modelo con la restricción frente a una base sin ella, da `[]`. Alembic no compara
+  restricciones `CHECK`: su documentación las pone entre lo que autogenerate "can't currently, but will eventually
+  detect" (Referencias). **Qué se hace (E2, punto 3.8):** `alembic check` no prueba que la restricción exista, así que el
+  paso 19 de la Verificación final la busca en `pg_constraint`.
+- **DDL del modelo**, compilado para PostgreSQL y para SQLite: `CONSTRAINT ck_users_email_lowercase CHECK (email = lower(email))`.
+- **SQL fuera de línea para PostgreSQL** (`alembic upgrade 2cc4b57c136c:b51f3c9e2a64 --sql`, sin base), literal:
+  ```
+  BEGIN;
 
-**Precondición de G (E1, punto 4).** David corre en `develop`, `staging` y `main`, y pega el resultado en la bitácora
-antes de E2:
+  -- Running upgrade 2cc4b57c136c -> b51f3c9e2a64
+
+  ALTER TABLE users ADD CONSTRAINT ck_users_email_lowercase CHECK (email = lower(email));
+
+  UPDATE alembic_version SET version_num='b51f3c9e2a64' WHERE alembic_version.version_num = '2cc4b57c136c';
+
+  COMMIT;
+  ```
+  El `downgrade` (`alembic downgrade b51f3c9e2a64:2cc4b57c136c --sql`) da
+  `ALTER TABLE users DROP CONSTRAINT ck_users_email_lowercase;` en el mismo marco.
+
+**Mecanismo y por qué así.**
+- **Un solo punto de normalización (E2, punto 3.1):** el tipo
+  `LowercaseEmail = Annotated[EmailStr, AfterValidator(str.lower)]` en `app/schemas/user.py`, que usan los tres campos.
+  Es un tipo, no tres `field_validator`, así que no suma copias a D5. `AfterValidator` corre después de `EmailStr`: pliega
+  lo que `EmailStr` ya validó y normalizó (dominio y espacios de los extremos; la sonda P1 lo mide en un modelo sin
+  `str_strip_whitespace`). Es el patrón
+  de pydantic para validadores reutilizables (Referencias). `UserCreateByAdmin` lo hereda de `UserBase`; el comando de E
+  valida con él, así que `SUPERADMIN_EMAIL` también llega en minúsculas.
+- **La restricción (E2, punto 3.2):** el texto SQL `"email = lower(email)"`, el mismo en el modelo y en la migración. La
+  sonda Mentor usó la expresión `email == func.lower(email)`. Aquí se dicta el texto: compila igual en los dos dialectos
+  (medido arriba) y se lee igual en los dos archivos (paso 13 de la Verificación final).
+- **La migración** usa `batch_alter_table`. En PostgreSQL emite un `ALTER TABLE` (SQL de arriba); en SQLite reconstruye
+  la tabla. Así la suite ejecuta `upgrade()` y `downgrade()` del archivo real (E2, punto 3.5).
+- **Las consultas no cambian (E2, punto 3.3):** lo que llega y lo guardado ya están en minúsculas, y `ix_users_email`
+  sostiene la unicidad. Un `PATCH` hacia el correo de otra cuenta, escrito como sea, recibe el 409 del handler de
+  `IntegrityError` (R11).
+
+**Precondición de G (E2, punto 3.4).** David corre Q1 en `develop`, `staging` y `main`:
 ```sql
--- Q1: correos guardados con alguna mayúscula (informativo; siguen entrando tras G)
+-- Q1: correos guardados con alguna mayúscula (debe dar 0)
 SELECT count(*) AS mixed_case FROM users WHERE email <> lower(email);
--- Q2: colisiones (deben ser 0 filas en las tres bases)
-SELECT lower(email) AS email_lower, count(*) AS accounts FROM users GROUP BY lower(email) HAVING count(*) > 1;
 ```
-Si Q2 devuelve alguna fila en cualquier base, G no se ejecuta (E1, punto 6): decidir qué cuenta conserva el correo es
-una decisión de producto, con su propio ítem.
+Resultado: 0 en las tres (David, 13 nov, 17:40). Repetida el 14 nov a las 09:20: `count = 0`, pero la captura no muestra
+contra qué base (bitácora `2026-11-14`; decisión 6 de E3). Q2 (colisiones) ya no hace falta: con Q1 = 0 todo correo
+guardado está en minúsculas, y dos iguales ya los rechazaría `ix_users_email`. G no se ejecuta si Q1 deja de dar 0 en
+`develop`. Q1 se repite antes de promover a `staging` y a `main`.
 
 ### Fase F — ADR-0016
 
-- **Archivos (1):** `docs/adr/0016-correo-sin-distinguir-mayusculas.md` (nuevo). Dominio: decisiones (docs).
-- **Cambios exactos:** crear el archivo con este texto. `<FECHA>` es la fecha de E2 que la sesión Mentor anote en este
-  plan; si no figura, la fase se detiene.
+- **Archivos (1):** `docs/adr/0016-correo-en-minusculas.md` (nuevo). Dominio: decisiones (docs).
+- **Cambios exactos:** crear el archivo con este texto. `<FECHA>` es la fecha de E3 que la sesión Mentor anote en este
+  plan (E2, punto 6); si no figura, la fase se detiene. Las frases en inglés entre comillas son de la guía de OWASP,
+  leída el 14 nov (Referencias); la de "Store both" une en una línea los dos puntos de una lista.
   ```markdown
-  # ADR-0016 — Un correo es una sola cuenta, escrito con cualquier combinación de mayúsculas: `lower(email)` en las consultas y en un índice único
+  # ADR-0016 — Un correo, una sola forma: se guarda en minúsculas y la base lo exige
 
   - **Estado:** aceptado (David, <FECHA>, al aprobar las fases F y G del plan de BE-34)
-  - **Propuesta:** Claude, `plan-redactor` (13 nov 2026), sobre la enmienda E1 de David al plan de BE-34 (13 nov, 17:29)
-  - **Ubicación en el repo:** `docs/adr/0016-correo-sin-distinguir-mayusculas.md`
+  - **Propuesta:** Claude, `plan-redactor` (14 nov 2026), sobre las enmiendas E1 (13 nov, 17:29) y E2 (14 nov, 09:08) de
+    David al plan de BE-34
+  - **Ubicación en el repo:** `docs/adr/0016-correo-en-minusculas.md`
   - **Origen:** backlog BE-51 (residual R2 del plan de BE-34); `docs/deuda/BE-34/plan.md`, fases F y G. Relación: ADR-0002
-    (la invariante vive también en la base), ADR-0009 (no es un addendum de ADR-0015: amplía el alcance al registro y al
-    login de todos los usuarios), backlog A9 (lo guardado se devuelve tal cual).
+    (la invariante vive también en la base), ADR-0010 (punto 7: `alembic check`), ADR-0009 (no es un addendum de ADR-0015:
+    alcanza el registro y el login de todos los usuarios), backlog A9 (lo guardado se devuelve tal cual) y D5 (validadores
+    repetidos).
 
   ## Contexto
 
@@ -1321,308 +1376,313 @@ una decisión de producto, con su propio ítem.
   `UserUpdate`. Las tres consultas por correo de `UserRepository` comparan exacto, y el índice único `ix_users_email`
   también. Medido el 13 nov sobre una copia con las fases A–E de BE-34: un segundo registro con `root@test.com` junto a
   `Root@test.com` da 201 y deja dos cuentas; la provisión y el bootstrap también crean la segunda; el login con
-  `root@test.com` da 401; un `PATCH` a `ROOT@test.com` da 200; un enlace de verificación con `root@test.com` da 404. Los
-  tokens llevan el correo tal como está guardado, y las bases de `develop`, `staging` y `main` ya tienen correos guardados.
+  `root@test.com` da 401; un `PATCH` a `ROOT@test.com` da 200; un enlace de verificación con `root@test.com` da 404.
+
+  Datos reales: 0 correos con alguna mayúscula y 0 colisiones en `develop`, `staging` y `main` (David, 13 nov, 17:40). David
+  declaró la API apagada el 14 nov: es la ventana de mantenimiento en la que entra este cambio.
 
   ## Decisión
 
-  1. **Un correo es una sola cuenta, escrito con cualquier combinación de mayúsculas.** Vale para el registro, la provisión,
-     el bootstrap, el login, la verificación de correo y el cambio de correo por `PATCH`.
-  2. **Las consultas comparan `lower(email) = lower(:email)` en la base**, desde un solo punto: `_same_email`, en
-     `app/repositories/user_repository.py`. Python no pasa nada a minúsculas: el motor aplica la misma función a la
-     columna, al parámetro y al índice.
-  3. **Índice único `ix_users_email_lower` sobre `lower(email)`**, declarado en el modelo `User` y creado por la migración
-     `b51e0a1c4d27`. Es la invariante en la base (ADR-0002): un `PATCH` o una carrera que la rompan reciben el 409 del
-     handler de `IntegrityError`.
-  4. **Ningún correo guardado se reescribe.** Cada cuenta entra con el correo que tiene, escrito como sea, y los tokens ya
-     emitidos siguen valiendo. Los schemas no cambian, y `UserResponse` devuelve el correo tal como está guardado (A9).
-  5. **Si dos filas ya difieren solo en mayúsculas, la migración se detiene**: la base no construye el índice, el DDL
-     transaccional no deja nada a medias y el CD no llega a desplegar la imagen. Antes de desplegar se consulta cada base.
-     Una colisión es una decisión de producto (qué cuenta conserva el correo), fuera de este ADR.
-  6. **`ix_users_email` (único y exacto) se queda.** El índice nuevo lo vuelve redundante; quitarlo es otro cambio de
-     esquema.
+  1. **Un correo es una sola cuenta y se guarda en una sola forma: minúsculas, parte local y dominio.** Vale para el
+     registro, la provisión, el bootstrap, el login, la verificación de correo y el cambio de correo por `PATCH`.
+  2. **Se normaliza al entrar, en un solo punto:** el tipo `LowercaseEmail` (`Annotated[EmailStr, AfterValidator(str.lower)]`,
+     en `app/schemas/user.py`), que usan `UserBase`, `UserLogin` y `UserUpdate`. El servicio recibe el correo ya en
+     minúsculas, y las consultas de `UserRepository` siguen comparando exacto.
+  3. **La base lo exige:** `CHECK (email = lower(email))`, con nombre `ck_users_email_lowercase`, declarada en el modelo
+     `User` y creada por la migración `b51f3c9e2a64`. Un correo con mayúsculas escrito por una vía que no pase por un schema
+     lo rechaza la base (ADR-0002).
+  4. **La unicidad la sigue dando `ix_users_email`.** No hay índice nuevo.
+  5. **Sin migración de datos.** Precondición de cada despliegue que lleve `b51f3c9e2a64`: 0 correos con mayúsculas en esa
+     base (`SELECT count(*) FROM users WHERE email <> lower(email);`). Si una fila tiene mayúsculas, PostgreSQL se niega a
+     crear la restricción, la migración se detiene sin cambiar nada y el CD no despliega la imagen.
+  6. **Los tokens comparan exacto.** La app firma el correo guardado, que ya está en minúsculas; un token con otra grafía
+     no encuentra cuenta. Los tokens emitidos antes del cambio siguen valiendo, porque ningún correo guardado tenía
+     mayúsculas.
 
   ## Consecuencias
 
-  - Toda consulta nueva por correo pasa por `_same_email`. Una comparación exacta reabriría el hueco en la lectura; el
-    índice lo sigue cerrando en la escritura.
-  - El correo se guarda como lo escribió el usuario. Un `PATCH` que solo cambia mayúsculas sobre la propia cuenta se acepta.
-  - Ambos lados usan el `lower()` del motor: en SQLite (la suite) solo pliega ASCII; en PostgreSQL, según la configuración
-    regional de la base. Comparación e índice coinciden siempre dentro del mismo motor.
-  - `users` gana un índice: cada escritura es algo más cara, sin efecto al volumen del MVP.
-  - La suite ejecuta la migración sobre SQLite. En PostgreSQL solo se ha visto su SQL fuera de línea
-    (`alembic upgrade … --sql`); la primera ejecución real es el CD de `develop`.
+  - `UserResponse` devuelve la forma en minúsculas, y el correo de verificación va a esa forma, no a la que escribió el
+    usuario. La guía de OWASP sobre correos dice que la parte local es "technically case-sensitive under SMTP, though many
+    providers do not enforce this in practice": un buzón que dependiera de las mayúsculas no recibiría ese correo. Se acepta.
+  - La misma guía desaconseja plegar la parte local por defecto y lo admite solo cuando el sistema controla ese
+    comportamiento y no crea riesgo de colisión ni de cuenta equivocada. Aquí se pliega siempre: segunda desviación, aceptada.
+  - `lower()` de SQLite solo pliega ASCII; el de PostgreSQL y `str.lower()` de Python pliegan también el resto de Unicode.
+    `EmailStr` admite una parte local no ASCII, y `LowercaseEmail` la pliega en Python, así que por un schema no llega
+    ninguna mayúscula. Lo que la suite no ve: en SQLite, la restricción acepta `Ángel@x.com` escrito sin schema; PostgreSQL
+    lo rechaza.
+  - `alembic check` no compara restricciones `CHECK` (Alembic las lista entre lo que autogenerate aún no detecta; medido:
+    `compare_metadata` da `[]` con la restricción ausente de la base). Su presencia en PostgreSQL se comprueba en
+    `pg_constraint`.
+  - La migración usa `batch_alter_table`: en PostgreSQL emite un `ALTER TABLE … ADD CONSTRAINT`; en SQLite, que no puede
+    añadir una restricción a una tabla existente, reconstruye la tabla. Así la suite la ejecuta.
+  - Toda vía nueva que escriba un correo usa `LowercaseEmail`; si no, la base la rechaza.
 
   ## Alternativas consideradas
 
-  1. **Pasar a minúsculas en los schemas y reescribir los correos guardados** (migración de datos). Deja los datos
-     uniformes, pero reescribe filas de las tres bases sin vuelta atrás (el `downgrade` no recupera la grafía), invalida
-     los tokens de acceso y los enlaces de verificación vigentes de las cuentas con mayúsculas y cambia lo que devuelve
-     `UserResponse` (A9).
-  2. **Pasar a minúsculas solo las entradas nuevas.** Las cuentas guardadas con mayúsculas dejarían de entrar. Incumple
-     la condición de E1: ninguna cuenta existente deja de poder entrar.
-  3. **Tipo `citext` de PostgreSQL.** Exige la extensión en las tres bases de Azure y no existe en SQLite, así que la suite
+  1. **Comparar `lower(email)` en las consultas, con un índice único sobre `lower(email)`, sin normalizar lo guardado**
+     (propuesta del 13 nov, no aprobada en E2). Guarda grafías distintas del mismo correo y deja la forma del dato sin
+     fijar: cada consulta nueva tendría que recordar comparar sin mayúsculas. David prefiere una sola forma en la base.
+  2. **Normalizar en los schemas, sin restricción en la base.** La regla dependería solo del código: una escritura que no
+     pase por un schema guardaría mayúsculas sin que nada lo impida.
+  3. **Guardar el correo como se escribió y, aparte, su forma canónica** (lo que recomienda la guía de OWASP: "Store both:
+     Original input (for display and communication); Canonical form (for comparison according to your policy)"). Una
+     columna más, sincronizada en cada escritura, para una forma original que hoy nada usa. Se aparta de la guía a
+     sabiendas; si un día hace falta, es un cambio de esquema aparte.
+  4. **Tipo `citext` de PostgreSQL.** Exige la extensión en las tres bases de Azure y no existe en SQLite, así que la suite
      dejaría de probar la invariante.
-  4. **No hacer nada.** Una persona podría tener dos cuentas, y escribir su correo con otras mayúsculas le impediría entrar.
+  5. **Migración de datos que pase a minúsculas lo guardado.** No hace falta: ningún correo guardado tiene mayúsculas.
+  6. **No hacer nada.** Una persona podría tener dos cuentas, y escribir su correo con otras mayúsculas le impediría entrar.
 
   ## Evidencia
 
-  - Sondas del plan (13 nov, SQLAlchemy 2.0.48, Alembic 1.18.4): las seis rutas antes y después del cambio; cifras en
-    `docs/deuda/BE-34/plan.md`, fases F y G.
-  - SQL fuera de línea de la migración para PostgreSQL: `CREATE UNIQUE INDEX ix_users_email_lower ON users (lower(email));`
-    entre `BEGIN;` y `COMMIT;`.
-  - Copia con las fases A–G: de 675 a 690 tests y de 97,37 % a 97,63 %. Ocho mutantes, los ocho muertos.
-  - Documentación: SQLAlchemy (índices funcionales) y Alembic (`op.create_index` con `text()`), enlaces en
-    `docs/deuda/BE-34/plan.md`, sección Referencias.
+  - Sondas del plan (14 nov; pydantic 2.12.5, email-validator 2.3.0, SQLAlchemy 2.0.48, Alembic 1.18.4): `LowercaseEmail`
+    da `root@test.com` para `rOOT@Test.com` y `ángel@test.com` para `ÁNGEL@Test.com`; en SQLite, `lower('ÁNGEL@x.com')` da
+    `Ángel@x.com`; la migración sube, baja y se detiene con una fila en mayúsculas.
+  - SQL fuera de línea para PostgreSQL: `ALTER TABLE users ADD CONSTRAINT ck_users_email_lowercase CHECK (email =
+    lower(email));` entre `BEGIN;` y `COMMIT;`.
+  - Sesión Mentor (14 nov), sobre una réplica mínima de `users` en PostgreSQL 16.15: un correo con mayúsculas da
+    `CheckViolation`; un segundo correo igual, `UniqueViolation`; crear la restricción con una fila en mayúsculas ya
+    guardada da `CheckViolation` y deja 0 restricciones.
+  - Copia con las fases A–G: de 675 a 691 tests y de 97,37 % a 97,63 %. Ocho mutantes, los ocho muertos.
+  - Documentación: OWASP (Email Validation and Verification Cheat Sheet), pydantic (`AfterValidator`), SQLAlchemy
+    (`CheckConstraint`) y Alembic (modo batch, autogenerate), enlaces en `docs/deuda/BE-34/plan.md`, sección Referencias.
   ```
-- **Tests (RED primero):** no aplica (documento). Medido: `check_docs` lo acepta (`Documentación coherente`) y la
-  compuerta queda como la fila F.
-- **Criterio de aceptación:** compuerta como la fila F. `git show --stat --format= <sha F>` lista solo el ADR. La línea
-  "Estado" lleva una fecha real, no `<FECHA>`.
+- **Tests (RED primero):** no aplica (documento). `check_docs` no lee `docs/adr` (`scripts/check_docs.py:157`). Medido:
+  la compuerta, con el ADR sobre la copia con A–E, da la fila F.
+- **Criterio de aceptación:** compuerta como la fila F. `git show --numstat --format= <sha F>` da
+  `87	0	docs/adr/0016-correo-en-minusculas.md`. La línea "Estado" lleva una fecha real, no `<FECHA>`.
 - **Fuera de alcance:** el código (fase G), ADR-0015 (no se edita), `AGENTS.md`, `docs/CONTEXT.md` y la fila BE-51 (cierre
   de la sesión Mentor).
 - **Commit:**
   ```
-  docs(adr): add ADR-0016, an email names one account whatever its case
+  docs(adr): add ADR-0016, every email is stored in lowercase
 
   EmailStr lowers only the domain, and every lookup and the unique
   index compare emails exactly, so Root@test.com and root@test.com
   can be two accounts and a user who types another case cannot sign
-  in (BE-51). David chose to close it inside BE-34 (amendment E1).
+  in (BE-51). David chose to close it inside BE-34 (amendments E1
+  and E2).
 
-  The ADR records how before the code that cites it lands: queries
-  compare lower(email) in the database, a unique index on lower(email)
-  keeps the invariant, no stored email is rewritten so every account
-  keeps signing in, and a collision stops the migration. It lists the
-  rejected paths (normalize and rewrite, normalize new input only,
-  citext, nothing) and their reasons.
+  The ADR records how before the code that cites it lands: one
+  lowercasing type for the three schemas that take an email, a CHECK
+  constraint so the database refuses any other spelling, the existing
+  unique index for uniqueness, and no data migration, because no
+  stored email has an uppercase letter. It states where it departs
+  from the OWASP email cheat sheet (only the lowercase form is stored)
+  and lists the rejected paths: lower() in queries with a functional
+  index, lowercasing without a CHECK, storing both forms, citext, a
+  data migration, and nothing.
 
   Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
   ```
 
-### Fase G — Comparación sin mayúsculas, índice único sobre `lower(email)` y su migración
+### Fase G — Correo en minúsculas al entrar, restricción `CHECK` y su migración
 
-- **Archivos (5):** `app/models/user.py`, `app/repositories/user_repository.py`,
-  `alembic/versions/b51e0a1c4d27_users_email_unique_whatever_its_case.py` (nuevo), `tests/test_user_repository.py`,
-  `tests/test_email_case.py` (nuevo). Dominio: usuarios. La exclusión de `app/models/` y `alembic/` de la Regla de
-  alcance deja de valer solo para esta fase (E1, punto 3). `app/schemas/` no se toca.
+- **Archivos (5):** `app/schemas/user.py`, `app/models/user.py`,
+  `alembic/versions/b51f3c9e2a64_users_email_stored_in_lowercase.py` (nuevo), `tests/test_user_response.py`,
+  `tests/test_email_case.py` (nuevo). Dominio: usuarios. La exclusión de `app/schemas/`, `app/models/` y `alembic/` de la
+  Regla de alcance deja de valer solo para esta fase (E1, punto 5; E2, punto 3.1).
 - **Cambios exactos:**
-  1. `app/models/user.py`: `from sqlalchemy import DateTime, Enum, String` →
-     `from sqlalchemy import DateTime, Enum, Index, String`. Tras la línea `deleted_at: …`, última del cuerpo de `User`,
-     una línea en blanco y:
+  1. `app/schemas/user.py`:
+     - Tras `from enum import Enum`, la línea `from typing import Annotated`.
+     - `from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator` →
+       `from pydantic import AfterValidator, BaseModel, ConfigDict, EmailStr, Field, field_validator`.
+     - Entre la clase `UserRole` y `class UserBase(BaseModel):`, con dos líneas en blanco a cada lado:
+       ```python
+       # Every email enters lowercased, local part included (BE-51, ADR-0016). EmailStr lowers only
+       # the domain; the database refuses any other spelling (CHECK ck_users_email_lowercase).
+       LowercaseEmail = Annotated[EmailStr, AfterValidator(str.lower)]
+       ```
+     - En `UserBase`: `    email: EmailStr = Field(..., description="Correo electrónico debe ser válido")` →
+       `    email: LowercaseEmail = Field(..., description="Correo electrónico debe ser válido")`.
+     - En `UserLogin`: `    email: EmailStr` → `    email: LowercaseEmail`.
+     - En `UserUpdate`: `    email: EmailStr | None = Field(None, description="Correo electrónico válido")` →
+       `    email: LowercaseEmail | None = Field(None, description="Correo electrónico válido")`.
+  2. `app/models/user.py`: `from sqlalchemy import DateTime, Enum, String` →
+     `from sqlalchemy import CheckConstraint, DateTime, Enum, String`. Justo después de `    __tablename__ = "users"`, sin
+     línea en blanco entre medias (la que ya sigue separa las columnas):
      ```python
-         # One account per email whatever its case (BE-51, ADR-0016): the repository compares
-         # lower(email), and this index makes the database refuse a second spelling.
-         __table_args__ = (Index("ix_users_email_lower", func.lower(email), unique=True),)
+         # Every stored email is lowercase (BE-51, ADR-0016): the schemas lower what comes in, and
+         # the database refuses any other spelling, whatever path writes it.
+         __table_args__ = (CheckConstraint("email = lower(email)", name="ck_users_email_lowercase"),)
      ```
-  2. `app/repositories/user_repository.py`: `from sqlalchemy import func` →
-     `from sqlalchemy import ColumnElement, func`. Entre `from app.models.user import User, UserRole` y
-     `class UserRepository:`, con dos líneas en blanco a cada lado:
+  3. `alembic/versions/b51f3c9e2a64_users_email_stored_in_lowercase.py`, escrito a mano (el id y la fecha son los del
+     plan, no los de `alembic revision`), con el estilo de la plantilla `script.py.mako` (`alembic/versions` está fuera
+     de ruff y de mypy):
      ```python
-     def _same_email(email: str) -> ColumnElement[bool]:
-         """Matches User.email whatever its case, as the unique index on lower(email) does.
+     """users: every email stored in lowercase (BE-51)
 
-         The database lowers both sides, so the comparison and the index agree (ADR-0016).
-
-         Args:
-             email (str): The address as typed, or as carried by a token.
-
-         Returns:
-             ColumnElement[bool]: lower(users.email) = lower(:email).
-         """
-         return func.lower(User.email) == func.lower(email)
-     ```
-     En los tres métodos, la firma y el resto del cuerpo no cambian. El docstring va tras la firma y sustituye a la
-     línea `stmt = …`, o al docstring y a esa línea en `activate_user`:
-     ```python
-         async def get_user_by_email_or_cedula(self, email: str, cedula: str) -> User | None:
-             """Finds an account, deleted or not, holding this cedula or this email in any case.
-
-             Args:
-                 email (str): Email to look for, compared without case (ADR-0016).
-                 cedula (str): Cedula to look for, compared exactly.
-
-             Returns:
-                 User | None: The first matching account, or None.
-             """
-             stmt = select(User).where(or_(User.cedula == cedula, _same_email(email)))
-     ```
-     ```python
-         async def get_non_deleted_user_by_email(self, email: str) -> User | None:
-             """Finds the account that is not soft-deleted with this email, in any case.
-
-             Args:
-                 email (str): Email typed at login or carried by an access token (ADR-0016).
-
-             Returns:
-                 User | None: The account, or None when none matches or it is deleted.
-             """
-             stmt = select(User).where(_same_email(email), User.deleted_at.is_(None))
-     ```
-     ```python
-             """Sets is_active to True on the account with this email in any case; False if none."""
-             stmt = select(User).where(_same_email(email))
-     ```
-  3. `alembic/versions/b51e0a1c4d27_users_email_unique_whatever_its_case.py`, escrito a mano (el id y la fecha son los del
-     plan, no los de `alembic revision`), con el estilo de la plantilla `script.py.mako` (`alembic/versions` está fuera de
-     ruff):
-     ```python
-     """users: email unique whatever its case (BE-51)
-
-     Revision ID: b51e0a1c4d27
+     Revision ID: b51f3c9e2a64
      Revises: 2cc4b57c136c
-     Create Date: 2026-11-13 18:00:00.000000
+     Create Date: 2026-11-14 10:00:00.000000
 
      """
      from typing import Sequence, Union
 
      from alembic import op
-     import sqlalchemy as sa
 
 
      # revision identifiers, used by Alembic.
-     revision: str = 'b51e0a1c4d27'
+     revision: str = 'b51f3c9e2a64'
      down_revision: Union[str, Sequence[str], None] = '2cc4b57c136c'
      branch_labels: Union[str, Sequence[str], None] = None
      depends_on: Union[str, Sequence[str], None] = None
 
 
      def upgrade() -> None:
-         """Adds a unique index on lower(email): Root@test.com and root@test.com are one account.
+         """Adds CHECK (email = lower(email)) to users: every stored email is lowercase (ADR-0016).
 
-         No stored email is rewritten, so every account keeps signing in with what it has. If two
-         rows already differ only in case, the database refuses to build the index and the
-         migration stops without changing anything (ADR-0016).
+         No row is rewritten. If one already holds an uppercase letter, the database refuses the
+         constraint and the migration stops without changing anything, so the CD does not deploy.
+         batch_alter_table emits a plain ALTER TABLE on PostgreSQL and rebuilds the table on SQLite,
+         which cannot add a constraint in place; the suite runs this function on SQLite.
          """
-         op.create_index('ix_users_email_lower', 'users', [sa.text('lower(email)')], unique=True)
+         with op.batch_alter_table('users') as batch_op:
+             batch_op.create_check_constraint('ck_users_email_lowercase', 'email = lower(email)')
 
 
      def downgrade() -> None:
-         """Drops the index; ix_users_email still keeps each exact email unique."""
-         op.drop_index('ix_users_email_lower', table_name='users')
+         """Drops the CHECK; ix_users_email still keeps each email unique."""
+         with op.batch_alter_table('users') as batch_op:
+             batch_op.drop_constraint('ck_users_email_lowercase', type_='check')
      ```
-  4. `tests/test_user_repository.py`: el docstring del módulo pasa a
-     `"""Tests for UserRepository: superadmins that can sign in, and email lookups in any case."""`. Añadir
-     `from sqlalchemy.exc import IntegrityError` tras `import pytest`. Al final del archivo, con dos líneas en blanco antes:
-     ```python
-     @pytest.mark.parametrize("typed", ["Root@test.com", "rOOT@test.com", "ROOT@TEST.COM"])
-     async def test_email_lookups_ignore_case(db_session, persist_user, typed):
-         """Happy path: the three lookups by email find the account whatever case is typed."""
-         user = await persist_user(email="Root@test.com", is_active=False)
-         repo = UserRepository(db_session)
-
-         assert await repo.activate_user(typed) is True
-         await db_session.refresh(user)
-         assert user.is_active is True
-         assert await repo.get_user_by_email_or_cedula(email=typed, cedula="0") is user
-         assert await repo.get_non_deleted_user_by_email(typed) is user
-
-
-     async def test_email_lookups_do_not_match_another_address(db_session, persist_user):
-         """Unhappy path: ignoring case is not a partial match; another address finds nothing."""
-         await persist_user(email="Root@test.com")
-         repo = UserRepository(db_session)
-
-         assert await repo.get_user_by_email_or_cedula(email="root2@test.com", cedula="0") is None
-         assert await repo.get_non_deleted_user_by_email("root2@test.com") is None
-         assert await repo.activate_user("root2@test.com") is False
-
-
-     async def test_soft_deleted_account_keeps_its_email_in_any_case(db_session, persist_user):
-         """Edge case: login skips a deleted account; uniqueness still counts it (BE-34 bootstrap)."""
-         user = await persist_user(email="Root@test.com", deleted_at=datetime(2026, 1, 1, tzinfo=UTC))
-         repo = UserRepository(db_session)
-
-         assert await repo.get_non_deleted_user_by_email("root@test.com") is None
-         assert await repo.get_user_by_email_or_cedula(email="root@test.com", cedula="0") is user
-
-
-     async def test_database_rejects_an_email_that_differs_only_in_case(
-         db_session, persist_user, make_user
-     ):
-         """Unhappy path: the unique index on lower(email) refuses a second spelling (ADR-0002)."""
-         await persist_user(email="Root@test.com")
-         db_session.add(make_user(email="root@TEST.com"))
-
-         with pytest.raises(IntegrityError):
-             await db_session.commit()
-     ```
+  4. `tests/test_user_response.py`: en el `parametrize` de `test_my_profile_returns_stored_values_verbatim`, borrar la
+     línea `        ("email", "Ana@EXAMPLE.COM"),` y la línea `        "mixed_case_domain",`. Nada más cambia.
   5. `tests/test_email_case.py`:
      ```python
-     """Tests for BE-51: an email names one account, whatever its case (ADR-0016).
+     """Tests for BE-51: every email is stored in lowercase, so one email is one account (ADR-0016).
 
-     One test per path that reads or writes an email (registration, provisioning, bootstrap, login,
-     email verification and the change by PATCH), and the migration that adds the index.
+     The schemas lower each email that comes in (LowercaseEmail), the CHECK ck_users_email_lowercase
+     refuses an uppercase letter written by any other path, and the unique index ix_users_email keeps
+     one account per email. One test per path that reads or writes an email (registration,
+     provisioning, bootstrap, login, email verification and the change by PATCH), and the migration
+     that adds the CHECK, run on a database of its own.
      """
 
      import runpy
+     from collections.abc import Callable, Iterator
      from pathlib import Path
+     from unittest.mock import ANY
 
      import jwt
      import pytest
      from alembic.migration import MigrationContext
      from alembic.operations import Operations
-     from sqlalchemy import Connection, func, select, text
+     from sqlalchemy import Connection, create_engine, func, inspect, select
      from sqlalchemy.exc import IntegrityError
+     from sqlalchemy.orm import Session
 
      from app.core.config import get_settings
      from app.core.exceptions import AlreadyExistsError
      from app.core.security import create_verification_token, get_password_hash
+     from app.db.database import Base
      from app.models.audit import AuditLog
      from app.models.user import User, UserRole
      from app.repositories.audit_repository import AuditRepository
      from app.repositories.user_repository import UserRepository
-     from app.schemas.user import UserCreateByAdmin
+     from app.schemas.user import UserCreate, UserCreateByAdmin, UserLogin, UserUpdate
      from app.schemas.user import UserRole as SchemaUserRole
      from app.services.audit_service import AuditService
      from app.services.superadmin_bootstrap import bootstrap_superadmin
 
      PASSWORD = "Password123"
-     STORED = "Root@test.com"
-     OTHER_CASE = "rOOT@test.com"
+     STORED = "root@test.com"
+     TYPED = "rOOT@Test.com"
+     CHECK_NAME = "ck_users_email_lowercase"
 
-     ALEMBIC_VERSIONS = Path(__file__).resolve().parents[1] / "alembic" / "versions"
-     MIGRATION = ALEMBIC_VERSIONS / "b51e0a1c4d27_users_email_unique_whatever_its_case.py"
+     REGISTRATION = {
+         "cedula": "1005911792",
+         "email": TYPED,
+         "first_name": "Juan",
+         "last_name": "Perez",
+         "password": PASSWORD,
+         "data_consent": True,
+     }
+
+     MIGRATION = (
+         Path(__file__).resolve().parents[1]
+         / "alembic"
+         / "versions"
+         / "b51f3c9e2a64_users_email_stored_in_lowercase.py"
+     )
 
 
      async def _emails(db_session) -> list[str]:
          return list(await db_session.scalars(select(User.email).order_by(User.id)))
 
 
-     async def _count(db_session, model: type[User] | type[AuditLog]) -> int:
-         return int(await db_session.scalar(select(func.count()).select_from(model)))
-
-
      def _migrate(connection: Connection, step: str) -> None:
-         """Runs upgrade() or downgrade() of the BE-51 migration on this connection."""
+         """Runs upgrade() or downgrade() of the BE-51 migration, with its own op, on this connection."""
          migration = runpy.run_path(str(MIGRATION))
          with Operations.context(MigrationContext.configure(connection)):
              migration[step]()
 
 
-     async def _has_email_index(db_session) -> bool:
-         """Reads sqlite_master: SQLAlchemy does not reflect expression-based indexes on SQLite."""
-         found = await db_session.scalar(
-             text("SELECT name FROM sqlite_master WHERE type = 'index' AND name = :name"),
-             {"name": "ix_users_email_lower"},
+     def _checks(connection: Connection) -> list[str | None]:
+         return [check["name"] for check in inspect(connection).get_check_constraints("users")]
+
+
+     def _add(connection: Connection, user: User) -> None:
+         with Session(connection) as session:
+             session.add(user)
+             session.commit()
+
+
+     @pytest.fixture
+     def pre_migration_db() -> Iterator[Connection]:
+         """A SQLite database of its own, on the schema before b51f3c9e2a64 (its downgrade applied).
+
+         The suite's shared database is left alone: on SQLite a failed batch leaves its temporary
+         table behind, and the next test would find it.
+         """
+         engine = create_engine("sqlite://")
+         with engine.connect() as connection:
+             Base.metadata.create_all(connection)
+             _migrate(connection, "downgrade")
+             connection.commit()
+             yield connection
+         engine.dispose()
+
+
+     @pytest.mark.parametrize(
+         "build",
+         [
+             lambda: UserCreate(**REGISTRATION),
+             lambda: UserLogin(email=TYPED, password=PASSWORD),
+             lambda: UserUpdate(email=TYPED),
+         ],
+         ids=["UserBase", "UserLogin", "UserUpdate"],
+     )
+     def test_every_email_input_arrives_lowercased(
+         build: Callable[[], UserCreate | UserLogin | UserUpdate],
+     ) -> None:
+         """Happy path: the three schemas that take an email hand it over lowercased, local part too."""
+         assert build().email == STORED
+
+
+     def test_a_non_ascii_local_part_is_lowercased_too() -> None:
+         """Edge case: EmailStr admits a non-ASCII local part, and Python lowers it as Unicode."""
+         assert UserLogin(email="ÁNGEL@Test.com", password=PASSWORD).email == "ángel@test.com"
+
+
+     def test_a_patch_with_a_null_email_keeps_it_null() -> None:
+         """Edge case: the optional email of UserUpdate accepts None and does not lower it."""
+         update = UserUpdate(email=None, phone="3001234567")
+
+         assert update.email is None
+         assert update.model_dump(exclude_unset=True) == {"email": None, "phone": "3001234567"}
+
+
+     async def test_registration_stores_the_email_in_lowercase(client, db_session, mock_send_email):
+         """Happy path: 201; the row, the response and the verification email carry it lowercased."""
+         response = await client.post("/usuarios/registro", json=REGISTRATION)
+
+         assert response.status_code == 201
+         assert response.json()["email"] == STORED
+         assert await _emails(db_session) == [STORED]
+         mock_send_email.assert_called_once_with(
+             email_to=STORED, first_name="Juan", token=ANY, base_url=ANY
          )
-         return found is not None
-
-
-     async def test_login_accepts_the_email_in_another_case(client, persist_user):
-         """Happy path: the account signs in with its email typed in another case."""
-         user = await persist_user(email=STORED, password_hash=get_password_hash(PASSWORD))
-
-         response = await client.post(
-             "/usuarios/login", json={"email": OTHER_CASE, "password": PASSWORD}
-         )
-
-         assert response.status_code == 200
-         settings = get_settings()
-         claims = jwt.decode(
-             response.json()["access_token"], settings.jwt_secret_key, algorithms=[settings.algorithm]
-         )
-         assert claims["sub"] == user.email == STORED
 
 
      async def test_registration_rejects_an_email_taken_in_another_case(
@@ -1630,16 +1690,8 @@ una decisión de producto, con su propio ítem.
      ):
          """Unhappy path: 400, no second row and no verification email."""
          await persist_user(email=STORED)
-         payload = {
-             "cedula": "1005911792",
-             "email": OTHER_CASE,
-             "first_name": "Juan",
-             "last_name": "Perez",
-             "password": PASSWORD,
-             "data_consent": True,
-         }
 
-         response = await client.post("/usuarios/registro", json=payload)
+         response = await client.post("/usuarios/registro", json=REGISTRATION)
 
          assert response.status_code == 400
          assert set(response.json()) == {"detail"}
@@ -1653,16 +1705,7 @@ una decisión de producto, con su propio ítem.
          """Unhappy path: a superadmin cannot provision a second account for the same email."""
          superadmin = await persist_user(role=UserRole.superadmin)
          await persist_user(email=STORED)
-         payload = {
-             "cedula": "555555",
-             "email": OTHER_CASE,
-             "first_name": "New",
-             "last_name": "Admin",
-             "password": PASSWORD,
-             "role": "admin",
-             "data_consent": True,
-             "is_active": True,
-         }
+         payload = {**REGISTRATION, "cedula": "555555", "role": "admin", "is_active": True}
 
          response = await client.post(
              "/usuarios/admin", json=payload, headers=make_auth_headers(superadmin)
@@ -1674,17 +1717,10 @@ una decisión de producto, con su propio ítem.
 
 
      async def test_bootstrap_rejects_an_email_taken_in_another_case(db_session, persist_user):
-         """Unhappy path: the bootstrap stops as with an exact match; nothing is written."""
+         """Unhappy path: SUPERADMIN_EMAIL in another case stops the bootstrap; nothing is written."""
          await persist_user(email=STORED)
          credentials = UserCreateByAdmin(
-             cedula="900000001",
-             email=OTHER_CASE,
-             first_name="Ana",
-             last_name="Diaz",
-             password=PASSWORD,
-             data_consent=True,
-             role=SchemaUserRole.superadmin,
-             is_active=True,
+             **{**REGISTRATION, "cedula": "900000001"}, role=SchemaUserRole.superadmin, is_active=True
          )
 
          with pytest.raises(AlreadyExistsError):
@@ -1693,37 +1729,63 @@ una decisión de producto, con su propio ítem.
              )
 
          assert await _emails(db_session) == [STORED]
-         assert await _count(db_session, AuditLog) == 0
+         assert await db_session.scalar(select(func.count()).select_from(AuditLog)) == 0
 
 
-     async def test_verification_link_in_another_case_activates_the_account(
-         client, db_session, persist_user
-     ):
-         """Edge case: a token whose subject differs only in case activates the stored account."""
+     async def test_login_accepts_the_email_typed_in_another_case(client, persist_user):
+         """Happy path: 200, and the token carries the stored, lowercase email."""
+         user = await persist_user(email=STORED, password_hash=get_password_hash(PASSWORD))
+
+         response = await client.post("/usuarios/login", json={"email": TYPED, "password": PASSWORD})
+
+         assert response.status_code == 200
+         settings = get_settings()
+         claims = jwt.decode(
+             response.json()["access_token"], settings.jwt_secret_key, algorithms=[settings.algorithm]
+         )
+         assert claims["sub"] == user.email == STORED
+
+
+     async def test_verification_token_in_another_case_is_rejected(client, db_session, persist_user):
+         """Edge case: the app signs only the stored email, so a subject in another case finds none."""
          user = await persist_user(email=STORED, is_active=False)
-         token = create_verification_token(OTHER_CASE)
+         token = create_verification_token(TYPED)
 
          response = await client.get(f"/usuarios/verificar-email?token={token}")
 
-         assert response.status_code == 200
-         assert response.json()["success"] is True
+         assert response.status_code == 404
+         assert set(response.json()) == {"detail"}
          await db_session.refresh(user)
-         assert user.is_active is True
+         assert user.is_active is False
+
+
+     async def test_patch_stores_a_new_email_in_lowercase(
+         client, db_session, persist_user, make_auth_headers
+     ):
+         """Happy path: 200; the response and the row carry the new email lowercased."""
+         user = await persist_user()
+
+         response = await client.patch(
+             f"/usuarios/{user.cedula}", json={"email": TYPED}, headers=make_auth_headers(user)
+         )
+
+         assert response.status_code == 200
+         assert response.json()["email"] == STORED
+         await db_session.refresh(user)
+         assert user.email == STORED
 
 
      async def test_patch_cannot_take_an_email_in_another_case(
          client, db_session, persist_user, make_auth_headers
      ):
-         """Unhappy path: 409 from the unique index; the target keeps its email."""
+         """Unhappy path: 409 from the unique index ix_users_email; the target keeps its email."""
          admin = await persist_user(role=UserRole.admin)
          await persist_user(email=STORED)
          tourist = await persist_user()
          original_email = tourist.email
 
          response = await client.patch(
-             f"/usuarios/{tourist.cedula}",
-             json={"email": OTHER_CASE},
-             headers=make_auth_headers(admin),
+             f"/usuarios/{tourist.cedula}", json={"email": TYPED}, headers=make_auth_headers(admin)
          )
 
          assert response.status_code == 409
@@ -1732,94 +1794,113 @@ una decisión de producto, con su propio ítem.
          assert tourist.email == original_email
 
 
-     async def test_patch_may_change_only_the_case_of_its_own_email(
+     async def test_patch_changing_only_the_case_keeps_the_email(
          client, db_session, persist_user, make_auth_headers
      ):
-         """Edge case: the same account may rewrite its email in another case."""
+         """Edge case: its own email in another case is the same value once lowercased."""
          user = await persist_user(email=STORED)
 
          response = await client.patch(
-             f"/usuarios/{user.cedula}", json={"email": OTHER_CASE}, headers=make_auth_headers(user)
+             f"/usuarios/{user.cedula}", json={"email": TYPED}, headers=make_auth_headers(user)
          )
 
          assert response.status_code == 200
+         assert response.json()["email"] == STORED
          await db_session.refresh(user)
-         assert user.email == OTHER_CASE
+         assert user.email == STORED
 
 
-     async def test_migration_adds_the_index_without_rewriting_emails(db_session, persist_user):
-         """Happy path: upgrade indexes mixed-case rows as stored; downgrade drops the index."""
-         await db_session.execute(text("DROP INDEX ix_users_email_lower"))
-         await db_session.commit()
-         await persist_user(email=STORED)
-         await persist_user(email="other@test.com")
-         connection = await db_session.connection()
+     async def test_database_rejects_an_email_with_an_uppercase_letter(db_session, make_user):
+         """Unhappy path: a row written without a schema still meets the CHECK (ADR-0002)."""
+         db_session.add(make_user(email="Root@test.com"))
 
-         await connection.run_sync(_migrate, "upgrade")
-
-         assert await _has_email_index(db_session) is True
-         assert await _emails(db_session) == [STORED, "other@test.com"]
-         await connection.run_sync(_migrate, "downgrade")
-         assert await _has_email_index(db_session) is False
-
-
-     async def test_migration_stops_on_emails_that_differ_only_in_case(db_session, persist_user):
-         """Unhappy path: two rows that differ only in case stop the upgrade; nothing changes."""
-         await db_session.execute(text("DROP INDEX ix_users_email_lower"))
-         await db_session.commit()
-         await persist_user(email=STORED)
-         await persist_user(email=OTHER_CASE)
-         connection = await db_session.connection()
-
-         with pytest.raises(IntegrityError):
-             await connection.run_sync(_migrate, "upgrade")
+         with pytest.raises(IntegrityError, match=CHECK_NAME):
+             await db_session.commit()
 
          await db_session.rollback()
-         assert await _emails(db_session) == [STORED, OTHER_CASE]
-         assert await _has_email_index(db_session) is False
+         assert await _emails(db_session) == []
+
+
+     def test_migration_adds_the_check_and_its_downgrade_drops_it(pre_migration_db, make_user):
+         """Happy path: upgrade keeps rows and unique indexes and adds the CHECK; downgrade drops it."""
+         _add(pre_migration_db, make_user(email=STORED))
+         assert _checks(pre_migration_db) == []
+
+         _migrate(pre_migration_db, "upgrade")
+
+         assert _checks(pre_migration_db) == [CHECK_NAME]
+         assert list(pre_migration_db.scalars(select(User.email))) == [STORED]
+         indexes = inspect(pre_migration_db).get_indexes("users")
+         assert {index["name"] for index in indexes if index["unique"]} == {
+             "ix_users_cedula",
+             "ix_users_email",
+         }
+         _migrate(pre_migration_db, "downgrade")
+         assert _checks(pre_migration_db) == []
+
+
+     def test_migration_stops_on_an_email_with_an_uppercase_letter(pre_migration_db, make_user):
+         """Unhappy path: one uppercase row stops the upgrade; row and table stay as they were."""
+         _add(pre_migration_db, make_user(email="Juan@test.com"))
+
+         with pytest.raises(IntegrityError, match=CHECK_NAME):
+             _migrate(pre_migration_db, "upgrade")
+
+         pre_migration_db.rollback()
+         assert _checks(pre_migration_db) == []
+         assert list(pre_migration_db.scalars(select(User.email))) == ["Juan@test.com"]
      ```
 - **Tests (RED primero):**
   1. Primero los tests (pasos 4 y 5) y luego
-     `./venv/Scripts/python.exe -m pytest tests/test_email_case.py tests/test_user_repository.py -q -p no:cacheprovider -rf --tb=no`.
-     Medido: `12 failed, 8 passed`. Pasan los 5 de la fase D, `test_email_lookups_ignore_case[Root@test.com]`,
-     `test_email_lookups_do_not_match_another_address` y `test_patch_may_change_only_the_case_of_its_own_email`.
-  2. Después el modelo y la migración (pasos 1 y 3). Medido: `8 failed, 12 passed`: login, registro, provisión,
-     bootstrap, verificación, dos parámetros de `test_email_lookups_ignore_case` y
-     `test_soft_deleted_account_keeps_its_email_in_any_case`.
-  3. Al final, el repositorio (paso 2): `20 passed`. Mutantes MG1 a MG8 con los resultados de la tabla.
+     `./venv/Scripts/python.exe -m pytest tests/test_email_case.py tests/test_user_response.py -q -p no:cacheprovider -rf --tb=no`.
+     Medido: `13 failed, 15 passed, 2 warnings, 2 errors`. Los 2 errores son los tests de la migración: su archivo aún no
+     existe. Pasan los 13 de `test_user_response.py`, `test_a_patch_with_a_null_email_keeps_it_null` y
+     `test_verification_token_in_another_case_is_rejected`; estos dos fijan comportamiento que G no cambia.
+  2. Después los schemas (paso 1). Medido: `1 failed, 27 passed, 2 warnings, 2 errors`. Solo falta
+     `test_database_rejects_an_email_with_an_uppercase_letter`.
+  3. Al final, el modelo y la migración (pasos 2 y 3): `30 passed, 2 warnings`. Mutantes MG1 a MG8 con los resultados de
+     la tabla.
   Por qué cada truco del test:
-  - Variante `rOOT@test.com`: `EmailStr` ya pasa el dominio a minúsculas, así que la variante cambia la parte local.
-  - `DROP INDEX` antes de la migración: reproduce el esquema previo a `b51e0a1c4d27` sobre la base de la suite.
-  - `sqlite_master`: ver la sonda de la reflexión.
-  - `Operations.context(MigrationContext.configure(connection))`: ejecuta `upgrade()`/`downgrade()` del archivo real, con
-    su `op`, sobre la conexión del test.
+  - Variante `rOOT@Test.com`: cambia la parte local, que `EmailStr` deja como llega; el dominio ya lo pliega `EmailStr`.
+  - `pre_migration_db`: un SQLite propio, creado con el modelo y llevado al esquema previo con el `downgrade()` de la
+    propia migración. Así el fallo de `upgrade()` no deja `_alembic_tmp_users` en la base compartida.
+  - `Operations.context(MigrationContext.configure(connection))`: ejecuta `upgrade()` y `downgrade()` del archivo real,
+    con su `op`, sobre la conexión del test.
+  - `match=CHECK_NAME`: distingue el rechazo de la restricción del de `ix_users_email`, que también es `IntegrityError`.
+  - `_add` usa `make_user` y una `Session` sobre la conexión propia (AGENTS §5: nada de usuarios a mano).
 - **Criterio de aceptación:** compuerta como la fila G. `git show --numstat --format= <sha G>` da
-  `33	0	alembic/versions/b51e0a1c4d27_users_email_unique_whatever_its_case.py`, `5	1	app/models/user.py`,
-  `36	5	app/repositories/user_repository.py`, `228	0	tests/test_email_case.py` y `45	1	tests/test_user_repository.py`.
-  Pasos 10 a 18 de la Verificación final con su salida esperada.
-- **Fuera de alcance:** `app/schemas/` (nada se pasa a minúsculas en Python); `app/services/` (delegan en el repositorio;
-  el `PATCH` queda cubierto por el índice); `ix_users_email` (R10); `tests/test_models_schema.py` (las columnas no
-  cambian); los datos de las tres bases; el texto del handler de `IntegrityError`.
+  `35	0	alembic/versions/b51f3c9e2a64_users_email_stored_in_lowercase.py`, `4	1	app/models/user.py`,
+  `10	4	app/schemas/user.py`, `299	0	tests/test_email_case.py` y `0	2	tests/test_user_response.py`. Pasos 10 a 18 de la
+  Verificación final con su salida esperada. El paso 19 es de David, antes de `/pr`.
+- **Fuera de alcance:** `app/repositories/` (las consultas siguen comparando exacto); `app/services/` (reciben el correo
+  ya en minúsculas); `ix_users_email` (se queda, E2, punto 5); `tests/test_models_schema.py` (congela columnas, y las
+  columnas no cambian); `tests/test_user_repository.py` y los demás archivos de A–E; los datos de las tres bases; el texto
+  del handler de `IntegrityError`; el `PATCH` que no comprueba el correo antes de guardar (R11); la longitud del correo
+  (R13).
 - **Commit:**
   ```
-  fix(users): treat emails that differ only in case as the same account
+  fix(users): store every email in lowercase, enforced by the database
 
-  Registration, provisioning, the bootstrap, login, email verification
-  and the email change by PATCH all compared emails exactly, so
-  Root@test.com and root@test.com could be two accounts and a user who
-  typed another case could not sign in (BE-51, ADR-0016).
+  Registration, provisioning, the bootstrap, login and the email change
+  by PATCH kept the local part as typed, and every lookup compared it
+  exactly, so Root@test.com and root@test.com could be two accounts and
+  a user who typed another case could not sign in (BE-51, ADR-0016).
 
-  - app/repositories/user_repository.py: the three lookups by email go
-    through _same_email, lower(email) = lower(:email) in the database.
-  - app/models/user.py and migration b51e0a1c4d27: a unique index on
-    lower(email), so the database refuses a second spelling; a PATCH
-    that tries gets the 409 of the IntegrityError handler.
-  - No stored email is rewritten: every account keeps signing in with
-    what it has, and issued tokens stay valid. If two rows already
-    differ only in case, the migration stops and changes nothing.
-  - tests: the six paths with a case variant, the lookups and the index
-    at repository level, and the migration upgrading, downgrading and
-    stopping on a collision.
+  - app/schemas/user.py: LowercaseEmail, EmailStr followed by
+    str.lower, is the email type of UserBase, UserLogin and UserUpdate:
+    one type, not three validators.
+  - app/models/user.py and migration b51f3c9e2a64: CHECK (email =
+    lower(email)) named ck_users_email_lowercase, so a write that skips
+    the schemas is refused. batch_alter_table emits a plain ALTER TABLE
+    on PostgreSQL and lets the suite run the migration on SQLite.
+  - Lookups still compare exactly, and ix_users_email still keeps one
+    account per email: what comes in and what is stored are lowercase.
+  - No row is rewritten: no stored email has an uppercase letter. If
+    one does, the migration stops and changes nothing.
+  - tests: the six paths with a case variant, the database refusing an
+    uppercase email, and the migration upgrading, downgrading and
+    stopping. The A9 case that stored Ana@EXAMPLE.COM goes: the
+    database can no longer hold it.
 
   Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
   ```
@@ -1862,55 +1943,78 @@ git diff --name-only 4f10660 -- app tests pyproject.toml .env.example docs/adr
 ./venv/Scripts/python.exe scripts/check.py
 ```
 
-Tras la fase G (E1), desde la raíz. Los pasos 1 a 9 valen tras E. Tras G cambian el 2 (ver el 17), el 6 (G toca
-`app/models` y `alembic`), el 7 (pasa a 16 archivos) y el 9 (ver el 18).
+Tras la fase G (E1, E2), desde la raíz. Los pasos 1 a 9 valen tras E. Tras G cambian el 2 (ver el 17), el 6 (lista
+`app/models/user.py`, `app/schemas/user.py` y la migración `b51f3c9e2a64`), el 7 (17 archivos: los 12 de A–E, ADR-0016
+y cuatro de G; la migración está en `alembic/`, fuera de ese pathspec) y el 9 (ver el 18). Los conteos incluyen el texto
+que dicta este plan (comentarios, docstrings y nombres de tests).
 
 ```bash
-# 10. Ninguna consulta compara el correo exacto → exit 1 (en 4f10660: user_repository.py:17, :23 y :35)
-git grep -n -E 'User\.email ==' -- app
+# 10. Ningún resto del mecanismo del 13 nov ni comparación sin mayúsculas → exit 1
+git grep -n -E 'func\.lower|_same_email|ix_users_email_lower|ilike|casefold' -- app alembic tests
 
-# 11. Un solo punto de comparación → 4 líneas: la definición de _same_email y sus tres usos
-git grep -n '_same_email' -- app
+# 11. Las consultas siguen comparando exacto → 3 líneas: app/repositories/user_repository.py:18, :44 y :56
+git grep -n 'User\.email ==' -- app
 
-# 12. func.lower → 2 líneas: app/models/user.py (el índice) y app/repositories/user_repository.py (_same_email)
-git grep -n 'func\.lower' -- app alembic tests
+# 12. Un solo punto de normalización → 4 líneas, todas en app/schemas/user.py: :22 (la definición), :39 (UserBase),
+#     :134 (UserLogin) y :166 (UserUpdate)
+git grep -n 'LowercaseEmail' -- app
 
-# 13. Nombre del índice → alembic/versions/b51e0a1c4d27_users_email_unique_whatever_its_case.py:2 ·
-#     app/models/user.py:1 · tests/test_email_case.py:3
-git grep -c 'ix_users_email_lower' -- app alembic tests
+# 13. Nombre de la restricción → alembic/versions/b51f3c9e2a64_users_email_stored_in_lowercase.py:2 ·
+#     app/models/user.py:1 · app/schemas/user.py:1 · tests/test_email_case.py:2
+git grep -c 'ck_users_email_lowercase' -- app alembic tests
 
-# 14. Una sola cabeza de Alembic → "b51e0a1c4d27 (head)"
+# 14. Una sola cabeza de Alembic → "b51f3c9e2a64 (head)"
 DATABASE_URL=postgresql+asyncpg://u:p@localhost:5432/db ./venv/Scripts/python.exe -m alembic heads
 
-# 15. SQL de PostgreSQL sin base → contiene "CREATE UNIQUE INDEX ix_users_email_lower ON users (lower(email));"
-DATABASE_URL=postgresql+asyncpg://u:p@localhost:5432/db ./venv/Scripts/python.exe -m alembic upgrade 2cc4b57c136c:b51e0a1c4d27 --sql
+# 15. SQL de PostgreSQL sin base → contiene
+#     "ALTER TABLE users ADD CONSTRAINT ck_users_email_lowercase CHECK (email = lower(email));"
+DATABASE_URL=postgresql+asyncpg://u:p@localhost:5432/db ./venv/Scripts/python.exe -m alembic upgrade 2cc4b57c136c:b51f3c9e2a64 --sql
 
 # 16. Archivos de F y G → exactamente 6 (el ADR, los 2 nuevos de G y los 3 que G edita)
 git diff --name-only <sha E> -- app tests alembic docs/adr
 
-# 17. Patrón 2 de BE-34 tras G → 10 líneas (115 coincidencias): las 8 del paso 2 más tests/test_email_case.py:5 y
-#     tests/test_user_repository.py:1
+# 17. Patrón 2 de BE-34 tras G → 9 líneas (114 coincidencias): las 8 del paso 2 más tests/test_email_case.py:5
 git grep -c -i -E 'bootstrap|first_superadmin|initial_admin|superadmin_(email|password|cedula|first_name|last_name)' -- app alembic scripts tests conftest.py .env.example Dockerfile docker-compose.yml .azure-pipelines
 
-# 18. Compuerta → exit 0; 690 passed, 8 warnings; TOTAL 1034 stmts, 97.63 %; 68 files; 63 source files; 4 kept
+# 18. Compuerta → exit 0; 691 passed, 8 warnings; TOTAL 1034 stmts, 97.63 %; 68 files; 63 source files; 4 kept
 ./venv/Scripts/python.exe scripts/check.py
 ```
+
+Paso 19, **de David, antes de `/pr`** (E2, punto 3.8; ADR-0010, punto 7), contra su PostgreSQL local y con la salida
+literal en la bitácora:
+
+```bash
+# 19a. → la salida incluye "Running upgrade 2cc4b57c136c -> b51f3c9e2a64"
+DATABASE_URL=<PostgreSQL local> ./venv/Scripts/python.exe -m alembic upgrade head
+
+# 19b. → "No new upgrade operations detected." No prueba la restricción: Alembic no compara CHECK
+#      (medido: compare_metadata → [] con la restricción ausente)
+DATABASE_URL=<PostgreSQL local> ./venv/Scripts/python.exe -m alembic check
+
+# 19c. En su cliente SQL, sobre esa base → 1 fila: ck_users_email_lowercase · CHECK (((email)::text = lower((email)::text)))
+SELECT conname, pg_get_constraintdef(oid) FROM pg_constraint WHERE conname = 'ck_users_email_lowercase';
+```
+
+La forma de 19c es la que midió la sesión Mentor (PostgreSQL 16.15) con la expresión equivalente; aquí no se midió. Si la
+base local tiene un correo con mayúsculas, 19a se detiene: es lo esperado, y Q1 dice cuál. Si 19b lista operaciones,
+van a la bitácora y a Residuales; no se corrigen de paso.
 
 ## Residuales
 
 | # | Hallazgo (evidencia) | Destino sugerido |
 |---|---|---|
 | R1 | AGENTS §3 describe solo el flujo Router → Servicio. `app.cli` es un segundo adaptador (ADR-0015). | Que David añada en AGENTS una línea "comandos de operador en `app/cli/`, ADR-0015", en un PR propio (AGENTS no lo edita un agente). |
-| R2 | La parte local del correo conserva mayúsculas. Sonda: `UserCreate(email='Root@Test.COM').email` → `'Root@test.com'`. La unicidad y `get_user_by_email_or_cedula` comparan exacto, así que `Root@test.com` y `root@test.com` son dos cuentas, también en el registro de turistas. No es escalada: el bootstrap crea una fila nueva. | Fila nueva `BE-51` (Baja): "unicidad de correo sensible a mayúsculas en la parte local", decidir si se normaliza. |
+| R2 | La parte local del correo conservaba mayúsculas. Sonda: `UserCreate(email='Root@Test.COM').email` → `'Root@test.com'`. La unicidad y las tres consultas por correo comparan exacto, así que `Root@test.com` y `root@test.com` son dos cuentas, también en el registro de turistas. No es escalada: el bootstrap crea una fila nueva. | **Se salda en este ítem (E1, E2):** fila BE-51 (`Entra · B-GHOST-ADMIN`), fases F y G, con el mecanismo de E2. |
 | R3 | No existe cambio de contraseña (adenda): la del superadmin es definitiva. BE-11 solo cubre la recuperación (Sale). | Fila nueva de feature (cambio de contraseña autenticado), si David la quiere. |
 | R4 | El manual técnico debe recoger el comando (adenda, punto 2). | Bloque del manual `(PLAN §2b)`, sesión Mentor. |
 | R5 | `docs/CONTEXT.md` no menciona ADR-0015 ni `app/cli/`. | Cierre del ítem, sesión Mentor. |
 | R6 | BE-35 ("siempre queda al menos un superadmin activo") puede reutilizar `UserRepository.count_active_superadmins`. | Nota en la fila BE-35. |
 | R7 | import-linter no prohíbe `fastapi`/`starlette` en `app.cli`: el contrato de capas solo fija la dirección. | Opcional; sin fila salvo que David lo pida. |
 | R9 | E0.3 cambió la cifra que ADR-0015 cita (674 → 675 tests). La fase B no está commiteada, así que se corrigió esa cifra en su texto dictado, como prevé E0.3; nada más de B cambia. | Si David prefiere B intacta, se devuelve la cifra a 674 y este residual pasa al PR. |
-| R10 | Tras G, `ix_users_email` (único y exacto; `a0f621304d75_*.py:51`, `app/models/user.py:39`) es redundante con `ix_users_email_lower`. | Fila Baja opcional ("retirar el índice exacto"); cambiaría `tests/test_models_schema.py:70`. |
-| R11 | `update_user_account` no comprueba el correo antes de guardar (`user_service.py:285,297`): un `PATCH` con un correo ajeno, exacto o en otra grafía, recibe el 409 genérico del handler de `IntegrityError`, no un `AlreadyExistsError`. Ya pasaba antes de G. | Sin fila salvo que David la pida. |
-| R12 | Ni la suite ni las sondas ejecutan PostgreSQL (BE-31). La migración de G solo se vio como SQL fuera de línea. El `lower()` de PostgreSQL pliega Unicode según la configuración regional; el de SQLite, solo ASCII. | Declararlo en el PR. La primera ejecución real es el CD de `develop`, después de Q2. |
+| R10 | **Retirado por E2 (punto 5).** `ix_users_email` no es redundante: es el índice que sostiene la unicidad. | — |
+| R11 | `update_user_account` no comprueba el correo antes de guardar (`user_service.py:285,297`): un `PATCH` con el correo de otra cuenta, escrito como sea, recibe el 409 genérico del handler de `IntegrityError` (`app/main.py:100-114`), no un `AlreadyExistsError`. Ya pasaba antes de G. Tras G lo fija `test_patch_cannot_take_an_email_in_another_case`, el primer test que pasa por ese handler (medido: `app/main.py:106` deja de faltar en la cobertura). | Sin fila salvo que David la pida. |
+| R12 | Lo que queda sin ejecutar en PostgreSQL (BE-31). La suite y las sondas del planificador corren sobre SQLite; la migración de G solo se vio aquí como SQL fuera de línea. La sesión Mentor ejecutó la restricción en un PostgreSQL 16.15 propio (réplica mínima, psycopg2), y el paso 19 la ejecuta en el PostgreSQL local de David; ninguno es una base de Azure. Lo que SQLite no deja ver: su `lower()` solo pliega ASCII (`Ángel@x.com` pasa la restricción en SQLite y no en PostgreSQL; por los schemas no llega, porque Python pliega Unicode), y un `batch` fallido deja `_alembic_tmp_users` (en PostgreSQL es un solo `ALTER TABLE`). `alembic check` no compara `CHECK`. Si `str.lower()` y el `lower()` de una base de Azure difirieran en algún carácter Unicode, esa base rechazaría el correo con 409; no medido. | Declararlo en el PR. La primera ejecución en Azure es el CD de `develop`, con Q1 = 0. |
+| R13 | `EmailStr` admite correos más largos que la columna: uno de 196 caracteres pasa `UserLogin` (sonda), y `users.email` es `String(150)` (`app/models/user.py:39`). SQLite no aplica la longitud, así que la suite no lo ve. En PostgreSQL el `INSERT` fallaría con un error de datos que no es `IntegrityError`, y ningún handler lo traduce (leído, no ejecutado). Previo a BE-51. | Fila Baja nueva si David la quiere (`max_length` en `LowercaseEmail` o en la columna). Fuera de BE-34. |
 
 ## Referencias
 
@@ -1923,12 +2027,20 @@ git grep -c -i -E 'bootstrap|first_superadmin|initial_admin|superadmin_(email|pa
   https://github.com/seddonym/import-linter/blob/v2.15/docs/contract_types/layers.md
 - Python · 3.14 · `runpy.run_path` / `runpy.run_module`: https://docs.python.org/3/library/runpy.html
 - Python · 3.14 · `subprocess.run(env=…, cwd=…, timeout=…)` (E0.3): https://docs.python.org/3/library/subprocess.html#subprocess.run
-- SQLAlchemy · 2.0.48 · índice funcional `Index("…", func.lower(col), unique=True)` en `__table_args__` (G; medido:
-  `CREATE UNIQUE INDEX … ON users (lower(email))`): https://docs.sqlalchemy.org/en/20/core/constraints.html#functional-indexes
-- Alembic · 1.18.4 · `op.create_index(…, [text("lower(email)")], unique=True)`:
-  https://alembic.sqlalchemy.org/en/latest/ops.html#alembic.operations.Operations.create_index ; `Operations.context` y
-  `MigrationContext.configure` fuera de `env.py` (tests de G):
+- pydantic · 2.12.5 · validador reutilizable `Annotated[T, AfterValidator(f)]` (G, `LowercaseEmail`):
+  https://github.com/pydantic/pydantic/blob/v2.12.5/docs/concepts/validators.md
+- SQLAlchemy · 2.0.48 · `CheckConstraint` con nombre en `__table_args__` (G; medido:
+  `CONSTRAINT ck_users_email_lowercase CHECK (email = lower(email))` en PostgreSQL y en SQLite):
+  https://docs.sqlalchemy.org/en/20/core/constraints.html#check-constraint
+- Alembic · 1.18.4 · `batch_alter_table` y las restricciones `CHECK` con nombre ("Including CHECK constraints"):
+  https://github.com/sqlalchemy/alembic/blob/rel_1_18_4/docs/build/batch.rst ; autogenerate no detecta `CHECK` ("can't
+  currently, but will eventually detect"): https://github.com/sqlalchemy/alembic/blob/rel_1_18_4/docs/build/autogenerate.rst ;
+  `Operations.context` y `MigrationContext.configure` fuera de `env.py` (tests de G):
   https://alembic.sqlalchemy.org/en/latest/api/runtime.html#alembic.runtime.migration.MigrationContext.configure
+- OWASP Cheat Sheet Series · `master`, leída el 14 nov 2026 por Context7 · Email Validation and Verification Cheat Sheet,
+  secciones "Case Sensitivity" y "Email Canonicalization" (ADR-0016):
+  https://github.com/OWASP/CheatSheetSeries/blob/master/cheatsheets/Email_Validation_and_Verification_Cheat_Sheet.md
+- RFC 5321: no se leyó, así que ADR-0016 no lo cita (E2, punto 3.7).
 
 ## Enmiendas aprobadas
 
@@ -2134,6 +2246,78 @@ hasta que David las apruebe (E3).**
 
 `progress.json`: sin cambios por E2 (`current_target: Fase_A`).
 
+### Aplicación de E2 (plan-redactor, 14 nov 2026, por mensaje directo; las fases A–E no cambian)
+
+- **Medido antes de dictar (E2, punto 3.6)**, sobre copias de `HEAD` (`8391e88`) con los 12 archivos de A–E; la compuerta
+  de esa copia da la fila E exacta. Cada resultado, y qué se hace con él, está en la sección "Fases F y G". Lo que pesa:
+  el único test que guarda un correo con mayúsculas es `mixed_case_domain` (G lo borra); un token con otra grafía da 404
+  (G lo fija con un test); `alembic check` no compara `CHECK` (paso 19c); en SQLite un `batch` fallido deja
+  `_alembic_tmp_users` (los tests de la migración usan un motor propio).
+- **Fuente externa leída (E2, punto 3.7):** la guía de OWASP sobre correos, por Context7. No respalda del todo la
+  premisa de David de las 09:04. Dice que la parte local es técnicamente sensible a mayúsculas, que solo se pliegue
+  cuando el sistema controla ese comportamiento y no crea riesgo de colisión ni de cuenta equivocada, y que se guarden el
+  original y la forma canónica. ADR-0016 cita lo leído y declara la desviación (decisión 2 de E3). El RFC 5321 no se leyó
+  y no se cita.
+- **Recalculado:** la sección "Fases F y G", las fases F y G enteras, las filas MG1 a MG8, las filas F y G de la
+  compuerta, la Regla de alcance, los pasos 10 a 18 de la Verificación final (más el 19, de David), el párrafo de F y G
+  del Resumen, R2, R10, R11 y R12 (más R13, nuevo), Referencias, los dos mensajes de commit y las descripciones de
+  `Fase_F` y `Fase_G` en `progress.json` (`current_target` y las fases A–E, sin tocar).
+- **Efecto sobre A–E: ninguno, medido.** G no toca ningún archivo de A–E. Los tests de C, D y E usan correos en
+  minúsculas (`root@test.com`, `superadmin@example.com`), así que pasarlos a minúsculas no cambia ninguna aserción. La
+  copia con A–G pasa entera sin tocar un test de A–E. Lo que ADR-0015 (fase B) afirma sigue siendo cierto. Las cifras de
+  A–E no cambian.
+- **Cifras nuevas:** de 675 a 691 tests (17 nuevos, 1 borrado); de 97,37 % a 97,63 % (de 1031 a 1034 stmts); de 386 a
+  402 en la suite de la copia; ocho mutantes, los ocho muertos.
+
+### E3 — 14 nov 2026, 10:54 (David, sesión Mentor; regla del retoque)
+
+Texto literal de David: «Diosss. ok. por tiempo, esta bién. apruebo todo tal y como lo propones pero que nazca fila en el
+backlog de trabajo futuro para revertir el plan o al mecanismo del 13 de noviembre; una app que busca ser usada por muchos
+debería poder responder a cualquier buzonera, idependientemente si las buoneras son case sensitive o no (quisiera saber si
+gmail, yahoo, y las principales buzoneras son o no case sensitive; si si, entonces aunque no es lo que quiero decido la c;
+que tal que un jurado tengta un correo raro y preciso tenga problema?). 2. si, la consulta fue a las 9:20 con apicerrada,
+todo sigue igual y fue sobre develop. 3.) si condicionado" a lo que te dije de revisar si las principales buzoneras con
+case sensitive o no».
+
+Responde a las siete "Decisiones pendientes de David (E3)". **Las fases F y G quedan aprobadas; con E0 y E2, el plan
+entero (A → G) está aprobado.** Si un punto de arriba y E3 difieren, rige E3. Contraste de la sesión Mentor contra el
+código, sin correcciones de dictado: las fases A–E son idénticas a las de `0fb8680` (comparadas como texto); las anclas de
+G existen (`app/schemas/user.py:33,128,160` → `:39`, `:134`, `:166` con las 6 líneas que G añade antes; `LowercaseEmail`
+en `:22`); los `numstat` de `app/schemas/user.py` (`10 4`) y `app/models/user.py` (`4 1`) cuadran contados a mano; las
+tres consultas quedan en `user_repository.py:18`, `:44` y `:56` tras D; el caso que G borra existe
+(`tests/test_user_response.py:61` y su id); el test del registro afirma los argumentos con que el router agenda el correo
+(`app/api/routers/user.py:70-76`). Las cifras de tests, cobertura y mutantes las repite el auditor.
+
+1. **F y G aprobadas como quedaron escritas, con el añadido del punto 2.** Fecha de aceptación para la línea "Estado" de
+   ADR-0016 (fase F): **14 nov 2026**.
+2. **Desviación de la guía de OWASP: opción (a), aceptarla y declararla**, con dos precisiones.
+   - **Condición de David, comprobada.** David eligió (a) solo si los proveedores principales no distinguen mayúsculas en
+     la parte local; si las distinguieran, elegía (c). La sesión Mentor lo buscó el 14 nov: las fuentes consultadas
+     coinciden en que Gmail, Outlook, Yahoo e iCloud entregan al mismo buzón con cualquier combinación de mayúsculas.
+     **Límite:** son fuentes secundarias (guías de proveedores de envío de correo), no la documentación de Google,
+     Microsoft o Yahoo. La condición se da por cumplida con ese límite declarado.
+     **Fuente primaria leída después, a petición de David (10:56):** la ayuda de Google Workspace, "Name guidelines for
+     users & groups" (https://support.google.com/a/answer/9193374), dice que un nombre de usuario debe ir en minúsculas y
+     que las mayúsculas escritas al crearlo se convierten a minúsculas. Vale para cuentas administradas de Google; para
+     Gmail personal, Microsoft y Yahoo no se halló una página oficial que lo afirme (solo respuestas de foros).
+   - **Las citas de OWASP del ADR, comprobadas por la sesión Mentor** abriendo la página de Referencias el 14 nov: existen
+     y dicen lo que el ADR les atribuye.
+   - **Añadido al texto dictado de ADR-0016 (ya aplicado en la fase F de este plan):** dos líneas en "Consecuencias", tras
+     la viñeta que cita a OWASP, que declaran la segunda desviación (la guía desaconseja plegar la parte local por
+     defecto). El texto dictado pasa de 85 a 87 líneas (contadas) y el criterio de aceptación de F, de `85 0` a `87 0`.
+     Nada más de F cambia.
+   - **Fila nueva, BE-53, `Sale → B-FUTURO`:** guardar el correo como lo escribió el usuario y comparar por su forma
+     canónica (el mecanismo del 13 nov, o una columna para el original). El texto del mecanismo del 13 nov está en
+     `git show 0fb8680:docs/deuda/BE-34/plan.md`, fases F y G.
+3. **Token de verificación con otra grafía:** el test que fija el 404 se queda.
+4. **El caso `mixed_case_domain` de A9 se borra.**
+5. **La migración va en modo batch**, probada sobre un SQLite propio.
+6. **Q1 del 14 nov, 09:20: fue sobre `develop`, con la API apagada** (palabra de David, 10:54); `count = 0`. La
+   precondición de G se cumple. Se repite antes de promover a `staging` y a `main`.
+7. **R13 recibe fila, BE-54, Baja, `Sale → B-FUTURO`**, fuera de BE-34.
+
+`progress.json`: sin cambios por E3 (`current_target: Fase_A`).
+
 ## Decisiones pendientes de David (E2)
 
 **Respondidas por David el 14 nov 2026 (09:08): ver E2, en "Enmiendas aprobadas".** La lista se conserva como se
@@ -2152,3 +2336,34 @@ escribió el 13 nov; la decisión 3 no se aprobó y las fases F y G se reescribe
 6. **Fecha de aceptación de ADR-0016** para su línea "Estado": la de E2.
 7. **Límite aceptado o no:** la migración de G no se ejecuta en PostgreSQL antes del CD de `develop`; solo se ve su SQL
    fuera de línea (R12, BE-31).
+
+## Decisiones pendientes de David (E3)
+
+**Respondidas por David el 14 nov 2026 (10:54): ver E3, en "Enmiendas aprobadas".** La lista se conserva como la escribió
+el planificador.
+
+1. **Aprobar F y G como quedan:** el tipo `LowercaseEmail`, la restricción `ck_users_email_lowercase` como texto SQL, la
+   migración `b51f3c9e2a64` en modo batch, los 17 tests y el ADR con el nombre `0016-correo-en-minusculas.md` (fecha de
+   "Estado": la de E3, E2 punto 6). Opciones: aprobar, o pedir cambios. **Recomendación: aprobar.** Trade-off: G toca el
+   registro y el login de todos los usuarios; lo cubren 17 tests y ocho mutantes, pero sobre SQLite (R12).
+2. **Desviación de la guía de OWASP: se guarda solo la forma en minúsculas.** Opciones: (a) aceptarla y declararla, como
+   dicta ADR-0016; (b) guardar además el correo tal como se escribió (columna nueva y migración: otra fase u otro ítem);
+   (c) volver al mecanismo del 13 nov, que tampoco guarda las dos formas. **Recomendación: (a).** Hoy nada usa la forma
+   original. El riesgo, un proveedor que distinga mayúsculas en la parte local, es raro, y su efecto es que el correo de
+   verificación no llega a ese buzón. Trade-off: la premisa de las 09:04 ("las fuentes de autoridad recomiendan...") no es
+   lo que dice OWASP, y el ADR lo dice.
+3. **Token de verificación con otra grafía:** un test fija el 404 (lo que dicta G), o queda sin test. **Recomendación:
+   el test.** Cuesta uno, y MG8 muestra que vigila que nadie vuelva a comparar con `lower()` en las consultas. Trade-off:
+   congela un comportamiento que la app no ejercita, porque nunca firma esa grafía.
+4. **El caso `mixed_case_domain` de A9:** borrarlo (lo que dicta G) o sustituirlo por otro correo fuera de regla que la
+   base sí acepte. **Recomendación: borrarlo.** `dotless_domain` ya cubre el correo en A9, y la base ya no puede guardar
+   el valor del caso borrado.
+5. **La migración en modo batch, probada sobre un SQLite propio** (lo que dicta G), o `op.create_check_constraint` directo
+   sin test de la migración en la suite. **Recomendación: batch.** E2 (punto 3.5) pide probar la migración, y en
+   PostgreSQL emite el mismo `ALTER TABLE`. Trade-off: en SQLite reconstruye la tabla, y un fallo deja
+   `_alembic_tmp_users`; por eso el motor propio.
+6. **Q1 del 14 nov (09:20) sin base identificada.** G exige Q1 = 0 en `develop`. Opciones: David confirma que esa captura
+   es de `develop`, o repite Q1 en `develop` con el nombre de la base visible. **Recomendación: repetirla**, antes de
+   `/implementar BE-34 G`. Trade-off: un minuto, frente a apoyar la precondición en una captura ambigua.
+7. **R13 (`EmailStr` acepta un correo de 196 caracteres; la columna es `String(150)`):** fila Baja nueva o nada. **Recomendación: fila Baja,
+   fuera de BE-34.** Es previo a BE-51 y no lo cambia G.
