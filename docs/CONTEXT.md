@@ -5,8 +5,10 @@
 > Vive en `docs/CONTEXT.md`. Regla de oro: **el contexto vive en archivos versionados, no en la
 > memoria de un chat.** Cada sesión nueva arranca leyendo esto.
 >
-> **Versión 4.4 — 13 nov 2026.** Bitácora `2026-11-13` (§5: lo que el flujo enseñó con BE-34 sin ejecutar ninguna fase; §6: fila de las decisiones del día;
-> §8 reescrito: BE-34 verificada y planeada en siete fases, pendiente de la revisión del Mentor y de E2). Versiones anteriores: `2026-11-12` (4.3, bitácora `2026-11-12` (§4: frontera de ADR-0012 cumplida en las dos rutas, guard de superadmin, solo un token de acceso abre una
+> **Versión 4.5 — 14 nov 2026.** Bitácora `2026-11-14` (§5: lo que el flujo enseñó al ejecutar BE-34; §6: fila del 14 nov, con ADR-0015 y ADR-0016;
+> §4: primer superadmin por comando y correo en minúsculas;
+> §8 reescrito: BE-34 hecha (PR #97), BE-35 como siguiente paso, semana del 16 sin fechar). Versiones anteriores: `2026-11-13` (4.4, bitácora `2026-11-13` (§5: lo que el flujo enseñó con BE-34 sin ejecutar ninguna fase; §6: fila de las decisiones del día;
+> §8 reescrito: BE-34 verificada y planeada en siete fases, pendiente de la revisión del Mentor y de E2)); `2026-11-12` (4.3, bitácora `2026-11-12` (§4: frontera de ADR-0012 cumplida en las dos rutas, guard de superadmin, solo un token de acceso abre una
 > ruta protegida; §5: lo que el flujo enseñó con BE-40 y BE-42; §6: fila de las decisiones del día; §7: pregunta abierta sobre el historial de auditoría;
 > §8 reescrito: `B-GHOST-ADMIN` como siguiente paso)); `2026-11-11` (4.2, bitácora `2026-11-11` (§4: CI estricto sin `--soft`, dependencias fijadas en `constraints.txt`,
 > toda ruta protegida con test de rechazo; §5: lo que el flujo enseñó con BE-39; §6: filas de ADR-0014 y de las decisiones del
@@ -201,6 +203,15 @@ por el equipo humano"**. → El flujo agéntico es parte de la metodología decl
   `conftest.py` de la raíz y no depende de `.env` ni de variables del CI. El orden de los imports ya no decide nada:
   `unfixable = ["I001"]` salió de `pyproject.toml`. Las tres Web Apps ya definen las cinco obligatorias (inventario del
   10 nov, `docs/deuda/A4/verificacion.md`, adenda 5); no definen `CORS_ORIGINS` (puesta en `staging`, §8).
+- **Primer superadmin (BE-34, 14 nov; ADR-0015):** lo crea un operador con `python -m app.cli.bootstrap_superadmin`, una vez por entorno; no
+  es ruta HTTP, no corre al arrancar la app ni es paso del CD. `app/cli/` es un segundo adaptador junto al HTTP (contrato de capas
+  `api | cli`). Las credenciales se leen en `SuperadminBootstrapSettings`, hermana de `Settings`: la web app no conoce esa contraseña.
+  El comando no escribe nada si ya hay un superadmin activo y no borrado, y falla sin promover a nadie si la cédula o el correo ya
+  existen `(backlog BE-34)`. **Aún no se ha corrido en ningún entorno** (§8).
+- **Correo en minúsculas (BE-51, 14 nov; ADR-0016):** los tres schemas que reciben un correo usan el tipo `LowercaseEmail`, y la base lo
+  exige con la restricción `ck_users_email_lowercase` (migración `b51f3c9e2a64`, aplicada en `develop`); la unicidad la sigue dando
+  `ix_users_email` `(backlog BE-51)`. ADR-0016 se aparta a sabiendas de la guía de OWASP sobre correos `(backlog BE-53)`. `staging` y
+  `main` no tienen aún la migración (§8).
 - **No existe:** módulo de reservas (ver ADR-0002), pagos, paginación, recuperación de
   contraseña, `display_order` de paquetes.
 - **Tests y calidad:** pytest + mocks; la medición vigente (tests, cobertura, ruff, mypy, contratos) es la última columna
@@ -285,7 +296,16 @@ la Web App la hala al reiniciar. Operación: 2 clics.
   que el Mentor razonó sin poder medir, y el planificador lo midió y confirmó el mecanismo; la otra convirtió un residual del
   plan en fila hija sin verificación propia (BE-51), con la condición de que su fase empiece midiendo lo que habría medido un
   verificador y no se ejecute sin aprobación propia. El plan pasó de 1231 a 2067 líneas y de cinco a siete fases; de la
-  verificación escrita al plan enmendado pasaron 2 h 32 min `(bitácora 2026-11-13)`.
+  verificación escrita al plan enmendado pasaron 2 h 32 min `(bitácora 2026-11-13)`. El 14 nov (BE-34 ejecutada: ocho
+  fases, ocho PASS, con BE-47 y BE-51 dentro) el mecanismo de una fila hija se decidió dos veces antes de ejecutar: David cambió, por
+  una premisa sobre fuentes de autoridad, el que había propuesto el planificador; al reescribir, el planificador leyó la fuente (la guía
+  de OWASP sobre correos) y halló que no decía lo supuesto, y ADR-0016 nació declarando la desviación. Regla que queda: ninguna fuente
+  externa se cita de memoria en un ADR. La sesión Mentor midió por primera vez en un PostgreSQL propio lo que hasta entonces solo
+  razonaba (dos sondas, con sus límites), y un supuesto suyo sin medir (que un motor sin cerrar añade un warning) lo desmintió el
+  planificador. El paso de la Verificación final que el plan asigna a David encontró en su base local una fila que detuvo la migración:
+  la precondición de datos se mide en cada base. Un opcional de auditoría volvió a ser fase (H), y los pasos que un plan asigna a David
+  deben escribirse para su shell (`cmd`), no en sintaxis de bash. Las fases corrieron a ~15 min con su auditoría; de la apertura al plan
+  aprobado entero pasaron 2 h 30 min `(bitácora 2026-11-14)`.
 - **Artefactos de datos por ítem** (`docs/deuda/<ID>/`): `verificacion.md`, `plan.md`, `progress.json`,
   `handoff-<fase>.md`, `gaps.md`. El estado de un ítem es lo que existe en su carpeta; no hay índice aparte.
 
@@ -333,7 +353,7 @@ la Web App la hala al reiniciar. Operación: 2 clics.
 | 11 nov | Decisiones de proceso del día. (1) **CI duro hecho** y ADR-0005 superado: el CI no tolera nada; el residual 7 del plan de A4 (`conftest.py` de la raíz fuera de `mypy.files`) se acepta, no se hace. (2) **Un hallazgo sobre el propio artefacto de un ítem se corrige dentro del ítem, con una fase nueva** (David: "un ítem saldado no debería dejar 3 más por saldar a menos que no sea buena idea corregir sus hallazgos emergentes"); lo que queda fuera de su alcance sigue recibiendo fila (regla del 5 nov). Aplicado dos veces en BE-39 (E0 → fase D; E2 → fase E). (3) **La bitácora se escribe por tramos**, en cada punto de control, no solo en el cierre. (4) **Antes de mezclar un PR se comprueban en GitHub el número de commits y los archivos cambiados**, no solo el color del CI (PR #90 mezcló un commit de veintiuno); el asunto del merge `ed98db7` quedó inexacto y se declara, no se reescribe. (5) Un commit con mensaje inexacto que no es el último no se corrige con rebase si otros artefactos citan hashes posteriores (`fb109e7`). (6) Trabajo emergente crítico (dependencias sin fijar) se hace entero el mismo día en un PR corto sin flujo, con fila y ADR. | `docs/deuda/BE-39/plan.md` (E0–E3), `docs/backlog.md` (BE-39, BE-46, BE-47), bitácora `2026-11-11` | Cap. de metodología (revisión humana del flujo; gestión de deuda emergente; errores de proceso declarados) y de pruebas (tests de rechazo con mutantes) |
 | 12 nov | Decisiones del día, sin ADR nuevo. **Diseño (BE-40, ADR-0012 aplicado):** el guard de superadmin sustituye al de admin en `POST /usuarios/admin`, en un router propio; `retrieve_audit_history` deja de recibir a quien consulta y `performed_by` no cambia; los alias de identidad (`UserDep`, `AdminDep`, `SuperadminDep`) viven en `app/api/dependencies.py`. **Diseño (BE-42):** el `scope` de acceso lo impone `create_access_token`, con constantes y no literales; un token de verificación o sin `scope` recibe el 401 de un token inválido. **Proceso:** (1) la aprobación de un plan se da también en la sesión del flujo; (2) un opcional sobre el artefacto del ítem se corrige en el ítem, y David puede extenderlo a los huecos homólogos del mismo archivo (fase E de BE-40); (3) bloque `B-TESTS-2`, sin fechar, para huecos de la suite hallados tras cerrar `B-TESTS`; (4) BE-50 a `B-FUTURO`, detrás de SEC3; (5) el estado del CI tiene dos fuentes, el check del PR en GitHub y el log de Azure DevOps: que falte la segunda no anula la primera; (6) la evidencia del cliente Flutter del 5 nov basta para el cambio 422 → 403 de la ruta de provisión. | `docs/deuda/BE-40/` y `docs/deuda/BE-42/` (adendas, E0–E2), `docs/backlog.md` (BE-40, BE-42, BE-48, BE-49, BE-50), `PLAN.md` §2b, bitácora `2026-11-12` | Cap. de diseño (autorización: un guard por rol; tipos de token) y de pruebas (tests de rechazo por ruta; mutantes que sobrevivían a la suite); cap. de metodología (revisión humana del flujo; errores declarados del Mentor y de David) |
 | 13 nov | Decisiones del día; ADR-0015 y ADR-0016 los dicta el plan de BE-34 y nacen al ejecutar sus fases. **Diseño (BE-34, adenda de ocho puntos):** el primer superadmin lo crea un comando manual del operador, con la lógica en `app/` y un punto de entrada `python -m`; no es ruta HTTP, no corre al arrancar la app ni es paso del CD; las credenciales se leen en una clase propia de `app/core/config.py`, hermana de `Settings`, que no gana campos; no escribe nada si ya hay un superadmin activo y no borrado, y ante una cédula o un correo ya existentes falla sin promover ni reactivar a nadie; el alta se audita con la cédula del propio superadmin; valida con `UserCreateByAdmin` y la contraseña no se imprime nunca; BE-47 entra como primera fase. **Diseño (BE-51, por aprobar):** un correo es una sola cuenta con cualquier combinación de mayúsculas, sin que ninguna cuenta existente deje de poder entrar. **Proceso:** (1) un residual de un plan puede saldarse como fase del ítem que lo halló aunque su verificación no lo midiera, si la fase empieza midiendo y no se ejecuta sin aprobación propia (BE-51, fila hija); (2) las enmiendas a un plan aprobado se aplican antes de la primera fase cuando David prefiere el plan completo antes de ejecutar; (3) el cambio de contraseña es un feature con fila en `B-FUTURO` (BE-52); (4) jornada extendida hasta las 21:00 por la mañana perdida. | `docs/deuda/BE-34/` (adenda, E0, E1), `docs/backlog.md` (BE-51, BE-52), `PLAN.md` §2b y §3, bitácora `2026-11-13` | Cap. de diseño (arranque de la plataforma: quién crea al primer administrador y por dónde viaja su contraseña; unicidad del correo) y de metodología (revisión humana del flujo, con un error declarado del Mentor; gestión de una media jornada perdida) |
-| 14 nov | Decisión de diseño tomada antes de ejecutar BE-34; ADR-0016 la recogerá cuando se ejecute la fase F reescrita. **BE-51:** un correo se guarda siempre en minúsculas: se normaliza al entrar por los schemas, como ya se hace con los nombres, y la base lo garantiza con una restricción `CHECK (email = lower(email))`; la unicidad la sostiene el índice único que ya existía; sin migración de datos, con "0 correos con mayúsculas" como precondición de cada despliegue (ventana de mantenimiento con la API apagada). Sustituye a la propuesta del planificador del 13 nov (comparar `lower(email)` con un índice funcional, sin normalizar lo guardado), que David no aprobó: prefiere una sola forma del dato en la base. **Proceso:** la sesión Mentor mide en un PostgreSQL propio lo que antes solo razonaba (sondas con salida literal y límites declarados); ninguna fuente externa se cita en un ADR de memoria; lo decidido se anota en su documento dueño en el momento, sin esperar al cierre (las versiones siguen subiendo una vez, en el cierre). | `docs/deuda/BE-34/plan.md` (E2), `docs/backlog.md` (BE-51), bitácora `2026-11-14` | Cap. de diseño (identidad del correo: forma única del dato y restricción en la base) y de metodología (revisión humana del flujo: David corrige la recomendación del Mentor y la propuesta del planificador) |
+| 14 nov | Decisiones de diseño del día; **ADR-0015** (primer superadmin por comando manual; decidido el 13 nov) y **ADR-0016** nacieron con las fases B y F de BE-34 (PR #97). **BE-51:** un correo se guarda siempre en minúsculas: se normaliza al entrar por los schemas, como ya se hace con los nombres, y la base lo garantiza con una restricción `CHECK (email = lower(email))`; la unicidad la sostiene el índice único que ya existía; sin migración de datos, con "0 correos con mayúsculas" como precondición de cada despliegue (ventana de mantenimiento con la API apagada). Sustituye a la propuesta del planificador del 13 nov (comparar `lower(email)` con un índice funcional, sin normalizar lo guardado), que David no aprobó: prefiere una sola forma del dato en la base. **Proceso:** la sesión Mentor mide en un PostgreSQL propio lo que antes solo razonaba (sondas con salida literal y límites declarados); ninguna fuente externa se cita en un ADR de memoria; lo decidido se anota en su documento dueño en el momento, sin esperar al cierre (las versiones siguen subiendo una vez, en el cierre); un opcional de auditoría sobre el artefacto del ítem vuelve a ser fase (H); ADR-0016 se aparta a sabiendas de la guía de OWASP sobre correos y lo declara, con fila BE-53; al cierre, David no re-planifica ni fecha la semana siguiente (excepción declarada en PLAN §3). | **ADR-0015**, **ADR-0016**, `docs/deuda/BE-34/plan.md` (E2–E5), `docs/backlog.md` (BE-51, BE-53, BE-54), `PLAN.md` §3, bitácora `2026-11-14` | Cap. de diseño (identidad del correo: forma única del dato y restricción en la base) y de metodología (revisión humana del flujo: David corrige la recomendación del Mentor y la propuesta del planificador) |
 | pendiente | Pagos: puerto `PaymentGateway`, `WompiAdapter`, `FakeAdapter`, webhook idempotente. | ADR de pagos (`B-PAGOS`, tomará el siguiente número libre) | Cap. de diseño (secuencia de pago) y arquitectura |
 
 ## 7. Preguntas abiertas
@@ -352,31 +372,16 @@ la Web App la hala al reiniciar. Operación: 2 clics.
 
 ## 8. Próximo paso
 
-Dónde estamos (estado al cierre de la bitácora `2026-11-13`): **`B-GHOST-ADMIN` en curso, sin código todavía.** BE-34 está
-verificada (adenda de ocho puntos) y planeada en siete fases, A–G, con E0 y E1 (`docs/deuda/BE-34/`): BE-47 es la fase A y
-BE-51 (un correo, una sola cuenta) son las fases F y G `(backlog BE-51)`. **Ninguna fase se ha ejecutado**: `item/be-34` lleva
-solo commits de documentos sobre `4f10660`, y la compuerta sigue en
-**638 tests · 96,82 % · ruff 0 · mypy 0 · 4 kept** `(PLAN §6)`. Ruta sin cambios:
-**`B-GHOST-ADMIN` → puesta en `staging` → `B-RESERVAS`** `(PLAN §3)`.
+Dónde estamos (estado al cierre de la bitácora `2026-11-14`): **`B-GHOST-ADMIN` en curso; BE-34 hecha** (PR #97, ocho fases, con BE-47 y BE-51
+dentro) `(backlog BE-34)`. `develop` = `e6aabff`; su CD aplicó la migración `b51f3c9e2a64` en la base de `develop` y `/docs` abre. Mediciones en
+`(PLAN §6)`. Quedan BE-35 a BE-38. Ruta sin cambios: **`B-GHOST-ADMIN` → puesta en `staging` → `B-RESERVAS`** `(PLAN §3)`; la semana del 16 está sin
+fechar por decisión de David.
 
-0. **Estado del 14 nov a las 12:30 `(bitácora 2026-11-14)`: BE-34 con las fases A–E ejecutadas y auditadas (cinco PASS); F y G
-   aprobadas, sin ejecutar; fase H por escribir.** La compuerta va en **675 tests · 97,37 %** sobre `item/be-34` (la medición de
-   `develop` sigue siendo la de `(PLAN §6)`). E2 cambió el mecanismo de BE-51 `(backlog BE-51)`: todo correo se guarda en minúsculas,
-   normalizado al entrar por los schemas, y la base lo garantiza con una restricción `CHECK`; David aprobó F y G reescritas con E3
-   (`docs/deuda/BE-34/plan.md`). ADR-0016 se aparta a sabiendas de la guía de OWASP sobre correos y lo declara `(backlog BE-53)`.
-   E4 añade la fase H: el opcional de la auditoría de E (un usuario hecho a mano en un test del comando) se corrige en el ítem.
-   **Pendiente, en este orden:** (a) `/implementar BE-34 F` y `G`, con sus auditorías; (b) `plan-redactor` escribe la fase H por
-   mensaje directo, el Mentor la revisa y David la aprueba (E5), también en la sesión de Claude Code; (c) antes de `/pr`, David
-   corre el paso 19 de la Verificación final del plan contra su PostgreSQL local (`alembic upgrade head`, `alembic check` y la
-   consulta a `pg_constraint`), con la salida en la bitácora (ADR-0010, punto 7); (d) en la descripción del PR, declarar los tres
-   commits de auditoría con `item-be40` en el asunto (`846efe0`, `a5cd7b5`, `1beb91d`); (e) confirmar o corregir el re-fechado de
-   `(PLAN §3)` escrito por el Mentor el 13 nov: David lo deja para el cierre. Menor: el aviso del build del CI de PR #94 sigue
-   sin leerse.
-1. **`B-GHOST-ADMIN`** (BE-34..BE-38, BE-47 y BE-51) `(PLAN §3)`: `/implementar BE-34 A` … `G`, cada una con su `/auditar`; la
-   fase G no se ejecuta si la consulta de correos con mayúsculas deja de dar 0 (E2 del plan). Antes de `/pr`: la línea de AGENTS §3 sobre los
-   comandos de operador en `app/cli/` (residual R1 del plan; texto del Mentor, commit de David). Al cerrar el ítem: filas
-   BE-34, BE-47 y BE-51 a `Hecho`, nota en BE-35 (puede reutilizar el conteo de superadmins activos), §4 y §6 de este archivo
-   con ADR-0015 y ADR-0016, y la sección "Después" de la ficha. Luego `/deuda-verificar` de BE-35, BE-36, BE-37 y BE-38, cada
+0. **Pendiente al abrir, en este orden:** (a) mezclar el PR del cierre del 14 nov (rama `docs/cierre-1114`), si no se mezcló esa noche, comprobando
+   commits y archivos en GitHub. (b) **Fechar la semana del 16** en `(PLAN §3)`: David no re-planificó al cierre; sigue con lo ya planificado y, si no
+   logra igualarlo, re-planifica. Faltan sus datos: cuántas mañanas del documento ha adelantado y de qué bloque salen, y si se trabaja el festivo.
+   (c) `/deuda-verificar BE-35`. Menor: el aviso del build del CI de PR #94 sigue sin leerse, y el log del CI de PR #97 tampoco se leyó.
+1. **`B-GHOST-ADMIN`** (BE-34..BE-38, BE-47 y BE-51) `(PLAN §3)`: BE-34 está hecha (PR #97). Siguen `/deuda-verificar` de BE-35, BE-36, BE-37 y BE-38, cada
    una por regla. **Cada plan se aprueba también en la sesión de Claude Code**, remitiendo al encabezado y a las enmiendas de
    `plan.md` `(bitácora 2026-11-12)`. Dato para dimensionar: el bloque pide más medias jornadas que las de su secuencia
    `(PLAN §3)`.
@@ -425,7 +430,7 @@ solo commits de documentos sobre `4f10660`, y la compuerta sigue en
    en las dos sesiones); el Mentor actualiza la línea `Estado` del plan en el mismo acto en que escribe E0 (el 12 nov la
    olvidó en BE-40; el 13 nov lo hizo); al abrir, el Mentor lee enteras las dos últimas bitácoras antes de resumir (el 13 nov resumió
    con la del 12 leída a medias); los archivos de mensaje para `git commit -F` van en `docs/` y David los borra tras commitear
-   (práctica del 13 nov, sin regla escrita). Ya con fila: AF-08,
+   (práctica del 13 nov, sin regla escrita). los pasos que un plan asigna a David van en la sintaxis de su shell, `cmd` (el 14 nov el paso 19 venía en bash); el 14 nov fue el noveno día seguido en Fable y sin la carpeta conectada en el primer mensaje. Ya con fila: AF-08,
    AF-09 y AF-10; AF-06, AF-11, AF-14 y AF-15 en `B-FUTURO`.
 
 ## 9. Sesiones de IA
