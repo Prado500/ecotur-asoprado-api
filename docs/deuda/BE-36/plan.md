@@ -3,7 +3,8 @@
 > Fuente: `docs/deuda/BE-36/verificacion.md` (confirmada; adenda de David, 16 nov 2026, 12:22, que fija la regla).
 > Base: `62b9702` (HEAD de `item/be-36`; `app/` y `tests/` idénticos a `09f529b`, la línea base de la verificación:
 > 707 passed, 97,65 %, ruff 0, mypy 0 en 63 archivos, 4 kept).
-> **Estado: aprobado por David con E0 (16 nov 2026, 13:03).** `Aprobado: 16 nov 2026` (esa fecha es la `<FECHA>` del ADR
+> **Estado: fases A y B ejecutadas y auditadas (PASS); E1 (16 nov 2026, 15:38) pide una fase C, pendiente de escribir
+> por el planificador y de aprobar (E2). Plan aprobado por David con E0 (16 nov 2026, 13:03).** `Aprobado: 16 nov 2026` (esa fecha es la `<FECHA>` del ADR
 > de la fase A). Enmiendas al final, en "Enmiendas aprobadas".
 > **Qué midió el redactor y qué no** (todo fuera del repo, en el scratchpad de la sesión; `git status` sin cambios propios):
 > (1) la sonda de la provisión que pide la adenda (punto 3; salida literal en "Análisis"); (2) los 18 casos dictados
@@ -733,3 +734,28 @@ pasa de 100. Las unitarias no llevan docstring (`tests/**` ignora `D`, como las 
    puerta de ADR-0018 se abre cada vez que se crea un superadmin, y pasar una tarjeta de superadmin de "por activar" a
    activo es el `PATCH` que hoy da 403 y que este ítem pasa a 200. Queda por comprobar en el cliente qué cuerpo envía
    ese movimiento (la excepción exige exactamente `{"is_active": true}`): nota en la fila BE-36 al cierre.
+
+### E1 — 16 nov 2026, 15:38 (David: "si a 1.) y a 2.)"; tras la auditoría de la fase B)
+
+1. **Fase C, nueva, para el opcional de la auditoría de B** (`gaps.md`: la decisión E0.1 (2), "reactivar a un par que ya
+   está activo da 200", no tiene test; los tres casos de éxito usan un objetivo inactivo). Regla del 11 nov: un opcional
+   sobre el artefacto del ítem se corrige en el ítem. **Qué debe cumplir** (el planificador dicta el texto y lo mide
+   antes de escribirlo): un solo archivo, `tests/test_user_access_policy.py`; un caso HTTP en la sección BE-36 en que un
+   superadmin envía `{"is_active": true}` a otro superadmin **activo** y fuera de la papelera → 200, cuerpo con
+   `is_active` true, y la cuenta sigue activa tras `refresh`; **sin** aserción sobre la auditoría (la fila del no-op es
+   BE-38 y no se congela, como H6 de BE-35); si el planificador mide que un caso unitario gemelo mata un mutante que el
+   HTTP no mata, lo añade y lo dice. Sin cambios en `app/`. Recalcular: tabla de fases, cifras (725 → las que resulten),
+   comandos 8 y 12 de la Verificación final, `progress.json` (`current_target: Fase_C`). El planificador declara qué
+   mutante mata el caso nuevo (candidato: una condición `target.is_active is False` añadida a la excepción).
+   **No se ejecuta sin aprobación propia (E2).**
+2. **Fe de erratas de E0.4.** David levantó el cliente Flutter contra su backend local (rama `item/be-36`) y observó,
+   ya no de memoria: cuando un **superadmin** crea un usuario de cualquier rol, nace **activo** (el cliente envía
+   `is_active` true); los que aparecen en "por activar" al crearse son los turistas que crea un **admin**, que no ve
+   selector de rol. Por tanto la provisión sin `is_active` **no** es el camino normal del cliente: la segunda puerta de
+   ADR-0018 existe en la API (sonda del plan: 201 con la cuenta inactiva) y el cliente no pasa por ella. Nada del
+   código, de los tests ni del ADR cambia; el texto del ADR ("sigue abierta desde la aplicación") se lee como "desde
+   la API". Queda sin comprobar qué cuerpo envía el cliente al mover una tarjeta de "por activar" a "activos".
+3. **Fuera de este ítem, con fila propia (decisión de David, 15:35 y 15:38):** ningún admin puede borrarse ni
+   desactivarse a sí mismo; es **BE-58**, el ítem siguiente del bloque, con verificación y ADR propios. Este plan no lo
+   toca: los tests `test_be35_admin_self_delete_is_still_allowed` y `test_be35_admin_self_deactivation_is_still_allowed`
+   siguen como están hasta entonces.

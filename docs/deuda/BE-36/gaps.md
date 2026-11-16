@@ -31,3 +31,59 @@ Evidencia de la auditoría (contexto fresco, `handoff-auditor`, HEAD `e804528`, 
   (707 · 97,65 % · ruff 0 · mypy 0 en 63 · 4 kept) y a lo que pegó el ejecutor. Ningún `.py` tocado: ruff/mypy por
   archivo no aplica.
 - No es la última fase: la "Verificación final" del plan se ejecuta en la auditoría de la fase B.
+
+## Auditoría Fase B — 2026-11-16
+**Veredicto Fase B: PASS (0 bloqueantes, 1 opcionales).**
+
+[OPCIONAL] — Fase B — La decisión E0.1 (2) ("reactivar a un par que ya está activo da 200, sin condición sobre el estado actual") no tiene test: los tres casos que esperan éxito (U1, H1, H2) usan un objetivo con `is_active` false. Un mutante N7 que añade `and target.is_active is False` a `is_peer_reactivation` sobrevive a `tests/test_user_access_policy.py` (`101 passed`) y al resto de la suite copiada (mismos fallos de entorno que el original, ninguno nuevo). El plan no dictó este test, así que no bloquea; candidato a un caso unitario más (superadmin activo → `{"is_active": True}` no lanza) en BE-38 o en el cierre — evidencia: `tests/test_user_access_policy.py:266-270` (U1, `is_active=False`); salida del mutante N7 en la copia del scratchpad.
+
+Evidencia de la auditoría (contexto fresco, `handoff-auditor`, HEAD `d7e9b5e`, rama `item/be-36`):
+
+- Árbol: `git status --short` vacío antes de la auditoría (después solo cambia este `gaps.md`).
+- Commit de la fase: `53f1660` existe; padre `f5fc1f4` (auditoría de la fase A). `git show --stat 53f1660` → exactamente
+  `app/services/user_access_policy.py | 22`, `app/services/user_service.py | 5`, `tests/test_user_access_policy.py | 244`
+  (3 files, 267+, 4-). El commit de registro `d7e9b5e` solo toca `handoff-Fase_B.md` y `progress.json`.
+- Mensaje: bloque "Commit" de la fase B (plan l. 350-379, sin la sangría) contra `git log -1 --format=%B 53f1660` (sin la
+  línea en blanco final) con `diff` → idéntico, trailer incluido. `plan.md` sin cambios desde `d8e3aca`.
+- Cambios exactos en `app/`: el bloque `is_peer_reactivation` del plan, literal (actor superadmin, objetivo superadmin,
+  `target.deleted_at is None`, `set(update_dict) == {"is_active"}` antes de `update_dict["is_active"] is True`), dentro de
+  la guarda de jerarquía y no como `return` temprano: las guardas de `role`, turistas y ADR-0017 siguen después,
+  intactas (el diff no toca `:89-` ni el `raise`). Docstring de la clase (`:14-16`), de `assert_can_update` (`:55-57`) y
+  los dos de `user_service.py` (`:260-262`, `:338-339`) con el texto dictado. `user_service.py`: solo docstrings (el diff
+  no tiene líneas de código).
+- Tests: los dos bloques del Anexo están **literalmente** en el archivo (comparación de subcadena con un script: unitarios
+  53 líneas y HTTP 185 líneas → `True`); imports según el plan (única línea borrada: `from app.models.user import
+  UserRole`). Ubicación: unitarios al final de `TestAssertCanUpdate` (`:266-319`), sección HTTP tras los BE-35 y antes de
+  `# C. GLOBAL EXCEPTION HANDLER TESTS` (`:1009-1195`). 12 funciones `test_be36_`, 18 casos. AGENTS §5: fábricas
+  `make_user` / `persist_user` (commit antes de la petición) / `make_auth_headers`; sin mocks ni `User(...)` a mano; sin
+  aserciones sobre texto en español (sin caracteres acentuados en las líneas añadidas; `detail` se comprueba por clave y
+  tipo); código HTTP + estructura + mutación (`refresh` tras la petición, o `select` de una fila nueva en H2) + auditoría
+  exacta en cada caso HTTP. Bordes de la adenda: `{"is_active": true}` → 200 (H1, H2), `false` → 403 (U2, H4), con
+  `first_name` → 403 sin mutación (U3, H3), `first_name` solo → 403 (H3 `profile-only`), `role` → 403 (U3, H3), admin
+  sobre admin → 403 (U5, H6), papelera → 403 (U4, H5, E0.1 (1)). E0.1 (2): ver el opcional.
+- RED repetido por el auditor (copia en el scratchpad con `user_access_policy.py` de `f5fc1f4`): `-k be36` →
+  `3 failed, 15 passed` (U1, H1, H2), igual al plan y al handoff.
+- Mutantes repetidos por el auditor sobre la copia, `-k be36`: N1 `3 failed` (U1, H1, H2); N2 `1 failed` (U6); N3
+  `18 passed` (equivalente, declarado); N4 `2 failed` (U4, H5); N5 `7 failed` (U3 ×4, H3 ×3); N6 `3 failed` (U2, U3
+  `null`, H4); original restaurado `18 passed`. Igual al plan y al handoff.
+- `progress.json` (diff de `d7e9b5e`): `Fase_B` → `completed`, `commit` `53f1660` (hash real), `current_target` → `null`
+  (última fase), `last_handoff` presente y coherente con el handoff, `edit_rules` y `allowed_statuses` intactos; JSON
+  válido.
+- Compuerta re-ejecutada por el auditor (`./venv/Scripts/python.exe scripts/check.py`, exit 0): `68 files already
+  formatted` · `All checks passed!` · `Success: no issues found in 63 source files` · `Contracts: 4 kept, 0 broken.` ·
+  `TOTAL 1039 15 152 13 97.65%` · `725 passed, 8 warnings in 32.13s`. Contra la línea base (707 · 97,65 % · ruff 0 ·
+  mypy 0 en 63 · 4 kept): +18 tests, cobertura igual, `user_access_policy.py` al 100 % (entre los 30 omitidos). Igual a
+  lo que pegó el ejecutor. Archivos tocados: `ruff check` → `All checks passed!`; `mypy` → `Success: no issues found in
+  3 source files`.
+- Verificación final del plan (última fase), salida del auditor: 1 → `app/services/user_service.py:363`. 2 →
+  `app/repositories/user_repository.py:63`. 3 → sin salida, exit 1. 4 → `user_access_policy.py:75`, `:85`. 5 → `:79`;
+  `:80`. 6 → `app/api/routers/user.py:234`, `user_access_policy.py:113`, `user_service.py:332`, `:359`. 7 →
+  `user_repository.py:83`, `user_service.py:362`. 8 → `27`. 9 → app 5 líneas (`user_access_policy.py:16, :57, :74`;
+  `user_service.py:262, :339`); tests sin salida (exit 1); docs/adr solo `docs/adr/0018-un-superadmin-reactiva-a-otro.md`;
+  ADR-0017 en app `7`. 10 → `app/schemas/user.py:130: is_active: bool = False`. 11 → salida vacía (`AGENTS.md`,
+  ADR-0017, schemas, core, api, repositories, models, cli, `tests/test_auth.py`, `tests/test_user_service.py`,
+  `tests/test_route_guards.py`, ambos `conftest.py` intactos desde `62b9702`; E0.3 cumplida). 12 →
+  `tests/test_user_access_policy.py:12` y `18 passed`. 13 → la compuerta de arriba. Todo como lo predice el plan.
+- Fuera de alcance respetado: `git diff --stat 62b9702 HEAD` no toca `docs/CONTEXT.md` ni `docs/backlog.md`; el único
+  otro archivo fuera de `app/`, `tests/` y `docs/deuda/BE-36/` es `docs/bitacora/2026-11-16.md`, del commit del plan
+  `d8e3aca`, no de la fase.
