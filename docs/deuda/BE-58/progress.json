@@ -1,0 +1,19 @@
+{
+  "plan_file": "docs/deuda/BE-58/plan.md",
+  "current_target": "Fase_A",
+  "phases": {
+    "Fase_A": {
+      "status": "pending",
+      "commit": null,
+      "description": "ADR-0019 (nuevo): ninguna cuenta administrativa (todo rol que no sea turista) se borra ni se desactiva a sí misma; supersede parcialmente a ADR-0017, cuya línea Estado anota la supersesión (única edición admitida)."
+    },
+    "Fase_B": {
+      "status": "pending",
+      "commit": null,
+      "description": "Las dos guardas de ADR-0017 en UserAccessPolicy pasan de 'actor superadmin' a 'actor no turista' con los textos de David; docstrings de política, servicio y router; los dos tests be35 de admin se invierten como be58 y 5 casos HTTP be58 nuevos (726 -> 731)."
+    }
+  },
+  "allowed_statuses": ["pending", "partial", "completed"],
+  "last_handoff": "Estado inicial.",
+  "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
+}
