@@ -1193,6 +1193,34 @@ async def test_be36_admin_reactivating_peer_admin_returns_403(
     assert audits == []
 
 
+async def test_be36_superadmin_reactivating_active_peer_returns_200(
+    client, db_session, persist_user, make_auth_headers
+):
+    """The exception does not read the current state: an active peer still gets 200.
+
+    The audit row this no-op writes is BE-38 and is not frozen here.
+    """
+    superadmin = await persist_user(role=UserRole.superadmin)
+    peer = await persist_user(role=UserRole.superadmin)
+
+    response = await client.patch(
+        f"/usuarios/{peer.cedula}",
+        json={"is_active": True},
+        headers=make_auth_headers(superadmin),
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["cedula"] == peer.cedula
+    assert body["role"] == "superadmin"
+    assert body["is_active"] is True
+
+    await db_session.refresh(peer)
+    assert peer.is_active is True
+    assert peer.deleted_at is None
+    assert peer.role == UserRole.superadmin
+
+
 # ==========================================
 # C. GLOBAL EXCEPTION HANDLER TESTS
 # ==========================================
