@@ -1,6 +1,6 @@
 {
   "plan_file": "docs/deuda/BE-36/plan.md",
-  "current_target": null,
+  "current_target": "Fase_C",
   "phases": {
     "Fase_A": {
       "status": "completed",
@@ -11,6 +11,11 @@
       "status": "completed",
       "commit": "53f1660",
       "description": "Excepción is_peer_reactivation en la guarda de jerarquía de UserAccessPolicy.assert_can_update, docstrings que citan ADR-0018 en la política y en user_service.py, y 18 casos be36 en tests/test_user_access_policy.py (707 -> 725)."
+    },
+    "Fase_C": {
+      "status": "pending",
+      "commit": null,
+      "description": "E1: un caso HTTP (H7) en tests/test_user_access_policy.py: un superadmin envía {\"is_active\": true} a un par activo fuera de la papelera -> 200 y la cuenta sigue activa, sin aserción sobre la auditoría (BE-38); mata el mutante N7; sin cambios en app/ (725 -> 726). No se ejecuta sin aprobación propia (E2)."
     }
   },
   "allowed_statuses": ["pending", "partial", "completed"],

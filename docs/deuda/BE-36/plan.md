@@ -3,8 +3,9 @@
 > Fuente: `docs/deuda/BE-36/verificacion.md` (confirmada; adenda de David, 16 nov 2026, 12:22, que fija la regla).
 > Base: `62b9702` (HEAD de `item/be-36`; `app/` y `tests/` idénticos a `09f529b`, la línea base de la verificación:
 > 707 passed, 97,65 %, ruff 0, mypy 0 en 63 archivos, 4 kept).
-> **Estado: fases A y B ejecutadas y auditadas (PASS); E1 (16 nov 2026, 15:38) pide una fase C, pendiente de escribir
-> por el planificador y de aprobar (E2). Plan aprobado por David con E0 (16 nov 2026, 13:03).** `Aprobado: 16 nov 2026` (esa fecha es la `<FECHA>` del ADR
+> **Estado: fases A y B ejecutadas y auditadas (PASS); E1 (16 nov 2026, 15:38) pide una fase C: escrita por el
+> planificador (16 nov 2026) y **aprobada por David con E2 (16 nov 2026, 16:15)**. Plan aprobado por David con E0 (16 nov
+> 2026, 13:03).** `Aprobado: 16 nov 2026` (esa fecha es la `<FECHA>` del ADR
 > de la fase A). Enmiendas al final, en "Enmiendas aprobadas".
 > **Qué midió el redactor y qué no** (todo fuera del repo, en el scratchpad de la sesión; `git status` sin cambios propios):
 > (1) la sonda de la provisión que pide la adenda (punto 3; salida literal en "Análisis"); (2) los 18 casos dictados
@@ -14,6 +15,8 @@
 > `725` tests recogidos y en verde salvo los 13 de `tests/test_check_docs.py` que leen `docs/` (la copia no lo tenía);
 > (6) los mutantes N1–N6 de la fase B. **No medido:** la compuerta completa ni la cobertura; las mide el ejecutor. Si una
 > cifra no cuadra, el ejecutor se detiene y lo anota en el handoff, sin "arreglar" código para que cuadre.
+> **Fase C (E1):** sus mediciones (H7 contra el código actual, mutantes N1–N7, unitario gemelo, compuerta en una copia)
+> están en la propia fase.
 
 ## Resumen para aprobación
 
@@ -24,6 +27,9 @@ regla en `UserAccessPolicy.assert_can_update` (una condición más en la guarda 
 ida y vuelta medidos: recuperar → el par reactiva → el recuperado entra, y provisionar sin `is_active` → el par
 reactiva → el nuevo entra. **La sonda de la provisión reprodujo la segunda puerta** (201 con `is_active` false, 403 al
 reactivar, 403 al entrar).
+**Fase C (E1, pendiente de E2):** un caso HTTP más en el mismo archivo de tests congela la decisión E0.1 (2) (un
+superadmin reactiva a un par **ya activo** → 200) y mata el mutante N7, que hoy sobrevive a la suite; sin cambios en
+`app/`; 725 → 726.
 **Riesgo principal:** coste aceptado por David en la adenda: una baja de superadmin hecha por SQL con solo
 `is_active = false` deja de ser definitiva, porque otro superadmin la deshace desde la aplicación (dato para BE-55).
 Segundo: un `PATCH` pasa de 403 a 200 (superadmin sobre superadmin con `{"is_active": true}`); no se ha comprobado
@@ -162,6 +168,12 @@ pares; reglas entre admins; `{"is_active": null}` en general (BE-37); auditoría
 (BE-57); `AGENTS.md`, `docs/CONTEXT.md`, `docs/backlog.md` (los actualizan David y la sesión Mentor al cierre).
 
 ## Fases
+
+| Fase | Qué | Archivos | Suite tras la fase | Commit | Estado |
+|---|---|---|---|---|---|
+| A | ADR-0018 | 1 (`docs/adr/0018-…`) | 707 passed · 97,65 % | `dfed481` | ejecutada; auditoría PASS |
+| B | Excepción `is_peer_reactivation`, docstrings, 18 casos be36 | 3 | 725 passed (707 + 18) · 97,65 % | `53f1660` | ejecutada; auditoría PASS (1 opcional → E1) |
+| C | H7: un superadmin reactiva a un par activo → 200 (E1) | 1 (`tests/test_user_access_policy.py`) | 726 passed (725 + 1) · 97,65 % medido en copia | — | aprobada (E2, 16 nov 2026, 16:15) |
 
 ### Fase A — ADR-0018 (la más pequeña)
 
@@ -380,11 +392,123 @@ pares; reglas entre admins; `{"is_active": null}` en general (BE-37); auditoría
   Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
   ```
 
+### Fase C — Congelar el 200 al reactivar a un par ya activo (E1; no se ejecuta sin E2)
+
+- **Origen:** E1.1, para el opcional de la auditoría de B (`gaps.md`): la decisión E0.1 (2), "reactivar a un par que ya
+  está activo da 200", no tiene test, y el mutante **N7** (`and target.is_active is False` añadido al final de
+  `is_peer_reactivation`) sobrevive hoy a toda la suite (medido: `725 passed`, abajo).
+- **Archivos (1):** `tests/test_user_access_policy.py`. Dominio: autorización sobre cuentas de usuario (tests). **Sin
+  cambios en `app/`.**
+- **Cambios exactos:** un caso HTTP, **H7**, al final de la sección BE-36: tras
+  `test_be36_admin_reactivating_peer_admin_returns_403` (su última línea, `    assert audits == []`, es la l.1193 en
+  `9c77da2`), con dos líneas en blanco antes y dos después, antes de `# ==========================================` de la
+  sección C (l.1196). Sin imports nuevos (`UserRole`, l.22). Fixtures `client`, `db_session`, `persist_user`,
+  `make_auth_headers`; `persist_user` confirma antes de la petición y `refresh` relee después (ADR-0011). Código HTTP,
+  estructura del cuerpo y estado; **sin** aserción sobre la auditoría (la fila del no-op es BE-38, como H6 de BE-35).
+  Texto literal (línea más larga: 84 columnas, la primera del docstring; medido con el intérprete):
+
+  ```python
+  async def test_be36_superadmin_reactivating_active_peer_returns_200(
+      client, db_session, persist_user, make_auth_headers
+  ):
+      """The exception does not read the current state: an active peer still gets 200.
+
+      The audit row this no-op writes is BE-38 and is not frozen here.
+      """
+      superadmin = await persist_user(role=UserRole.superadmin)
+      peer = await persist_user(role=UserRole.superadmin)
+
+      response = await client.patch(
+          f"/usuarios/{peer.cedula}",
+          json={"is_active": True},
+          headers=make_auth_headers(superadmin),
+      )
+
+      assert response.status_code == 200
+      body = response.json()
+      assert body["cedula"] == peer.cedula
+      assert body["role"] == "superadmin"
+      assert body["is_active"] is True
+
+      await db_session.refresh(peer)
+      assert peer.is_active is True
+      assert peer.deleted_at is None
+      assert peer.role == UserRole.superadmin
+  ```
+
+- **Tests (RED primero):** **no hay RED de código.** La regla ya está en `53f1660` y cumple E0.1 (2): H7 pasa contra el
+  código actual. Hace de RED el **mutante N7**: el ejecutor, en una copia en el scratchpad (nunca en el repo),
+  añade `            and target.is_active is False` tras `            and update_dict["is_active"] is True` en
+  `app/services/user_access_policy.py`, corre la suite completa de la copia con H7 y debe ver `1 failed, 725 passed` con
+  H7 como único fallo; restaura y pega en el handoff la salida con N7 y la de la copia restaurada (`726 passed`). La
+  copia es del árbol completo (`git archive` del commit de la fase): con solo `app/` y `tests/`,
+  `tests/test_check_docs.py` falla por no tener `docs/` ni `.claude/`.
+- **Mutantes que mata H7** (medidos): **N7** y su variante N7b (`and not target.is_active`), y N1 (ya muerto por U1, H1
+  y H2). No mata N2, N4, N5 ni N6 (los matan otros casos be36) ni N3 (equivalente). Es el único test de la suite que mata
+  N7.
+- **Unitario gemelo: no se añade.** Medido U7 (`test_be36_superadmin_can_reactivate_active_peer_superadmin`, superadmin
+  → superadmin activo, `{"is_active": True}` no lanza): muere con N7, N7b y N1, los mismos que H7. H7 llega a la política
+  con el mismo actor, objetivo y cambio, así que el gemelo no mata nada que H7 no mate (E1.1: no entra).
+- **Mediciones del planificador** (scratchpad; `git status` del repo sin cambios). (1) H7 en un archivo aparte, contra el
+  código de `9c77da2`, con `./venv/Scripts/python.exe -m pytest -c pyproject.toml --rootdir . -p conftest -p
+  tests.conftest -p no:cacheprovider -q -rA <ruta>` desde la raíz:
+  ```
+  PASSED ::test_be36_superadmin_reactivating_active_peer_returns_200
+  1 passed in 0.74s
+  ```
+  (2) Copia de `9c77da2` (`git archive`) con H7 insertado donde dicta la fase: `ruff format --check` → `1 file already
+  formatted`; `ruff check` → `All checks passed!`; `-k be36` → `19 passed, 83 deselected in 1.44s`; compuerta
+  `scripts/check.py` de la copia, exit 0: `68 files already formatted` · `All checks passed!` · `Success: no issues
+  found in 63 source files` · `Contracts: 4 kept, 0 broken.` · `TOTAL 1039 15 152 13 97.65%` · `726 passed, 8 warnings
+  in 30.29s` · `Compuerta superada.` (3) N7 en esa copia, suite completa:
+  ```
+  == N7, suite completa con H7
+  FAILED tests/test_user_access_policy.py::test_be36_superadmin_reactivating_active_peer_returns_200
+  1 failed, 725 passed, 8 warnings in 30.08s
+  == N7, suite completa sin H7 (HEAD)
+  725 passed, 8 warnings in 30.06s
+  ```
+  (4) Copia con H7 y U7, `-k active_peer -rA`: N7, N7b y N1 → `FAILED` en los dos (`2 failed`); original → `2 passed`.
+  (5) H7 solo contra N2, N3, N4, N5, N6 → `1 passed` en cada uno.
+- **Criterio de aceptación:** `git show --stat` del commit de la fase = solo `tests/test_user_access_policy.py`, 28
+  líneas añadidas y 0 borradas; `git diff --stat 9c77da2 HEAD -- app` vacío; `-k be36` → `19 passed`; compuerta
+  `./venv/Scripts/python.exe scripts/check.py` con salida 0, ruff 0, mypy 0 en 63, 4 kept, `726 passed` (725 + 1) y
+  cobertura ≥ 97,65 % (medido en la copia: 97,65 %, `user_access_policy.py` al 100 %); N7 muerto con H7 como único fallo,
+  en el handoff; comandos 1–13 de la Verificación final como los deja E1 (8 → 27, 12 → `:13` y `19 passed`, 13 → 726).
+- **Fuera de alcance de esta fase:** todo `app/`; los 18 casos be36 existentes y el resto del archivo; el unitario
+  gemelo; aserciones sobre la auditoría del no-op (BE-38); BE-37; BE-58 (los dos tests `test_be35_admin_self_*` siguen
+  como están); `AGENTS.md`, `docs/CONTEXT.md`, `docs/backlog.md`.
+- **Aprobación:** la fase C **no se ejecuta sin aprobación propia (E2)**, que escribe la sesión principal con la
+  respuesta de David; el planificador no la escribe.
+- **Commit:**
+  ```
+  test(access-policy): cover a superadmin reactivating an active peer
+
+  ADR-0018 lets a superadmin send exactly {"is_active": true} to a peer
+  superadmin outside the recycle bin, and the approved plan chose not
+  to read the target's current state: reactivating a peer that is
+  already active is a 200, not a new 403 (BE-36, E0.1). No test held
+  that decision, because every success case used an inactive target,
+  so a mutant adding "and target.is_active is False" to the exception
+  survived the whole suite (optional finding of the phase B audit).
+
+  The new HTTP case sends {"is_active": true} to an active peer and
+  expects 200, is_active true in the body and the account still active
+  after a refresh. It kills that mutant and is the only test that does.
+  A twin unit case was measured and left out: it kills nothing the
+  HTTP case does not. No assertion on the audit log: the row a no-op
+  writes is BE-38 and is not frozen here.
+
+  Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+  ```
+
 ## Verificación final
 
-Desde la raíz, con la rama tras la fase B. Los conteos incluyen el texto que dicta este plan (código, docstrings,
-comentarios, nombres y docstrings de tests) y están medidos con `grep` sobre una copia de `app/` y `tests/` con la fase
-B aplicada. Patrones 1–6 = los de la verificación, recalculados.
+Desde la raíz, con la rama tras la fase C. Los conteos incluyen el texto que dicta este plan (código, docstrings,
+comentarios, nombres y docstrings de tests) y están medidos con `grep` sobre una copia de `app/` y `tests/` con las
+fases B y C aplicadas. Patrones 1–6 = los de la verificación, recalculados. E1 recalcula 8, 12 y 13; los demás no
+cambian con la fase C (no toca `app/`, su texto no contiene `ADR-0018`, `recuperar` ni `recover`, y el comando 11 no
+lista `tests/test_user_access_policy.py`).
 
 ```bash
 # 1. Patrón 1: la recuperación sigue forzando la cuenta a inactiva → 1 línea, app/services/user_service.py
@@ -409,7 +533,7 @@ git grep -n -E "assert_can_recover|recover_user_account" -- app
 # 7. Patrón 5: escrituras de deleted_at sobre usuarios → las mismas 2 líneas (user_repository.py, user_service.py)
 git grep -n -E "deleted_at\s*=[^=]" -- app/repositories/user_repository.py app/services/user_service.py
 
-# 8. Patrón 6: tests que tocan la recuperación → 27 líneas (22 de la base + 5 de H1 y H5)
+# 8. Patrón 6: tests que tocan la recuperación → 27 líneas (22 de la base + 5 de H1 y H5; H7 no añade ninguna)
 git grep -n -E "recuperar|recover" -- tests/test_auth.py tests/test_user_access_policy.py tests/test_user_service.py | wc -l
 
 # 9. Citas de la decisión → app: 5 líneas (user_access_policy.py 3: clase, docstring, comentario;
@@ -425,11 +549,11 @@ git grep -n 'is_active: bool = False' -- app/schemas/user.py
 # 11. Nada fuera del alcance → salida vacía
 git diff --stat 62b9702 HEAD -- app/schemas app/core app/main.py app/repositories app/api app/models app/cli tests/test_auth.py tests/test_user_service.py tests/test_route_guards.py tests/conftest.py conftest.py AGENTS.md docs/adr/0017-ningun-superadmin-se-retira-a-si-mismo.md
 
-# 12. Tests del ítem → 12 funciones; 18 casos en verde
-git grep -c 'def test_be36_' -- tests/test_user_access_policy.py      # → tests/test_user_access_policy.py:12
-./venv/Scripts/python.exe -m pytest tests/test_user_access_policy.py -k be36 -q   # → 18 passed
+# 12. Tests del ítem → 13 funciones; 19 casos en verde (tras la fase B eran 12 y 18; la fase C añade H7)
+git grep -c 'def test_be36_' -- tests/test_user_access_policy.py      # → tests/test_user_access_policy.py:13
+./venv/Scripts/python.exe -m pytest tests/test_user_access_policy.py -k be36 -q   # → 19 passed
 
-# 13. Compuerta completa → salida 0; 725 passed; cobertura ≥ 97,65 %; ruff 0; mypy 0; 4 kept
+# 13. Compuerta completa → salida 0; 726 passed; cobertura ≥ 97,65 %; ruff 0; mypy 0; 4 kept
 ./venv/Scripts/python.exe scripts/check.py
 ```
 
@@ -759,3 +883,18 @@ pasa de 100. Las unitarias no llevan docstring (`tests/**` ignora `D`, como las 
    desactivarse a sí mismo; es **BE-58**, el ítem siguiente del bloque, con verificación y ADR propios. Este plan no lo
    toca: los tests `test_be35_admin_self_delete_is_still_allowed` y `test_be35_admin_self_deactivation_is_still_allowed`
    siguen como están hasta entonces.
+
+### E2 — 16 nov 2026, 16:15 (David: "si, apruebo, va la fase C"; revisión de la sesión Mentor)
+
+1. **Fase C aprobada como la escribió el planificador.** Sin correcciones de dictado. Contraste de la sesión Mentor
+   contra `9c77da2`: la última línea de `test_be36_admin_reactivating_peer_admin_returns_403` es la l.1193 y la
+   cabecera de la sección C empieza en la l.1196; `UserRole` ya está importado (l.22); el texto dictado son 26 líneas
+   más 2 en blanco (las 28 del criterio); 725 + 1 = 726. Las cifras de la copia y el mutante N7 los midió el
+   planificador; el ejecutor los repite y el auditor también.
+2. **Se acepta que la fase no tenga RED de código:** la regla ya está en `53f1660`; hace de RED el mutante N7 en una
+   copia, como dicta la fase (mismo patrón que la fase H de BE-34).
+3. **Se acepta que H7 no afirme nada sobre la auditoría.** Explicado a David antes de aprobar: la reactivación real sí
+   se audita y H1 y H2 lo exigen (`UPDATE` con `{"is_active": True}` y `performed_by` del par); lo que H7 deja sin
+   afirmar es la fila que escribe un no-op, que es BE-38.
+4. **Orden para David:** la viñeta de AGENTS §3 (adenda, punto 5; E0.3) se commitea después de la auditoría de la fase
+   C y antes de `/pr`.
