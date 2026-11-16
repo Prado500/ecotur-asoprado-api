@@ -16,9 +16,10 @@ from starlette.requests import Request
 
 from app.api.dependencies import get_user_service
 from app.core.exceptions import AuthorizationError
+from app.core.security import get_password_hash
 from app.main import app, domain_error_handler
 from app.models.audit import AuditAction, AuditLog
-from app.models.user import UserRole
+from app.models.user import User, UserRole
 from app.services.user_access_policy import UserAccessPolicy
 from app.services.user_service import UserService
 
@@ -261,6 +262,60 @@ class TestAssertCanUpdate:
         admin = make_user(role=UserRole.admin)
 
         policy.assert_can_update(superadmin, admin, {"is_active": False})
+
+    def test_be36_superadmin_can_reactivate_peer_superadmin(self, policy, make_user):
+        actor = make_user(role=UserRole.superadmin)
+        target = make_user(role=UserRole.superadmin, is_active=False)
+
+        policy.assert_can_update(actor, target, {"is_active": True})
+
+    def test_be36_peer_superadmin_deactivation_is_rejected(self, policy, make_user):
+        actor = make_user(role=UserRole.superadmin)
+        target = make_user(role=UserRole.superadmin)
+
+        with pytest.raises(AuthorizationError):
+            policy.assert_can_update(actor, target, {"is_active": False})
+
+    @pytest.mark.parametrize(
+        "update_dict",
+        [
+            {"is_active": True, "first_name": "Changed"},
+            {"is_active": True, "role": "superadmin"},
+            {"role": "admin"},
+            {"is_active": None},
+            {},
+        ],
+        ids=["with-profile-field", "with-role", "role-only", "null", "empty"],
+    )
+    def test_be36_peer_superadmin_update_other_than_reactivation_is_rejected(
+        self, policy, make_user, update_dict
+    ):
+        actor = make_user(role=UserRole.superadmin)
+        target = make_user(role=UserRole.superadmin, is_active=False)
+
+        with pytest.raises(AuthorizationError):
+            policy.assert_can_update(actor, target, update_dict)
+
+    def test_be36_superadmin_cannot_reactivate_peer_in_recycle_bin(self, policy, make_user):
+        actor = make_user(role=UserRole.superadmin)
+        target = make_user(role=UserRole.superadmin, is_active=False, deleted_at=datetime.now(UTC))
+
+        with pytest.raises(AuthorizationError):
+            policy.assert_can_update(actor, target, {"is_active": True})
+
+    def test_be36_admin_cannot_reactivate_peer_admin(self, policy, make_user):
+        actor = make_user(role=UserRole.admin)
+        target = make_user(role=UserRole.admin, is_active=False)
+
+        with pytest.raises(AuthorizationError):
+            policy.assert_can_update(actor, target, {"is_active": True})
+
+    def test_be36_admin_cannot_reactivate_superadmin(self, policy, make_user):
+        actor = make_user(role=UserRole.admin)
+        target = make_user(role=UserRole.superadmin, is_active=False)
+
+        with pytest.raises(AuthorizationError):
+            policy.assert_can_update(actor, target, {"is_active": True})
 
 
 class TestAssertCanRecover:
@@ -949,6 +1004,193 @@ async def test_be35_superadmin_deactivates_lower_rank_account_returns_200(
     assert audits[0].entity_id == admin.cedula
     assert audits[0].performed_by == superadmin.cedula
     assert audits[0].changes == {"is_active": False}
+
+
+# --- BE-36 regression: a superadmin reactivates a peer superadmin, and nothing else ---
+
+BE36_PASSWORD = "Password123"
+
+
+async def test_be36_recovered_superadmin_reactivated_by_peer_can_log_in(
+    client, db_session, persist_user, make_auth_headers
+):
+    """Round trip of the row: recover, the peer reactivates, the recovered one logs in."""
+    superadmin = await persist_user(role=UserRole.superadmin)
+    peer = await persist_user(
+        role=UserRole.superadmin,
+        is_active=False,
+        deleted_at=datetime.now(UTC),
+        password_hash=get_password_hash(BE36_PASSWORD),
+    )
+    headers = make_auth_headers(superadmin)
+    credentials = {"email": peer.email, "password": BE36_PASSWORD}
+
+    recovered = await client.patch(f"/usuarios/{peer.cedula}/recuperar", headers=headers)
+    login_before = await client.post("/usuarios/login", json=credentials)
+    reactivated = await client.patch(
+        f"/usuarios/{peer.cedula}", json={"is_active": True}, headers=headers
+    )
+    login_after = await client.post("/usuarios/login", json=credentials)
+
+    assert recovered.status_code == 200
+    assert login_before.status_code == 403
+    assert reactivated.status_code == 200
+    body = reactivated.json()
+    assert body["cedula"] == peer.cedula
+    assert body["role"] == "superadmin"
+    assert body["is_active"] is True
+    assert login_after.status_code == 200
+    assert set(login_after.json()) == {"access_token", "token_type"}
+
+    await db_session.refresh(peer)
+    assert peer.deleted_at is None
+    assert peer.is_active is True
+    audits = (await db_session.execute(select(AuditLog).order_by(AuditLog.id))).scalars().all()
+    assert [(a.action, a.entity_id, a.performed_by, a.changes) for a in audits] == [
+        (AuditAction.RECOVER, peer.cedula, superadmin.cedula, None),
+        (AuditAction.UPDATE, peer.cedula, superadmin.cedula, {"is_active": True}),
+    ]
+
+
+async def test_be36_superadmin_provisioned_inactive_is_reactivated_by_peer_and_logs_in(
+    client, db_session, persist_user, make_auth_headers
+):
+    """Second door: a superadmin created without is_active is born inactive; a peer fixes it."""
+    superadmin = await persist_user(role=UserRole.superadmin)
+    headers = make_auth_headers(superadmin)
+    payload = {
+        "cedula": "777777",
+        "email": "newsuper@test.com",
+        "first_name": "Nuevo",
+        "last_name": "Super",
+        "phone": "3000000000",
+        "password": BE36_PASSWORD,
+        "role": "superadmin",
+        "data_consent": True,
+    }
+    credentials = {"email": payload["email"], "password": BE36_PASSWORD}
+
+    created = await client.post("/usuarios/admin", json=payload, headers=headers)
+    login_before = await client.post("/usuarios/login", json=credentials)
+    reactivated = await client.patch("/usuarios/777777", json={"is_active": True}, headers=headers)
+    login_after = await client.post("/usuarios/login", json=credentials)
+
+    assert created.status_code == 201
+    assert created.json()["is_active"] is False
+    assert login_before.status_code == 403
+    assert reactivated.status_code == 200
+    assert reactivated.json()["is_active"] is True
+    assert login_after.status_code == 200
+    assert set(login_after.json()) == {"access_token", "token_type"}
+
+    provisioned = (
+        await db_session.execute(select(User).where(User.cedula == "777777"))
+    ).scalar_one()
+    assert provisioned.role == UserRole.superadmin
+    assert provisioned.is_active is True
+    audits = (await db_session.execute(select(AuditLog).order_by(AuditLog.id))).scalars().all()
+    assert [(a.action, a.entity_id, a.performed_by, a.changes) for a in audits] == [
+        (AuditAction.CREATE, "777777", superadmin.cedula, {"role": "superadmin"}),
+        (AuditAction.UPDATE, "777777", superadmin.cedula, {"is_active": True}),
+    ]
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [{"is_active": True, "first_name": "Changed"}, {"first_name": "Changed"}, {"role": "admin"}],
+    ids=["with-profile-field", "profile-only", "role-only"],
+)
+async def test_be36_peer_superadmin_update_other_than_reactivation_returns_403(
+    client, db_session, persist_user, make_auth_headers, payload
+):
+    """Any other key, alone or next to is_active true, is still 403; nothing is written."""
+    superadmin = await persist_user(role=UserRole.superadmin)
+    peer = await persist_user(role=UserRole.superadmin, is_active=False)
+
+    response = await client.patch(
+        f"/usuarios/{peer.cedula}", json=payload, headers=make_auth_headers(superadmin)
+    )
+
+    assert response.status_code == 403
+    body = response.json()
+    assert set(body) == {"detail"}
+    assert isinstance(body["detail"], str)
+
+    await db_session.refresh(peer)
+    assert peer.is_active is False
+    assert peer.first_name == "John"
+    assert peer.role == UserRole.superadmin
+    audits = (await db_session.execute(select(AuditLog))).scalars().all()
+    assert audits == []
+
+
+async def test_be36_peer_superadmin_deactivation_still_returns_403(
+    client, db_session, persist_user, make_auth_headers
+):
+    """The exception reads the value: is_active false on a peer is still 403 (ADR-0017)."""
+    superadmin = await persist_user(role=UserRole.superadmin)
+    peer = await persist_user(role=UserRole.superadmin)
+
+    response = await client.patch(
+        f"/usuarios/{peer.cedula}",
+        json={"is_active": False},
+        headers=make_auth_headers(superadmin),
+    )
+
+    assert response.status_code == 403
+    assert set(response.json()) == {"detail"}
+
+    await db_session.refresh(peer)
+    assert peer.is_active is True
+    audits = (await db_session.execute(select(AuditLog))).scalars().all()
+    assert audits == []
+
+
+async def test_be36_peer_still_in_recycle_bin_reactivation_returns_403(
+    client, db_session, persist_user, make_auth_headers
+):
+    """Reactivation does not skip the recovery: a peer still in the recycle bin stays 403."""
+    superadmin = await persist_user(role=UserRole.superadmin)
+    peer = await persist_user(
+        role=UserRole.superadmin, is_active=False, deleted_at=datetime.now(UTC)
+    )
+
+    response = await client.patch(
+        f"/usuarios/{peer.cedula}",
+        json={"is_active": True},
+        headers=make_auth_headers(superadmin),
+    )
+
+    assert response.status_code == 403
+    assert set(response.json()) == {"detail"}
+
+    await db_session.refresh(peer)
+    assert peer.is_active is False
+    assert peer.deleted_at is not None
+    audits = (await db_session.execute(select(AuditLog))).scalars().all()
+    assert audits == []
+
+
+async def test_be36_admin_reactivating_peer_admin_returns_403(
+    client, db_session, persist_user, make_auth_headers
+):
+    """The exception is only between superadmins: an admin reactivating a peer admin gets 403."""
+    admin = await persist_user(role=UserRole.admin)
+    peer = await persist_user(role=UserRole.admin, is_active=False)
+
+    response = await client.patch(
+        f"/usuarios/{peer.cedula}",
+        json={"is_active": True},
+        headers=make_auth_headers(admin),
+    )
+
+    assert response.status_code == 403
+    assert set(response.json()) == {"detail"}
+
+    await db_session.refresh(peer)
+    assert peer.is_active is False
+    audits = (await db_session.execute(select(AuditLog))).scalars().all()
+    assert audits == []
 
 
 # ==========================================
