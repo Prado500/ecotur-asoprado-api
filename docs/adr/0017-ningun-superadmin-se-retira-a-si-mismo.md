@@ -1,6 +1,8 @@
 # ADR-0017 — Ningún superadmin se borra ni se desactiva a sí mismo: el número de superadmins no baja desde la aplicación
 
-- **Estado:** aceptado (David, 16 nov 2026, al aprobar el plan de BE-35)
+- **Estado:** aceptado (David, 16 nov 2026, al aprobar el plan de BE-35). **Superado parcialmente por ADR-0019**
+  (16 nov 2026): el alcance "superadmin" de las dos guardas de la decisión 1 y la consecuencia "Turistas y admins no
+  cambian"; el resto sigue vigente.
 - **Propuesta:** Claude, `plan-redactor` (16 nov 2026), sobre la adenda de David a la verificación (16 nov, 10:31)
 - **Ubicación en el repo:** `docs/adr/0017-ningun-superadmin-se-retira-a-si-mismo.md`
 - **Origen:** backlog BE-35; `docs/deuda/BE-35/verificacion.md` (veredicto y adenda); `docs/deuda/BE-35/plan.md`. El plan
