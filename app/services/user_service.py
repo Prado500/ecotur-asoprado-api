@@ -177,10 +177,10 @@ class UserService:
     async def delete_user_account(self, target_cedula: str, current_user: User) -> dict:
         """Orchestrates the soft deletion of a user account enforcing hierarchical ABAC.
 
-        Authorization follows a pure hierarchical invariant with self-deletion
-        parity: the action is allowed only when the actor deletes their own
-        account or when the actor's role rank is strictly greater than the
-        target's role rank.
+        Authorization follows a pure hierarchical invariant: the action is
+        allowed when the actor deletes their own account or when the actor's
+        role rank is strictly greater than the target's role rank. A superadmin
+        never deletes their own account (ADR-0017).
 
         Args:
             target_cedula (str): The primary identifier of the account to delete.
@@ -191,7 +191,8 @@ class UserService:
 
         Raises:
             NotFoundError: 404 Not Found if the target doesn't exist.
-            AuthorizationError: 403 Forbidden if the hierarchical invariant fails.
+            AuthorizationError: 403 Forbidden if the hierarchical invariant fails
+                or a superadmin deletes their own account.
         """
         soft_deleted_user = await self.user_repo.get_user_by_cedula(target_cedula)
 
@@ -201,7 +202,7 @@ class UserService:
                 "El usuario especificado no existe o ya ha sido eliminado del sistema."
             )
 
-        # 2. ABAC Hierarchical Invariant: self-deletion parity OR strictly higher rank
+        # 2. ABAC Hierarchical Invariant: own account OR strictly higher rank; see ADR-0017
         self.user_access_policy.assert_can_delete(current_user, soft_deleted_user)
 
         # 3. Soft-deletion delegated to repository layer
@@ -254,7 +255,8 @@ class UserService:
         account deletion: an actor may edit their own account, while third-party
         updates require the actor's role rank to be strictly greater than the
         target's role rank. Fail-safe invariants additionally block the role key
-        for non-superadmins and on any self-update, and is_active for tourists.
+        for non-superadmins and on any self-update, is_active for tourists, and
+        is_active set to false by a superadmin on their own account (ADR-0017).
 
         Args:
             target_cedula (str): The primary identifier of the account to update.

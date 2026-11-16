@@ -35,7 +35,7 @@ def policy() -> UserAccessPolicy:
 
 
 class TestAssertCanDelete:
-    """Freezes the deletion invariant: self-parity or strictly higher rank."""
+    """Freezes the deletion invariant: own account or higher rank, never a superadmin's own."""
 
     def test_self_delete_tourist_is_allowed(self, policy, make_user):
         tourist = make_user(role=UserRole.tourist)
@@ -54,10 +54,23 @@ class TestAssertCanDelete:
 
         policy.assert_can_delete(actor, target)
 
-    def test_superadmin_self_delete_is_allowed(self, policy, make_user):
+    def test_be35_superadmin_self_delete_is_rejected(self, policy, make_user):
         superadmin = make_user(role=UserRole.superadmin)
 
-        policy.assert_can_delete(superadmin, superadmin)
+        with pytest.raises(AuthorizationError):
+            policy.assert_can_delete(superadmin, superadmin)
+
+    def test_be35_self_delete_guard_identifies_the_actor_by_cedula(self, policy, make_user):
+        superadmin = make_user(role=UserRole.superadmin)
+        twin = make_user(role=UserRole.superadmin, cedula=superadmin.cedula)
+
+        with pytest.raises(AuthorizationError):
+            policy.assert_can_delete(superadmin, twin)
+
+    def test_be35_admin_self_delete_is_still_allowed(self, policy, make_user):
+        admin = make_user(role=UserRole.admin)
+
+        policy.assert_can_delete(admin, admin)
 
     def test_tourist_cannot_delete_other_tourist(self, policy, make_user):
         actor = make_user(role=UserRole.tourist)
@@ -89,7 +102,7 @@ class TestAssertCanDelete:
 
 
 class TestAssertCanUpdate:
-    """Freezes update invariants: hierarchy parity, role fail-safe and is_active fail-safe."""
+    """Freezes update invariants: hierarchy, role and is_active fail-safes, ADR-0017 guard."""
 
     def test_tourist_self_update_basic_fields_is_allowed(self, policy, make_user):
         tourist = make_user(role=UserRole.tourist)
@@ -219,6 +232,35 @@ class TestAssertCanUpdate:
 
         assert admin_self.value.detail == admin_other.value.detail
         assert admin_self.value.detail != superadmin_self.value.detail
+
+    def test_be35_superadmin_self_deactivation_is_rejected(self, policy, make_user):
+        superadmin = make_user(role=UserRole.superadmin)
+
+        with pytest.raises(AuthorizationError):
+            policy.assert_can_update(superadmin, superadmin, {"is_active": False})
+
+    def test_be35_superadmin_self_update_with_is_active_true_is_allowed(self, policy, make_user):
+        superadmin = make_user(role=UserRole.superadmin)
+
+        policy.assert_can_update(superadmin, superadmin, {"is_active": True})
+
+    def test_be35_self_deactivation_guard_identifies_the_actor_by_cedula(self, policy, make_user):
+        superadmin = make_user(role=UserRole.superadmin)
+        twin = make_user(role=UserRole.superadmin, cedula=superadmin.cedula)
+
+        with pytest.raises(AuthorizationError):
+            policy.assert_can_update(superadmin, twin, {"is_active": False})
+
+    def test_be35_admin_self_deactivation_is_still_allowed(self, policy, make_user):
+        admin = make_user(role=UserRole.admin)
+
+        policy.assert_can_update(admin, admin, {"is_active": False})
+
+    def test_be35_superadmin_can_deactivate_lower_rank_account(self, policy, make_user):
+        superadmin = make_user(role=UserRole.superadmin)
+        admin = make_user(role=UserRole.admin)
+
+        policy.assert_can_update(superadmin, admin, {"is_active": False})
 
 
 class TestAssertCanRecover:
@@ -734,6 +776,179 @@ async def test_b3_superadmin_deleting_missing_cedula_returns_404(
     body = response.json()
     assert set(body) == {"detail"}
     assert isinstance(body["detail"], str)
+
+
+# --- BE-35 regression: a superadmin never deletes or deactivates their own account ---
+
+
+async def test_be35_sole_superadmin_self_delete_returns_403_without_mutation(
+    client, db_session, persist_user, make_auth_headers
+):
+    """The only superadmin DELETEing their own account gets 403; nothing is written."""
+    superadmin = await persist_user(role=UserRole.superadmin)
+
+    response = await client.delete(
+        f"/usuarios/{superadmin.cedula}",
+        headers=make_auth_headers(superadmin),
+    )
+
+    assert response.status_code == 403
+    body = response.json()
+    assert set(body) == {"detail"}
+    assert isinstance(body["detail"], str)
+
+    await db_session.refresh(superadmin)
+    assert superadmin.deleted_at is None
+    assert superadmin.is_active is True
+    audits = (await db_session.execute(select(AuditLog))).scalars().all()
+    assert audits == []
+
+
+async def test_be35_superadmin_self_delete_returns_403_with_another_superadmin_active(
+    client, db_session, persist_user, make_auth_headers
+):
+    """The rule does not count: with a second superadmin active, self-deletion is still 403."""
+    superadmin = await persist_user(role=UserRole.superadmin)
+    peer = await persist_user(role=UserRole.superadmin)
+
+    response = await client.delete(
+        f"/usuarios/{superadmin.cedula}",
+        headers=make_auth_headers(superadmin),
+    )
+
+    assert response.status_code == 403
+    assert set(response.json()) == {"detail"}
+
+    await db_session.refresh(superadmin)
+    await db_session.refresh(peer)
+    assert superadmin.deleted_at is None
+    assert superadmin.is_active is True
+    assert peer.is_active is True
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [{"is_active": False}, {"is_active": "false"}, {"is_active": False, "first_name": "Changed"}],
+    ids=["false", "coerced-false", "with-profile-fields"],
+)
+async def test_be35_sole_superadmin_self_deactivation_returns_403_without_mutation(
+    client, db_session, persist_user, make_auth_headers, payload
+):
+    """The only superadmin PATCHing their own is_active to false gets 403; nothing is written."""
+    superadmin = await persist_user(role=UserRole.superadmin)
+
+    response = await client.patch(
+        f"/usuarios/{superadmin.cedula}",
+        json=payload,
+        headers=make_auth_headers(superadmin),
+    )
+
+    assert response.status_code == 403
+    body = response.json()
+    assert set(body) == {"detail"}
+    assert isinstance(body["detail"], str)
+
+    await db_session.refresh(superadmin)
+    assert superadmin.is_active is True
+    assert superadmin.first_name == "John"
+    audits = (await db_session.execute(select(AuditLog))).scalars().all()
+    assert audits == []
+
+
+async def test_be35_superadmin_self_deactivation_returns_403_with_another_superadmin_active(
+    client, db_session, persist_user, make_auth_headers
+):
+    """The rule does not count: with a second superadmin active, self-deactivation is still 403."""
+    superadmin = await persist_user(role=UserRole.superadmin)
+    await persist_user(role=UserRole.superadmin)
+
+    response = await client.patch(
+        f"/usuarios/{superadmin.cedula}",
+        json={"is_active": False},
+        headers=make_auth_headers(superadmin),
+    )
+
+    assert response.status_code == 403
+    assert set(response.json()) == {"detail"}
+
+    await db_session.refresh(superadmin)
+    assert superadmin.is_active is True
+
+
+async def test_be35_superadmin_keeps_access_after_rejected_self_removal(
+    client, db_session, persist_user, make_auth_headers
+):
+    """After both self-removals are rejected, the same token still reads its own profile."""
+    superadmin = await persist_user(role=UserRole.superadmin)
+    headers = make_auth_headers(superadmin)
+
+    deleted = await client.delete(f"/usuarios/{superadmin.cedula}", headers=headers)
+    deactivated = await client.patch(
+        f"/usuarios/{superadmin.cedula}", json={"is_active": False}, headers=headers
+    )
+    profile = await client.get("/usuarios/mi-perfil", headers=headers)
+
+    assert deleted.status_code == 403
+    assert deactivated.status_code == 403
+    assert profile.status_code == 200
+    body = profile.json()
+    assert body["cedula"] == superadmin.cedula
+    assert body["role"] == "superadmin"
+    assert body["is_active"] is True
+
+    await db_session.refresh(superadmin)
+    assert superadmin.deleted_at is None
+    assert superadmin.is_active is True
+
+
+async def test_be35_superadmin_self_update_with_is_active_true_returns_200(
+    client, db_session, persist_user, make_auth_headers
+):
+    """The guard reads the value: is_active true on one's own account still succeeds."""
+    superadmin = await persist_user(role=UserRole.superadmin)
+
+    response = await client.patch(
+        f"/usuarios/{superadmin.cedula}",
+        json={"is_active": True},
+        headers=make_auth_headers(superadmin),
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["cedula"] == superadmin.cedula
+    assert body["is_active"] is True
+
+    await db_session.refresh(superadmin)
+    assert superadmin.is_active is True
+
+
+async def test_be35_superadmin_deactivates_lower_rank_account_returns_200(
+    client, db_session, persist_user, make_auth_headers
+):
+    """A superadmin still deactivates a lower-rank account; the audit row names both ends."""
+    superadmin = await persist_user(role=UserRole.superadmin)
+    admin = await persist_user(role=UserRole.admin)
+
+    response = await client.patch(
+        f"/usuarios/{admin.cedula}",
+        json={"is_active": False},
+        headers=make_auth_headers(superadmin),
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["cedula"] == admin.cedula
+    assert body["is_active"] is False
+
+    await db_session.refresh(admin)
+    assert admin.is_active is False
+
+    audits = (await db_session.execute(select(AuditLog))).scalars().all()
+    assert len(audits) == 1
+    assert audits[0].action == AuditAction.UPDATE
+    assert audits[0].entity_id == admin.cedula
+    assert audits[0].performed_by == superadmin.cedula
+    assert audits[0].changes == {"is_active": False}
 
 
 # ==========================================
