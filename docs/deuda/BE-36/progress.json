@@ -1,0 +1,19 @@
+{
+  "plan_file": "docs/deuda/BE-36/plan.md",
+  "current_target": "Fase_A",
+  "phases": {
+    "Fase_A": {
+      "status": "pending",
+      "commit": null,
+      "description": "ADR-0018: un superadmin puede reactivar a otro superadmin fuera de la papelera, solo con {\"is_active\": true}; complementa ADR-0017; coste declarado (una baja por SQL con solo is_active = false es reversible; dato para BE-55)."
+    },
+    "Fase_B": {
+      "status": "pending",
+      "commit": null,
+      "description": "Excepción is_peer_reactivation en la guarda de jerarquía de UserAccessPolicy.assert_can_update, docstrings que citan ADR-0018 en la política y en user_service.py, y 18 casos be36 en tests/test_user_access_policy.py (707 -> 725)."
+    }
+  },
+  "allowed_statuses": ["pending", "partial", "completed"],
+  "last_handoff": "Estado inicial.",
+  "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
+}
