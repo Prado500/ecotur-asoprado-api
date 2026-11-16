@@ -257,6 +257,9 @@ class UserService:
         target's role rank. Fail-safe invariants additionally block the role key
         for non-superadmins and on any self-update, is_active for tourists, and
         is_active set to false by a superadmin on their own account (ADR-0017).
+        One exception to the rank rule: a superadmin may reactivate another
+        superadmin outside the recycle bin, sending is_active true and nothing
+        else (ADR-0018).
 
         Args:
             target_cedula (str): The primary identifier of the account to update.
@@ -332,6 +335,8 @@ class UserService:
         Recovered accounts are structurally restored but forced into an inactive
         state (is_active=False) by default, requiring explicit administrative
         approval before network access is granted.
+        For a recovered superadmin, that approval is another superadmin sending
+        is_active true (ADR-0018).
 
         Args:
             target_cedula (str): The primary identifier of the account to recover.

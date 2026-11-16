@@ -11,7 +11,9 @@ class UserAccessPolicy:
     ranks: an actor may update or delete their own account, while third-party
     operations require a strictly higher rank. Two exceptions on one's own
     account: nobody changes their own role, and a superadmin never deletes or
-    deactivates it, so the number of superadmins never drops (ADR-0017).
+    deactivates it, so the number of superadmins never drops (ADR-0017). One
+    exception between peers: a superadmin may reactivate another superadmin
+    outside the recycle bin, sending is_active true and nothing else (ADR-0018).
     Failures are raised as AuthorizationError domain exceptions so the service
     layer remains transport-agnostic. Rules that depend only on the actor's role
     are decided by the HTTP guards, not here (ADR-0012, point 1).
@@ -50,7 +52,9 @@ class UserAccessPolicy:
     def assert_can_update(self, actor: User, target: User, update_dict: dict) -> None:
         """Enforces the invariants of a partial update on a user account.
 
-        The target must be the actor's own account or one of strictly lower rank.
+        The target must be the actor's own account or one of strictly lower rank,
+        except a peer superadmin outside the recycle bin when a superadmin sends
+        is_active true and nothing else (ADR-0018).
         Fail-safe guards then reject the role key for non-superadmins and on any
         self-update, the is_active key for tourists, and is_active set to false
         by a superadmin on their own account (ADR-0017). The role guards read the
@@ -67,8 +71,20 @@ class UserAccessPolicy:
                 fail-safe field invariant is violated.
         """
         is_self_update = actor.cedula == target.cedula
+        # ADR-0018: a superadmin may reactivate a peer outside the recycle bin, nothing else.
+        is_peer_reactivation = (
+            actor.role == UserRole.superadmin
+            and target.role == UserRole.superadmin
+            and target.deleted_at is None
+            and set(update_dict) == {"is_active"}
+            and update_dict["is_active"] is True
+        )
 
-        if not is_self_update and self._ROLE_RANK[actor.role] <= self._ROLE_RANK[target.role]:
+        if (
+            not is_self_update
+            and not is_peer_reactivation
+            and self._ROLE_RANK[actor.role] <= self._ROLE_RANK[target.role]
+        ):
             raise AuthorizationError(
                 "Violación de jerarquía: No tiene privilegios para modificar a este usuario."
             )
