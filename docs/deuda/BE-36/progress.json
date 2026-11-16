@@ -1,6 +1,6 @@
 {
   "plan_file": "docs/deuda/BE-36/plan.md",
-  "current_target": "Fase_C",
+  "current_target": null,
   "phases": {
     "Fase_A": {
       "status": "completed",
@@ -13,12 +13,12 @@
       "description": "Excepción is_peer_reactivation en la guarda de jerarquía de UserAccessPolicy.assert_can_update, docstrings que citan ADR-0018 en la política y en user_service.py, y 18 casos be36 en tests/test_user_access_policy.py (707 -> 725)."
     },
     "Fase_C": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "202ec51",
       "description": "E1: un caso HTTP (H7) en tests/test_user_access_policy.py: un superadmin envía {\"is_active\": true} a un par activo fuera de la papelera -> 200 y la cuenta sigue activa, sin aserción sobre la auditoría (BE-38); mata el mutante N7; sin cambios en app/ (725 -> 726). No se ejecuta sin aprobación propia (E2)."
     }
   },
   "allowed_statuses": ["pending", "partial", "completed"],
-  "last_handoff": "Fase_B completada (53f1660): excepción is_peer_reactivation en la guarda de jerarquía + docstrings ADR-0018 + 18 casos be36; RED 3 failed / 15 passed (U1, H1, H2) como el plan, GREEN 18 passed; compuerta exit 0, 725 passed, 97.65 %, mypy 0 en 63 archivos, 4 kept; mutantes N1, N2, N4, N5, N6 muertos, N3 vivo (equivalente, declarado); comandos 1-12 como el plan. Sin fases pendientes: queda la auditoría.",
+  "last_handoff": "Fase_C completada (202ec51): H7 literal tras la l.1193 (28+, 0-, solo tests/test_user_access_policy.py); sin RED de código (E2.2): N7 en copia de 202ec51 -> 1 failed (H7), 725 passed; restaurada -> 726 passed; -k be36 19 passed; compuerta exit 0, 726 passed, 97.65 %, mypy 0 en 63, 4 kept; comandos 1-13 como el plan. Sin fases pendientes: queda la auditoría de C.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
