@@ -1,0 +1,19 @@
+{
+  "plan_file": "docs/deuda/BE-35/plan.md",
+  "current_target": "Fase_A",
+  "phases": {
+    "Fase_A": {
+      "status": "pending",
+      "commit": null,
+      "description": "ADR-0017: ningún superadmin se borra ni se desactiva a sí mismo; sin conteo, 403, coste declarado (baja por SQL hasta BE-55)."
+    },
+    "Fase_B": {
+      "status": "pending",
+      "commit": null,
+      "description": "Dos guardas en UserAccessPolicy (auto-borrado y is_active a False de un superadmin, por valor), docstrings que citan ADR-0017 y 17 casos be35 en tests/test_user_access_policy.py (691 -> 707)."
+    }
+  },
+  "allowed_statuses": ["pending", "partial", "completed"],
+  "last_handoff": "Estado inicial.",
+  "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
+}
