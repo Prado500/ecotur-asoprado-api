@@ -1,10 +1,10 @@
 {
   "plan_file": "docs/deuda/BE-36/plan.md",
-  "current_target": "Fase_A",
+  "current_target": "Fase_B",
   "phases": {
     "Fase_A": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "dfed481",
       "description": "ADR-0018: un superadmin puede reactivar a otro superadmin fuera de la papelera, solo con {\"is_active\": true}; complementa ADR-0017; coste declarado (una baja por SQL con solo is_active = false es reversible; dato para BE-55)."
     },
     "Fase_B": {
@@ -14,6 +14,6 @@
     }
   },
   "allowed_statuses": ["pending", "partial", "completed"],
-  "last_handoff": "Estado inicial.",
+  "last_handoff": "Fase_A completada (dfed481): ADR-0018 creado con el texto dictado (diff vacío, <FECHA> = 16 nov 2026); compuerta exit 0, 707 passed, 97.65 %, mypy 0 en 63 archivos, 4 kept; sin desviaciones. Siguiente: Fase_B.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
