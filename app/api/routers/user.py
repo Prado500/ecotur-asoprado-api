@@ -131,7 +131,8 @@ async def eliminar_usuario(
     """Protected endpoint: Performs a soft-delete on a target user account.
 
     Hierarchical ABAC is delegated to UserService: the action is allowed only
-    on self-deletion or when the actor's role strictly outranks the target's.
+    on the actor's own account or when the actor's role strictly outranks the
+    target's, and never on a superadmin's own account (ADR-0017).
 
     Args:
         cedula (str): Primary identifier of the account to soft-delete.
