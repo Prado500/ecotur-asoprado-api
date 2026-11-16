@@ -1,6 +1,6 @@
 {
   "plan_file": "docs/deuda/BE-36/plan.md",
-  "current_target": "Fase_B",
+  "current_target": null,
   "phases": {
     "Fase_A": {
       "status": "completed",
@@ -8,12 +8,12 @@
       "description": "ADR-0018: un superadmin puede reactivar a otro superadmin fuera de la papelera, solo con {\"is_active\": true}; complementa ADR-0017; coste declarado (una baja por SQL con solo is_active = false es reversible; dato para BE-55)."
     },
     "Fase_B": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "53f1660",
       "description": "Excepción is_peer_reactivation en la guarda de jerarquía de UserAccessPolicy.assert_can_update, docstrings que citan ADR-0018 en la política y en user_service.py, y 18 casos be36 en tests/test_user_access_policy.py (707 -> 725)."
     }
   },
   "allowed_statuses": ["pending", "partial", "completed"],
-  "last_handoff": "Fase_A completada (dfed481): ADR-0018 creado con el texto dictado (diff vacío, <FECHA> = 16 nov 2026); compuerta exit 0, 707 passed, 97.65 %, mypy 0 en 63 archivos, 4 kept; sin desviaciones. Siguiente: Fase_B.",
+  "last_handoff": "Fase_B completada (53f1660): excepción is_peer_reactivation en la guarda de jerarquía + docstrings ADR-0018 + 18 casos be36; RED 3 failed / 15 passed (U1, H1, H2) como el plan, GREEN 18 passed; compuerta exit 0, 725 passed, 97.65 %, mypy 0 en 63 archivos, 4 kept; mutantes N1, N2, N4, N5, N6 muertos, N3 vivo (equivalente, declarado); comandos 1-12 como el plan. Sin fases pendientes: queda la auditoría.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
