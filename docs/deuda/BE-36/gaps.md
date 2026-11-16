@@ -87,3 +87,53 @@ Evidencia de la auditoría (contexto fresco, `handoff-auditor`, HEAD `d7e9b5e`, 
 - Fuera de alcance respetado: `git diff --stat 62b9702 HEAD` no toca `docs/CONTEXT.md` ni `docs/backlog.md`; el único
   otro archivo fuera de `app/`, `tests/` y `docs/deuda/BE-36/` es `docs/bitacora/2026-11-16.md`, del commit del plan
   `d8e3aca`, no de la fase.
+
+## Auditoría Fase C — 2026-11-16
+**Veredicto Fase C: PASS (0 bloqueantes, 0 opcionales).**
+
+Sin hallazgos. El OPCIONAL de la auditoría de la fase B (la decisión E0.1 (2), "reactivar a un par que ya está activo da 200", sin test; mutante N7 vivo) queda **RESUELTO (`202ec51`)**: H7 (`test_be36_superadmin_reactivating_active_peer_returns_200`, `tests/test_user_access_policy.py:1196-1221`) envía `{"is_active": true}` de un superadmin a un par superadmin **activo** (`persist_user` crea con `is_active=True` por defecto, `tests/conftest.py:186`) y fuera de la papelera, y exige 200, cuerpo con `is_active` true y la cuenta activa tras `refresh`. Con N7 en una copia completa la suite da `1 failed, 725 passed`, con H7 como único fallo: es el único test que lo mata. El bloque de B no se edita.
+
+Evidencia de la auditoría (contexto fresco, `handoff-auditor`, HEAD `2fb4ebd`, rama `item/be-36`):
+
+- Árbol: `git status --short` vacío antes de la auditoría (después solo cambia este `gaps.md`).
+- Commit de la fase: `202ec51` existe; padre `ad48494` (fase C escrita y aprobada con E2). `git show --stat 202ec51` →
+  `tests/test_user_access_policy.py | 28 ++++` (1 file, 28+, 0-); `git diff --name-only ad48494 202ec51` → solo ese
+  archivo. El commit de registro `2fb4ebd` solo toca `handoff-Fase_C.md` y `progress.json`. `git diff --stat 9c77da2
+  HEAD -- app AGENTS.md docs/CONTEXT.md docs/backlog.md` → vacío (sin `app/`; E0.3 / E2.4: `AGENTS.md` intacto).
+  `plan.md` sin cambios desde `ad48494`.
+- Mensaje: bloque "Commit" de la fase C (plan l. 485-502, sin la sangría) contra `git log -1 --format=%B 202ec51` (sin la
+  línea en blanco final) con `diff` → idéntico, trailer incluido.
+- Cambios exactos: las líneas añadidas del diff, sin las en blanco, contra el bloque dictado (plan l. 411-436, sin
+  sangría) con `diff` → idéntico (26 líneas de texto + 2 en blanco = las 28 del criterio). Ubicación: tras `assert
+  audits == []` de `test_be36_admin_reactivating_peer_admin_returns_403` (l.1193 en el padre), dos en blanco antes y dos
+  después, antes de `# C. GLOBAL EXCEPTION HANDLER TESTS`. Sin imports nuevos. AGENTS §5 / ADR-0011: fábricas
+  `persist_user` (commit antes de la petición) y `make_auth_headers`, `refresh` después, sin mocks, sin aserciones sobre
+  texto en español; código HTTP + estructura del cuerpo + estado. E2.3: ninguna aserción sobre la auditoría (BE-38).
+  Unitario gemelo no añadido, como dicta la fase. Por archivo: `ruff check` → `All checks passed!`; `ruff format
+  --check` → `1 file already formatted`; `mypy` → `Success: no issues found in 1 source file`.
+- RED (E2.2) repetido por el auditor: copia `git archive 202ec51 | tar -x` en el scratchpad (árbol completo; el repo no
+  se tocó). N7 = `            and target.is_active is False` tras `            and update_dict["is_active"] is True` en
+  `app/services/user_access_policy.py` de la copia (`diff`: `80a81 >             and target.is_active is False`). Suite
+  completa de la copia con el `venv` del repo: `FAILED tests/test_user_access_policy.py::test_be36_superadmin_reactivating_active_peer_returns_200`
+  · `1 failed, 725 passed, 8 warnings in 29.70s`. Restaurada (`git diff --no-index` contra el archivo del repo → sin
+  diferencias): `726 passed, 8 warnings in 29.55s`. Igual al plan y al handoff.
+- `progress.json` (diff de `2fb4ebd`): `Fase_C` → `completed`, `commit` `202ec51` (hash real), `current_target`
+  `Fase_C` → `null` (última fase), `last_handoff` presente y coherente con el handoff, `edit_rules` y
+  `allowed_statuses` intactos; JSON válido.
+- Compuerta re-ejecutada por el auditor (`./venv/Scripts/python.exe scripts/check.py`, exit 0): `68 files already
+  formatted` · `All checks passed!` · `Success: no issues found in 63 source files` · `Contracts: 4 kept, 0 broken.` ·
+  `TOTAL 1039 15 152 13 97.65%` · `726 passed, 8 warnings in 31.68s` · `Compuerta superada.` Contra la línea base de
+  `verificacion.md` (707 · 97,65 % · ruff 0 · mypy 0 en 63 · 4 kept) y el cierre de B (725): +1 test, cobertura igual,
+  `user_access_policy.py` al 100 % (entre los 30 omitidos). Igual a lo que pegó el ejecutor.
+- Verificación final del plan (última fase; comandos como los deja E1), salida del auditor: 1 →
+  `app/services/user_service.py:363`. 2 → `app/repositories/user_repository.py:63`. 3 → sin salida, exit 1. 4 →
+  `user_access_policy.py:75`, `:85`. 5 → `:79`; `:80`. 6 → `app/api/routers/user.py:234`, `user_access_policy.py:113`,
+  `user_service.py:332`, `:359`. 7 → `user_repository.py:83`, `user_service.py:362`. 8 → `27`. 9 → app 5 líneas
+  (`user_access_policy.py:16, :57, :74`; `user_service.py:262, :339`); tests sin salida (exit 1); docs/adr solo
+  `docs/adr/0018-un-superadmin-reactiva-a-otro.md`; ADR-0017 en app `7`. 10 → `app/schemas/user.py:130: is_active: bool
+  = False`. 11 → salida vacía (`AGENTS.md`, ADR-0017, schemas, core, api, repositories, models, cli, `tests/test_auth.py`,
+  `tests/test_user_service.py`, `tests/test_route_guards.py`, ambos `conftest.py` intactos desde `62b9702`). 12 →
+  `tests/test_user_access_policy.py:13` y `19 passed, 83 deselected`. 13 → la compuerta de arriba. Todo como lo predice
+  el plan tras E1.
+- Pendiente fuera de esta auditoría (no es hallazgo): la viñeta de AGENTS §3 la commitea David ahora, antes de `/pr`
+  (E0.3 / E2.4); R1–R3 del plan van al cierre.
