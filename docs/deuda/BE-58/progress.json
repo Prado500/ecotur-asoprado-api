@@ -1,10 +1,10 @@
 {
   "plan_file": "docs/deuda/BE-58/plan.md",
-  "current_target": "Fase_A",
+  "current_target": "Fase_B",
   "phases": {
     "Fase_A": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "ccd84a4",
       "description": "ADR-0019 (nuevo): ninguna cuenta administrativa (todo rol que no sea turista) se borra ni se desactiva a sí misma; supersede parcialmente a ADR-0017, cuya línea Estado anota la supersesión (única edición admitida)."
     },
     "Fase_B": {
@@ -14,6 +14,6 @@
     }
   },
   "allowed_statuses": ["pending", "partial", "completed"],
-  "last_handoff": "Estado inicial.",
+  "last_handoff": "Fase_A completada en ccd84a4: ADR-0019 creado (71 líneas, idéntico al dictado con <FECHA> = 16 nov 2026) y línea Estado de ADR-0017 (3/1); compuerta exit 0, 726 passed, 97.65 %, ruff 0, mypy 0 en 63, 4 kept. Siguiente: Fase_B.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
