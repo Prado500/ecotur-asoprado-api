@@ -311,5 +311,10 @@ la sustentación".
    que salgan de ahí (qué acción y qué `changes` lleva la activación por correo; quién figura como autor; el orden del
    alta) las toma David con la medición delante, en una segunda adenda.
 
-El plan no se lanza hasta entonces. Sigue fuera de alcance, con fila, BE-61 (decisión 1), salvo que David la traiga
-también: la sesión Mentor se lo pregunta, porque la razón que da para los rincones 7 y 8 vale igual para esa fila.
+9. **BE-61 entra también en BE-38** (David, 17:42: "entra en BE-38"), preguntado por la sesión Mentor porque la razón
+   de los rincones 7 y 8 vale igual para esa fila. **Sustituye a la segunda frase de la decisión 1.** El alta de un
+   paquete audita el estado que queda guardado (URL definitivas de las imágenes, precio como en la columna), no el
+   cuerpo que llegó. Ya está medido (P14): no necesita re-verificación. Es fila hija (AGENTS §8): se salda como fase de
+   este ítem, misma carpeta y mismo PR. La fila `CREATE` conserva su forma (valores, sin `old`/`new`).
+
+El plan no se lanza hasta la segunda adenda, tras la re-verificación de los rincones 7 y 8.

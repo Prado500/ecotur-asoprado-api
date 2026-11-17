@@ -401,7 +401,7 @@ Dónde estamos (estado durante el 17 nov, bitácora `2026-11-17`; este apartado 
 `(PLAN §3)`; la semana sigue sin fechar y el re-plan lo hará David el domingo siguiente al 16 nov, por decisión suya.
 
 0. **Siguiente, en este orden:** (a) **BE-38**, en la rama `item/be-38`: verificada y decidida en su adenda (formato antes/después, usuarios y paquetes). David amplió el alcance a los rincones 7 y 8 de la
-   verificación (la activación por correo no deja fila; el alta administrativa audita antes de crear): **falta la re-verificación de esos dos, su adenda,** `/deuda-planear BE-38`,
+   verificación (la activación por correo no deja fila; el alta administrativa audita antes de crear) y a BE-61, como fila hija: **falta la re-verificación de esos dos, su adenda,** `/deuda-planear BE-38`,
    la revisión del plan, su aprobación en las dos sesiones y la ejecución. (b) **Antes de mezclar BE-38, David comprueba en el cliente Flutter qué hace el panel de auditoría con
    `changes`**: su forma cambia `(backlog BE-38)`. (c) En el cierre: versiones, §5, este apartado entero, la cifra de dudas del punto 4, que no coincide con
    `docs/aprendizaje/preguntas.md` `(bitácora 2026-11-17)`.
