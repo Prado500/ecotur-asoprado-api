@@ -69,3 +69,61 @@ Sin hallazgos. Evidencia de lo comprobado (auditor `handoff-auditor`, contexto f
   de la línea base de `verificacion.md` (731 passed · 97,65 % · mypy 0 en 63 · 4 kept): `70 files already formatted` ·
   `All checks passed!` · `Success: no issues found in 65 source files` · `Contracts: 4 kept, 0 broken.` ·
   `TOTAL 1046 11 152 9 98.33%` · `746 passed, 18 warnings in 32.69s`. Avisos 8 → 18: residual R2 (E0.5, nota en S5).
+
+## Auditoría Fase C — 2026-11-17
+**Veredicto Fase C: PASS (0 bloqueantes, 0 opcionales).**
+
+Sin hallazgos. Evidencia de lo comprobado (auditor `handoff-auditor`, contexto fresco, rama `item/be-37`, HEAD `d368a5d`):
+
+- Árbol: `git status --short` vacío antes de escribir este bloque y después de los mutantes (todo en copias
+  `git archive` del scratchpad).
+- `progress.json`: JSON válido; `Fase_C` = `completed` con `commit` `dac6464` (`git show --stat dac6464`: 2 archivos,
+  130 inserciones, 8 borrados); `current_target` = `null` (última fase); `last_handoff` presente; `edit_rules` sin
+  cambio (`git show d368a5d -- docs/deuda/BE-37/progress.json` solo toca `current_target`, `status`, `commit` y
+  `last_handoff`). El handoff no contiene `[exited with code` (`grep -c` → 0).
+- Mensaje de commit: plan l. 332-352 sin la sangría contra `git log -1 --format=%B dac6464` → `diff` solo con la línea
+  en blanco final que añade `%B`; asunto y cuerpo idénticos, trailer incluido.
+- Archivos: `git diff --numstat 8cf2fd1 dac6464` → `18 8` `app/schemas/service.py` y `112 0` `tests/test_services.py`,
+  nada más; `git diff --name-only 8cf2fd1 d368a5d` añade solo `handoff-Fase_C.md` y `progress.json`. `AGENTS.md`,
+  `docs/CONTEXT.md` y `docs/backlog.md` sin cambio desde `8cf2fd1` (E0.7 respetada).
+- Fidelidad al Anexo C: el diff del plan (l. 955-1001) aplicado sobre `git archive 8cf2fd1` da un `service.py` igual al
+  de `dac6464` (`diff --strip-trailing-cr` sin salida; en el índice, LF). Plan l. 1007-1116 contra
+  `tests/test_services.py` desde la l. 770 → `diff` sin salida; l. 768-769 en blanco; el diff de tests no borra nada.
+- E0.3: 11 casos de la fase (S1 ×5, S2 ×2, S3, S4, S5 ×2); `-k be37` sobre `tests/test_services.py` → `11 passed`.
+  "El 422 llega antes de cualquier llamada al CDN" probado aparte: en la copia RED, quitadas las dos aserciones de
+  estado de S2, los dos casos siguen cayendo con `Expected delete_image to not have been awaited. Awaited 1 times.`,
+  así que las aserciones del CDN muerden por sí solas. Dobles del CDN: `storage_double` y `classifying_storage` con
+  `create_autospec(AzureStorageClient, instance=True)` (`tests/test_services.py:366-375`, `:502`), y el autouse de
+  `tests/conftest.py:101-141`, también con `autospec`. Ningún test afirma sobre texto en español (`message` solo como
+  `str`; `"Recorrido por la reserva"` es entrada; `"Paquete De Prueba Automatizada"` es el valor por defecto de
+  `_persist_package`, estado y no mensaje).
+- RED reproducido en copia `git archive 8cf2fd1` con solo `tests/test_services.py` de `dac6464`: `-k be37` →
+  `7 failed, 4 passed, 36 deselected` (los siete con `assert 409 == 422`: S1 ×5, S2 ×2); suite completa →
+  `7 failed, 750 passed, 18 warnings`. Igual al plan y al handoff.
+- Mutantes de la fase C (copia `git archive dac6464`, sin mutar `757 passed`; suite completa por mutante, restaurada
+  después): MA-after `757 passed` (vive, equivalente); MS-name 3 failed (S1[`name`], S2[`replace`], S2[`empty`]);
+  MS-category, MS-base_price, MS-max_capacity, MS-is_available 1 failed cada uno (su S1); MS-description+ 1 failed
+  (S3; mutada la ocurrencia de `ServiceUpdate`, `service.py:118`, porque la línea se repite en `ServiceBase:27`, la
+  misma incidencia que anota el handoff); MS-image_urls+ 1 failed (S4); M6 `757 passed` (vive, a propósito). Los nueve
+  coinciden con la tabla del plan y con el handoff.
+- Archivos tocados: `ruff check` → `All checks passed!`; `ruff format --check` → `2 files already formatted`; `mypy` →
+  `Success: no issues found in 2 source files`.
+- AGENTS: el marcador solo en `ServiceUpdate` (A9; `ServiceBase`, `ServiceCreate` y los DTO de salida sin cambio,
+  comando 2); ninguna excepción de dominio nueva; ninguna ruta nueva; rama muerta `if v is None` fuera (comando 6). La
+  docstring de `format_service_name` es la de una línea que dicta el plan.
+- Verificación final del plan (última fase), sobre la rama: #1 14 líneas (`partial_update.py` :36 :38; `service.py` :8
+  :117 :119 :120 :123 :124; `user.py` :7 :170 :173 :179 :186 :187); #2 10 líneas, solo en los DTO de actualización; #3
+  9 líneas (`user.py` :65 :152 :185; `service.py` :27 :76 :93 :100 :118 :125), ninguna de los diez campos; #4
+  `exclude_none` exit 1 y `exclude_unset=True` 3 líneas (`tourist_services_service.py` :282 :337, `user_service.py`
+  :284); #5 1 línea, `user_access_policy.py:114`; #6 exit 1; #7 12 líneas (`test_services.py` 5,
+  `test_user_access_policy.py` :190 :287, `test_user_update_null.py` 5); #8 `test_email_case.py:120` y el nombre viejo
+  exit 1; #9 app 4 y tests 4 en las líneas previstas, `docs/adr` 0018 y 0020; #10 `git grep -c` 1/5/6,
+  `pytest -k be37` → `27 passed, 730 deselected`, `-k "be35 or be36 or be58"` → `41 passed, 66 deselected`; #11 salida
+  vacía (incluye `AGENTS.md`); #12 exactamente las 8 líneas previstas (`38 0`, `18 8`, `13 9`, `9 0`, `63 0`, `6 5`,
+  `112 0`, `149 0`); #13 la compuerta de abajo. La deuda no asoma en el repo.
+- Compuerta re-ejecutada (`./venv/Scripts/python.exe scripts/check.py`, exit 0), igual a la del handoff y a la copia
+  final del plan, por encima de la línea base de `verificacion.md` (731 passed · 97,65 % · mypy 0 en 63 · 4 kept):
+  `70 files already formatted` · `All checks passed!` · `Success: no issues found in 65 source files` ·
+  `Contracts: 4 kept, 0 broken.` · `TOTAL 1046 10 150 8 98.49%` · `757 passed, 25 warnings in 30.63s`. Avisos 18 → 25:
+  residual R2 (E0.5, nota en S5). Residuales R1-R5 con el destino de E0.5; la viñeta de AGENTS §3 queda para David
+  (E0.7).
