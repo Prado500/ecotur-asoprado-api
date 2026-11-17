@@ -36,7 +36,7 @@ def policy() -> UserAccessPolicy:
 
 
 class TestAssertCanDelete:
-    """Freezes the deletion invariant: own account or higher rank, never a superadmin's own."""
+    """Freezes the deletion invariant: higher rank, or own account only for a tourist."""
 
     def test_self_delete_tourist_is_allowed(self, policy, make_user):
         tourist = make_user(role=UserRole.tourist)
@@ -68,10 +68,11 @@ class TestAssertCanDelete:
         with pytest.raises(AuthorizationError):
             policy.assert_can_delete(superadmin, twin)
 
-    def test_be35_admin_self_delete_is_still_allowed(self, policy, make_user):
+    def test_be58_admin_self_delete_is_rejected(self, policy, make_user):
         admin = make_user(role=UserRole.admin)
 
-        policy.assert_can_delete(admin, admin)
+        with pytest.raises(AuthorizationError):
+            policy.assert_can_delete(admin, admin)
 
     def test_tourist_cannot_delete_other_tourist(self, policy, make_user):
         actor = make_user(role=UserRole.tourist)
@@ -252,10 +253,11 @@ class TestAssertCanUpdate:
         with pytest.raises(AuthorizationError):
             policy.assert_can_update(superadmin, twin, {"is_active": False})
 
-    def test_be35_admin_self_deactivation_is_still_allowed(self, policy, make_user):
+    def test_be58_admin_self_deactivation_is_rejected(self, policy, make_user):
         admin = make_user(role=UserRole.admin)
 
-        policy.assert_can_update(admin, admin, {"is_active": False})
+        with pytest.raises(AuthorizationError):
+            policy.assert_can_update(admin, admin, {"is_active": False})
 
     def test_be35_superadmin_can_deactivate_lower_rank_account(self, policy, make_user):
         superadmin = make_user(role=UserRole.superadmin)
@@ -1219,6 +1221,109 @@ async def test_be36_superadmin_reactivating_active_peer_returns_200(
     assert peer.is_active is True
     assert peer.deleted_at is None
     assert peer.role == UserRole.superadmin
+
+
+# --- BE-58 regression: an administrative account never deletes or deactivates itself ---
+
+
+async def test_be58_admin_self_delete_returns_403_without_mutation(
+    client, db_session, persist_user, make_auth_headers
+):
+    """An admin DELETEing their own account gets 403; nothing is written (ADR-0019)."""
+    admin = await persist_user(role=UserRole.admin)
+
+    response = await client.delete(
+        f"/usuarios/{admin.cedula}",
+        headers=make_auth_headers(admin),
+    )
+
+    assert response.status_code == 403
+    body = response.json()
+    assert set(body) == {"detail"}
+    assert isinstance(body["detail"], str)
+
+    await db_session.refresh(admin)
+    assert admin.deleted_at is None
+    assert admin.is_active is True
+    audits = (await db_session.execute(select(AuditLog))).scalars().all()
+    assert audits == []
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [{"is_active": False}, {"is_active": False, "first_name": "Changed"}],
+    ids=["false", "with-profile-field"],
+)
+async def test_be58_admin_self_deactivation_returns_403_without_mutation(
+    client, db_session, persist_user, make_auth_headers, payload
+):
+    """An admin PATCHing their own is_active to false gets 403; no field changes (ADR-0019)."""
+    admin = await persist_user(role=UserRole.admin)
+
+    response = await client.patch(
+        f"/usuarios/{admin.cedula}",
+        json=payload,
+        headers=make_auth_headers(admin),
+    )
+
+    assert response.status_code == 403
+    body = response.json()
+    assert set(body) == {"detail"}
+    assert isinstance(body["detail"], str)
+
+    await db_session.refresh(admin)
+    assert admin.is_active is True
+    assert admin.first_name == "John"
+    assert admin.deleted_at is None
+    audits = (await db_session.execute(select(AuditLog))).scalars().all()
+    assert audits == []
+
+
+async def test_be58_admin_keeps_access_after_rejected_self_removal(
+    client, db_session, persist_user, make_auth_headers
+):
+    """After both self-removals are rejected, the admin's same token still reads its profile."""
+    admin = await persist_user(role=UserRole.admin)
+    headers = make_auth_headers(admin)
+
+    deleted = await client.delete(f"/usuarios/{admin.cedula}", headers=headers)
+    deactivated = await client.patch(
+        f"/usuarios/{admin.cedula}", json={"is_active": False}, headers=headers
+    )
+    profile = await client.get("/usuarios/mi-perfil", headers=headers)
+
+    assert deleted.status_code == 403
+    assert deactivated.status_code == 403
+    assert profile.status_code == 200
+    body = profile.json()
+    assert body["cedula"] == admin.cedula
+    assert body["role"] == "admin"
+    assert body["is_active"] is True
+
+    await db_session.refresh(admin)
+    assert admin.deleted_at is None
+    assert admin.is_active is True
+
+
+async def test_be58_admin_self_update_with_is_active_true_returns_200(
+    client, db_session, persist_user, make_auth_headers
+):
+    """The guard reads the value: is_active true on an admin's own account still succeeds."""
+    admin = await persist_user(role=UserRole.admin)
+
+    response = await client.patch(
+        f"/usuarios/{admin.cedula}",
+        json={"is_active": True},
+        headers=make_auth_headers(admin),
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["cedula"] == admin.cedula
+    assert body["is_active"] is True
+
+    await db_session.refresh(admin)
+    assert admin.is_active is True
 
 
 # ==========================================

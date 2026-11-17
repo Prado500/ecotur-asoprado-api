@@ -179,8 +179,8 @@ class UserService:
 
         Authorization follows a pure hierarchical invariant: the action is
         allowed when the actor deletes their own account or when the actor's
-        role rank is strictly greater than the target's role rank. A superadmin
-        never deletes their own account (ADR-0017).
+        role rank is strictly greater than the target's role rank. No actor
+        other than a tourist deletes their own account (ADR-0017, ADR-0019).
 
         Args:
             target_cedula (str): The primary identifier of the account to delete.
@@ -192,7 +192,7 @@ class UserService:
         Raises:
             NotFoundError: 404 Not Found if the target doesn't exist.
             AuthorizationError: 403 Forbidden if the hierarchical invariant fails
-                or a superadmin deletes their own account.
+                or an actor other than a tourist deletes their own account.
         """
         soft_deleted_user = await self.user_repo.get_user_by_cedula(target_cedula)
 
@@ -202,7 +202,7 @@ class UserService:
                 "El usuario especificado no existe o ya ha sido eliminado del sistema."
             )
 
-        # 2. ABAC Hierarchical Invariant: own account OR strictly higher rank; see ADR-0017
+        # 2. ABAC Hierarchical Invariant: higher rank OR a tourist's own account; ADR-0019
         self.user_access_policy.assert_can_delete(current_user, soft_deleted_user)
 
         # 3. Soft-deletion delegated to repository layer
@@ -256,7 +256,8 @@ class UserService:
         updates require the actor's role rank to be strictly greater than the
         target's role rank. Fail-safe invariants additionally block the role key
         for non-superadmins and on any self-update, is_active for tourists, and
-        is_active set to false by a superadmin on their own account (ADR-0017).
+        is_active set to false on their own account by any other actor
+        (ADR-0017, ADR-0019).
         One exception to the rank rule: a superadmin may reactivate another
         superadmin outside the recycle bin, sending is_active true and nothing
         else (ADR-0018).

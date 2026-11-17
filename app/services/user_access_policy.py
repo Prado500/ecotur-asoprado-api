@@ -10,10 +10,11 @@ class UserAccessPolicy:
     All guarded mutations follow a hierarchical dominance invariant over role
     ranks: an actor may update or delete their own account, while third-party
     operations require a strictly higher rank. Two exceptions on one's own
-    account: nobody changes their own role, and a superadmin never deletes or
-    deactivates it, so the number of superadmins never drops (ADR-0017). One
-    exception between peers: a superadmin may reactivate another superadmin
-    outside the recycle bin, sending is_active true and nothing else (ADR-0018).
+    account: nobody changes their own role, and no actor other than a tourist
+    deletes or deactivates it (ADR-0017, ADR-0019), so the number of superadmins
+    never drops and only a superadmin retires an admin account. One exception
+    between peers: a superadmin may reactivate another superadmin outside the
+    recycle bin, sending is_active true and nothing else (ADR-0018).
     Failures are raised as AuthorizationError domain exceptions so the service
     layer remains transport-agnostic. Rules that depend only on the actor's role
     are decided by the HTTP guards, not here (ADR-0012, point 1).
@@ -26,7 +27,7 @@ class UserAccessPolicy:
 
         The actor must delete their own account or strictly outrank the target.
 
-        A superadmin never deletes their own account (ADR-0017).
+        No actor other than a tourist deletes their own account (ADR-0017, ADR-0019).
 
         Args:
             actor (User): The authenticated user attempting the deletion.
@@ -34,8 +35,8 @@ class UserAccessPolicy:
 
         Raises:
             AuthorizationError: When the actor neither deletes their own
-                account nor outranks the target, or when a superadmin deletes
-                their own account.
+                account nor outranks the target, or when an actor other than
+                a tourist deletes their own account.
         """
         is_self_deletion = actor.cedula == target.cedula
         actor_outranks_target = self._ROLE_RANK[actor.role] > self._ROLE_RANK[target.role]
@@ -46,8 +47,11 @@ class UserAccessPolicy:
                 "No tiene autorización para eliminar esta cuenta."
             )
 
-        if is_self_deletion and actor.role == UserRole.superadmin:
-            raise AuthorizationError("Un superadministrador no puede eliminar su propia cuenta.")
+        if is_self_deletion and actor.role != UserRole.tourist:
+            raise AuthorizationError(
+                "Una cuenta administrativa no puede eliminarse a sí misma. "
+                "Solicítelo a un superadministrador."
+            )
 
     def assert_can_update(self, actor: User, target: User, update_dict: dict) -> None:
         """Enforces the invariants of a partial update on a user account.
@@ -57,9 +61,10 @@ class UserAccessPolicy:
         is_active true and nothing else (ADR-0018).
         Fail-safe guards then reject the role key for non-superadmins and on any
         self-update, the is_active key for tourists, and is_active set to false
-        by a superadmin on their own account (ADR-0017). The role guards read the
-        key, not its value: resending the current role is rejected too. The last
-        guard reads the value: is_active true on one's own account passes.
+        on their own account by any other actor (ADR-0017, ADR-0019). The role
+        guards read the key, not its value: resending the current role is
+        rejected too. The last guard reads the value: is_active true on one's own
+        account passes.
 
         Args:
             actor (User): The authenticated user attempting the mutation.
@@ -105,10 +110,13 @@ class UserAccessPolicy:
 
         if (
             is_self_update
-            and actor.role == UserRole.superadmin
+            and actor.role != UserRole.tourist
             and update_dict.get("is_active") is False
         ):
-            raise AuthorizationError("Un superadministrador no puede desactivar su propia cuenta.")
+            raise AuthorizationError(
+                "Una cuenta administrativa no puede desactivarse a sí misma. "
+                "Solicítelo a un superadministrador."
+            )
 
     def assert_can_recover(self, actor: User, target: User) -> None:
         """Enforces recovery precedence over soft-deleted accounts.

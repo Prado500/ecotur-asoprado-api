@@ -1,0 +1,19 @@
+{
+  "plan_file": "docs/deuda/BE-58/plan.md",
+  "current_target": null,
+  "phases": {
+    "Fase_A": {
+      "status": "completed",
+      "commit": "ccd84a4",
+      "description": "ADR-0019 (nuevo): ninguna cuenta administrativa (todo rol que no sea turista) se borra ni se desactiva a sí misma; supersede parcialmente a ADR-0017, cuya línea Estado anota la supersesión (única edición admitida)."
+    },
+    "Fase_B": {
+      "status": "completed",
+      "commit": "72fd34b",
+      "description": "Las dos guardas de ADR-0017 en UserAccessPolicy pasan de 'actor superadmin' a 'actor no turista' con los textos de David; docstrings de política, servicio y router; los dos tests be35 de admin se invierten como be58 y 5 casos HTTP be58 nuevos (726 -> 731)."
+    }
+  },
+  "allowed_statuses": ["pending", "partial", "completed"],
+  "last_handoff": "Fase_B completada (72fd34b): guardas de ADR-0017 a 'actor no turista' con los textos de David, docstrings de política/servicio/router, 2 unitarios be35 invertidos como be58 y 5 casos HTTP; numstat 22/14, 6/5, 2/2, 110/5 como el plan; RED 6 failed / 1 passed, GREEN be58 7, be35 15, be36 19; compuerta exit 0, 731 passed, 97.65 %, ruff 0, mypy 0 en 63, 4 kept; comandos 1-13 como el plan (11 muestra solo AGENTS.md por 87379f1, E1); 17 mutantes como la tabla (ASD, M5, ASU, M6 vivos, declarados). Sin fases pendientes: queda la auditoría de B.",
+  "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
+}
