@@ -1,10 +1,10 @@
 {
   "plan_file": "docs/deuda/BE-37/plan.md",
-  "current_target": "Fase_A",
+  "current_target": "Fase_B",
   "phases": {
     "Fase_A": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "4c4acb7",
       "description": "ADR-0020 (null explícito solo donde la columna admite vacío) y addendum de ADR-0018 (el null entre superadmins pasa de 403 a 422)."
     },
     "Fase_B": {
@@ -19,6 +19,6 @@
     }
   },
   "allowed_statuses": ["pending", "partial", "completed"],
-  "last_handoff": "Estado inicial.",
+  "last_handoff": "Fase_A completada (4c4acb7): ADR-0020 nuevo (63 0) y addendum de ADR-0018 (9 0), texto del Anexo A con <FECHA> = 17 nov 2026 y <AAAA-MM-DD> = 2026-11-17 (E0.1), idéntico al dictado por diff; sin marcadores en docs/adr; compuerta exit 0, 731 passed, 97.65 %, ruff 0, mypy 0 en 63, 4 kept. Sigue la fase B.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
