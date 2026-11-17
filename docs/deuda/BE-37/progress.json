@@ -1,6 +1,6 @@
 {
   "plan_file": "docs/deuda/BE-37/plan.md",
-  "current_target": "Fase_C",
+  "current_target": null,
   "phases": {
     "Fase_A": {
       "status": "completed",
@@ -13,12 +13,12 @@
       "description": "Marcador NoExplicitNull en app/schemas/partial_update.py y en cinco campos de UserUpdate; test de correo invertido y 15 casos nuevos (731 -> 746)."
     },
     "Fase_C": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "dac6464",
       "description": "NoExplicitNull en cinco campos de ServiceUpdate, sin tocar description ni image_urls; 11 casos nuevos en tests/test_services.py (746 -> 757)."
     }
   },
   "allowed_statuses": ["pending", "partial", "completed"],
-  "last_handoff": "Fase_B completada (99f48ae): NoExplicitNull en app/schemas/partial_update.py (38 0) y en cinco campos de UserUpdate (13 9); test del correo invertido (6 5) y tests/test_user_update_null.py (149 0); RED 12 failed, 4 passed (suite 12 failed, 734 passed); GREEN 16 passed; compuerta exit 0, 746 passed, 98.33 %, ruff 0, mypy 0 en 65, 4 kept; mutantes MU-*, MX-exclude_none y MF-falsy como declara el plan. Sigue la fase C.",
+  "last_handoff": "Fase_C completada (dac6464): NoExplicitNull en cinco campos de ServiceUpdate (18 8) y 11 casos be37 al final de tests/test_services.py (112 0); RED 7 failed, 4 passed (7 x 409; suite 7 failed, 750 passed); GREEN 11 passed; compuerta exit 0, 757 passed, 98.49 %, ruff 0, mypy 0 en 65, 4 kept, 25 avisos (R2); Verificación final 1-13 como se espera; mutantes MS-* muertos y MA-after/M6 vivos como declara el plan. Última fase: sigue la auditoría C; la viñeta de AGENTS §3 la commitea David después (E0.7).",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
