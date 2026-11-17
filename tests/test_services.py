@@ -765,3 +765,115 @@ async def test_create_still_title_cases_name(client, db_session, admin_headers, 
     assert stored is not None
     assert stored.name == "Ruta Cafetera Del Magdalena"
     storage_double.promote_to_permanent.assert_awaited_once_with(TEMP_URL)
+
+
+# === BE-37: an explicit null on a NOT NULL package column is a 422 (ADR-0020) ===
+# ServiceUpdate rejects the null before the service runs: no row changes, no blob is deleted or
+# promoted and no audit row is written. description keeps clearing with null, and
+# image_urls: null keeps the images.
+
+
+@pytest.mark.parametrize(
+    "field", ["name", "category", "base_price", "max_capacity", "is_available"]
+)
+async def test_be37_null_on_not_null_package_field_returns_422_without_side_effects(
+    client, db_session, admin_headers, storage_double, field
+):
+    """Unhappy path: 422 naming the field; the row, the CDN and the audit log are untouched."""
+    package = await _persist_package(db_session)
+    stored_before = getattr(package, field)
+
+    response = await client.put(
+        f"/servicios/{package.id}", json={field: None}, headers=admin_headers
+    )
+
+    assert response.status_code == 422
+    errors = response.json()["detalle"]
+    assert [error["raw_field"] for error in errors] == [field]
+    assert isinstance(errors[0]["message"], str)
+    await db_session.refresh(package)
+    assert getattr(package, field) == stored_before
+    storage_double.delete_image.assert_not_awaited()
+    storage_double.promote_to_permanent.assert_not_awaited()
+    assert (await db_session.execute(select(AuditLog))).scalars().all() == []
+
+
+@pytest.mark.parametrize(
+    "image_urls", [pytest.param([TEMP_URL], id="replace"), pytest.param([], id="empty")]
+)
+async def test_be37_null_beside_new_images_touches_no_blob(
+    client, db_session, admin_headers, classifying_storage, image_urls
+):
+    """Unhappy path: before BE-37 the 409 came after the CDN calls; now no blob is touched."""
+    package = await _persist_package(db_session)
+    package_id = package.id
+    db_session.add(ServiceImage(service_id=package_id, image_url=PERMANENT_URL))
+    await db_session.commit()
+
+    response = await client.put(
+        f"/servicios/{package_id}",
+        json={"name": None, "image_urls": image_urls},
+        headers=admin_headers,
+    )
+
+    assert response.status_code == 422
+    assert [error["raw_field"] for error in response.json()["detalle"]] == ["name"]
+    classifying_storage.delete_image.assert_not_awaited()
+    classifying_storage.promote_to_permanent.assert_not_awaited()
+    assert await _stored_image_urls(db_session, package_id) == [PERMANENT_URL]
+    assert (await db_session.execute(select(AuditLog))).scalars().all() == []
+
+
+async def test_be37_null_on_description_still_clears_it(client, db_session, admin_headers):
+    """Happy path: the description column admits empty, so null clears it and is audited."""
+    package = await _persist_package(db_session, description="Recorrido por la reserva")
+
+    response = await client.put(
+        f"/servicios/{package.id}", json={"description": None}, headers=admin_headers
+    )
+
+    assert response.status_code == 200
+    assert response.json()["description"] is None
+    await db_session.refresh(package)
+    assert package.description is None
+    audits = (await db_session.execute(select(AuditLog))).scalars().all()
+    assert [audit.changes for audit in audits] == [{"description": None}]
+
+
+async def test_be37_null_on_image_urls_still_keeps_the_images(
+    client, db_session, admin_headers, classifying_storage
+):
+    """Edge case: image_urls null is still a 200 that leaves the images and the CDN alone."""
+    package = await _persist_package(db_session)
+    package_id = package.id
+    db_session.add(ServiceImage(service_id=package_id, image_url=PERMANENT_URL))
+    await db_session.commit()
+
+    response = await client.put(
+        f"/servicios/{package_id}", json={"image_urls": None}, headers=admin_headers
+    )
+
+    assert response.status_code == 200
+    assert [image["image_url"] for image in response.json()["images"]] == [PERMANENT_URL]
+    classifying_storage.delete_image.assert_not_awaited()
+    classifying_storage.promote_to_permanent.assert_not_awaited()
+    assert await _stored_image_urls(db_session, package_id) == [PERMANENT_URL]
+
+
+@pytest.mark.parametrize(
+    ("role", "expected_status"),
+    [pytest.param(None, 401, id="anonymous"), pytest.param(UserRole.tourist, 403, id="tourist")],
+)
+async def test_be37_package_guard_answers_before_the_null(
+    client, db_session, persist_user, make_auth_headers, role, expected_status
+):
+    """Unhappy path: the admin guard answers 401 or 403 before the body is validated."""
+    package = await _persist_package(db_session)
+    headers = {} if role is None else make_auth_headers(await persist_user(role=role))
+
+    response = await client.put(f"/servicios/{package.id}", json={"name": None}, headers=headers)
+
+    assert response.status_code == expected_status
+    assert isinstance(response.json()["detail"], str)
+    await db_session.refresh(package)
+    assert package.name == "Paquete De Prueba Automatizada"

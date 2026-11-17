@@ -1,9 +1,11 @@
 from datetime import datetime
 from decimal import Decimal
+from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
 
 from app.models.service import ServiceCategory
+from app.schemas.partial_update import NoExplicitNull
 
 
 class ServiceImageResponse(BaseModel):
@@ -105,18 +107,26 @@ class ServiceImageOutput(BaseModel):
 
 
 class ServiceUpdate(BaseModel):
-    name: str | None = Field(None, min_length=20, max_length=65)
+    """Partial update of a tourist package: only the fields present in the payload change.
+
+    An explicit null is accepted only on description, whose column admits empty, and on
+    image_urls, where it leaves the images as they are; on any other field it is a 422
+    (ADR-0020).
+    """
+
+    name: Annotated[str | None, NoExplicitNull] = Field(None, min_length=20, max_length=65)
     description: str | None = Field(None, max_length=1000)
-    category: ServiceCategory | None = None
-    base_price: Decimal | None = Field(None, ge=40000, max_digits=10, decimal_places=2)
-    max_capacity: int | None = Field(None, gt=0, le=30)
-    is_available: bool | None = None
+    category: Annotated[ServiceCategory | None, NoExplicitNull] = None
+    base_price: Annotated[Decimal | None, NoExplicitNull] = Field(
+        None, ge=40000, max_digits=10, decimal_places=2
+    )
+    max_capacity: Annotated[int | None, NoExplicitNull] = Field(None, gt=0, le=30)
+    is_available: Annotated[bool | None, NoExplicitNull] = None
     image_urls: list[HttpUrl] | None = Field(None, max_length=10)
 
     @field_validator("name")
     @classmethod
-    def format_service_name(cls, v: str | None) -> str | None:
-        if v is None:
-            return v
+    def format_service_name(cls, v: str) -> str:
+        """Title-cases the package name and collapses repeated whitespace."""
         clean = " ".join(v.split())
         return clean.title()
