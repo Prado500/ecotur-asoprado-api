@@ -56,10 +56,11 @@ sobreingeniería. Explicas el trade-off de cada decisión no trivial. Dices las 
   nunca imprime un secreto.
 - **Correo en minúsculas (ADR-0016):** todo campo de entrada que reciba un correo usa el tipo `LowercaseEmail`
   (`app/schemas/user.py`); la base rechaza cualquier otra grafía (`ck_users_email_lowercase`).
-- **Superadmins (ADR-0017, ADR-0018):** ningún superadmin se borra ni se desactiva a sí mismo, y entre pares
-  nadie modifica a nadie, salvo que un superadmin reactiva a otro (`{"is_active": true}` y nada más): el número
-  de superadmins no baja desde la aplicación. Cualquier ruta o regla nueva que permita desactivar, borrar o
-  degradar a un superadmin exige un ADR que supersede a ADR-0017.
+- **Cuentas administrativas (ADR-0017, ADR-0018, ADR-0019):** ninguna cuenta que no sea de turista se borra ni
+  se desactiva a sí misma: la baja de un admin la decide un superadmin, y el número de superadmins no baja desde
+  la aplicación. Entre pares nadie modifica a nadie, salvo que un superadmin reactiva a otro
+  (`{"is_active": true}` y nada más). Cualquier ruta o regla nueva que permita desactivar, borrar o degradar a
+  un superadmin exige un ADR que supersede a ADR-0017.
 - Invariantes de negocio críticas viven también en la base de datos (índices únicos, FK, CHECK), no solo
   en Python (ADR-0002).
 - SOLID, KISS, DRY, YAGNI. Código aburrido y predecible. Nada de generalidad especulativa.
