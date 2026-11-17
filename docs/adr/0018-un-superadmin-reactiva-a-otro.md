@@ -68,3 +68,12 @@ real de la suite:
   `is_active` → 201, B inactivo; login de B → 403; `PATCH {"is_active": true}` de A sobre B → 403; login de B → 403.
   Un admin provisionado igual: 201 · 200 · 200. Superadmin aún en la papelera, `PATCH {"is_active": true}` → 403.
 - Tests y mutantes de la regla: `docs/deuda/BE-36/plan.md`, fase B.
+
+## Addendum — 17 nov 2026 (David, al aprobar el plan de BE-37; bitácora `2026-11-17`)
+
+Aclara cómo se cumple el punto 1 de la decisión con el valor `null`. Desde ADR-0020, `UserUpdate` rechaza un `null`
+explícito en `is_active` con 422, en el schema y antes de que corra `UserAccessPolicy`: un superadmin que envía
+`{"is_active": null}` sobre otro superadmin recibe 422, no 403 (medido el 17 nov con la pila real de la suite: 403
+antes y 422 después, sin mutación ni fila de auditoría en los dos casos). La decisión no cambia: `null` no reactiva, y
+la política lo sigue tratando como cualquier valor distinto de `true` (caso `"null"` de
+`test_be36_peer_superadmin_update_other_than_reactivation_is_rejected`, que se queda).
