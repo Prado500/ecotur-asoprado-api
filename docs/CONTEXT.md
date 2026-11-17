@@ -219,6 +219,9 @@ por el equipo humano"**. → El flujo agéntico es parte de la metodología decl
   pares: un superadmin reactiva a otro que no esté en la papelera, enviando solo `is_active` a verdadero; la recuperación sigue dejando inactiva
   la cuenta de cualquier rol `(backlog BE-36)`. Retirar a un superadmin es SQL directo `(backlog BE-55)`. **Desde BE-58 (17 nov; ADR-0019)** la misma
   prohibición vale para toda cuenta que no sea de turista: la baja de un admin la decide un superadmin `(backlog BE-58)`.
+- **`null` en las actualizaciones (BE-37, 17 nov; ADR-0020):** en `UserUpdate` y `ServiceUpdate`, un `null` explícito solo se admite donde la columna admite vacío (`phone`,
+  `description`); en los otros diez campos es un 422 que se decide en el schema, antes de la política, el CDN y la auditoría, con el marcador `NoExplicitNull`
+  (`app/schemas/partial_update.py`) `(backlog BE-37)`. El OpenAPI aún anuncia `null` en esos campos `(backlog BE-60)`.
 - **No existe:** módulo de reservas (ver ADR-0002), pagos, paginación, recuperación de
   contraseña, `display_order` de paquetes.
 - **Tests y calidad:** pytest + mocks; la medición vigente (tests, cobertura, ruff, mypy, contratos) es la última columna
@@ -392,17 +395,15 @@ la Web App la hala al reiniciar. Operación: 2 clics.
 
 ## 8. Próximo paso
 
-Dónde estamos (estado durante el 17 nov, bitácora `2026-11-17`; este apartado se reescribe en el cierre): **`B-GHOST-ADMIN` en curso; BE-58 hecha** (PR #101)
-`(backlog BE-58)`. `develop` = `c3b5069`. Mediciones en `(PLAN §6)`. Quedan BE-37 y BE-38. Ruta sin cambios: **`B-GHOST-ADMIN` → puesta en `staging` → `B-RESERVAS`**
+Dónde estamos (estado durante el 17 nov, bitácora `2026-11-17`; este apartado se reescribe en el cierre): **`B-GHOST-ADMIN` en curso; BE-58 y BE-37 hechas** (PR #101 y PR #102)
+`(backlog BE-58)` `(backlog BE-37)`. `develop` = `290a942`. Mediciones en `(PLAN §6)`. Queda BE-38. Ruta sin cambios: **`B-GHOST-ADMIN` → puesta en `staging` → `B-RESERVAS`**
 `(PLAN §3)`; la semana sigue sin fechar y el re-plan lo hará David el domingo siguiente al 16 nov, por decisión suya.
 
-0. **Siguiente, en este orden:** (a) rama `item/be-37` desde `develop` y `/deuda-verificar BE-37`; contraste de la sesión Mentor contra el código y adenda. (b) Después,
-   BE-38 con el mismo ciclo. (c) En el cierre: versiones, §5, este apartado entero y la cifra de dudas del punto 4, que no coincide con `docs/aprendizaje/preguntas.md`
-   `(bitácora 2026-11-17)`.
-1. **`B-GHOST-ADMIN`** (BE-34..BE-38, BE-47, BE-51 y BE-58) `(PLAN §3)`: hechas BE-34, BE-35, BE-36 y BE-58
-   (ADR-0019). Siguen BE-37 y BE-38, cada una con su `/deuda-verificar`. **Cada plan se aprueba también en la sesión de Claude Code**, remitiendo
-   al encabezado y a las enmiendas de `plan.md` `(bitácora 2026-11-12)`. Datos que esperan a esos ítems: BE-37 hereda el mutante M6 de BE-35 (nota en
-   su fila); BE-38 decide qué hace la auditoría con un cambio que no cambia nada (dos tests de hoy lo dejan sin afirmar a propósito). **Por comprobar
+0. **Siguiente, en este orden:** (a) rama `item/be-38` desde `develop` y `/deuda-verificar BE-38`; contraste de la sesión Mentor contra el código y adenda. (b) En el
+   cierre: versiones, §5, este apartado entero y la cifra de dudas del punto 4, que no coincide con `docs/aprendizaje/preguntas.md` `(bitácora 2026-11-17)`.
+1. **`B-GHOST-ADMIN`** (BE-34..BE-38, BE-47, BE-51 y BE-58) `(PLAN §3)`: hechas BE-34, BE-35, BE-36, BE-58
+   (ADR-0019) y BE-37 (ADR-0020). Sigue BE-38, con su `/deuda-verificar`. **Cada plan se aprueba también en la sesión de Claude Code**, remitiendo
+   al encabezado y a las enmiendas de `plan.md` `(bitácora 2026-11-12)`. Datos que esperan a ese ítem: BE-38 decide qué hace la auditoría con un cambio que no cambia nada (dos tests de hoy lo dejan sin afirmar a propósito). **Por comprobar
    en el cliente Flutter:** qué cuerpo envía al pasar una cuenta de "por activar" a "activos" (la excepción de ADR-0018 exige solo `is_active`), y
    ocultar o no las acciones de la tarjeta propia. Dato para dimensionar: el bloque pide más medias jornadas que las de su secuencia `(PLAN §3)`.
 2. **Puesta en `staging`** (media jornada, configuración, sin flujo): `CORS_ORIGINS` con el origen exacto del frontend en
