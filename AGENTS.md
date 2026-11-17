@@ -56,6 +56,10 @@ sobreingeniería. Explicas el trade-off de cada decisión no trivial. Dices las 
   nunca imprime un secreto.
 - **Correo en minúsculas (ADR-0016):** todo campo de entrada que reciba un correo usa el tipo `LowercaseEmail`
   (`app/schemas/user.py`); la base rechaza cualquier otra grafía (`ck_users_email_lowercase`).
+- **`null` en un DTO de actualización (ADR-0020):** un campo opcional cuya columna es NOT NULL se anota
+  `Annotated[T | None, NoExplicitNull]` (`app/schemas/partial_update.py`): ausente significa "no cambia" y un `null`
+  explícito es 422. Solo acepta `null` el campo cuya columna admite vacío (hoy `phone` y `description`). Ningún DTO
+  de salida lleva el marcador.
 - **Cuentas administrativas (ADR-0017, ADR-0018, ADR-0019):** ninguna cuenta que no sea de turista se borra ni
   se desactiva a sí misma: la baja de un admin la decide un superadmin, y el número de superadmins no baja desde
   la aplicación. Entre pares nadie modifica a nadie, salvo que un superadmin reactiva a otro
