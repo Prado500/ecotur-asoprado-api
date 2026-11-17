@@ -16,6 +16,7 @@ import jwt
 import pytest
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
+from pydantic import ValidationError
 from sqlalchemy import Connection, create_engine, func, inspect, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -113,12 +114,12 @@ def test_a_non_ascii_local_part_is_lowercased_too() -> None:
     assert UserLogin(email="ÁNGEL@Test.com", password=PASSWORD).email == "ángel@test.com"
 
 
-def test_a_patch_with_a_null_email_keeps_it_null() -> None:
-    """Edge case: the optional email of UserUpdate accepts None and does not lower it."""
-    update = UserUpdate(email=None, phone="3001234567")
+def test_be37_a_patch_with_a_null_email_is_rejected() -> None:
+    """Unhappy path: the email column is NOT NULL, so UserUpdate refuses null (ADR-0020)."""
+    with pytest.raises(ValidationError) as exc_info:
+        UserUpdate(email=None, phone="3001234567")
 
-    assert update.email is None
-    assert update.model_dump(exclude_unset=True) == {"email": None, "phone": "3001234567"}
+    assert [error["loc"] for error in exc_info.value.errors()] == [("email",)]
 
 
 async def test_registration_stores_the_email_in_lowercase(client, db_session, mock_send_email):

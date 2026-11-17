@@ -217,8 +217,8 @@ por el equipo humano"**. → El flujo agéntico es parte de la metodología decl
 - **Bajas de cuentas (BE-35 y BE-36, 16 nov; ADR-0017 y ADR-0018):** ningún superadmin se borra ni se desactiva a sí mismo, y entre pares
   nadie modifica a nadie: el número de superadmins no baja desde la aplicación, sin conteo ni bloqueo `(backlog BE-35)`. Única excepción entre
   pares: un superadmin reactiva a otro que no esté en la papelera, enviando solo `is_active` a verdadero; la recuperación sigue dejando inactiva
-  la cuenta de cualquier rol `(backlog BE-36)`. Retirar a un superadmin es SQL directo `(backlog BE-55)`. **En rama, sin mezclar:** la misma
-  prohibición para toda cuenta que no sea de turista (ADR-0019, `(backlog BE-58)`; §8).
+  la cuenta de cualquier rol `(backlog BE-36)`. Retirar a un superadmin es SQL directo `(backlog BE-55)`. **Desde BE-58 (17 nov; ADR-0019)** la misma
+  prohibición vale para toda cuenta que no sea de turista: la baja de un admin la decide un superadmin `(backlog BE-58)`.
 - **No existe:** módulo de reservas (ver ADR-0002), pagos, paginación, recuperación de
   contraseña, `display_order` de paquetes.
 - **Tests y calidad:** pytest + mocks; la medición vigente (tests, cobertura, ruff, mypy, contratos) es la última columna
@@ -392,17 +392,14 @@ la Web App la hala al reiniciar. Operación: 2 clics.
 
 ## 8. Próximo paso
 
-Dónde estamos (estado al cierre de la bitácora `2026-11-16`): **`B-GHOST-ADMIN` en curso; BE-35 y BE-36 hechas** (PR #99 y PR #100)
-`(backlog BE-35)` `(backlog BE-36)`; **BE-58 a media ejecución** en la rama `item/be-58`, sin mezclar `(backlog BE-58)`. `develop` = `6b168e1`.
-Mediciones en `(PLAN §6)`. Quedan la fase B de BE-58, BE-37 y BE-38. Ruta sin cambios: **`B-GHOST-ADMIN` → puesta en `staging` → `B-RESERVAS`**
+Dónde estamos (estado durante el 17 nov, bitácora `2026-11-17`; este apartado se reescribe en el cierre): **`B-GHOST-ADMIN` en curso; BE-58 hecha** (PR #101)
+`(backlog BE-58)`. `develop` = `c3b5069`. Mediciones en `(PLAN §6)`. Quedan BE-37 y BE-38. Ruta sin cambios: **`B-GHOST-ADMIN` → puesta en `staging` → `B-RESERVAS`**
 `(PLAN §3)`; la semana sigue sin fechar y el re-plan lo hará David el domingo siguiente al 16 nov, por decisión suya.
 
-0. **Pendiente al abrir, en este orden:** (a) comprobar que el commit de cierre del 16 nov está en `item/be-58` y la rama subida. (b) Aprobar en la
-   sesión de Claude Code remitiendo a la cabecera, a E0 y a **E1** de `docs/deuda/BE-58/plan.md`, y lanzar **`/implementar BE-58 B`** y
-   `/auditar BE-58 B`. E1 avisa de que `AGENTS.md` ya cambió en la rama (`87379f1`) antes de la fase B: el comando 11 de la Verificación final lo
-   mostrará y no es hallazgo. (c) `/pr` de BE-58 (declarar en la descripción el orden invertido del commit de AGENTS), merge comprobando commits y
-   archivos, y `/deuda-verificar BE-37`. (d) No hay fila fechada en `(PLAN §3)` para el día: se añade al abrir.
-1. **`B-GHOST-ADMIN`** (BE-34..BE-38, BE-47, BE-51 y BE-58) `(PLAN §3)`: hechas BE-34, BE-35 y BE-36; BE-58 con plan aprobado y fase A hecha
+0. **Siguiente, en este orden:** (a) rama `item/be-37` desde `develop` y `/deuda-verificar BE-37`; contraste de la sesión Mentor contra el código y adenda. (b) Después,
+   BE-38 con el mismo ciclo. (c) En el cierre: versiones, §5, este apartado entero y la cifra de dudas del punto 4, que no coincide con `docs/aprendizaje/preguntas.md`
+   `(bitácora 2026-11-17)`.
+1. **`B-GHOST-ADMIN`** (BE-34..BE-38, BE-47, BE-51 y BE-58) `(PLAN §3)`: hechas BE-34, BE-35, BE-36 y BE-58
    (ADR-0019). Siguen BE-37 y BE-38, cada una con su `/deuda-verificar`. **Cada plan se aprueba también en la sesión de Claude Code**, remitiendo
    al encabezado y a las enmiendas de `plan.md` `(bitácora 2026-11-12)`. Datos que esperan a esos ítems: BE-37 hereda el mutante M6 de BE-35 (nota en
    su fila); BE-38 decide qué hace la auditoría con un cambio que no cambia nada (dos tests de hoy lo dejan sin afirmar a propósito). **Por comprobar

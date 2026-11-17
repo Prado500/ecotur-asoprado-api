@@ -4,6 +4,8 @@ from typing import Annotated
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, EmailStr, Field, field_validator
 
+from app.schemas.partial_update import NoExplicitNull
+
 
 class UserRole(str, Enum):  # noqa: UP042 (backlog D2)
     """Pydantic enumeration for user roles validation.
@@ -160,31 +162,33 @@ class UserUpdate(BaseModel):
 
     Enforces partial updates (PATCH/PUT behavior) by making all fields optional.
     Sensitive immutable fields such as 'cedula' and 'password' are fundamentally
-    excluded to prevent unauthorized architectural mutations.
+    excluded to prevent unauthorized architectural mutations. An explicit null is
+    accepted only on phone, whose column admits empty; on any other field it is a
+    422 (ADR-0020).
     """
 
-    email: LowercaseEmail | None = Field(None, description="Correo electrónico válido")
-    first_name: str | None = Field(
+    email: Annotated[LowercaseEmail | None, NoExplicitNull] = Field(
+        None, description="Correo electrónico válido"
+    )
+    first_name: Annotated[str | None, NoExplicitNull] = Field(
         None,
         min_length=2,
         max_length=65,
         pattern=r"^[A-Za-zÁÉÍÓÚáéíóúÜüÑñ]+(?:\s[A-Za-zÁÉÍÓÚáéíóúÜüÑñ]+)*$",
     )
-    last_name: str | None = Field(
+    last_name: Annotated[str | None, NoExplicitNull] = Field(
         None,
         min_length=2,
         max_length=65,
         pattern=r"^[A-Za-zÁÉÍÓÚáéíóúÜüÑñ]+(?:\s[A-Za-zÁÉÍÓÚáéíóúÜüÑñ]+)*$",
     )
     phone: str | None = Field(None, pattern=r"^3\d{9}$")
-    role: UserRole | None = None
-    is_active: bool | None = None
+    role: Annotated[UserRole | None, NoExplicitNull] = None
+    is_active: Annotated[bool | None, NoExplicitNull] = None
 
     @field_validator("first_name", "last_name")
     @classmethod
-    def format_title_case(cls, v: str | None) -> str | None:
+    def format_title_case(cls, v: str) -> str:
         """Silently applies title casing if the field is present in the payload."""
-        if v is None:
-            return v
         clean = " ".join(v.split())
         return clean.title()
