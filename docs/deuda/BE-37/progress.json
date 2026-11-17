@@ -1,0 +1,24 @@
+{
+  "plan_file": "docs/deuda/BE-37/plan.md",
+  "current_target": "Fase_A",
+  "phases": {
+    "Fase_A": {
+      "status": "pending",
+      "commit": null,
+      "description": "ADR-0020 (null explícito solo donde la columna admite vacío) y addendum de ADR-0018 (el null entre superadmins pasa de 403 a 422)."
+    },
+    "Fase_B": {
+      "status": "pending",
+      "commit": null,
+      "description": "Marcador NoExplicitNull en app/schemas/partial_update.py y en cinco campos de UserUpdate; test de correo invertido y 15 casos nuevos (731 -> 746)."
+    },
+    "Fase_C": {
+      "status": "pending",
+      "commit": null,
+      "description": "NoExplicitNull en cinco campos de ServiceUpdate, sin tocar description ni image_urls; 11 casos nuevos en tests/test_services.py (746 -> 757)."
+    }
+  },
+  "allowed_statuses": ["pending", "partial", "completed"],
+  "last_handoff": "Estado inicial.",
+  "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
+}
