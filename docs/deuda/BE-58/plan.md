@@ -3,7 +3,8 @@
 > Fuente: `docs/deuda/BE-58/verificacion.md` (confirmada; adenda de David, 16 nov 2026, 18:02, que fija las decisiones).
 > Base: `2cc8f73` (HEAD de `item/be-58`; `app/`, `tests/`, `conftest.py` y `pyproject.toml` idénticos a `6b168e1`, la
 > línea base de la verificación: 726 passed, 97,65 %, ruff 0, mypy 0 en 63 archivos, 4 kept).
-> **Estado: aprobado por David con E0 (16 nov 2026, 18:50).** `Aprobado: 16 nov 2026` (esa es la `<FECHA>` de la fase
+> **Estado: fase A ejecutada y auditada (PASS, `ccd84a4`); fase B pendiente. E1 (16 nov 2026, 19:54) avisa de un commit
+> de `AGENTS.md` anterior a la fase B. Aprobado por David con E0 (16 nov 2026, 18:50).** `Aprobado: 16 nov 2026` (esa es la `<FECHA>` de la fase
 > A: ADR-0019 y línea "Estado" de ADR-0017). Enmiendas al final, en "Enmiendas aprobadas".
 > **Qué midió el redactor** (todo fuera del repo, en el scratchpad de la sesión; `git status` del repo sin cambios
 > propios fuera de `docs/deuda/BE-58/`): (1) los 7 casos be58 dictados contra el código de `2cc8f73`, con el comando de
@@ -807,3 +808,17 @@ nuevos: `pytest`, `select`, `AuthorizationError`, `AuditLog` y `UserRole` ya est
    17 a 15). Las cifras de la copia, las columnas y los 17 mutantes los midió el planificador; el ejecutor los repite y
    el auditor también.
 5. **Orden para David:** la viñeta de AGENTS §3 se commitea después de la auditoría de la fase B y antes de `/pr`.
+
+### E1 — 16 nov 2026, 19:54 (sesión Mentor, al cierre del día; aviso para el ejecutor y el auditor de la fase B)
+
+1. **`AGENTS.md` ya cambió en esta rama, por un commit de David anterior a la fase B.** `87379f1` (19:53,
+   `docs(agents): extend the superadmin rule to every administrative account (ADR-0019)`) sustituye la viñeta
+   "Superadmins (ADR-0017, ADR-0018)" de AGENTS §3 por "Cuentas administrativas (ADR-0017, ADR-0018, ADR-0019)". E0.5 y
+   el residual R2 pedían hacerlo **después** de la auditoría de B; se hizo antes. No se revierte.
+2. **Consecuencia para la Verificación final:** el comando 11 (`git diff --stat 2cc8f73 HEAD -- … AGENTS.md …`) ya no
+   sale vacío: mostrará `AGENTS.md` y solo `AGENTS.md`, con el cambio de `87379f1`. **No es un hallazgo de la fase B**
+   mientras `git log 2cc8f73..HEAD -- AGENTS.md` dé exactamente ese commit; cualquier otro archivo en la salida del
+   comando 11 sí lo es. El comando 8 (`git grep -n "ADR-0017" -- app tests AGENTS.md`) no cambia su cuenta por esto: la
+   viñeta nueva nombra ADR-0017 en dos líneas (`AGENTS.md:59` y `:63`), como la anterior.
+3. **Entre `87379f1` y el commit de la fase B, AGENTS §3 describe una regla que el código aún no cumple** (un admin
+   todavía puede borrarse o desactivarse a sí mismo). Se declara en la descripción del PR.

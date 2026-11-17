@@ -1,7 +1,9 @@
 # Ecotur-ASOPRADO — Plan de trabajo hasta la entrega
 
-> **Versión 3.5 — 14 nov 2026.** Bitácora `2026-11-14` (§2b: BE-34 hecha, con BE-47 y BE-51; BE-53 y BE-54 en `B-FUTURO`; §3: marca del sábado, la semana del 16 queda sin fechar por
-> decisión de David; §6: medición tras BE-34). Versiones anteriores: 3.4 — 13 nov 2026, bitácora `2026-11-13` (§2b: BE-51 en `B-GHOST-ADMIN` y BE-52 en `B-FUTURO`; §3: marca del viernes, sábado y domingo re-fechados,
+> **Versión 3.6 — 16 nov 2026.** Bitácora `2026-11-16` (§2b: BE-35 y BE-36 hechas, `B-GHOST-ADMIN m1` cerrado, BE-58 nueva en el bloque y en curso; BE-55, BE-56 y BE-57 en
+> `B-FUTURO`; §3: marca del domingo y del lunes, la semana sigue sin fechar y el re-plan pasa al domingo siguiente por decisión de David; §6: medición tras BE-36).
+> Versiones anteriores: 3.5 — 14 nov 2026, bitácora `2026-11-14` (§2b: BE-34 hecha, con BE-47 y BE-51; BE-53 y BE-54 en `B-FUTURO`; §3: marca del sábado, la semana del 16 queda sin fechar por
+> decisión de David; §6: medición tras BE-34); 3.4 — 13 nov 2026, bitácora `2026-11-13` (§2b: BE-51 en `B-GHOST-ADMIN` y BE-52 en `B-FUTURO`; §3: marca del viernes, sábado y domingo re-fechados,
 > puesta en `staging` y `B-RESERVAS` m1–m2 fuera de la semana, colchón global recalculado; §6: log del CI de PR #94 leído).
 > 3.3 — 12 nov 2026, bitácora `2026-11-12` (§2b: `B-GUARD-TESTS` cerrado con BE-40 y BE-42; bloque nuevo `B-TESTS-2`, sin fechar, con BE-48 y BE-49;
 > BE-50 en el orden de `B-FUTURO`; §3: marca del jueves, viernes y sábado re-fechados, domingo como comodín provisional, colchón global 2 m; §6: medición tras BE-42);
@@ -202,7 +204,7 @@ ADR-0005 y la columna de §6 → 0,5 m.
 | Vie 13 | **Mañana perdida:** la sesión Mentor no pudo conectarse al repositorio (error 503) hasta las 15:14; David trabajó fuera del plan (informe de práctica empresarial). Leído el log del CI de PR #94 (§6) | Arranque a las 15:14, jornada declarada hasta las 21:00. `B-GHOST-ADMIN m1`, sin cerrar: **BE-34** en `item/be-34`: verificación confirmada (BE-47 medida) y adenda de ocho puntos; plan de cinco fases aprobado con E0; E1 convierte un residual del plan en fila nueva, BE-51, dentro del mismo ítem; el planificador aplicó las dos enmiendas (siete fases, A–G; siete decisiones pendientes, E2). **Ninguna fase ejecutada.** BE-35 y `B-GHOST-ADMIN m2` no empezaron | ◐ 13 |
 | Sáb 14 | Arranque a las 08:30. `B-GHOST-ADMIN m1`, sin cerrar: revisión del Mentor de las fases E, F y G de BE-34; E2 cambia el mecanismo de BE-51 (correo en minúsculas y restricción `CHECK` en la base); el planificador reescribe F y G y E3 las aprueba a las 10:54; fases A–E, cinco PASS (675 tests) | Comodín `(CONTEXT §2)`, **confirmado por David a las 08:47** y usado: fases F y G (691 tests · 97,63 %), fase H (el opcional de la auditoría de E; E4 y E5), ocho PASS; la migración ejecutada en un PostgreSQL local; línea de AGENTS §3; `/pr` con la descripción revisada a las 18:50. **PR #97 mezclado en `e6aabff` a las 18:56**; el CD de `develop` aplicó la migración. BE-35 no empezó. **La semana del 16 no se fecha** (decisión de David; nota abajo) | ◐ 14 |
 | Dom 15 | Comodín de recuperación `(CONTEXT §2)`, **provisional**: David no lo confirmó ni lo anuló al cierre del sábado ("mañana o el lunes seguimos"). **No se usó:** David no trabajó ese día (cansancio; declarado por él el lunes al abrir) | — | ✘ 16 |
-| Lun 16 | Festivo trabajado como día normal (decisión de David al abrir). Arranque a las 09:43. `B-GHOST-ADMIN m1`, sin cerrar: `/deuda-verificar BE-35` | `B-GHOST-ADMIN`: BE-35 y, si alcanza, el ítem siguiente del bloque | |
+| Lun 16 | Festivo trabajado como día normal (decisión de David al abrir). Arranque a las 09:43. `B-GHOST-ADMIN m1`, cerrado: **BE-35** verificada, con la regla cambiada por David en la adenda (ningún superadmin se borra ni se desactiva a sí mismo; sin conteo), plan de dos fases con E0, dos PASS, **PR #99 mezclado en `09f529b` a las 12:06**. `B-GHOST-ADMIN m2`: **BE-36** verificada y planeada (un superadmin reactiva a otro, y nada más) | Fases A y B de BE-36; David levanta el cliente contra su backend local y de ahí salen una corrección a una nota de BE-35, un caso para FE-01 y la regla de **BE-58** (ningún admin se da de baja a sí mismo); fase C de BE-36 (opcional de auditoría); **PR #100 mezclado en `6b168e1` a las 17:43**. Jornada extendida por decisión de David ("hasta donde tenga que ir"): BE-58 verificada, planeada con E0 y fase A (ADR-0019) con PASS; **la fase B no se ejecutó**. BE-37 y BE-38 no empezaron | ◐ 16 |
 
 **Re-fechado al cierre del lunes 9:** AF-12 + AF-13 costaron 1 m, no ½ (el flujo completo de dos fases con sus auditorías y
 las aclaraciones de David), y A4 no empezó. Secuencia restante de la semana 9 m (A4 2 · CI duro 0,5 · `B-GUARD-TESTS` 2 ·
@@ -272,6 +274,14 @@ cambio de mecanismo a media mañana, fue de la verificación al PR mezclado en d
 como día normal. David no declara las mañanas del documento que ha adelantado ("no quiero gastar tiempo calculando") y **aplaza el re-plan al
 domingo siguiente**: hasta entonces se avanza por el orden ya decidido (`B-GHOST-ADMIN` → puesta en `staging` → `B-RESERVAS`) y cada día recibe
 su fila al abrir. La excepción a `(CONTEXT §2)` declarada en el cierre del sábado sigue abierta; el colchón global sigue en 0 m sobre el papel.
+
+**Cierre del lunes 16 (sin re-fechar, por decisión de David):** el día gastó sus 2 m y una jornada extendida, y dejó hechas BE-35 y BE-36 y en curso
+BE-58, que no estaba en el bloque al abrir: nació de observar el cliente. `B-GHOST-ADMIN` tenía 2 m en la secuencia `(PLAN §2b)`; desde el viernes ha
+consumido cuatro medias jornadas, un comodín de sábado y dos alargues, y le quedan la fase B de BE-58, BE-37 y BE-38. La puesta en `staging` y `B-RESERVAS` m1–m2
+siguen sin fechar. El colchón global sigue en 0 m sobre el papel y las mañanas del documento que David dice haber adelantado siguen sin declarar; todo
+ello se resuelve en el re-plan del domingo. Dato para dimensionar: BE-35 fue de la verificación al merge en unas dos horas, y BE-36, con una fase
+nacida de un opcional, en cinco horas y media de reloj con una pausa de dos; cada fase se implementó en menos de 10 min, medido del commit
+anterior al commit de la fase `(bitácora 2026-11-16)`.
 ---
 
 ## 4. Definition of Done técnico
@@ -383,6 +393,12 @@ credenciales, 17 del conteo y el núcleo del bootstrap, 8 del comando, 17 de BE-
 Treinta mutantes muertos y uno vivo declarado (MHT2). La migración `b51f3c9e2a64` se ejecutó en un PostgreSQL 15 local: se detuvo con una fila en
 mayúsculas y se aplicó sin ella; tras el merge, el CD de `develop` la aplicó en su base de Azure (log del paso de migraciones, captura de David). El log del CI de
 PR #97 no se leyó `(bitácora 2026-11-14)`.
+
+**16 nov, tras BE-35 y BE-36 (PR #99 y PR #100, `develop` = `6b168e1`; medida por `/deuda-verificar BE-58` sobre ese commit):** 726 tests · 97,65 %
+(1039 sentencias) · ruff 0 (68 archivos) · mypy 0 (63 archivos) · 4 kept. De 691 a 726: 16 de BE-35 (17 casos nuevos y uno sustituido), 18 de la fase
+B de BE-36 y 1 de su fase C. Mutantes: en BE-35, ocho muertos y uno vivo declarado (M6, que es BE-37); en BE-36, seis muertos y uno equivalente
+declarado (N3). El CI de los dos PR pasó en verde (palabra de David; los logs no se leyeron). En la rama `item/be-58`, sin mezclar, solo ha entrado
+documentación (ADR-0019): la cifra no cambia; la meta de su fase B, medida por el planificador en una copia, es 731 tests `(bitácora 2026-11-16)`.
 
 \* B008 son los 41 `Depends(...)` en argumentos por defecto: patrón oficial de FastAPI; se configuró como
 excepción y desaparece al migrar a `Annotated` (D6/S3). Evidencia por fase del 27 oct: `(ADR-0006)`.
