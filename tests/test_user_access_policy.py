@@ -689,7 +689,7 @@ async def test_be02_superadmin_self_profile_update_returns_200(
     assert len(audits) == 1
     assert audits[0].action == AuditAction.UPDATE
     assert audits[0].performed_by == superadmin.cedula
-    assert audits[0].changes == {"first_name": "Changed"}
+    assert audits[0].changes == {"first_name": {"old": "John", "new": "Changed"}}
 
 
 async def test_be02_superadmin_changes_third_party_role_returns_200(
@@ -717,7 +717,7 @@ async def test_be02_superadmin_changes_third_party_role_returns_200(
     assert len(audits) == 1
     assert audits[0].entity_id == admin.cedula
     assert audits[0].performed_by == superadmin.cedula
-    assert audits[0].changes == {"role": "tourist"}
+    assert audits[0].changes == {"role": {"old": "admin", "new": "tourist"}}
 
 
 # --- B3 regression: a superadmin deletes third-party accounts (audit B3) ---
@@ -977,6 +977,8 @@ async def test_be35_superadmin_self_update_with_is_active_true_returns_200(
 
     await db_session.refresh(superadmin)
     assert superadmin.is_active is True
+    audits = (await db_session.execute(select(AuditLog))).scalars().all()
+    assert audits == []
 
 
 async def test_be35_superadmin_deactivates_lower_rank_account_returns_200(
@@ -1005,7 +1007,7 @@ async def test_be35_superadmin_deactivates_lower_rank_account_returns_200(
     assert audits[0].action == AuditAction.UPDATE
     assert audits[0].entity_id == admin.cedula
     assert audits[0].performed_by == superadmin.cedula
-    assert audits[0].changes == {"is_active": False}
+    assert audits[0].changes == {"is_active": {"old": True, "new": False}}
 
 
 # --- BE-36 regression: a superadmin reactivates a peer superadmin, and nothing else ---
@@ -1050,7 +1052,12 @@ async def test_be36_recovered_superadmin_reactivated_by_peer_can_log_in(
     audits = (await db_session.execute(select(AuditLog).order_by(AuditLog.id))).scalars().all()
     assert [(a.action, a.entity_id, a.performed_by, a.changes) for a in audits] == [
         (AuditAction.RECOVER, peer.cedula, superadmin.cedula, None),
-        (AuditAction.UPDATE, peer.cedula, superadmin.cedula, {"is_active": True}),
+        (
+            AuditAction.UPDATE,
+            peer.cedula,
+            superadmin.cedula,
+            {"is_active": {"old": False, "new": True}},
+        ),
     ]
 
 
@@ -1093,7 +1100,12 @@ async def test_be36_superadmin_provisioned_inactive_is_reactivated_by_peer_and_l
     audits = (await db_session.execute(select(AuditLog).order_by(AuditLog.id))).scalars().all()
     assert [(a.action, a.entity_id, a.performed_by, a.changes) for a in audits] == [
         (AuditAction.CREATE, "777777", superadmin.cedula, {"role": "superadmin"}),
-        (AuditAction.UPDATE, "777777", superadmin.cedula, {"is_active": True}),
+        (
+            AuditAction.UPDATE,
+            "777777",
+            superadmin.cedula,
+            {"is_active": {"old": False, "new": True}},
+        ),
     ]
 
 
@@ -1200,7 +1212,7 @@ async def test_be36_superadmin_reactivating_active_peer_returns_200(
 ):
     """The exception does not read the current state: an active peer still gets 200.
 
-    The audit row this no-op writes is BE-38 and is not frozen here.
+    A no-op: no audit row is written (ADR-0021).
     """
     superadmin = await persist_user(role=UserRole.superadmin)
     peer = await persist_user(role=UserRole.superadmin)
@@ -1221,6 +1233,8 @@ async def test_be36_superadmin_reactivating_active_peer_returns_200(
     assert peer.is_active is True
     assert peer.deleted_at is None
     assert peer.role == UserRole.superadmin
+    audits = (await db_session.execute(select(AuditLog))).scalars().all()
+    assert audits == []
 
 
 # --- BE-58 regression: an administrative account never deletes or deactivates itself ---
@@ -1324,6 +1338,8 @@ async def test_be58_admin_self_update_with_is_active_true_returns_200(
 
     await db_session.refresh(admin)
     assert admin.is_active is True
+    audits = (await db_session.execute(select(AuditLog))).scalars().all()
+    assert audits == []
 
 
 # ==========================================

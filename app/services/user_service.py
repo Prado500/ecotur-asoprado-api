@@ -22,7 +22,7 @@ from app.models.user import User, UserRole
 from app.repositories.user_repository import UserRepository
 from app.schemas.token import TokenResponse
 from app.schemas.user import UserCreate, UserCreateByAdmin, UserLogin, UserUpdate
-from app.services.audit_service import AuditService
+from app.services.audit_service import AuditService, changed_fields
 from app.services.user_access_policy import UserAccessPolicy
 
 
@@ -261,6 +261,8 @@ class UserService:
         One exception to the rank rule: a superadmin may reactivate another
         superadmin outside the recycle bin, sending is_active true and nothing
         else (ADR-0018).
+        Only the fields whose value changes are audited, as old and new values;
+        a request that changes nothing writes no audit row (ADR-0021).
 
         Args:
             target_cedula (str): The primary identifier of the account to update.
@@ -286,18 +288,21 @@ class UserService:
         # 2. ABAC Hierarchical + Fail-Safe Invariants delegated to the access policy
         self.user_access_policy.assert_can_update(current_user, target_user, update_dict)
 
-        # 3. Apply Scalar Mutations
+        # 3. What actually changes, compared with the stored values before any setattr
+        changes = changed_fields(target_user, update_data.model_dump(exclude_unset=True))
+
+        # 4. Apply Scalar Mutations
         for key, value in update_dict.items():
             setattr(target_user, key, value)
 
-        # 4. Log Registry
-        if update_dict:
+        # 5. Log Registry
+        if changes:
             await self.audit_service.log_transaction(
                 entity_name="User",
                 entity_id=target_cedula,
                 action=AuditAction.UPDATE,
                 performed_by=current_user.cedula,
-                changes=update_dict,
+                changes=changes,
             )
 
         return await self.user_repo.save_user(target_user)

@@ -132,7 +132,7 @@ async def test_be37_null_on_phone_still_clears_it(
     assert target.phone is None
     audits = await _audit_rows(db_session)
     assert [(audit.entity_id, audit.changes) for audit in audits] == [
-        (target.cedula, {"phone": None})
+        (target.cedula, {"phone": {"old": "3001234567", "new": None}})
     ]
 
 
