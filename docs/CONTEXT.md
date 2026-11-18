@@ -410,8 +410,10 @@ Dónde estamos (estado al cierre de la bitácora `2026-11-17`): **`B-GHOST-ADMIN
 `(backlog BE-58)` `(backlog BE-37)`. `develop` = `290a942`. Mediciones en `(PLAN §6)`. Quedan BE-38, con BE-61 dentro, y BE-50 `(backlog BE-38)` `(backlog BE-50)`; la rama `item/be-38` lleva solo documentos. Ruta sin cambios: **`B-GHOST-ADMIN` → puesta en `staging` → `B-RESERVAS`**
 `(PLAN §3)`; la semana sigue sin fechar y el re-plan lo hará David el domingo siguiente al 16 nov, por decisión suya.
 
-0. **Siguiente, en este orden:** (a) **`/deuda-planear BE-38`**, en la rama `item/be-38`: el ítem está verificado, re-verificado y decidido en dos adendas (quince decisiones;
-   alcance completo en la segunda adenda de `docs/deuda/BE-38/verificacion.md`). Después, revisión del plan, aprobación en las dos sesiones y ejecución. Al aprobar el plan David
+0. **Siguiente, en este orden:** (a) **Plan de BE-38**, en la rama `item/be-38`: el ítem está verificado, re-verificado y decidido en dos adendas (quince decisiones;
+   alcance completo en la segunda adenda de `docs/deuda/BE-38/verificacion.md`). El plan se escribió el 17 nov por la noche (seis fases), la sesión Mentor recomendó no aprobarlo
+   como estaba (descrito y sin medir) y el 18 nov volvió a `plan-redactor` por mensaje directo para completarse, con el orden de las imágenes y la grafía del precio dentro
+   `(bitácora 2026-11-18)`. Después, revisión del plan, aprobación en las dos sesiones y ejecución. Al aprobar el plan David
    confirma las propuestas abiertas de la primera adenda (misma columna `changes`, filas ya guardadas sin migrar). (b) **Antes de mezclar BE-38, David comprueba en el cliente
    Flutter qué hace el panel de auditoría con `changes`**: su forma cambia `(backlog BE-38)`. (c) **BE-50**, traída al bloque: `/deuda-verificar BE-50` tras mezclar BE-38
    `(backlog BE-50)`. (d) No hay fila fechada en `(PLAN §3)` para el día: se añade al abrir.
