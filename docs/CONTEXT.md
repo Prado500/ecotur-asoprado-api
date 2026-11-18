@@ -5,9 +5,10 @@
 > Vive en `docs/CONTEXT.md`. Regla de oro: **el contexto vive en archivos versionados, no en la
 > memoria de un chat.** Cada sesión nueva arranca leyendo esto.
 >
-> **Versión 4.6 — 16 nov 2026.** Bitácora `2026-11-16` (§4: bajas de cuentas, ADR-0017 y ADR-0018; §5: lo que el flujo enseñó con BE-35, BE-36 y BE-58;
-> §6: dos filas del 16 nov, con ADR-0017, ADR-0018 y ADR-0019; §8 reescrito: BE-35 y BE-36 hechas, BE-58 a media ejecución, re-plan aplazado).
-> Versiones anteriores: `2026-11-14` (4.5, bitácora `2026-11-14` (§5: lo que el flujo enseñó al ejecutar BE-34; §6: fila del 14 nov, con ADR-0015 y ADR-0016;
+> **Versión 4.7 — 17 nov 2026.** Bitácora `2026-11-17` (§4: la regla de ADR-0019 ya en `develop` y la de `null` en las actualizaciones, ADR-0020; §5: lo que el flujo enseñó con
+> BE-58, BE-37 y BE-38; §6: fila del 17 nov, con ADR-0020 y el addendum de ADR-0018; §8 reescrito: BE-58 y BE-37 hechas, BE-38 decidida en dos adendas y sin planear, BE-50 en el bloque).
+> Versiones anteriores: `2026-11-16` (4.6, bitácora `2026-11-16` (§4: bajas de cuentas, ADR-0017 y ADR-0018; §5: lo que el flujo enseñó con BE-35, BE-36 y BE-58;
+> §6: dos filas del 16 nov, con ADR-0017, ADR-0018 y ADR-0019; §8 reescrito: BE-35 y BE-36 hechas, BE-58 a media ejecución, re-plan aplazado)); `2026-11-14` (4.5, bitácora `2026-11-14` (§5: lo que el flujo enseñó al ejecutar BE-34; §6: fila del 14 nov, con ADR-0015 y ADR-0016;
 > §4: primer superadmin por comando y correo en minúsculas;
 > §8 reescrito: BE-34 hecha (PR #97), BE-35 como siguiente paso, semana del 16 sin fechar)); `2026-11-13` (4.4, bitácora `2026-11-13` (§5: lo que el flujo enseñó con BE-34 sin ejecutar ninguna fase; §6: fila de las decisiones del día;
 > §8 reescrito: BE-34 verificada y planeada en siete fases, pendiente de la revisión del Mentor y de E2)); `2026-11-12` (4.3, bitácora `2026-11-12` (§4: frontera de ADR-0012 cumplida en las dos rutas, guard de superadmin, solo un token de acceso abre una
@@ -326,7 +327,16 @@ la Web App la hala al reiniciar. Operación: 2 clics.
   comprueba en cuanto se pueda. De esa misma observación nació un ítem nuevo (BE-58). Un opcional de auditoría volvió a ser fase (C de BE-36),
   y el planificador halló un caso que un texto propuesto por el Mentor no cubría. El orden que un plan impone a David también se incumple: la
   viñeta de AGENTS se commiteó antes de la fase que debía precederla, y se resolvió con una enmienda de aviso, sin revertir. Cada fase
-  se implementó en menos de 10 min; BE-35 fue de la verificación al merge en unas dos horas `(bitácora 2026-11-16)`.
+  se implementó en menos de 10 min; BE-35 fue de la verificación al merge en unas dos horas `(bitácora 2026-11-16)`. El 17 nov (BE-58, una fase; BE-37, tres;
+  cuatro PASS sin hallazgos; BE-38 verificada dos veces y sin planear) la sesión Mentor recomendó tres veces dejar algo para después (los dos rincones de la auditoría, BE-61 y el formato
+  antes/después) y David lo trajo las tres al ítem con un criterio que la sesión no había aplicado: lo que un jurado puede abrir en una demostración no se aplaza. La re-verificación
+  pedida por David midió lo que solo estaba leído y resultó peor (el enlace de verificación reactiva una cuenta desactivada o borrada sin dejar fila; un alta administrativa fallida deja
+  una fila sobre la cédula de otra cuenta), y un barrido de todos los puntos que auditan cerró la pregunta de si había más. Para re-verificar sin perder la adenda se usó un mensaje
+  directo a `deuda-verificador` (añadir una sección, no reescribir) con el archivo commiteado antes: `/deuda-verificar` a secas lo habría reescrito. El plan de BE-37, medido en copia
+  con la compuerta entera y diecisiete mutantes, pasó sin correcciones de dictado; la única discrepancia fue de texto de usuario (una frase que le hablaba al programador del cliente).
+  Una frase ambigua de David se escribió en una fila como decisión suya antes de preguntarle; se corrigió antes del commit. El orden que el plan pedía a David (AGENTS después de la
+  última auditoría) se cumplió al recordárselo en ese momento. Por decisión de David, cada decisión se anota en su dueño en el acto, también la fila del día de §6. Las tres fases de
+  BE-37 se implementaron y auditaron en 47 min; del `/deuda-verificar` al merge pasaron 5 h 23 min de reloj `(bitácora 2026-11-17)`.
 - **Artefactos de datos por ítem** (`docs/deuda/<ID>/`): `verificacion.md`, `plan.md`, `progress.json`,
   `handoff-<fase>.md`, `gaps.md`. El estado de un ítem es lo que existe en su carpeta; no hay índice aparte.
 
@@ -396,16 +406,15 @@ la Web App la hala al reiniciar. Operación: 2 clics.
 
 ## 8. Próximo paso
 
-Dónde estamos (estado durante el 17 nov, bitácora `2026-11-17`; este apartado se reescribe en el cierre): **`B-GHOST-ADMIN` en curso; BE-58 y BE-37 hechas** (PR #101 y PR #102)
-`(backlog BE-58)` `(backlog BE-37)`. `develop` = `290a942`. Mediciones en `(PLAN §6)`. Queda BE-38. Ruta sin cambios: **`B-GHOST-ADMIN` → puesta en `staging` → `B-RESERVAS`**
+Dónde estamos (estado al cierre de la bitácora `2026-11-17`): **`B-GHOST-ADMIN` en curso; BE-58 y BE-37 hechas** (PR #101 y PR #102)
+`(backlog BE-58)` `(backlog BE-37)`. `develop` = `290a942`. Mediciones en `(PLAN §6)`. Quedan BE-38, con BE-61 dentro, y BE-50 `(backlog BE-38)` `(backlog BE-50)`; la rama `item/be-38` lleva solo documentos. Ruta sin cambios: **`B-GHOST-ADMIN` → puesta en `staging` → `B-RESERVAS`**
 `(PLAN §3)`; la semana sigue sin fechar y el re-plan lo hará David el domingo siguiente al 16 nov, por decisión suya.
 
 0. **Siguiente, en este orden:** (a) **`/deuda-planear BE-38`**, en la rama `item/be-38`: el ítem está verificado, re-verificado y decidido en dos adendas (quince decisiones;
    alcance completo en la segunda adenda de `docs/deuda/BE-38/verificacion.md`). Después, revisión del plan, aprobación en las dos sesiones y ejecución. Al aprobar el plan David
    confirma las propuestas abiertas de la primera adenda (misma columna `changes`, filas ya guardadas sin migrar). (b) **Antes de mezclar BE-38, David comprueba en el cliente
    Flutter qué hace el panel de auditoría con `changes`**: su forma cambia `(backlog BE-38)`. (c) **BE-50**, traída al bloque: `/deuda-verificar BE-50` tras mezclar BE-38
-   `(backlog BE-50)`. (d) En el cierre: versiones, §5, este apartado entero y la cifra de dudas del punto 4, que no coincide con `docs/aprendizaje/preguntas.md`
-   `(bitácora 2026-11-17)`.
+   `(backlog BE-50)`. (d) No hay fila fechada en `(PLAN §3)` para el día: se añade al abrir.
 1. **`B-GHOST-ADMIN`** (BE-34..BE-38, BE-47, BE-50, BE-51, BE-58 y BE-61) `(PLAN §3)`: hechas BE-34, BE-35, BE-36, BE-58
    (ADR-0019) y BE-37 (ADR-0020). Siguen BE-38 (con BE-61 dentro) y BE-50. **Cada plan se aprueba también en la sesión de Claude Code**, remitiendo
    al encabezado y a las enmiendas de `plan.md` `(bitácora 2026-11-12)`. BE-38 ya decidió que un cambio que no cambia nada no deja fila (tres tests esperan esa aserción). **Por comprobar
@@ -428,10 +437,12 @@ Dónde estamos (estado durante el 17 nov, bitácora `2026-11-17`; este apartado 
    (propuesta del Mentor, la valida David); en el `.env` local, `FRONTEND_URL=http://localhost:3000`, y borrar el paquete 73
    de prueba; fichas `fichas/BE-02.md`, BE-32 (opcional; revisa D8), A4, BE-39, **BE-40** (por qué una comprobación duplicada
    tapa al guard; qué midió M4) y **BE-42** (qué distingue un token de acceso de uno de verificación; por qué el `scope` lo
-   impone el emisor), con las 3 dudas abiertas de `preguntas.md`, en una sesión Estudio; ficha
+   impone el emisor), BE-35, BE-36, BE-58 y **BE-37** (campo ausente frente a `null`; por qué el marcador va en la anotación), con las dudas pendientes de `preguntas.md`
+   (el archivo es el dueño de la cuenta; hasta el 17 nov aquí se decía "3" y no coincidía), en una sesión Estudio; ficha
    `fichas/BE-34.md`: sección "Después" al cerrar el ítem; mensaje a María Paula para fijar
    reunión y entregarle las historias de usuario (CONTEXT §7); decidir la pregunta abierta de §7 sobre qué ve un admin del
-   historial de auditoría.
+   historial de auditoría; confirmar la severidad de BE-61 (Baja, propuesta de la sesión Mentor) y fijar la posición de BE-52 a BE-57, BE-59 y BE-60 en el orden de
+   `B-FUTURO` `(PLAN §2b)`; corregir o no el horario de §2 (08:00–12:00 y 14:00–18:00), que ningún día trabajado desde el 9 nov ha seguido `(bitácora 2026-11-17)`.
 5. **Ritual de cierre:** paso 3 con la batería de `check_docs.py` ejecutada por Claude Code (prompt en la bitácora
    `2026-11-09`, pegando la salida completa; AF-10 la hará comando) y la salida revisada por la sesión Mentor antes del
    commit de cierre. La VM del Mentor no puede correr `check_docs.py` (Python 3.10): toda edición documental del Mentor se
@@ -456,7 +467,7 @@ Dónde estamos (estado durante el 17 nov, bitácora `2026-11-17`; este apartado 
    en las dos sesiones); el Mentor actualiza la línea `Estado` del plan en el mismo acto en que escribe E0 (el 12 nov la
    olvidó en BE-40; el 13 nov lo hizo); al abrir, el Mentor lee enteras las dos últimas bitácoras antes de resumir (el 13 nov resumió
    con la del 12 leída a medias); los archivos de mensaje para `git commit -F` van en `docs/` y David los borra tras commitear
-   (práctica del 13 nov, sin regla escrita). los pasos que un plan asigna a David van en la sintaxis de su shell, `cmd` (el 14 nov el paso 19 venía en bash); el 14 nov fue el noveno día seguido en Fable y sin la carpeta conectada en el primer mensaje, y el 16 nov el décimo; un commit de David que un plan pide hacer después de una fase se hizo antes (AGENTS, `87379f1`): que `/implementar` o el ritual lo recuerden; la severidad de una fila nueva la propone el Mentor y la confirma David (el 16 nov el Mentor puso cuatro sin preguntar, declarado). Ya con fila: AF-08,
+   (práctica del 13 nov, sin regla escrita). los pasos que un plan asigna a David van en la sintaxis de su shell, `cmd` (el 14 nov el paso 19 venía en bash); el 14 nov fue el noveno día seguido en Fable y sin la carpeta conectada en el primer mensaje, y el 16 nov el décimo; un commit de David que un plan pide hacer después de una fase se hizo antes (AGENTS, `87379f1`): que `/implementar` o el ritual lo recuerden; la severidad de una fila nueva la propone el Mentor y la confirma David (el 16 nov el Mentor puso cuatro sin preguntar, declarado); el 17 nov fue el undécimo día en Fable y sin la carpeta conectada en el primer mensaje; antes de recomendar que algo se aplace, el Mentor pregunta si se ve en una demostración (el 17 nov David revirtió tres aplazamientos con ese criterio); una frase ambigua de David se pregunta antes de escribirla en un documento dueño; re-verificar un ítem ya decidido se hace con mensaje directo a `deuda-verificador` y el archivo commiteado antes, porque `/deuda-verificar` reescribe `verificacion.md` (que el comando o el ritual lo digan); al mezclar en GitHub, el asunto por defecto y el título solo en el cuerpo (el de PR #101 salió con dos líneas pegadas). Ya con fila: AF-08,
    AF-09 y AF-10; AF-06, AF-11, AF-14 y AF-15 en `B-FUTURO`.
 
 ## 9. Sesiones de IA
