@@ -2711,3 +2711,75 @@ Con la opción (b), estas son las únicas líneas que cambian (diff del archivo 
    declara en su handoff y se detiene; lo decide la sesión Mentor con David.
 4. **No cambia** código, tests, anexos, cifras, criterios de aceptación, la tabla de fases ni la Verificación final.
    `progress.json` no se toca: ninguna descripción de fase depende de dónde se miden los mutantes.
+
+### E2 — 18 nov 2026, 18:32 (David: "Si, opción 1"; opcional de la auditoría de la fase E)
+
+1. **La fase F aplica, además del Anexo F, el diff de abajo sobre `tests/test_services.py`.**
+   `test_be38_schema_keeps_rejecting_a_third_decimal` pasa a comprobar los dos DTO: `ServiceCreate` (por `ServiceBase`)
+   y `ServiceUpdate`. No toca `app/`. Va en el mismo commit de la fase F, con el mensaje que dicta el plan más una
+   viñeta al final de la lista: `  - tests/test_services.py: the third-decimal guard also covers ServiceCreate.`
+2. **Motivo.** La regla "un tercer decimal es un 422, nunca se redondea" vive en los dos DTO desde la fase E, y el test
+   solo validaba `ServiceUpdate`. El auditor de E lo midió en copias `git archive 1d9752e`: M13base (el
+   `format_base_price` de `ServiceBase` con `mode="before"`) y M13dpbase (`ServiceBase.base_price` sin
+   `decimal_places=2`) → `796 passed` los dos (viven): `POST /servicios/` redondearía en silencio con la suite en verde.
+3. **Medido por la sesión Mentor** (contenedor propio: pydantic 2.12.5, pytest 9.1.1; `app/schemas/service.py` y
+   `partial_update.py` de `d6f880f`, con un `ServiceCategory` de sustitución; solo este test): sin mutar → `1 passed`;
+   M13base → `1 failed` (`DID NOT RAISE ValidationError`); M13dpbase → `1 failed` (ídem); M13 y M13dp sobre
+   `ServiceUpdate` → `1 failed` cada uno, como antes. El archivo resultante: `ruff format --check` y `ruff check`
+   limpios a 100 columnas (línea más larga, 95); `git diff --numstat` del diff: `17 5`. **No medido:** la suite
+   completa ni `mypy` con la configuración del repo; los confirma la compuerta del ejecutor de F.
+4. **Cifras.** Es la misma función, sin parametrizar: los conteos del plan no cambian (F y G `797 passed` · 98,69 %;
+   comando 14 con 12 funciones y `36 passed`; RED de F `2 failed, 795 passed`, porque este test ya pasa antes y
+   después). Cambia el `numstat` de `tests/test_services.py` en la fase F: `46 2` → `63 7`; el total de F, `+53 −5` →
+   `+70 −10`. El auditor de F compara el diff contra el Anexo F más este.
+5. **Mutantes añadidos al criterio de F** (en copias, E1): M13base y M13dpbase mueren, con este test.
+6. `progress.json` no se toca: la descripción de la fase F y sus conteos siguen valiendo.
+7. **Orden de aplicación, medido con `patch --dry-run` sobre una copia de `d6f880f` fuera del repo.** Este diff está
+   escrito contra `d6f880f` y aplica limpio (`checking file tests/test_services.py`, sin rechazos); se aplica **antes**
+   que el Anexo F, porque su segundo hunk termina en el final del archivo. Del Anexo F, que está escrito contra la
+   opción (a), los hunks de `app/` y los dos primeros de `tests/test_services.py` aplican sobre (b) con 2 líneas de
+   desplazamiento; **el tercero (el bloque `# === BE-61` con `test_be61_create_audits_every_promoted_url_in_order`) no
+   aplica mecánicamente** (`Hunk #3 FAILED`): espera que el archivo termine en
+   `assert stored.base_price == Decimal(answered)` (`:1133`), y con (b) siguen dos tests de precio. Ese bloque va, tal
+   cual, **al final del archivo**, como sección nueva después de `test_be38_schema_keeps_rejecting_a_third_decimal`.
+   Dónde quede no cambia ningún conteo ni el `numstat`.
+
+```diff
+diff --git a/tests/test_services.py b/tests/test_services.py
+--- a/tests/test_services.py
++++ b/tests/test_services.py
+@@ -26,7 +26,7 @@ from app.main import app
+ from app.models.audit import AuditAction, AuditLog
+ from app.models.service import ServiceCategory, ServiceImage, TouristService
+ from app.models.user import UserRole
+-from app.schemas.service import ServiceUpdate
++from app.schemas.service import ServiceCreate, ServiceUpdate
+ 
+ # ==========================================
+ # TEST FIXTURES (Context Setup)
+@@ -1160,8 +1160,20 @@ async def test_be38_update_answers_the_price_with_two_decimals(
+ 
+ 
+ def test_be38_schema_keeps_rejecting_a_third_decimal() -> None:
+-    """Unhappy path: two decimals are written, never rounded; a third one is still a 422."""
+-    with pytest.raises(ValidationError) as exc_info:
+-        ServiceUpdate.model_validate({"base_price": "50000.555"})
++    """Unhappy path: two decimals are written, never rounded; a third one is still a 422.
+ 
+-    assert [error["loc"] for error in exc_info.value.errors()] == [("base_price",)]
++    Checked on both DTOs: ServiceCreate, through ServiceBase, and ServiceUpdate.
++    """
++    create_payload = {
++        "name": "Caminata por el sendero ecologico",
++        "base_price": "50000.555",
++        "max_capacity": "10",
++    }
++    for schema, payload in (
++        (ServiceCreate, create_payload),
++        (ServiceUpdate, {"base_price": "50000.555"}),
++    ):
++        with pytest.raises(ValidationError) as exc_info:
++            schema.model_validate(payload)
++
++        assert [error["loc"] for error in exc_info.value.errors()] == [("base_price",)], schema
+```

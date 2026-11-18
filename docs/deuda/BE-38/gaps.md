@@ -228,3 +228,70 @@ Evidencia de lo comprobado (contexto fresco; el relato del handoff no se tomó c
   las capas siguen intactas (4 kept). R1 es un cambio solo de ORM; el `alembic check` contra PostgreSQL queda para David
   después de esta auditoría (E0.4) y no cuenta para el veredicto.
 - No es la última fase: la "Verificación final" completa no aplica.
+
+## Auditoría Fase E — 2026-11-18
+**Veredicto Fase E: PASS (0 bloqueantes, 1 opcionales).**
+
+[OPCIONAL] — Fase E — Ningún test guarda la regla del tercer decimal en el alta (`ServiceBase`/`ServiceCreate`, `POST
+/servicios/`): `test_be38_schema_keeps_rejecting_a_third_decimal` solo valida `ServiceUpdate`. El commit dice que los
+dos DTO siguen dando 422 con un tercer decimal, y hoy es cierto, pero si alguien pierde `decimal_places=2` en
+`ServiceBase` o pasa su validador a `mode="before"`, `POST` redondearía en silencio con la suite en verde. El plan se
+cumple al pie de la letra: M13 es "el validador" en singular, y la cifra medida (`1 failed`, l.206/l.968) es la de
+`ServiceUpdate`. Antes de E el hueco ya existía (ningún test enviaba un tercer decimal a `POST`). Destino sugerido:
+backlog o fase F/G si David lo decide; no se toca en E. Evidencia (copias `git archive 1d9752e` del scratchpad, suite
+completa): M13base, el `format_base_price` de `ServiceBase` con `mode="before"` y
+`return v if v is None else Decimal(str(v)).quantize(_CENTS)` → `796 passed` (vive); M13dpbase, sin
+`decimal_places=2` en `ServiceBase.base_price` (`app/schemas/service.py:36`) → `796 passed` (vive).
+
+Evidencia de lo comprobado (contexto fresco; el relato del handoff no se tomó como evidencia):
+
+- Árbol: `git status --short` vacío antes de auditar, después de la compuerta y después de los mutantes. HEAD `d6f880f`
+  (padre `1d9752e`; `git diff --stat 584b40f d6f880f` → los dos archivos de la fase más `handoff-E.md` y
+  `progress.json`); `1d9752e` tiene como padre `584b40f`. `git diff --quiet HEAD -- app tests` → 0, y
+  `git diff --stat 1d9752e HEAD -- app tests` vacío: no quedó ningún resto de mutantes.
+- `progress.json`: JSON válido; `Fase_E` `completed` con `1d9752e` (`git cat-file -t` → `commit`); `current_target`
+  `Fase_F`; `last_handoff` presente; `edit_rules` sin cambio (`git diff 584b40f d6f880f -- progress.json` solo toca
+  `current_target`, `status`, `commit` y `last_handoff`).
+- Compuerta (`./venv/Scripts/python.exe scripts/check.py`, exit 0): `71 files already formatted` · `All checks passed!` ·
+  `Success: no issues found in 66 source files` · `Contracts: 4 kept, 0 broken.` · `TOTAL 1064 10 154 6 98.69%` ·
+  `796 passed, 25 warnings`. Coincide con la cifra (b) del plan (796 · 98,69 %, E0.2) y con el handoff. Supera la línea
+  base de la verificación (757 · 98,49 % · ruff 0 · mypy 0 · 4 kept) y la fase D (98,68 %). Sobre los dos archivos
+  tocados: `ruff check` → `All checks passed!`, `ruff format --check` → `2 files already formatted`, `mypy` → `Success:
+  no issues found in 2 source files`.
+- Plan contra commit: el mensaje de `1d9752e` es idéntico byte a byte al "Commit (b)" del plan (`diff` sin salida). El
+  `numstat` es `15 0` (`app/schemas/service.py`) y `66 1` (`tests/test_services.py`), como dice la tabla de fases. Las 82
+  líneas `+`/`-` del diff `584b40f..1d9752e` son idénticas a las del Anexo E(b) (`diff` sin salida). Solo cambian esos dos
+  archivos. Anexo E(a) no ejecutado: `git diff --stat 6cae238 1d9752e -- app/repositories/service_repository.py` vacío
+  (E0.2). Comando 15 de la Verificación final, con `service_repository.py` añadido: vacío. Comando 11: `:11 :61 :147`, como
+  el plan con (b). Comando 14: `test_services.py:11` (12 tras F, que añade `test_be61_…`).
+- Línea reescrita (punto 4): `test_be38_price_change_audits_old_and_new_values`, `"new": "60000"` → `"new": "60000.00"`
+  (hunk `@@ -1028,7 +1030,7 @@`). Fuera del Anexo E(b), `tests/test_services.py` no cambia: dos imports, esa línea y la
+  sección nueva, y nada más.
+- Mutantes (E1: una copia `git archive 1d9752e | tar -x` por mutante en el scratchpad, aplicada con un script de
+  reemplazo exacto con recuento comprobado. `diff -ru` contra una copia prístina muestra solo la línea o el bloque
+  mutado. Suite completa con el Python del venv por ruta y cwd = la copia; los tracebacks de la sonda de import citan
+  `…\scratchpad\audE\M2\app\…`, así que la copia importa su propio código):
+  - M8b (sin el validador de `ServiceBase`) → `2 failed, 794 passed`: `create_answers…[integer]` y `[one-decimal]`. El
+    plan da `3 failed`, pero lo mide sobre la copia final (l.938). El tercero, `test_create_package_promotes_temporal_url`,
+    en `1d9752e` solo afirma `len(audits) == 1` (`tests/test_services.py:473-474`). La fila `CREATE` sigue siendo
+    `package_data.model_dump` hasta F (Anexo F), y el criterio de F lo reconoce ("M8b con (b), por la fila"). Coincide
+    con el handoff; no es desviación.
+  - M8c (sin el validador de `ServiceUpdate`) → `3 failed, 793 passed`: precio auditado de D y `update_answers…[integer]`
+    y `[one-decimal]`, los mismos casos que el plan.
+  - M13 del ejecutor (`ServiceUpdate` con `mode="before"` y `return v if v is None else Decimal(str(v)).quantize(_CENTS)`)
+    → `1 failed, 795 passed`: `test_be38_schema_keeps_rejecting_a_third_decimal` con `DID NOT RAISE ValidationError`.
+    Representa bien el fallo que el plan describe: redondea `"50000.555"` antes de `decimal_places` y el 422 desaparece.
+    La guarda de `None` evita que choque con la nulabilidad del DTO. Contraste: M13lit, solo `mode="before"` con el
+    cuerpo intacto, que es la lectura más literal, → `7 failed, 789 passed`, todos por `AttributeError` ('int', 'float',
+    'str' y 'NoneType' sin `quantize`), uno de ellos el test de `null` de BE-37. Muere por un fallo, no por redondear, así
+    que no representa el defecto. Variante alternativa natural, M13dp (sin `decimal_places=2` en `ServiceUpdate`) →
+    `1 failed, 795 passed`, mismo test, `DID NOT RAISE`. M13both (las dos en `before`) → `1 failed`. Las variantes de
+    `ServiceBase` viven (ver el opcional).
+  - M2 (`audit_service.py:47` → `audit_value(getattr(entity, field)) != audit_value(value)`) → `796 passed`: vive, como
+    esperan E0.2, el riesgo 4 y R7. No es hallazgo.
+- AGENTS: ningún DTO de salida cambia (A9: `ServiceResponse` hereda de `BaseModel`). No hay excepciones de dominio nuevas.
+  Las capas siguen intactas (4 kept). Los tests HTTP usan las fixtures centrales (`client`, `db_session`, `admin_headers`,
+  `storage_double`), preparan con `commit()` y releen con `refresh`/`get` (ADR-0011). Afirman código, campo, lista de
+  `GET` y valor guardado. El borde del tercer decimal afirma `loc`, no texto. Nada en español en las aserciones;
+  docstrings en inglés.
+- No es la última fase: la "Verificación final" completa no aplica.
