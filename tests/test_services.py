@@ -12,6 +12,7 @@ from typing import Any
 from unittest.mock import create_autospec
 
 import pytest
+from pydantic import ValidationError
 from sqlalchemy import select
 
 from app.api.dependencies import get_storage_client
@@ -25,6 +26,7 @@ from app.main import app
 from app.models.audit import AuditAction, AuditLog
 from app.models.service import ServiceCategory, ServiceImage, TouristService
 from app.models.user import UserRole
+from app.schemas.service import ServiceUpdate
 
 # ==========================================
 # TEST FIXTURES (Context Setup)
@@ -1028,7 +1030,7 @@ async def test_be38_price_change_audits_old_and_new_values(client, db_session, a
     await db_session.refresh(package)
     assert package.base_price == Decimal("60000.00")
     audits = await _audit_rows(db_session)
-    assert [a.changes for a in audits] == [{"base_price": {"old": "50000.00", "new": "60000"}}]
+    assert [a.changes for a in audits] == [{"base_price": {"old": "50000.00", "new": "60000.00"}}]
 
 
 async def test_be38_image_change_audits_the_stored_urls(
@@ -1100,3 +1102,66 @@ async def test_be38_status_route_with_change_audits_the_action(
     assert package.is_available is not is_available
     audits = await _audit_rows(db_session)
     assert [(a.action, a.entity_id, a.changes) for a in audits] == [(action, str(package.id), None)]
+
+
+# === BE-38: the price reads with the two decimals of its column (ADR-0021) ===
+
+
+@pytest.mark.parametrize(
+    ("sent", "answered"),
+    [
+        pytest.param(50000, "50000.00", id="integer"),
+        pytest.param(50000.5, "50000.50", id="one-decimal"),
+        pytest.param(50000.75, "50000.75", id="two-decimals"),
+    ],
+)
+async def test_be38_create_answers_the_price_with_two_decimals(
+    client, db_session, admin_headers, storage_double, sent, answered
+):
+    """Happy path: POST answers the price as its column stores it, the same as GET."""
+    storage_double.promote_to_permanent.return_value = PERMANENT_URL
+    payload = {**_create_payload([TEMP_URL]), "base_price": sent}
+
+    created = await client.post("/servicios/", json=payload, headers=admin_headers)
+    listed = await client.get("/servicios/")
+
+    assert created.status_code == 201
+    assert created.json()["base_price"] == answered
+    assert [package["base_price"] for package in listed.json()] == [answered]
+    stored = await db_session.get(TouristService, created.json()["id"])
+    assert stored is not None
+    assert stored.base_price == Decimal(answered)
+
+
+@pytest.mark.parametrize(
+    ("sent", "answered"),
+    [
+        pytest.param(60000, "60000.00", id="integer"),
+        pytest.param(60000.5, "60000.50", id="one-decimal"),
+        pytest.param(60000.75, "60000.75", id="two-decimals"),
+    ],
+)
+async def test_be38_update_answers_the_price_with_two_decimals(
+    client, db_session, admin_headers, sent, answered
+):
+    """Happy path: PUT answers the new price as its column stores it, the same as GET."""
+    package = await _persist_package(db_session)
+
+    updated = await client.put(
+        f"/servicios/{package.id}", json={"base_price": sent}, headers=admin_headers
+    )
+    listed = await client.get("/servicios/")
+
+    assert updated.status_code == 200
+    assert updated.json()["base_price"] == answered
+    assert [item["base_price"] for item in listed.json()] == [answered]
+    await db_session.refresh(package)
+    assert package.base_price == Decimal(answered)
+
+
+def test_be38_schema_keeps_rejecting_a_third_decimal() -> None:
+    """Unhappy path: two decimals are written, never rounded; a third one is still a 422."""
+    with pytest.raises(ValidationError) as exc_info:
+        ServiceUpdate.model_validate({"base_price": "50000.555"})
+
+    assert [error["loc"] for error in exc_info.value.errors()] == [("base_price",)]

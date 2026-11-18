@@ -7,6 +7,9 @@ from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
 from app.models.service import ServiceCategory
 from app.schemas.partial_update import NoExplicitNull
 
+# Scale of tourist_services.base_price, NUMERIC(10, 2): every price is written with two decimals.
+_CENTS = Decimal("0.01")
+
 
 class ServiceImageResponse(BaseModel):
     id: int
@@ -50,6 +53,12 @@ class ServiceBase(BaseModel):
         clean = " ".join(v.split())
 
         return clean.title()
+
+    @field_validator("base_price")
+    @classmethod
+    def format_base_price(cls, v: Decimal) -> Decimal:
+        """Writes the price with the two decimals of its column: 50000 becomes 50000.00."""
+        return v.quantize(_CENTS)
 
 
 class ServiceCreate(ServiceBase):
@@ -130,3 +139,9 @@ class ServiceUpdate(BaseModel):
         """Title-cases the package name and collapses repeated whitespace."""
         clean = " ".join(v.split())
         return clean.title()
+
+    @field_validator("base_price")
+    @classmethod
+    def format_base_price(cls, v: Decimal) -> Decimal:
+        """Writes the price with the two decimals of its column: 50000 becomes 50000.00."""
+        return v.quantize(_CENTS)
