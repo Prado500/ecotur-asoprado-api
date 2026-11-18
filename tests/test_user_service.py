@@ -6,7 +6,7 @@ from unittest.mock import create_autospec
 
 import jwt
 import pytest
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, OperationalError, SQLAlchemyError
 
 from app.core.config import get_settings
 from app.core.exceptions import (
@@ -343,11 +343,13 @@ async def test_create_administrative_account_provisions_admin(
 ):
     """Happy path: a superadmin provisions an admin account in a single persistence call."""
     user_repo.get_user_by_email_or_cedula.return_value = None
+    user_repo.create_user.side_effect = lambda user: user
     actor = make_user(role=UserRole.superadmin)
 
-    await user_service.create_administrative_account(_admin_payload(), actor)
+    result = await user_service.create_administrative_account(_admin_payload(), actor)
 
     created_user = user_repo.create_user.call_args.args[0]
+    assert result is created_user
     assert created_user.role == UserRole.admin
     assert created_user.cedula == "5555555555"
     assert created_user.is_active is True
@@ -397,6 +399,41 @@ async def test_create_administrative_account_lookup_failure_writes_nothing(
     )
     audit_service.log_transaction.assert_not_awaited()
     user_repo.create_user.assert_not_awaited()
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        pytest.param(
+            IntegrityError("INSERT INTO users", {}, Exception("UNIQUE constraint failed")),
+            id="race-on-unique-index",
+        ),
+        pytest.param(
+            OperationalError("INSERT INTO users", {}, Exception("database is locked")),
+            id="database-failure",
+        ),
+    ],
+)
+async def test_create_administrative_account_insert_failure_writes_no_audit_row(
+    user_repo, audit_service, user_service, make_user, error
+):
+    """Unhappy path: a failed insert leaves no CREATE row behind (ADR-0021).
+
+    The race on the unique indexes (409) and a database failure (500) are not reproducible
+    over HTTP without replacing the repository, so the double raises them here.
+    """
+    user_repo.get_user_by_email_or_cedula.return_value = None
+    user_repo.create_user.side_effect = error
+
+    with pytest.raises(type(error)):
+        await user_service.create_administrative_account(
+            _admin_payload(), make_user(role=UserRole.superadmin)
+        )
+
+    created_user = user_repo.create_user.call_args.args[0]
+    assert created_user.cedula == "5555555555"
+    user_repo.create_user.assert_awaited_once_with(created_user)
+    audit_service.log_transaction.assert_not_awaited()
 
 
 # ==========================================

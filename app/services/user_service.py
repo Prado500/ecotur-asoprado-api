@@ -387,7 +387,8 @@ class UserService:
 
         The caller is a superadmin: the route's guard decided it (ADR-0012,
         point 1), so the service checks no role. The account is created
-        instantly without requiring email verification.
+        instantly without requiring email verification. It is created before its
+        audit entry, so a failed insert leaves no CREATE row (ADR-0021).
 
         Args:
             user_data (UserCreateByAdmin): DTO containing profile and explicit role definitions.
@@ -422,12 +423,14 @@ class UserService:
             is_active=user_data.is_active,
         )
 
+        saved_user = await self.user_repo.create_user(new_user)
+
         await self.audit_service.log_transaction(
             entity_name="User",
-            entity_id=user_data.cedula,
+            entity_id=saved_user.cedula,
             action=AuditAction.CREATE,
             performed_by=current_user.cedula,
             changes={"role": user_data.role.value},
         )
 
-        return await self.user_repo.create_user(new_user)
+        return saved_user
