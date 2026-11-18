@@ -1,6 +1,6 @@
 {
   "plan_file": "docs/deuda/BE-38/plan.md",
-  "current_target": "Fase_E",
+  "current_target": "Fase_F",
   "phases": {
     "Fase_A": {
       "status": "completed",
@@ -23,8 +23,8 @@
       "description": "PUT /servicios y activar/desactivar: solo lo que cambia, imágenes como lista ordenada de URL definitivas; order_by en TouristService.images (R1); 16 casos (773 -> 789)."
     },
     "Fase_E": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "1d9752e",
       "description": "Precio con la escala de su columna, opción (b) aprobada en E0: dos decimales al entrar en ServiceBase/ServiceUpdate (solo el Anexo E(b)), con la línea de precio de D reescrita (789 -> 796)."
     },
     "Fase_F": {
@@ -39,6 +39,6 @@
     }
   },
   "allowed_statuses": ["pending", "partial", "completed"],
-  "last_handoff": "Fase D completada (53ea731): PUT /servicios audita solo lo que cambia como old/new (imágenes como lista ordenada de URL definitivas), activar/desactivar sin cambio no escribe fila, order_by en TouristService.images (R1); RED 16 failed/773 passed, GREEN 789 passed · 98,68 %, M2, M3p, M6, M7, M9 y M10 mueren; sin desviaciones (handoff-D.md).",
+  "last_handoff": "Fase E (opción b) completada (1d9752e): _CENTS y format_base_price en ServiceBase y ServiceUpdate (solo Anexo E(b)), línea de precio de D a \"new\": \"60000.00\"; RED 5 failed/791 passed, GREEN 796 passed · 98,69 %; mutantes en copias git archive 1d9752e: M8b, M8c y M13 mueren, M2 vive (esperado, E0.2/R7); sin desviaciones (handoff-E.md).",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
