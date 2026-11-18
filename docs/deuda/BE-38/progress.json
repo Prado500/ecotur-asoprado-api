@@ -1,6 +1,6 @@
 {
   "plan_file": "docs/deuda/BE-38/plan.md",
-  "current_target": "Fase_D",
+  "current_target": "Fase_E",
   "phases": {
     "Fase_A": {
       "status": "completed",
@@ -18,8 +18,8 @@
       "description": "Verificación de correo: UPDATE de is_active con la propia cuenta como autora, ignora cuentas borradas; activate_user se borra (769 -> 773)."
     },
     "Fase_D": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "53ea731",
       "description": "PUT /servicios y activar/desactivar: solo lo que cambia, imágenes como lista ordenada de URL definitivas; order_by en TouristService.images (R1); 16 casos (773 -> 789)."
     },
     "Fase_E": {
@@ -39,6 +39,6 @@
     }
   },
   "allowed_statuses": ["pending", "partial", "completed"],
-  "last_handoff": "Fase C completada (2ef12e7): verify_email_account busca la cuenta no borrada y audita el UPDATE de is_active con la propia cuenta como autora; activate_user borrado; RED 6 failed/767 passed, GREEN 773 passed · 98,58 %, M5, M11 y M12 mueren; sin desviaciones (handoff-C.md).",
+  "last_handoff": "Fase D completada (53ea731): PUT /servicios audita solo lo que cambia como old/new (imágenes como lista ordenada de URL definitivas), activar/desactivar sin cambio no escribe fila, order_by en TouristService.images (R1); RED 16 failed/773 passed, GREEN 789 passed · 98,68 %, M2, M3p, M6, M7, M9 y M10 mueren; sin desviaciones (handoff-D.md).",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
