@@ -147,3 +147,84 @@ Evidencia de lo comprobado (contexto fresco; el relato del handoff no se tomó c
   sin texto en español. Docstrings en inglés. Sin excepciones de dominio nuevas (`NotFoundError` ya registrada); el
   servicio no importa FastAPI; el repositorio pierde un `commit()` (A3 mejora); capas intactas (4 kept).
 - No es la última fase: la "Verificación final" no aplica.
+
+## Auditoría Fase D — 2026-11-18
+**Veredicto Fase D: PASS (0 bloqueantes, 1 opcionales).**
+
+[OPCIONAL] — Fase D — El ejecutor corrió los seis mutantes sobre el árbol de trabajo del repo (con los cambios de la
+fase aún sin commitear) y restauró los archivos a mano; las fases A–C los corrieron en copias del scratchpad. No hay
+regla que lo prohíba: el "nunca en el repo" del plan (`plan.md` l.12) describe cómo midió el redactor, y l.185–186 solo
+pide que "el ejecutor de cada fase repite los suyos sobre su fase", sin decir dónde. Tampoco quedó ningún resto (abajo:
+blobs idénticos al Anexo D, árbol limpio). Se registra porque el riesgo es real y la compuerta no lo detecta: un
+mutante que la suite no mata y que se queda sin restaurar entra en el commit con la compuerta en verde. M2 es ese caso
+desde la fase E (vive con la opción (b), E0.2). Además M2 mutó `app/services/audit_service.py`, que no es de esta fase.
+Para las fases E–G se recomienda volver a las copias (`git archive` en el scratchpad). Evidencia: `handoff-D.md`
+l.118–120; `ls --full-time app/services/audit_service.py` → `15:35:25`, posterior a `71c4b6f` (15:29:32) y anterior a
+`53ea731` (15:41:17), con contenido idéntico a ambos (`git diff --quiet 71c4b6f 53ea731 -- app/services/audit_service.py`
+→ 0).
+
+Evidencia de lo comprobado (contexto fresco; el relato del handoff no se tomó como evidencia):
+
+- Árbol: `git status --short` vacío antes de auditar, después de la compuerta y después de los mutantes. HEAD `b081999`
+  (progress + handoff-D; `git diff --stat 53ea731 b081999` → solo `handoff-D.md` y `progress.json`), padre `53ea731`
+  (fase D), padre `71c4b6f`. `git status --short --ignored` sin `.orig`, `.bak`, `.rej` ni copias en `app/` o `tests/`;
+  `scripts/.coverage` y `scripts/.mypy_cache` son del 24 oct, anteriores a la fase.
+- Sin restos de mutantes: el Anexo D (`plan.md` l.1779–2170) se aplica limpio con `git apply` sobre una copia
+  `git archive 71c4b6f` (scratchpad). Los cuatro archivos dan el mismo md5 en la copia + Anexo, en `53ea731` y en el
+  árbol de trabajo: `tourist_services_service.py` `ddb3af2b…`, `models/service.py` `c1fbe508…`, `test_services.py`
+  `fc78c975…`, `test_models_schema.py` `fc83cc3a…`. `git diff --stat 53ea731 HEAD -- app tests` vacío.
+- Commit `53ea731`: `git diff --numstat 71c4b6f 53ea731` → `5 1` `app/models/service.py`, `27 16`
+  `tourist_services_service.py`, `8 0` `test_models_schema.py`, `225 2` `test_services.py`: son los cuatro archivos y el
+  numstat que dicta el plan (l.363–364), +265 −19. El mensaje (`git show -s --format=%B`), comparado con `diff` contra
+  `plan.md` l.390–410, es idéntico salvo el salto de línea final que añade `%B`. Incluye `BREAKING CHANGE:` y
+  `Co-Authored-By`.
+- Cambios exactos, todos presentes: import de `changed_fields`. En `update_package_details`,
+  `changes = changed_fields(service, update_dict)` (:289) antes del bucle `setattr` (:290–291) y `old_urls` antes de
+  `images.clear()`; paso 2.8 `if definitive_urls != old_urls:` (:345–346); `if changes:` / `changes=changes`;
+  `payload_changes` desaparece. En `toggle_package_status`, primero `estado` y luego la mutación, `save_service` y la
+  auditoría dentro de `if service.is_available != is_available:` (:132). Docstrings de los dos métodos con ADR-0021
+  (:112, :263). `order_by=lambda: ServiceImage.id` (`app/models/service.py:52`) con dos líneas de docstring (:29–30).
+  Test de precio: `{"old": "50000.00", "new": "60000"}` tal cual (E0.2: lo reescribe E(b)).
+- Tests (RED primero): los 16 casos de la fase y las dos guardas de estado existen y pasan. RED reproducido por el
+  auditor en una copia `git archive 53ea731` con `tourist_services_service.py` y `models/service.py` de `71c4b6f`, suite
+  completa: `16 failed, 773 passed, 25 warnings`. La lista de FAILED coincide con la de "Mediciones", 1 y con la del
+  handoff; las dos `test_be38_status_route_with_change_audits_the_action` pasan.
+- Compuerta re-ejecutada (`./venv/Scripts/python.exe scripts/check.py`, exit 0): `71 files already formatted` · ruff
+  `All checks passed!` · mypy `Success: no issues found in 66 source files` · `Contracts: 4 kept, 0 broken.` ·
+  `TOTAL 1055 10 154 6 98.68%` · `789 passed, 25 warnings`. Línea base (`verificacion.md`): 757 passed · 98,49 % ·
+  ruff 0 · mypy 0 en 65 · 4 kept. Fase C: 773 · 98,58 %. Criterio de aceptación (789 passed, 98,68 %) cumplido. 25
+  avisos, como la base. La línea sin cubrir `tourist_services_service.py:297` es el `raise` de más de 10 imágenes, ya
+  existente (antes `:293`).
+- Archivos tocados: `ruff check` → `All checks passed!`; `ruff format --check` → `4 files already formatted`; `mypy` →
+  `Success: no issues found in 4 source files`.
+- Mutantes del criterio, re-ejecutados por el auditor en seis copias `git archive 53ea731` (scratchpad, nunca en el
+  repo; suite completa; un script exige una sola coincidencia y `diff` contra `git show 53ea731:<archivo>` confirma una
+  sola línea mutada; `app` se importa de la copia, comprobado):
+  M2 (`audit_service.py:47` en forma JSON) → `1 failed, 788 passed` (`[price-same-value]`);
+  M3p (`changed_fields` después del bucle `setattr`) → `3 failed, 786 passed`
+  (`test_be37_null_on_description_still_clears_it`, `…partial_package_change…`, `…price_change…`);
+  M6 (`:132` → `if True:`) → `2 failed, 787 passed` (estado sin cambio ×2);
+  M7 (`"new": raw_urls`) → `1 failed, 788 passed` (`test_be38_image_change_audits_the_stored_urls`);
+  M9 (`set(definitive_urls) != set(old_urls)`) → `1 failed, 788 passed` (`…reordered_image_list…`);
+  M10 (sin `order_by`) → `1 failed, 788 passed` (`test_service_images_load_in_stored_order`).
+  Mueren los seis, con los mismos casos que "Mediciones", 4 y que el handoff. M2 da la cifra de la copia de la fase D
+  (`plan.md` l.976).
+- Verificación final, comandos que ya aplican: 3 sin salida (exit 1); 5 → `tourist_services_service.py:1`,
+  `user_service.py:2`; 10 → `app/models/service.py:52`, como el plan. 4 → `tourist_services_service.py:289` y 6 →
+  `:132`, donde el plan cita `:293` y `:136`. **No es desviación:** el plan mide sobre la copia final (l.524–526).
+  Después de D, el único anexo que toca ese archivo es el F (E(b) toca `app/schemas/service.py` y
+  `tests/test_services.py`; G, `app/models/audit.py` y el ADR), y sus hunks `@@ -30,7 +30,9 @@` y
+  `@@ -67,12 +69,14 @@` añaden 4 líneas netas, todas por encima de `:112` (el de `-8,7 +8,7` suma 0). 289+4=293 y
+  132+4=136. Las demás citas del plan cuadran igual: comando 2, `:288` → `:292`; comando 13, `:112`/`:263` →
+  `:116`/`:267`.
+- `progress.json`: JSON válido; `Fase_D` `completed` con `53ea731` (hash real, `git cat-file -t` → `commit`);
+  `current_target` `Fase_E`; `last_handoff` presente; `edit_rules` sin cambio (`git diff 71c4b6f b081999 --
+  docs/deuda/BE-38/progress.json` solo toca `current_target`, `status`, `commit` y `last_handoff`).
+- AGENTS: los tests HTTP usan las fixtures centrales (`client`, `db_session`, `admin_headers`, `storage_double` y
+  `classifying_storage`, dobles del CDN que ya existían). Preparan con `commit()` y releen con `db_session.refresh`
+  (ADR-0011). Afirman el código, la estructura del cuerpo, el estado, las filas de `AuditLog` y las llamadas al CDN
+  (`assert_awaited_once_with`, `assert_not_awaited`). No afirman ningún texto en español: el mensaje de estado solo se
+  comprueba por sus claves. Docstrings en inglés. No hay excepciones de dominio nuevas; el servicio no importa FastAPI;
+  las capas siguen intactas (4 kept). R1 es un cambio solo de ORM; el `alembic check` contra PostgreSQL queda para David
+  después de esta auditoría (E0.4) y no cuenta para el veredicto.
+- No es la última fase: la "Verificación final" completa no aplica.

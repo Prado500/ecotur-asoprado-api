@@ -2695,3 +2695,19 @@ Con la opción (b), estas son las únicas líneas que cambian (diff del archivo 
    contra `44b1fce`: en D, `changed_fields` antes del `setattr` y `old_urls` antes de `images.clear()`; en C,
    `get_non_deleted_user_by_email` ya filtra `deleted_at`; en E(b), de `ServiceBase` solo hereda `ServiceCreate`
    (`app/schemas/service.py:55`; los DTO de salida heredan de `BaseModel`, `:67` y `:86`), así que A9 se cumple.
+
+### E1 — 18 nov 2026, 17:40 (David: "entonces tienes permiso para E1"; opcional de la auditoría de la fase D)
+
+1. **En las fases E, F y G los mutantes se corren en copias, nunca sobre el árbol de trabajo del repo.** El ejecutor
+   hace el commit de la fase con la compuerta en verde y después mide sus mutantes en copias `git archive <commit de la
+   fase>` en el scratchpad, una por mutante, con la suite completa; el auditor ya lo hace así. Precisa la frase "el
+   ejecutor de cada fase repite los suyos sobre su fase" (sección de mutantes del Análisis), que no decía dónde.
+2. **Motivo.** En la fase D los seis mutantes se aplicaron sobre el árbol con la fase sin commitear y se restauraron a
+   mano (`handoff-D.md`, "Mutantes de la fase"; `gaps.md`, opcional de D). No quedó resto: el auditor comparó los
+   cuatro archivos por md5 contra el Anexo D y contra `53ea731`. Pero la compuerta solo delata un mutante olvidado si
+   algún test lo mata, y M2 vive desde la fase E (E0.2, riesgo 4): aplicado en el árbol y sin restaurar, entraría en
+   el commit con `check.py` en 0.
+3. **Si un mutante que el plan da por muerto vive en la copia,** el ejecutor no lo arregla dentro de la fase: lo
+   declara en su handoff y se detiene; lo decide la sesión Mentor con David.
+4. **No cambia** código, tests, anexos, cifras, criterios de aceptación, la tabla de fases ni la Verificación final.
+   `progress.json` no se toca: ninguna descripción de fase depende de dónde se miden los mutantes.
