@@ -82,3 +82,68 @@ Sin hallazgos. Evidencia de lo comprobado (contexto fresco; el relato del handof
   texto en español afirmado; docstrings e identificadores en inglés. Sin excepciones de dominio nuevas; `pydantic` ya en
   `pyproject.toml`; capas intactas (4 kept).
 - No es la última fase: la "Verificación final" no aplica.
+
+## Auditoría Fase C — 2026-11-18
+**Veredicto Fase C: PASS (0 bloqueantes, 1 opcionales).**
+
+[OPCIONAL] — Fase C — La fila BE-50 de `docs/backlog.md` sigue describiendo `activate_user`
+(`app/repositories/user_repository.py:33-44`) como el mecanismo vigente; tras `2ef12e7` el método no existe y la
+activación pasa por `get_non_deleted_user_by_email` + `save_user`, sin tocar cuentas borradas. E0.6 solo da destino a
+R4 (BE-49), y BE-49 ya lleva su nota (`docs/backlog.md:104`, "Nota de BE-38 … residual R4", commiteada en `39fa95b`).
+El plan deja `docs/backlog.md` fuera de alcance, así que no bloquea; destino sugerido: una nota en la fila BE-50, igual
+que la de R4, cuando David cierre BE-38 (su `/deuda-verificar` la volvería a medir de todos modos). Evidencia:
+`git grep -n "activate_user"` → `docs/backlog.md:105`.
+
+Evidencia de lo comprobado (contexto fresco; el relato del handoff no se tomó como evidencia):
+
+- Árbol: `git status --short` vacío antes de auditar. HEAD `49a3b46` (progress + handoff-C, solo `docs/deuda/BE-38/`:
+  `git diff --stat 2ef12e7 49a3b46` → `handoff-C.md`, `progress.json`), padre `2ef12e7` (fase C), padre `a25879f`.
+- Commit `2ef12e7`: `git show --stat` → `app/repositories/user_repository.py | 13 -------`,
+  `app/services/user_service.py | 22 ++++++++++--`, `tests/test_auth.py | 67 +++`, `tests/test_user_service.py | 54 +++…--`,
+  `4 files changed, 129 insertions(+), 27 deletions(-)`; `git diff --numstat a25879f 2ef12e7` → `0 13`, `19 3`, `67 0`,
+  `43 11`: los cuatro archivos de la fase y el numstat dictado. Mensaje (`git show -s --format=%B 2ef12e7`) comparado con
+  `diff` contra `plan.md` l.344–359: idéntico, incluida la línea `Co-Authored-By`.
+- Diff contra el plan: las líneas `+`/`-` de `git diff a25879f 2ef12e7` (156), ordenadas, comparadas con `diff` contra
+  las del Anexo C (`plan.md` l.1514–1770, 156): sin diferencias. Todos los puntos de "Cambios exactos" están:
+  `get_non_deleted_user_by_email`, `NotFoundError` si `None`, `changed_fields(user, {"is_active": True})`, guarda
+  `if changes:` (`app/services/user_service.py:151`), `save_user` y `log_transaction(UPDATE, entity_id=user.cedula,
+  performed_by=user.cedula, changes=changes)` (:152–160), docstring ampliada y `Raises` reescrito;
+  `UserRepository.activate_user` borrado.
+- Tests (RED primero): los 7 tests de la fase existen y pasan (`test_verify_email_activates_account`,
+  `test_verify_email_on_active_account_writes_nothing`, `test_verify_email_missing_user_raises_not_found`, las cuatro
+  `get_non_deleted_user_by_email.assert_not_awaited()`; en `test_auth.py`, la fila de
+  `test_verify_email_endpoint_activates_account` y los tres `test_be38_verify_email_*`). RED reproducido por el auditor
+  en una copia `git archive 2ef12e7` (scratchpad) con `user_service.py` y `user_repository.py` de `a25879f`, suite
+  completa: `6 failed, 767 passed, 25 warnings`; fallan exactamente los 3 unitarios y los 3 HTTP del plan; V3 y los
+  cuatro de token, verdes.
+- Compuerta re-ejecutada (`./venv/Scripts/python.exe scripts/check.py`, exit 0): `71 files already formatted` · ruff
+  `All checks passed!` · mypy `Success: no issues found in 66 source files` · 4 contratos KEPT · `TOTAL 1051 10 150 7
+  98.58%` · `773 passed, 25 warnings`. Línea base (`verificacion.md`): 757 passed · 98,49 % · ruff 0 · mypy 0 en 65 ·
+  4 kept. Criterio de aceptación (773 passed, 98,58 %) cumplido. La cobertura baja una centésima frente a la fase B
+  (98,59 %) al borrar 13 líneas cubiertas (`Stmts` 1055 → 1051): sigue por encima de la línea base y es la cifra que el
+  plan midió; no es hallazgo. Avisos 25, como la base.
+- Archivos tocados: `ruff check` → `All checks passed!`; `ruff format --check` → `4 files already formatted`; `mypy` →
+  `Success: no issues found in 4 source files`.
+- Mutantes del criterio, re-ejecutados por el auditor en copias `git archive 2ef12e7` (suite completa; `diff` contra
+  `git show 2ef12e7:<archivo>` confirma una sola línea mutada en cada una):
+  M5 (`user_repository.py:44` sin `User.deleted_at.is_(None)`) → `3 failed, 770 passed`
+  (`test_be38_verify_email_on_deleted_account_returns_404_without_mutation`, `test_self_soft_delete_keeps_row_and_blocks_login`,
+  `test_token_for_soft_deleted_active_user_returns_401`); M11 (`user_service.py:151` `if changes:` → `if True:`) →
+  `2 failed, 771 passed` (V3 HTTP y unitario); M12 (`user_service.py:158` `performed_by=user.email`) → `3 failed,
+  770 passed` (V1 HTTP y unitario, V4). Los tres mueren con los casos de "Mediciones", 4.
+- Comando 3 del plan, parte de esta fase: `git grep -n "activate_user" -- app tests` → sin salida (exit 1).
+  Grep en todo el repo (versionado y no versionado, sin `venv` ni cachés): `activate_user` solo aparece en `docs/`.
+  Clasificación: `docs/backlog.md:104` (BE-49) es la nota de R4 ya escrita (E0.6 cumplido); `docs/backlog.md:105`
+  (BE-50), el opcional de arriba; el resto (`docs/archive/auditorias/…html`, `docs/bitacora/2026-11-12.md`,
+  `2026-11-18.md`, y los `plan.md`/`verificacion.md`/`handoff`/`gaps.md` de BE-32, BE-33, BE-34, BE-36, BE-38, BE-40 y
+  BE-42) son registros históricos de lo que había cuando se escribieron: no se tocan.
+- `progress.json`: JSON válido; `Fase_C` `completed` con `2ef12e7` (hash real); `current_target` `Fase_D`;
+  `last_handoff` presente; `edit_rules` sin cambio (`git diff a25879f 49a3b46 -- docs/deuda/BE-38/progress.json` solo
+  toca `current_target`, `status`, `commit` y `last_handoff`).
+- AGENTS: dobles `autospec` de `UserRepository`/`AuditService` solo en `tests/test_user_service.py` (excepción a §5
+  aprobada en E0, punto 3), con `assert_awaited_once_with` de todos los argumentos y `assert_not_awaited` en los caminos
+  que no escriben; los HTTP usan fábricas centrales (`persist_user`, `make_auth_headers`), refrescan el estado y leen
+  las filas de `AuditLog`; el 404 se afirma por código y estructura (`set(body) == {"detail"}`, `isinstance(…, str)`),
+  sin texto en español. Docstrings en inglés. Sin excepciones de dominio nuevas (`NotFoundError` ya registrada); el
+  servicio no importa FastAPI; el repositorio pierde un `commit()` (A3 mejora); capas intactas (4 kept).
+- No es la última fase: la "Verificación final" no aplica.
