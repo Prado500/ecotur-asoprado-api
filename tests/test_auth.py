@@ -11,6 +11,7 @@ from app.core.security import (
     get_password_hash,
 )
 from app.main import app
+from app.models.audit import AuditAction, AuditLog
 from app.models.user import User, UserRole
 
 USER_PAYLOAD: dict[str, Any] = {
@@ -102,6 +103,72 @@ async def test_verify_email_endpoint_activates_account(client, db_session, persi
 
     await db_session.refresh(user)
     assert user.is_active is True
+    audits = (await db_session.execute(select(AuditLog))).scalars().all()
+    assert [(a.action, a.entity_id, a.performed_by, a.changes) for a in audits] == [
+        (AuditAction.UPDATE, user.cedula, user.cedula, {"is_active": {"old": False, "new": True}})
+    ]
+
+
+async def test_be38_verify_email_on_active_account_returns_200_without_audit_row(
+    client, db_session, persist_user
+):
+    """Edge case: the link of an account already active changes nothing and writes no row."""
+    user = await persist_user(is_active=True)
+    token = create_verification_token(user.email)
+
+    response = await client.get(f"/usuarios/verificar-email?token={token}")
+
+    assert response.status_code == 200
+    assert response.json()["success"] is True
+    await db_session.refresh(user)
+    assert user.is_active is True
+    assert (await db_session.execute(select(AuditLog))).scalars().all() == []
+
+
+async def test_be38_verify_email_on_deleted_account_returns_404_without_mutation(
+    client, db_session, persist_user
+):
+    """Unhappy path: a soft-deleted account answers like an email without account (ADR-0021)."""
+    user = await persist_user(is_active=False, deleted_at=datetime.now(UTC))
+    token = create_verification_token(user.email)
+
+    response = await client.get(f"/usuarios/verificar-email?token={token}")
+
+    assert response.status_code == 404
+    body = response.json()
+    assert set(body) == {"detail"}
+    assert isinstance(body["detail"], str)
+    await db_session.refresh(user)
+    assert user.is_active is False
+    assert user.deleted_at is not None
+    assert (await db_session.execute(select(AuditLog))).scalars().all() == []
+
+
+async def test_be38_verify_email_after_admin_deactivation_writes_an_audit_row(
+    client, db_session, persist_user, make_auth_headers
+):
+    """Edge case: the link still reactivates an account an admin deactivated, now in the trail.
+
+    That the link can do it at all is BE-50; here only its audit row is frozen.
+    """
+    admin = await persist_user(role=UserRole.admin)
+    tourist = await persist_user()
+    token = create_verification_token(tourist.email)
+
+    deactivated = await client.patch(
+        f"/usuarios/{tourist.cedula}", json={"is_active": False}, headers=make_auth_headers(admin)
+    )
+    verified = await client.get(f"/usuarios/verificar-email?token={token}")
+
+    assert deactivated.status_code == 200
+    assert verified.status_code == 200
+    await db_session.refresh(tourist)
+    assert tourist.is_active is True
+    audits = (await db_session.execute(select(AuditLog).order_by(AuditLog.id))).scalars().all()
+    assert [(a.entity_id, a.performed_by, a.changes) for a in audits] == [
+        (tourist.cedula, admin.cedula, {"is_active": {"old": True, "new": False}}),
+        (tourist.cedula, tourist.cedula, {"is_active": {"old": False, "new": True}}),
+    ]
 
 
 async def test_verify_email_invalid_token_returns_400(client):

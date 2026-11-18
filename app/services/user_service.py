@@ -109,6 +109,10 @@ class UserService:
     async def verify_email_account(self, token: str) -> dict:
         """Decodes the verification token and activates the user account.
 
+        The activation is audited as the same UPDATE of is_active an admin would write,
+        with the account as its own author. An account already active is left as it is
+        and writes no audit row; a soft-deleted account is never reached (ADR-0021).
+
         Args:
             token (str): Single-use JWT issued during registration.
 
@@ -118,7 +122,7 @@ class UserService:
         Raises:
             InvalidVerificationTokenError: Token corrupted, expired or
                 carrying an unexpected scope.
-            NotFoundError: No user matches the token subject.
+            NotFoundError: No non-deleted account matches the token subject.
         """
         settings = get_settings()
         try:
@@ -138,10 +142,22 @@ class UserService:
         if email is None or scope != EMAIL_VERIFICATION_SCOPE:
             raise InvalidVerificationTokenError("Token de verificación inválido.")
 
-        activation_success = await self.user_repo.activate_user(email)
+        user = await self.user_repo.get_non_deleted_user_by_email(email)
 
-        if not activation_success:
+        if user is None:
             raise NotFoundError("Usuario no encontrado.")
+
+        changes = changed_fields(user, {"is_active": True})
+        if changes:
+            user.is_active = True
+            await self.user_repo.save_user(user)
+            await self.audit_service.log_transaction(
+                entity_name="User",
+                entity_id=user.cedula,
+                action=AuditAction.UPDATE,
+                performed_by=user.cedula,
+                changes=changes,
+            )
 
         return {
             "success": True,
