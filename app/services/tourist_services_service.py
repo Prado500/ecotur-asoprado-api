@@ -8,7 +8,7 @@ from app.models.service import ServiceImage, TouristService
 from app.models.user import User
 from app.repositories.service_repository import ServiceRepository
 from app.schemas.service import ServiceCreate, ServiceUpdate
-from app.services.audit_service import AuditService, changed_fields
+from app.services.audit_service import AuditService, audit_value, changed_fields
 
 
 class TouristServicesService:
@@ -30,7 +30,9 @@ class TouristServicesService:
         """Creates a package, promoting its staged images to the permanent container.
 
         A new package only accepts blobs of the temporal container (uploaded first through
-        the staging endpoint); any other URL is rejected before touching the CDN.
+        the staging endpoint); any other URL is rejected before touching the CDN. The CREATE
+        row records the package as stored: its saved columns and its promoted image URLs, in
+        order (ADR-0021).
 
         Args:
             package_data: Validated creation payload, including the image URLs.
@@ -67,12 +69,14 @@ class TouristServicesService:
 
         saved = await self.service_repo.create_service(new_tourist_service)
 
+        stored = {field: audit_value(getattr(saved, field)) for field in tourist_service_data}
+        stored["image_urls"] = [image.image_url for image in saved.images]
         await self.audit_service.log_transaction(
             entity_name="TouristService",
             entity_id=str(saved.id),
             action=AuditAction.CREATE,
             performed_by=current_user.cedula,
-            changes=package_data.model_dump(mode="json"),
+            changes=stored,
         )
 
         return saved

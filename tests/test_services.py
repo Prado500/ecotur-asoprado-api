@@ -26,7 +26,7 @@ from app.main import app
 from app.models.audit import AuditAction, AuditLog
 from app.models.service import ServiceCategory, ServiceImage, TouristService
 from app.models.user import UserRole
-from app.schemas.service import ServiceUpdate
+from app.schemas.service import ServiceCreate, ServiceUpdate
 
 # ==========================================
 # TEST FIXTURES (Context Setup)
@@ -457,7 +457,10 @@ async def test_create_package_promotion_outage_returns_503(
 async def test_create_package_promotes_temporal_url(
     client, admin_headers, storage_double, db_session
 ):
-    """Happy path: a temporal URL is promoted and stored as the primary image."""
+    """Happy path: a temporal URL is promoted and stored as the primary image.
+
+    The CREATE row records the package as stored, not the body sent (BE-61, ADR-0021).
+    """
     storage_double.promote_to_permanent.return_value = PERMANENT_URL
 
     response = await client.post(
@@ -471,7 +474,21 @@ async def test_create_package_promotes_temporal_url(
     assert images[0]["is_primary"] is True
     storage_double.promote_to_permanent.assert_awaited_once_with(TEMP_URL)
     audits = (await db_session.execute(select(AuditLog))).scalars().all()
-    assert len(audits) == 1
+    assert [(a.action, a.entity_id, a.changes) for a in audits] == [
+        (
+            AuditAction.CREATE,
+            str(response.json()["id"]),
+            {
+                "name": "Paquete De Imagenes Validadas",
+                "description": "Cuerpo valido para probar la clasificacion de URLs de imagen.",
+                "category": "otro",
+                "base_price": "50000.00",
+                "max_capacity": 10,
+                "is_available": True,
+                "image_urls": [PERMANENT_URL],
+            },
+        )
+    ]
 
 
 async def test_upload_images_non_image_returns_415(client, admin_headers, storage_double):
@@ -1160,8 +1177,47 @@ async def test_be38_update_answers_the_price_with_two_decimals(
 
 
 def test_be38_schema_keeps_rejecting_a_third_decimal() -> None:
-    """Unhappy path: two decimals are written, never rounded; a third one is still a 422."""
-    with pytest.raises(ValidationError) as exc_info:
-        ServiceUpdate.model_validate({"base_price": "50000.555"})
+    """Unhappy path: two decimals are written, never rounded; a third one is still a 422.
 
-    assert [error["loc"] for error in exc_info.value.errors()] == [("base_price",)]
+    Checked on both DTOs: ServiceCreate, through ServiceBase, and ServiceUpdate.
+    """
+    create_payload = {
+        "name": "Caminata por el sendero ecologico",
+        "base_price": "50000.555",
+        "max_capacity": "10",
+    }
+    for schema, payload in (
+        (ServiceCreate, create_payload),
+        (ServiceUpdate, {"base_price": "50000.555"}),
+    ):
+        with pytest.raises(ValidationError) as exc_info:
+            schema.model_validate(payload)
+
+        assert [error["loc"] for error in exc_info.value.errors()] == [("base_price",)], schema
+
+
+# === BE-61: the CREATE row of a package records it as stored (ADR-0021) ===
+
+
+async def test_be61_create_audits_every_promoted_url_in_order(
+    client, db_session, admin_headers, storage_double
+):
+    """Edge case: with two images, the CREATE row lists both promoted URLs in the order sent."""
+    second_temp = f"{CDN_BASE}/temp-ecotur-images/second.jpg"
+    second_permanent = f"{CDN_BASE}/ecotur-images/second.jpg"
+    storage_double.promote_to_permanent.side_effect = [PERMANENT_URL, second_permanent]
+
+    response = await client.post(
+        "/servicios/", json=_create_payload([TEMP_URL, second_temp]), headers=admin_headers
+    )
+
+    assert response.status_code == 201
+    urls = [image["image_url"] for image in response.json()["images"]]
+    assert urls == [PERMANENT_URL, second_permanent]
+    awaited = [call.args for call in storage_double.promote_to_permanent.await_args_list]
+    assert awaited == [(TEMP_URL,), (second_temp,)]
+    audits = await _audit_rows(db_session)
+    assert [a.action for a in audits] == [AuditAction.CREATE]
+    changes = audits[0].changes
+    assert changes is not None
+    assert changes["image_urls"] == [PERMANENT_URL, second_permanent]
