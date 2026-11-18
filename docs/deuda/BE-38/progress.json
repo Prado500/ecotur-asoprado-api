@@ -1,10 +1,10 @@
 {
   "plan_file": "docs/deuda/BE-38/plan.md",
-  "current_target": "Fase_A",
+  "current_target": "Fase_B",
   "phases": {
     "Fase_A": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "9d89f8e",
       "description": "Alta administrativa: create_user antes de log_transaction, entity_id de la cuenta guardada; 2 casos unitarios (757 -> 759)."
     },
     "Fase_B": {
@@ -39,6 +39,6 @@
     }
   },
   "allowed_statuses": ["pending", "partial", "completed"],
-  "last_handoff": "Estado inicial. Plan completado el 18 nov a petición de la sesión Mentor (nivel de BE-37, R1 dentro de la fase D, precio como fase E con dos opciones medidas). Aprobado por David con E0 (18 nov 2026, 11:02): precio con la opción (b), solo el Anexo E(b); ninguna fase ejecutada.",
+  "last_handoff": "Fase A completada (9d89f8e): create_user antes de log_transaction con entity_id=saved_user.cedula; RED 2 failed/757 passed, GREEN 759 passed · 98,50 %, M4 muere; sin desviaciones (handoff-A.md).",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
