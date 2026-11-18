@@ -1,6 +1,6 @@
 {
   "plan_file": "docs/deuda/BE-38/plan.md",
-  "current_target": "Fase_C",
+  "current_target": "Fase_D",
   "phases": {
     "Fase_A": {
       "status": "completed",
@@ -13,8 +13,8 @@
       "description": "audit_value y changed_fields en audit_service.py; PATCH /usuarios audita solo lo que cambia como old/new; 10 casos nuevos y 10 tests de formato reescritos (759 -> 769)."
     },
     "Fase_C": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "2ef12e7",
       "description": "Verificación de correo: UPDATE de is_active con la propia cuenta como autora, ignora cuentas borradas; activate_user se borra (769 -> 773)."
     },
     "Fase_D": {
@@ -39,6 +39,6 @@
     }
   },
   "allowed_statuses": ["pending", "partial", "completed"],
-  "last_handoff": "Fase B completada (dc7195d): changed_fields/audit_value en audit_service.py; PATCH /usuarios audita solo lo que cambia como old/new; RED 18 failed/751 passed, GREEN 769 passed · 98,59 %, M1 y M3u mueren; sin desviaciones (handoff-B.md).",
+  "last_handoff": "Fase C completada (2ef12e7): verify_email_account busca la cuenta no borrada y audita el UPDATE de is_active con la propia cuenta como autora; activate_user borrado; RED 6 failed/767 passed, GREEN 773 passed · 98,58 %, M5, M11 y M12 mueren; sin desviaciones (handoff-C.md).",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
