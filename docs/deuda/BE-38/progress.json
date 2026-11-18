@@ -25,20 +25,20 @@
     "Fase_E": {
       "status": "pending",
       "commit": null,
-      "description": "Precio con la escala de su columna, opción que elija David: (a) populate_existing en create_service (789 -> 792) o (b) dos decimales al entrar en ServiceCreate/ServiceUpdate, con la línea de precio de D reescrita (789 -> 796)."
+      "description": "Precio con la escala de su columna, opción (b) aprobada en E0: dos decimales al entrar en ServiceBase/ServiceUpdate (solo el Anexo E(b)), con la línea de precio de D reescrita (789 -> 796)."
     },
     "Fase_F": {
       "status": "pending",
       "commit": null,
-      "description": "BE-61: el alta de un paquete audita lo guardado (columnas del paquete guardado y URL promovidas en orden) ((a) 792 -> 793; (b) 796 -> 797)."
+      "description": "BE-61: el alta de un paquete audita lo guardado (columnas del paquete guardado y URL promovidas en orden) (796 -> 797)."
     },
     "Fase_G": {
       "status": "pending",
       "commit": null,
-      "description": "ADR-0021 (Anexo G, con el punto 8 de la opción elegida) y docstring/comentarios de app/models/audit.py ((a) 793; (b) 797)."
+      "description": "ADR-0021 (Anexo G, con el punto 8 de la opción (b)) y docstring/comentarios de app/models/audit.py (797)."
     }
   },
   "allowed_statuses": ["pending", "partial", "completed"],
-  "last_handoff": "Estado inicial. Plan completado el 18 nov a petición de la sesión Mentor (nivel de BE-37, R1 dentro de la fase D, precio como fase E con dos opciones medidas). Pendiente de aprobación de David y de su elección de precio (a) o (b); ninguna fase ejecutada.",
+  "last_handoff": "Estado inicial. Plan completado el 18 nov a petición de la sesión Mentor (nivel de BE-37, R1 dentro de la fase D, precio como fase E con dos opciones medidas). Aprobado por David con E0 (18 nov 2026, 11:02): precio con la opción (b), solo el Anexo E(b); ninguna fase ejecutada.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
