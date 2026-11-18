@@ -1,6 +1,6 @@
 {
   "plan_file": "docs/deuda/BE-38/plan.md",
-  "current_target": "Fase_B",
+  "current_target": "Fase_C",
   "phases": {
     "Fase_A": {
       "status": "completed",
@@ -8,8 +8,8 @@
       "description": "Alta administrativa: create_user antes de log_transaction, entity_id de la cuenta guardada; 2 casos unitarios (757 -> 759)."
     },
     "Fase_B": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "dc7195d",
       "description": "audit_value y changed_fields en audit_service.py; PATCH /usuarios audita solo lo que cambia como old/new; 10 casos nuevos y 10 tests de formato reescritos (759 -> 769)."
     },
     "Fase_C": {
@@ -39,6 +39,6 @@
     }
   },
   "allowed_statuses": ["pending", "partial", "completed"],
-  "last_handoff": "Fase A completada (9d89f8e): create_user antes de log_transaction con entity_id=saved_user.cedula; RED 2 failed/757 passed, GREEN 759 passed · 98,50 %, M4 muere; sin desviaciones (handoff-A.md).",
+  "last_handoff": "Fase B completada (dc7195d): changed_fields/audit_value en audit_service.py; PATCH /usuarios audita solo lo que cambia como old/new; RED 18 failed/751 passed, GREEN 769 passed · 98,59 %, M1 y M3u mueren; sin desviaciones (handoff-B.md).",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
