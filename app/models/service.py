@@ -26,6 +26,8 @@ class TouristService(Base):
 
     Owns its images: deleting a service removes them both in the ORM
     (``delete-orphan`` cascade) and in the database (``ON DELETE CASCADE`` foreign key).
+    They load in the order they were stored (by id), so the first one is the primary
+    image and the same list reads the same on every database (ADR-0021).
     """
 
     __tablename__ = "tourist_services"
@@ -45,7 +47,9 @@ class TouristService(Base):
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     images: Mapped[list[ServiceImage]] = relationship(
-        back_populates="service", cascade="all, delete-orphan"
+        back_populates="service",
+        cascade="all, delete-orphan",
+        order_by=lambda: ServiceImage.id,
     )
 
 

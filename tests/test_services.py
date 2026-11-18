@@ -22,7 +22,7 @@ from app.core.exceptions import (
 )
 from app.core.storage import AzureStorageClient, StagedImage
 from app.main import app
-from app.models.audit import AuditLog
+from app.models.audit import AuditAction, AuditLog
 from app.models.service import ServiceCategory, ServiceImage, TouristService
 from app.models.user import UserRole
 
@@ -837,7 +837,9 @@ async def test_be37_null_on_description_still_clears_it(client, db_session, admi
     await db_session.refresh(package)
     assert package.description is None
     audits = (await db_session.execute(select(AuditLog))).scalars().all()
-    assert [audit.changes for audit in audits] == [{"description": None}]
+    assert [audit.changes for audit in audits] == [
+        {"description": {"old": "Recorrido por la reserva", "new": None}}
+    ]
 
 
 async def test_be37_null_on_image_urls_still_keeps_the_images(
@@ -858,6 +860,7 @@ async def test_be37_null_on_image_urls_still_keeps_the_images(
     classifying_storage.delete_image.assert_not_awaited()
     classifying_storage.promote_to_permanent.assert_not_awaited()
     assert await _stored_image_urls(db_session, package_id) == [PERMANENT_URL]
+    assert (await db_session.execute(select(AuditLog))).scalars().all() == []
 
 
 @pytest.mark.parametrize(
@@ -877,3 +880,223 @@ async def test_be37_package_guard_answers_before_the_null(
     assert isinstance(response.json()["detail"], str)
     await db_session.refresh(package)
     assert package.name == "Paquete De Prueba Automatizada"
+
+
+# === BE-38: a package update audits only what changes, as old and new values (ADR-0021) ===
+# Scalars are compared with the stored row before any setattr; images, as the ordered list of
+# stored URLs, with the promoted ones as new. A request that changes nothing, and activating
+# an active package or deactivating an inactive one, answer as before and write no audit row.
+
+
+async def _audit_rows(db_session) -> list[AuditLog]:
+    """Returns every audit row written so far, oldest first."""
+    result = await db_session.execute(select(AuditLog).order_by(AuditLog.id))
+    return list(result.scalars().all())
+
+
+def _columns(package: TouristService) -> tuple:
+    """Returns the columns a PUT can change, to compare them before and after."""
+    return (
+        package.name,
+        package.description,
+        package.category,
+        package.base_price,
+        package.max_capacity,
+        package.is_available,
+    )
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        pytest.param({"name": "Paquete De Prueba Automatizada"}, id="name-same"),
+        pytest.param({"name": "paquete de prueba automatizada"}, id="name-normalized"),
+        pytest.param({"base_price": 50000}, id="price-same-value"),
+        pytest.param({"is_available": True}, id="available-same"),
+        pytest.param({"description": None}, id="description-null-already-null"),
+        pytest.param({"image_urls": []}, id="empty-images-without-images"),
+    ],
+)
+async def test_be38_unchanged_package_update_returns_200_without_audit_row(
+    client, db_session, admin_headers, storage_double, payload
+):
+    """Edge case: every key sent already holds its value; 200, no CDN call and no audit row."""
+    package = await _persist_package(db_session)
+    before = _columns(package)
+
+    response = await client.put(f"/servicios/{package.id}", json=payload, headers=admin_headers)
+
+    assert response.status_code == 200
+    assert response.json()["id"] == package.id
+    await db_session.refresh(package)
+    assert _columns(package) == before
+    storage_double.delete_image.assert_not_awaited()
+    storage_double.promote_to_permanent.assert_not_awaited()
+    assert await _audit_rows(db_session) == []
+
+
+async def test_be38_resent_image_list_returns_200_without_audit_row(
+    client, db_session, admin_headers, classifying_storage
+):
+    """Edge case: the stored URLs sent again in the same order are no change (P5)."""
+    second_url = f"{CDN_BASE}/ecotur-images/second.jpg"
+    package = await _persist_package(db_session)
+    package_id = package.id
+    db_session.add_all(
+        [
+            ServiceImage(service_id=package_id, image_url=PERMANENT_URL, is_primary=True),
+            ServiceImage(service_id=package_id, image_url=second_url, is_primary=False),
+        ]
+    )
+    await db_session.commit()
+
+    response = await client.put(
+        f"/servicios/{package_id}",
+        json={"image_urls": [PERMANENT_URL, second_url]},
+        headers=admin_headers,
+    )
+
+    assert response.status_code == 200
+    urls = [image["image_url"] for image in response.json()["images"]]
+    assert urls == [PERMANENT_URL, second_url]
+    classifying_storage.delete_image.assert_not_awaited()
+    classifying_storage.promote_to_permanent.assert_not_awaited()
+    assert await _audit_rows(db_session) == []
+
+
+async def test_be38_reordered_image_list_audits_the_new_order(
+    client, db_session, admin_headers, classifying_storage
+):
+    """Edge case: the same URLs in another order are a change: the first one is the primary."""
+    second_url = f"{CDN_BASE}/ecotur-images/second.jpg"
+    package = await _persist_package(db_session)
+    package_id = package.id
+    db_session.add_all(
+        [
+            ServiceImage(service_id=package_id, image_url=PERMANENT_URL, is_primary=True),
+            ServiceImage(service_id=package_id, image_url=second_url, is_primary=False),
+        ]
+    )
+    await db_session.commit()
+
+    response = await client.put(
+        f"/servicios/{package_id}",
+        json={"image_urls": [second_url, PERMANENT_URL]},
+        headers=admin_headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["images"][0]["image_url"] == second_url
+    classifying_storage.delete_image.assert_not_awaited()
+    audits = await _audit_rows(db_session)
+    assert [a.changes for a in audits] == [
+        {"image_urls": {"old": [PERMANENT_URL, second_url], "new": [second_url, PERMANENT_URL]}}
+    ]
+
+
+async def test_be38_partial_package_change_audits_only_the_changed_field(
+    client, db_session, admin_headers
+):
+    """Happy path: of two keys sent, only the changed one is audited, with its old value."""
+    package = await _persist_package(db_session)
+
+    response = await client.put(
+        f"/servicios/{package.id}",
+        json={"name": "Paquete De Prueba Automatizada", "max_capacity": 20},
+        headers=admin_headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["max_capacity"] == 20
+    await db_session.refresh(package)
+    assert package.max_capacity == 20
+    audits = await _audit_rows(db_session)
+    assert [(a.action, a.entity_id, a.changes) for a in audits] == [
+        (AuditAction.UPDATE, str(package.id), {"max_capacity": {"old": 15, "new": 20}})
+    ]
+
+
+async def test_be38_price_change_audits_old_and_new_values(client, db_session, admin_headers):
+    """Happy path: the price is compared by value and audited as text, old and new."""
+    package = await _persist_package(db_session)
+
+    response = await client.put(
+        f"/servicios/{package.id}", json={"base_price": 60000}, headers=admin_headers
+    )
+
+    assert response.status_code == 200
+    await db_session.refresh(package)
+    assert package.base_price == Decimal("60000.00")
+    audits = await _audit_rows(db_session)
+    assert [a.changes for a in audits] == [{"base_price": {"old": "50000.00", "new": "60000"}}]
+
+
+async def test_be38_image_change_audits_the_stored_urls(
+    client, db_session, admin_headers, classifying_storage
+):
+    """Happy path: new is the list as stored, with the temporal URL already promoted (P6)."""
+    promoted_url = f"{CDN_BASE}/ecotur-images/new.jpg"
+    classifying_storage.promote_to_permanent.return_value = promoted_url
+    package = await _persist_package(db_session)
+    package_id = package.id
+    db_session.add(ServiceImage(service_id=package_id, image_url=PERMANENT_URL, is_primary=True))
+    await db_session.commit()
+
+    response = await client.put(
+        f"/servicios/{package_id}",
+        json={"image_urls": [PERMANENT_URL, TEMP_URL]},
+        headers=admin_headers,
+    )
+
+    assert response.status_code == 200
+    classifying_storage.promote_to_permanent.assert_awaited_once_with(TEMP_URL)
+    assert await _stored_image_urls(db_session, package_id) == [PERMANENT_URL, promoted_url]
+    audits = await _audit_rows(db_session)
+    assert [a.changes for a in audits] == [
+        {"image_urls": {"old": [PERMANENT_URL], "new": [PERMANENT_URL, promoted_url]}}
+    ]
+
+
+@pytest.mark.parametrize(
+    ("route", "is_available"),
+    [
+        pytest.param("activar", True, id="activate-active"),
+        pytest.param("desactivar", False, id="deactivate-inactive"),
+    ],
+)
+async def test_be38_status_route_without_change_returns_200_without_audit_row(
+    client, db_session, admin_headers, route, is_available
+):
+    """Edge case: activating an active package or deactivating an inactive one writes no row."""
+    package = await _persist_package(db_session, is_available=is_available)
+
+    response = await client.patch(f"/servicios/{package.id}/{route}", headers=admin_headers)
+
+    assert response.status_code == 200
+    assert set(response.json()) == {"success", "message"}
+    await db_session.refresh(package)
+    assert package.is_available is is_available
+    assert await _audit_rows(db_session) == []
+
+
+@pytest.mark.parametrize(
+    ("route", "is_available", "action"),
+    [
+        pytest.param("activar", False, AuditAction.ACTIVATE, id="activate-inactive"),
+        pytest.param("desactivar", True, AuditAction.DEACTIVATE, id="deactivate-active"),
+    ],
+)
+async def test_be38_status_route_with_change_audits_the_action(
+    client, db_session, admin_headers, route, is_available, action
+):
+    """Happy path: a real change of state still writes its ACTIVATE or DEACTIVATE row."""
+    package = await _persist_package(db_session, is_available=is_available)
+
+    response = await client.patch(f"/servicios/{package.id}/{route}", headers=admin_headers)
+
+    assert response.status_code == 200
+    assert response.json()["success"] is True
+    await db_session.refresh(package)
+    assert package.is_available is not is_available
+    audits = await _audit_rows(db_session)
+    assert [(a.action, a.entity_id, a.changes) for a in audits] == [(action, str(package.id), None)]

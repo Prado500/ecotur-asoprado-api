@@ -156,3 +156,11 @@ def test_service_relationships_keep_target_direction_and_cascade() -> None:
     assert service.uselist is False
     assert service.back_populates == "images"
     assert set(service.cascade) == {"save-update", "merge"}
+
+
+def test_service_images_load_in_stored_order() -> None:
+    """The images load by id, so a package lists them as stored on any database (BE-38, R1)."""
+    order_by = inspect(TouristService).relationships["images"].order_by
+
+    assert order_by is not False
+    assert [str(column) for column in order_by] == ["service_images.id"]
