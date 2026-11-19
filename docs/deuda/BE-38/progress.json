@@ -1,6 +1,6 @@
 {
   "plan_file": "docs/deuda/BE-38/plan.md",
-  "current_target": "Fase_G",
+  "current_target": null,
   "phases": {
     "Fase_A": {
       "status": "completed",
@@ -33,12 +33,12 @@
       "description": "BE-61: el alta de un paquete audita lo guardado (columnas del paquete guardado y URL promovidas en orden) (796 -> 797)."
     },
     "Fase_G": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "e3cdc4b",
       "description": "ADR-0021 (Anexo G, con el punto 8 de la opción (b)) y docstring/comentarios de app/models/audit.py (797)."
     }
   },
   "allowed_statuses": ["pending", "partial", "completed"],
-  "last_handoff": "Fase F completada (284b3af): fila CREATE de paquete con lo guardado (audit_value de las columnas y URL promovidas en orden), más E2 (el test del tercer decimal cubre ServiceCreate); RED 2 failed/795 passed, GREEN 797 passed · 98,69 %; mutantes en copias git archive 284b3af: M14, M8b, M13base y M13dpbase mueren; numstat 7 3 y 63 7, como E2.4 (handoff-F.md).",
+  "last_handoff": "Fase G completada (e3cdc4b): ADR-0021 (Anexo G en la variante (b), fecha 18 nov 2026) y comentarios de app/models/audit.py; documental, compuerta 797 passed · 98,69 %; Verificación final 1-17 conforme con las cifras (b), salvo test_services.py 348 4 en el comando 16 (336 4 + los 17 5 de E2) (handoff-G.md).",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
