@@ -1,0 +1,44 @@
+{
+  "plan_file": "docs/deuda/BE-38/plan.md",
+  "current_target": null,
+  "phases": {
+    "Fase_A": {
+      "status": "completed",
+      "commit": "9d89f8e",
+      "description": "Alta administrativa: create_user antes de log_transaction, entity_id de la cuenta guardada; 2 casos unitarios (757 -> 759)."
+    },
+    "Fase_B": {
+      "status": "completed",
+      "commit": "dc7195d",
+      "description": "audit_value y changed_fields en audit_service.py; PATCH /usuarios audita solo lo que cambia como old/new; 10 casos nuevos y 10 tests de formato reescritos (759 -> 769)."
+    },
+    "Fase_C": {
+      "status": "completed",
+      "commit": "2ef12e7",
+      "description": "Verificación de correo: UPDATE de is_active con la propia cuenta como autora, ignora cuentas borradas; activate_user se borra (769 -> 773)."
+    },
+    "Fase_D": {
+      "status": "completed",
+      "commit": "53ea731",
+      "description": "PUT /servicios y activar/desactivar: solo lo que cambia, imágenes como lista ordenada de URL definitivas; order_by en TouristService.images (R1); 16 casos (773 -> 789)."
+    },
+    "Fase_E": {
+      "status": "completed",
+      "commit": "1d9752e",
+      "description": "Precio con la escala de su columna, opción (b) aprobada en E0: dos decimales al entrar en ServiceBase/ServiceUpdate (solo el Anexo E(b)), con la línea de precio de D reescrita (789 -> 796)."
+    },
+    "Fase_F": {
+      "status": "completed",
+      "commit": "284b3af",
+      "description": "BE-61: el alta de un paquete audita lo guardado (columnas del paquete guardado y URL promovidas en orden) (796 -> 797)."
+    },
+    "Fase_G": {
+      "status": "completed",
+      "commit": "e3cdc4b",
+      "description": "ADR-0021 (Anexo G, con el punto 8 de la opción (b)) y docstring/comentarios de app/models/audit.py (797)."
+    }
+  },
+  "allowed_statuses": ["pending", "partial", "completed"],
+  "last_handoff": "Fase G completada (e3cdc4b): ADR-0021 (Anexo G en la variante (b), fecha 18 nov 2026) y comentarios de app/models/audit.py; documental, compuerta 797 passed · 98,69 %; Verificación final 1-17 conforme con las cifras (b), salvo test_services.py 348 4 en el comando 16 (336 4 + los 17 5 de E2) (handoff-G.md).",
+  "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
+}

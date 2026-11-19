@@ -22,7 +22,7 @@ from app.models.user import User, UserRole
 from app.repositories.user_repository import UserRepository
 from app.schemas.token import TokenResponse
 from app.schemas.user import UserCreate, UserCreateByAdmin, UserLogin, UserUpdate
-from app.services.audit_service import AuditService
+from app.services.audit_service import AuditService, changed_fields
 from app.services.user_access_policy import UserAccessPolicy
 
 
@@ -109,6 +109,10 @@ class UserService:
     async def verify_email_account(self, token: str) -> dict:
         """Decodes the verification token and activates the user account.
 
+        The activation is audited as the same UPDATE of is_active an admin would write,
+        with the account as its own author. An account already active is left as it is
+        and writes no audit row; a soft-deleted account is never reached (ADR-0021).
+
         Args:
             token (str): Single-use JWT issued during registration.
 
@@ -118,7 +122,7 @@ class UserService:
         Raises:
             InvalidVerificationTokenError: Token corrupted, expired or
                 carrying an unexpected scope.
-            NotFoundError: No user matches the token subject.
+            NotFoundError: No non-deleted account matches the token subject.
         """
         settings = get_settings()
         try:
@@ -138,10 +142,22 @@ class UserService:
         if email is None or scope != EMAIL_VERIFICATION_SCOPE:
             raise InvalidVerificationTokenError("Token de verificación inválido.")
 
-        activation_success = await self.user_repo.activate_user(email)
+        user = await self.user_repo.get_non_deleted_user_by_email(email)
 
-        if not activation_success:
+        if user is None:
             raise NotFoundError("Usuario no encontrado.")
+
+        changes = changed_fields(user, {"is_active": True})
+        if changes:
+            user.is_active = True
+            await self.user_repo.save_user(user)
+            await self.audit_service.log_transaction(
+                entity_name="User",
+                entity_id=user.cedula,
+                action=AuditAction.UPDATE,
+                performed_by=user.cedula,
+                changes=changes,
+            )
 
         return {
             "success": True,
@@ -261,6 +277,8 @@ class UserService:
         One exception to the rank rule: a superadmin may reactivate another
         superadmin outside the recycle bin, sending is_active true and nothing
         else (ADR-0018).
+        Only the fields whose value changes are audited, as old and new values;
+        a request that changes nothing writes no audit row (ADR-0021).
 
         Args:
             target_cedula (str): The primary identifier of the account to update.
@@ -286,18 +304,21 @@ class UserService:
         # 2. ABAC Hierarchical + Fail-Safe Invariants delegated to the access policy
         self.user_access_policy.assert_can_update(current_user, target_user, update_dict)
 
-        # 3. Apply Scalar Mutations
+        # 3. What actually changes, compared with the stored values before any setattr
+        changes = changed_fields(target_user, update_data.model_dump(exclude_unset=True))
+
+        # 4. Apply Scalar Mutations
         for key, value in update_dict.items():
             setattr(target_user, key, value)
 
-        # 4. Log Registry
-        if update_dict:
+        # 5. Log Registry
+        if changes:
             await self.audit_service.log_transaction(
                 entity_name="User",
                 entity_id=target_cedula,
                 action=AuditAction.UPDATE,
                 performed_by=current_user.cedula,
-                changes=update_dict,
+                changes=changes,
             )
 
         return await self.user_repo.save_user(target_user)
@@ -387,7 +408,8 @@ class UserService:
 
         The caller is a superadmin: the route's guard decided it (ADR-0012,
         point 1), so the service checks no role. The account is created
-        instantly without requiring email verification.
+        instantly without requiring email verification. It is created before its
+        audit entry, so a failed insert leaves no CREATE row (ADR-0021).
 
         Args:
             user_data (UserCreateByAdmin): DTO containing profile and explicit role definitions.
@@ -422,12 +444,14 @@ class UserService:
             is_active=user_data.is_active,
         )
 
+        saved_user = await self.user_repo.create_user(new_user)
+
         await self.audit_service.log_transaction(
             entity_name="User",
-            entity_id=user_data.cedula,
+            entity_id=saved_user.cedula,
             action=AuditAction.CREATE,
             performed_by=current_user.cedula,
             changes={"role": user_data.role.value},
         )
 
-        return await self.user_repo.create_user(new_user)
+        return saved_user

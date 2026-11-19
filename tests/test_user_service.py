@@ -6,7 +6,7 @@ from unittest.mock import create_autospec
 
 import jwt
 import pytest
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, OperationalError, SQLAlchemyError
 
 from app.core.config import get_settings
 from app.core.exceptions import (
@@ -260,9 +260,10 @@ async def test_authenticate_inactive_account_raises_account_not_active(
 # ==========================================
 
 
-async def test_verify_email_activates_account(user_repo, user_service):
-    """Happy path: a valid token activates the account and returns success."""
-    user_repo.activate_user.return_value = True
+async def test_verify_email_activates_account(user_repo, audit_service, user_service, make_user):
+    """Happy path: a valid token activates the account and audits it as its own UPDATE."""
+    user = make_user(email="turista@example.com", is_active=False)
+    user_repo.get_non_deleted_user_by_email.return_value = user
 
     result = await user_service.verify_email_account(
         create_verification_token("turista@example.com")
@@ -270,7 +271,34 @@ async def test_verify_email_activates_account(user_repo, user_service):
 
     assert result["success"] is True
     assert "message" in result
-    user_repo.activate_user.assert_awaited_once_with("turista@example.com")
+    assert user.is_active is True
+    user_repo.get_non_deleted_user_by_email.assert_awaited_once_with("turista@example.com")
+    user_repo.save_user.assert_awaited_once_with(user)
+    audit_service.log_transaction.assert_awaited_once_with(
+        entity_name="User",
+        entity_id=user.cedula,
+        action=AuditAction.UPDATE,
+        performed_by=user.cedula,
+        changes={"is_active": {"old": False, "new": True}},
+    )
+
+
+async def test_verify_email_on_active_account_writes_nothing(
+    user_repo, audit_service, user_service, make_user
+):
+    """Edge case: an account already active is left as it is: no save and no audit row."""
+    user_repo.get_non_deleted_user_by_email.return_value = make_user(
+        email="turista@example.com", is_active=True
+    )
+
+    result = await user_service.verify_email_account(
+        create_verification_token("turista@example.com")
+    )
+
+    assert result["success"] is True
+    user_repo.get_non_deleted_user_by_email.assert_awaited_once_with("turista@example.com")
+    user_repo.save_user.assert_not_awaited()
+    audit_service.log_transaction.assert_not_awaited()
 
 
 async def test_verify_email_corrupt_token_raises_invalid_verification_token(
@@ -280,7 +308,7 @@ async def test_verify_email_corrupt_token_raises_invalid_verification_token(
     with pytest.raises(InvalidVerificationTokenError):
         await user_service.verify_email_account("not-a-jwt")
 
-    user_repo.activate_user.assert_not_awaited()
+    user_repo.get_non_deleted_user_by_email.assert_not_awaited()
 
 
 async def test_verify_email_expired_token_raises_invalid_verification_token(
@@ -296,7 +324,7 @@ async def test_verify_email_expired_token_raises_invalid_verification_token(
         await user_service.verify_email_account(expired_token)
 
     assert type(exc_info.value.__cause__) is jwt.ExpiredSignatureError
-    user_repo.activate_user.assert_not_awaited()
+    user_repo.get_non_deleted_user_by_email.assert_not_awaited()
 
 
 async def test_verify_email_wrong_scope_raises_invalid_verification_token(
@@ -308,7 +336,7 @@ async def test_verify_email_wrong_scope_raises_invalid_verification_token(
     with pytest.raises(InvalidVerificationTokenError):
         await user_service.verify_email_account(wrong_scope_token)
 
-    user_repo.activate_user.assert_not_awaited()
+    user_repo.get_non_deleted_user_by_email.assert_not_awaited()
 
 
 async def test_verify_email_rejects_access_token_whose_data_names_the_verification_scope(
@@ -322,15 +350,19 @@ async def test_verify_email_rejects_access_token_whose_data_names_the_verificati
     with pytest.raises(InvalidVerificationTokenError):
         await user_service.verify_email_account(forged_token)
 
-    user_repo.activate_user.assert_not_awaited()
+    user_repo.get_non_deleted_user_by_email.assert_not_awaited()
 
 
-async def test_verify_email_missing_user_raises_not_found(user_repo, user_service):
-    """Unhappy path: a valid token for a missing account maps to the 404 domain error."""
-    user_repo.activate_user.return_value = False
+async def test_verify_email_missing_user_raises_not_found(user_repo, audit_service, user_service):
+    """Unhappy path: a valid token with no non-deleted account behind it is the 404 error."""
+    user_repo.get_non_deleted_user_by_email.return_value = None
 
     with pytest.raises(NotFoundError):
         await user_service.verify_email_account(create_verification_token("ghost@example.com"))
+
+    user_repo.get_non_deleted_user_by_email.assert_awaited_once_with("ghost@example.com")
+    user_repo.save_user.assert_not_awaited()
+    audit_service.log_transaction.assert_not_awaited()
 
 
 # ==========================================
@@ -343,11 +375,13 @@ async def test_create_administrative_account_provisions_admin(
 ):
     """Happy path: a superadmin provisions an admin account in a single persistence call."""
     user_repo.get_user_by_email_or_cedula.return_value = None
+    user_repo.create_user.side_effect = lambda user: user
     actor = make_user(role=UserRole.superadmin)
 
-    await user_service.create_administrative_account(_admin_payload(), actor)
+    result = await user_service.create_administrative_account(_admin_payload(), actor)
 
     created_user = user_repo.create_user.call_args.args[0]
+    assert result is created_user
     assert created_user.role == UserRole.admin
     assert created_user.cedula == "5555555555"
     assert created_user.is_active is True
@@ -397,6 +431,41 @@ async def test_create_administrative_account_lookup_failure_writes_nothing(
     )
     audit_service.log_transaction.assert_not_awaited()
     user_repo.create_user.assert_not_awaited()
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        pytest.param(
+            IntegrityError("INSERT INTO users", {}, Exception("UNIQUE constraint failed")),
+            id="race-on-unique-index",
+        ),
+        pytest.param(
+            OperationalError("INSERT INTO users", {}, Exception("database is locked")),
+            id="database-failure",
+        ),
+    ],
+)
+async def test_create_administrative_account_insert_failure_writes_no_audit_row(
+    user_repo, audit_service, user_service, make_user, error
+):
+    """Unhappy path: a failed insert leaves no CREATE row behind (ADR-0021).
+
+    The race on the unique indexes (409) and a database failure (500) are not reproducible
+    over HTTP without replacing the repository, so the double raises them here.
+    """
+    user_repo.get_user_by_email_or_cedula.return_value = None
+    user_repo.create_user.side_effect = error
+
+    with pytest.raises(type(error)):
+        await user_service.create_administrative_account(
+            _admin_payload(), make_user(role=UserRole.superadmin)
+        )
+
+    created_user = user_repo.create_user.call_args.args[0]
+    assert created_user.cedula == "5555555555"
+    user_repo.create_user.assert_awaited_once_with(created_user)
+    audit_service.log_transaction.assert_not_awaited()
 
 
 # ==========================================

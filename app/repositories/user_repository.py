@@ -51,19 +51,6 @@ class UserRepository:
         await self.db.refresh(user)
         return user
 
-    async def activate_user(self, email: str) -> bool:
-        """Mutates the user's is_active state to True. Returns False if user is not found."""
-        stmt = select(User).where(User.email == email)
-        result = await self.db.execute(stmt)
-        user = result.scalars().first()
-
-        if not user:
-            return False
-
-        user.is_active = True
-        await self.db.commit()
-        return True
-
     async def soft_delete_user(self, cedula: str) -> User | None:
         """Applies logical deletion by stamping the current UTC time on deleted_at.
 

@@ -8,7 +8,7 @@ from app.models.service import ServiceImage, TouristService
 from app.models.user import User
 from app.repositories.service_repository import ServiceRepository
 from app.schemas.service import ServiceCreate, ServiceUpdate
-from app.services.audit_service import AuditService
+from app.services.audit_service import AuditService, audit_value, changed_fields
 
 
 class TouristServicesService:
@@ -30,7 +30,9 @@ class TouristServicesService:
         """Creates a package, promoting its staged images to the permanent container.
 
         A new package only accepts blobs of the temporal container (uploaded first through
-        the staging endpoint); any other URL is rejected before touching the CDN.
+        the staging endpoint); any other URL is rejected before touching the CDN. The CREATE
+        row records the package as stored: its saved columns and its promoted image URLs, in
+        order (ADR-0021).
 
         Args:
             package_data: Validated creation payload, including the image URLs.
@@ -67,12 +69,14 @@ class TouristServicesService:
 
         saved = await self.service_repo.create_service(new_tourist_service)
 
+        stored = {field: audit_value(getattr(saved, field)) for field in tourist_service_data}
+        stored["image_urls"] = [image.image_url for image in saved.images]
         await self.audit_service.log_transaction(
             entity_name="TouristService",
             entity_id=str(saved.id),
             action=AuditAction.CREATE,
             performed_by=current_user.cedula,
-            changes=package_data.model_dump(mode="json"),
+            changes=stored,
         )
 
         return saved
@@ -108,6 +112,8 @@ class TouristServicesService:
         """Mutates the public availability state of a specific non-soft-deleted package.
 
         Transitions a package between the 'Por Activar' and 'Activos' columns.
+        Activating an active package or deactivating an inactive one changes nothing
+        and writes no audit row (ADR-0021).
 
         Args:
             service_id (int): The unique identifier of the package.
@@ -125,18 +131,19 @@ class TouristServicesService:
         if not service:
             raise NotFoundError(detail="Paquete no encontrado.")
 
-        service.is_available = is_available
-        await self.service_repo.save_service(service)
-
-        action = AuditAction.ACTIVATE if is_available else AuditAction.DEACTIVATE
-        await self.audit_service.log_transaction(
-            entity_name="TouristService",
-            entity_id=str(service_id),
-            action=action,
-            performed_by=current_user.cedula,
-        )
-
         estado = "activado" if is_available else "desactivado"
+
+        if service.is_available != is_available:
+            service.is_available = is_available
+            await self.service_repo.save_service(service)
+
+            action = AuditAction.ACTIVATE if is_available else AuditAction.DEACTIVATE
+            await self.audit_service.log_transaction(
+                entity_name="TouristService",
+                entity_id=str(service_id),
+                action=action,
+                performed_by=current_user.cedula,
+            )
 
         return {"success": True, "message": f"El paquete ha sido {estado} exitosamente."}
 
@@ -255,6 +262,9 @@ class TouristServicesService:
         Implements SQLAlchemy's 'delete-orphan' cascade by clearing the image
         relationship array and re-instantiating it, ensuring absolute sync
         with the incoming payload.
+        Only the fields whose value changes are audited, as old and new values; the
+        images count as the ordered list of stored URLs, with the promoted ones as new.
+        A request that changes nothing writes no audit row (ADR-0021).
 
         Args:
             service_id (int): The target package ID.
@@ -278,8 +288,9 @@ class TouristServicesService:
                 detail="Paquete no encontrado. Está deshabilitado (deleted_at != None) o no exíste."
             )
 
-        # 1. Update primitive fields (Scalar Mutation)
+        # 1. Update primitive fields (Scalar Mutation), once what changes is read
         update_dict = update_data.model_dump(exclude_unset=True, exclude={"image_urls"})
+        changes = changed_fields(service, update_dict)
         for key, value in update_dict.items():
             setattr(service, key, value)
 
@@ -309,6 +320,7 @@ class TouristServicesService:
                 )
 
             # 2.3 Set up image comparison basis and delete removed images (if there's any)
+            old_urls = [image.image_url for image in service.images]
             old_images_urls = {str(img.image_url) for img in service.images}
             urls_to_delete = old_images_urls - set(raw_urls)
 
@@ -333,15 +345,18 @@ class TouristServicesService:
                 nueva_imagen = ServiceImage(image_url=str(url), is_primary=(idx == 0))
                 service.images.append(nueva_imagen)
 
-        # 3. Register changes made on audit table
-        payload_changes = update_data.model_dump(mode="json", exclude_unset=True)
-        if payload_changes:
+            # 2.8 The images change when the ordered list of stored URLs does
+            if definitive_urls != old_urls:
+                changes["image_urls"] = {"old": old_urls, "new": definitive_urls}
+
+        # 3. Register what changed on the audit table
+        if changes:
             await self.audit_service.log_transaction(
                 entity_name="TouristService",
                 entity_id=str(service_id),
                 action=AuditAction.UPDATE,
                 performed_by=current_user.cedula,
-                changes=payload_changes,
+                changes=changes,
             )
 
         return await self.service_repo.save_service(service)

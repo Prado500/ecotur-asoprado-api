@@ -24,15 +24,15 @@ class AuditAction(str, enum.Enum):  # noqa: UP042 (backlog D2)
 class AuditLog(Base):
     """SQLAlchemy domain model for the Audit Trail ecosystem.
 
-    Utilizes PostgreSQL's native JSONB data type to store structural
-    snapshots of domain entities regardless of their rigid schema.
+    changes holds, on UPDATE, {field: {"old": ..., "new": ...}} for the fields that
+    changed; on CREATE, the values of the new row; on any other action, None (ADR-0021).
     """
 
     __tablename__ = "audit_logs"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
 
-    # "User" o "TouristService"
+    # "User" or "TouristService"
     entity_name: Mapped[str] = mapped_column(String(50), index=True)
 
     # String to gracefully support both INT (Service ID) and VARCHAR (Cedula)
@@ -40,7 +40,7 @@ class AuditLog(Base):
 
     action: Mapped[AuditAction] = mapped_column(Enum(AuditAction, name="audit_action_enum"))
 
-    # Dictionary snapshot containing 'old_values' and 'new_values'
+    # UPDATE: {field: {"old", "new"}}; CREATE: the values of the new row (ADR-0021)
     changes: Mapped[dict[str, Any] | None] = mapped_column(JSON().with_variant(JSONB, "postgresql"))
 
     # The 'cedula' of the administrator who triggered the transaction
