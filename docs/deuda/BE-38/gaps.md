@@ -295,3 +295,66 @@ Evidencia de lo comprobado (contexto fresco; el relato del handoff no se tomó c
   `GET` y valor guardado. El borde del tercer decimal afirma `loc`, no texto. Nada en español en las aserciones;
   docstrings en inglés.
 - No es la última fase: la "Verificación final" completa no aplica.
+
+## Auditoría Fase F — 2026-11-18
+**Veredicto Fase F: PASS (0 bloqueantes, 1 opcionales).**
+
+[OPCIONAL] — Fase F — El mensaje de `284b3af` es el del plan (l.482-491) más un párrafo, no idéntico byte a byte:
+E2.1 pide añadir la viñeta `  - tests/test_services.py: the third-decimal guard also covers ServiceCreate.` "al final
+de la lista", y el mensaje que el plan dicta para F no tiene lista. El ejecutor la puso como último párrafo del cuerpo,
+antes de `Co-Authored-By`, y lo declaró en `handoff-F.md` ("Desviaciones"). Es la lectura más cercana de una
+instrucción que no se puede seguir al pie de la letra: el texto de la viñeta es el literal de E2.1, el resto del
+mensaje coincide con el del plan (`diff` del plan contra `git log -1 --format=%B 284b3af`: solo cambian las dos líneas
+añadidas, la viñeta y una línea en blanco) y el tipo y el asunto (`fix(services): audit a new package as stored
+(BE-61)`) son exactos. No es "mensaje de commit distinto": lo que E2 añadió está y el resto no cambió. No exige
+corrección (reescribir el commit exigiría `rebase`, prohibido por AGENTS §9). Destino: ninguno; si acaso, que un plan
+futuro que mande añadir una viñeta diga dónde va cuando el mensaje no tiene lista.
+
+Evidencia de lo comprobado (contexto fresco; el relato del handoff no se tomó como evidencia):
+
+- Árbol: `git status --short` vacío antes de auditar, después de la compuerta y después de los mutantes;
+  `git diff --quiet HEAD -- app tests` → 0. HEAD `0d000bb`, padre `284b3af`, cuyo padre es `018f8de` (auditoría de E).
+  `git diff --stat 018f8de 0d000bb` → los dos archivos de la fase más `handoff-F.md` y `progress.json`.
+- `progress.json`: JSON válido (`json.load`); `Fase_F` `completed` con `284b3af` (`git show --stat` → commit real, los
+  dos archivos de la fase, `70 insertions(+), 10 deletions(-)`); `current_target` `Fase_G`; `last_handoff` presente;
+  `edit_rules` sin cambio (`git show 0d000bb -- progress.json` solo toca `current_target`, `status`, `commit` y
+  `last_handoff`).
+- Compuerta (`./venv/Scripts/python.exe scripts/check.py`, exit 0): `71 files already formatted` · `All checks passed!` ·
+  `Success: no issues found in 66 source files` · `Contracts: 4 kept, 0 broken.` · `TOTAL 1066 10 154 6 98.69%` ·
+  `797 passed, 25 warnings`. Coincide con la cifra (b) del plan para F (797 · 98,69 %, E0.2 y E2.4) y con el handoff.
+  Supera la línea base de la verificación (757 · 98,49 % · ruff 0 · mypy 0 · 4 kept) y no baja respecto de E (98,69 %).
+  Sobre los dos archivos tocados: `ruff check` → `All checks passed!`, `ruff format --check` → `2 files already
+  formatted`, `mypy` → `Success: no issues found in 2 source files`.
+- Plan contra commit: `numstat` `7 3` (`app/services/tourist_services_service.py`) y `63 7` (`tests/test_services.py`),
+  el primero como la tabla de fases y el segundo como E2.4 (`46 2` → `63 7`). Las 80 líneas `+`/`-` de
+  `git show 284b3af` son idénticas, ordenadas, a las del Anexo F más el diff de E2 (`diff` sin salida). Solo cambian
+  esos dos archivos. Cambios exactos presentes: import de `audit_value`; `stored = {field:
+  audit_value(getattr(saved, field)) for field in tourist_service_data}`; `stored["image_urls"] = [image.image_url for
+  image in saved.images]`; `changes=stored`; dos líneas de docstring (tres líneas físicas, como el Anexo F). Orden de
+  E2.7 respetado: el bloque `# === BE-61` queda al final del archivo, tras `test_be38_schema_keeps_rejecting_a_third_decimal`.
+- Tests: `test_create_package_promotes_temporal_url` afirma la fila `CREATE` completa (`"base_price": "50000.00"`,
+  `"image_urls": [PERMANENT_URL]`) y amplía su docstring; `test_be61_create_audits_every_promoted_url_in_order` existe;
+  `test_be38_schema_keeps_rejecting_a_third_decimal` recorre `ServiceCreate` y `ServiceUpdate` (E2). Los tres pasan.
+  RED medido por el auditor (copia `git archive 284b3af` con `app/services/tourist_services_service.py` de `018f8de`):
+  `2 failed, 795 passed`, los dos tests citados, como el plan con (b).
+- Mutantes (E1: una copia `git archive 284b3af | tar -x` por mutante en el scratchpad; `diff -ru --strip-trailing-cr`
+  contra una copia prístina muestra solo la línea o el bloque mutado; suite completa con el Python del venv por ruta y
+  cwd = la copia; la prístina da `797 passed`):
+  - M14 (`stored["image_urls"]` con las URL del cuerpo, `[str(u) for u in package_data.image_urls]`) → `2 failed, 795
+    passed`: `test_create_package_promotes_temporal_url` y `test_be61_create_audits_every_promoted_url_in_order`. Muere.
+  - M8b (sin el `format_base_price` de `ServiceBase`) → `3 failed, 794 passed`: la fila `CREATE` y
+    `create_answers…[integer]` y `[one-decimal]`. Muere, ahora también por la fila, como dice el criterio de F.
+  - M13base (`format_base_price` de `ServiceBase` con `mode="before"` y `return v if v is None else
+    Decimal(str(v)).quantize(_CENTS)`) → `1 failed, 796 passed`: `test_be38_schema_keeps_rejecting_a_third_decimal`.
+    Muere (E2.5); en E vivía (`796 passed`).
+  - M13dpbase (sin `decimal_places=2` en `ServiceBase.base_price`) → `1 failed, 796 passed`, mismo test. Muere (E2.5);
+    en E vivía. El opcional de la auditoría de E queda atendido por `284b3af`.
+- Verificación final, comandos que ya aplican tras F: comando 1 (`log_transaction(` en `app`) → 13 líneas; comando 11 →
+  `app/schemas/service.py:11`, `:61`, `:147`, como (b); comando 14, `-k "be38 or be61"` → `36 passed, 761 deselected`,
+  como (b).
+- AGENTS: sin capas nuevas ni excepciones de dominio nuevas (4 kept). El servicio sigue sin importar FastAPI. Los tests
+  HTTP usan las fixtures centrales (`client`, `db_session`, `admin_headers`, `storage_double` con `autospec`) y los
+  ayudantes existentes (`_create_payload`, `_audit_rows`); afirman código HTTP, URL de la respuesta, llamadas al doble
+  con argumentos y en orden (`await_args_list`) y la fila `CREATE` completa. Los valores en español de la fila son datos
+  guardados del payload, no texto humano de un mensaje; el test de E2 afirma `loc`, no texto. Docstrings en inglés.
+- No es la última fase (queda G): la "Verificación final" completa no aplica.
