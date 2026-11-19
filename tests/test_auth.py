@@ -103,16 +103,17 @@ async def test_verify_email_endpoint_activates_account(client, db_session, persi
 
     await db_session.refresh(user)
     assert user.is_active is True
+    assert user.email_verified_at is not None
     audits = (await db_session.execute(select(AuditLog))).scalars().all()
     assert [(a.action, a.entity_id, a.performed_by, a.changes) for a in audits] == [
         (AuditAction.UPDATE, user.cedula, user.cedula, {"is_active": {"old": False, "new": True}})
     ]
 
 
-async def test_be38_verify_email_on_active_account_returns_200_without_audit_row(
+async def test_verify_email_on_account_an_admin_activated_fills_the_mark_without_audit_row(
     client, db_session, persist_user
 ):
-    """Edge case: the link of an account already active changes nothing and writes no row."""
+    """Edge case: on an account already active the link fills the mark and writes no row."""
     user = await persist_user(is_active=True)
     token = create_verification_token(user.email)
 
@@ -122,6 +123,7 @@ async def test_be38_verify_email_on_active_account_returns_200_without_audit_row
     assert response.json()["success"] is True
     await db_session.refresh(user)
     assert user.is_active is True
+    assert user.email_verified_at is not None
     assert (await db_session.execute(select(AuditLog))).scalars().all() == []
 
 
@@ -144,31 +146,160 @@ async def test_be38_verify_email_on_deleted_account_returns_404_without_mutation
     assert (await db_session.execute(select(AuditLog))).scalars().all() == []
 
 
-async def test_be38_verify_email_after_admin_deactivation_writes_an_audit_row(
+async def test_verify_email_after_admin_deactivation_of_an_unverified_account_activates_it(
     client, db_session, persist_user, make_auth_headers
 ):
-    """Edge case: the link still reactivates an account an admin deactivated, now in the trail.
+    """Edge case: an account that never used its link finishes its registration with it.
 
-    That the link can do it at all is BE-50; here only its audit row is frozen.
+    An admin activated it by hand and deactivated it; its mark is still empty, so the link
+    activates it, and the activation is the account's own row (ADR-0022).
     """
     admin = await persist_user(role=UserRole.admin)
-    tourist = await persist_user()
+    tourist = await persist_user(is_active=False)
     token = create_verification_token(tourist.email)
+    headers = make_auth_headers(admin)
 
+    activated = await client.patch(
+        f"/usuarios/{tourist.cedula}", json={"is_active": True}, headers=headers
+    )
     deactivated = await client.patch(
-        f"/usuarios/{tourist.cedula}", json={"is_active": False}, headers=make_auth_headers(admin)
+        f"/usuarios/{tourist.cedula}", json={"is_active": False}, headers=headers
     )
     verified = await client.get(f"/usuarios/verificar-email?token={token}")
 
-    assert deactivated.status_code == 200
-    assert verified.status_code == 200
+    assert activated.status_code == deactivated.status_code == verified.status_code == 200
     await db_session.refresh(tourist)
     assert tourist.is_active is True
+    assert tourist.email_verified_at is not None
     audits = (await db_session.execute(select(AuditLog).order_by(AuditLog.id))).scalars().all()
     assert [(a.entity_id, a.performed_by, a.changes) for a in audits] == [
+        (tourist.cedula, admin.cedula, {"is_active": {"old": False, "new": True}}),
         (tourist.cedula, admin.cedula, {"is_active": {"old": True, "new": False}}),
         (tourist.cedula, tourist.cedula, {"is_active": {"old": False, "new": True}}),
     ]
+
+
+async def test_link_used_again_after_admin_deactivation_keeps_the_account_inactive(
+    client, db_session, persist_user, make_auth_headers
+):
+    """Unhappy path: once the link verified the email, only an admin moves is_active."""
+    admin = await persist_user(role=UserRole.admin)
+    tourist = await persist_user(is_active=False)
+    url = f"/usuarios/verificar-email?token={create_verification_token(tourist.email)}"
+
+    first = await client.get(url)
+    deactivated = await client.patch(
+        f"/usuarios/{tourist.cedula}", json={"is_active": False}, headers=make_auth_headers(admin)
+    )
+    second = await client.get(url)
+
+    assert first.status_code == deactivated.status_code == second.status_code == 200
+    assert second.json()["success"] is True
+    assert second.json()["message"] != first.json()["message"]
+    await db_session.refresh(tourist)
+    assert tourist.is_active is False
+    assert tourist.email_verified_at is not None
+    audits = (await db_session.execute(select(AuditLog).order_by(AuditLog.id))).scalars().all()
+    assert [(a.entity_id, a.performed_by, a.changes) for a in audits] == [
+        (tourist.cedula, tourist.cedula, {"is_active": {"old": False, "new": True}}),
+        (tourist.cedula, admin.cedula, {"is_active": {"old": True, "new": False}}),
+    ]
+
+
+async def test_second_click_on_the_link_changes_nothing_and_answers_another_message(
+    client, db_session, persist_user
+):
+    """Edge case: the second click succeeds without writing, and its message is another one."""
+    user = await persist_user(is_active=False)
+    url = f"/usuarios/verificar-email?token={create_verification_token(user.email)}"
+
+    first = await client.get(url)
+    await db_session.refresh(user)
+    verified_at = user.email_verified_at
+    second = await client.get(url)
+
+    assert first.status_code == second.status_code == 200
+    assert set(first.json()) == set(second.json()) == {"success", "message"}
+    assert second.json()["success"] is True
+    assert second.json()["message"] != first.json()["message"]
+    await db_session.refresh(user)
+    assert user.is_active is True
+    assert verified_at is not None
+    assert user.email_verified_at == verified_at
+    assert len((await db_session.execute(select(AuditLog))).scalars().all()) == 1
+
+
+async def test_link_finishes_the_registration_of_a_recovered_account(
+    client, db_session, persist_user, make_auth_headers
+):
+    """Edge case: an account that never used its link, deleted and recovered, ends its sign-up.
+
+    The declared exception to "a recovered account waits for an admin" (ADR-0022).
+    """
+    admin = await persist_user(role=UserRole.admin)
+    tourist = await persist_user(is_active=False, deleted_at=datetime.now(UTC))
+    token = create_verification_token(tourist.email)
+
+    recovered = await client.patch(
+        f"/usuarios/{tourist.cedula}/recuperar", headers=make_auth_headers(admin)
+    )
+    verified = await client.get(f"/usuarios/verificar-email?token={token}")
+
+    assert recovered.status_code == verified.status_code == 200
+    assert verified.json()["success"] is True
+    await db_session.refresh(tourist)
+    assert tourist.deleted_at is None
+    assert tourist.is_active is True
+    assert tourist.email_verified_at is not None
+    audits = (await db_session.execute(select(AuditLog).order_by(AuditLog.id))).scalars().all()
+    assert [(a.action, a.performed_by) for a in audits] == [
+        (AuditAction.RECOVER, admin.cedula),
+        (AuditAction.UPDATE, tourist.cedula),
+    ]
+
+
+async def test_link_does_not_activate_a_recovered_account_that_was_verified(
+    client, db_session, persist_user, make_auth_headers
+):
+    """Unhappy path: a verified account, deleted and recovered, still waits for an admin."""
+    admin = await persist_user(role=UserRole.admin)
+    tourist = await persist_user(
+        is_active=False, deleted_at=datetime.now(UTC), email_verified_at=datetime.now(UTC)
+    )
+    token = create_verification_token(tourist.email)
+
+    recovered = await client.patch(
+        f"/usuarios/{tourist.cedula}/recuperar", headers=make_auth_headers(admin)
+    )
+    verified = await client.get(f"/usuarios/verificar-email?token={token}")
+
+    assert recovered.status_code == verified.status_code == 200
+    assert verified.json()["success"] is True
+    await db_session.refresh(tourist)
+    assert tourist.deleted_at is None
+    assert tourist.is_active is False
+    audits = (await db_session.execute(select(AuditLog))).scalars().all()
+    assert [a.action for a in audits] == [AuditAction.RECOVER]
+
+
+async def test_admin_patch_cannot_fill_the_verification_mark(
+    client, db_session, persist_user, make_auth_headers
+):
+    """Edge case: no admin action writes the mark, and no response shows it (ADR-0022)."""
+    admin = await persist_user(role=UserRole.admin)
+    tourist = await persist_user(is_active=False)
+
+    response = await client.patch(
+        f"/usuarios/{tourist.cedula}",
+        json={"is_active": True, "email_verified_at": "2026-11-19T12:00:00Z"},
+        headers=make_auth_headers(admin),
+    )
+
+    assert response.status_code == 200
+    assert "email_verified_at" not in response.json()
+    await db_session.refresh(tourist)
+    assert tourist.is_active is True
+    assert tourist.email_verified_at is None
 
 
 async def test_verify_email_invalid_token_returns_400(client):

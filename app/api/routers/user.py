@@ -80,14 +80,17 @@ async def registrar_turista(
 
 @public_router.get("/verificar-email", status_code=status.HTTP_200_OK)
 async def verificar_cuenta(token: str, user_service: UserService = Depends(get_user_service)):
-    """Public endpoint: Activates a user account via the emailed verification token.
+    """Public endpoint: verifies the account's email with the emailed token.
+
+    The first use fills the account's verification mark and activates the account if it
+    is inactive; a later use changes nothing and answers with another message (ADR-0022).
 
     Args:
-        token (str): Single-use JWT issued during registration.
+        token (str): Email-verification JWT issued during registration.
         user_service (UserService): Injected business-logic service.
 
     Returns:
-        dict: JSON payload confirming successful account activation.
+        dict: Success flag and the message to show.
     """
     return await user_service.verify_email_account(token)
 

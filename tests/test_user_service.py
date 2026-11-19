@@ -1,6 +1,6 @@
 """Unit and integration tests for the transport-agnostic UserService contract."""
 
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from unittest.mock import create_autospec
 
@@ -259,11 +259,14 @@ async def test_authenticate_inactive_account_raises_account_not_active(
 # EMAIL VERIFICATION
 # ==========================================
 
+VERIFIED_AT = datetime(2026, 11, 19, 12, 0, tzinfo=UTC)
+
 
 async def test_verify_email_activates_account(user_repo, audit_service, user_service, make_user):
-    """Happy path: a valid token activates the account and audits it as its own UPDATE."""
+    """Happy path: a first use fills the mark, activates the account and audits only is_active."""
     user = make_user(email="turista@example.com", is_active=False)
     user_repo.get_non_deleted_user_by_email.return_value = user
+    before = datetime.now(UTC)
 
     result = await user_service.verify_email_account(
         create_verification_token("turista@example.com")
@@ -272,6 +275,9 @@ async def test_verify_email_activates_account(user_repo, audit_service, user_ser
     assert result["success"] is True
     assert "message" in result
     assert user.is_active is True
+    verified_at = user.email_verified_at
+    assert verified_at is not None
+    assert before <= verified_at <= datetime.now(UTC)
     user_repo.get_non_deleted_user_by_email.assert_awaited_once_with("turista@example.com")
     user_repo.save_user.assert_awaited_once_with(user)
     audit_service.log_transaction.assert_awaited_once_with(
@@ -283,22 +289,60 @@ async def test_verify_email_activates_account(user_repo, audit_service, user_ser
     )
 
 
-async def test_verify_email_on_active_account_writes_nothing(
+async def test_verify_email_on_active_account_fills_the_mark_without_audit(
     user_repo, audit_service, user_service, make_user
 ):
-    """Edge case: an account already active is left as it is: no save and no audit row."""
-    user_repo.get_non_deleted_user_by_email.return_value = make_user(
-        email="turista@example.com", is_active=True
-    )
+    """Edge case: an account an admin activated gets its mark and no audit row (ADR-0022)."""
+    user = make_user(email="turista@example.com", is_active=True)
+    user_repo.get_non_deleted_user_by_email.return_value = user
 
     result = await user_service.verify_email_account(
         create_verification_token("turista@example.com")
     )
 
     assert result["success"] is True
+    assert user.is_active is True
+    assert user.email_verified_at is not None
     user_repo.get_non_deleted_user_by_email.assert_awaited_once_with("turista@example.com")
+    user_repo.save_user.assert_awaited_once_with(user)
+    audit_service.log_transaction.assert_not_awaited()
+
+
+async def test_verify_email_with_the_mark_filled_changes_nothing(
+    user_repo, audit_service, user_service, make_user
+):
+    """Unhappy path: a used link does not undo a deactivation by an admin (ADR-0022)."""
+    user = make_user(email="turista@example.com", is_active=False, email_verified_at=VERIFIED_AT)
+    user_repo.get_non_deleted_user_by_email.return_value = user
+
+    result = await user_service.verify_email_account(
+        create_verification_token("turista@example.com")
+    )
+
+    assert result["success"] is True
+    assert user.is_active is False
+    assert user.email_verified_at == VERIFIED_AT
     user_repo.save_user.assert_not_awaited()
     audit_service.log_transaction.assert_not_awaited()
+
+
+async def test_verify_email_second_use_answers_another_message(
+    user_repo, audit_service, user_service, make_user
+):
+    """Edge case: a second use succeeds, writes nothing more and does not repeat the message."""
+    user = make_user(email="turista@example.com", is_active=False)
+    user_repo.get_non_deleted_user_by_email.return_value = user
+    token = create_verification_token("turista@example.com")
+
+    first = await user_service.verify_email_account(token)
+    second = await user_service.verify_email_account(token)
+
+    assert first["success"] is True
+    assert second["success"] is True
+    assert set(first) == set(second) == {"success", "message"}
+    assert second["message"] != first["message"]
+    user_repo.save_user.assert_awaited_once_with(user)
+    audit_service.log_transaction.assert_awaited_once()
 
 
 async def test_verify_email_corrupt_token_raises_invalid_verification_token(

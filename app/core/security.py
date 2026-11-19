@@ -89,11 +89,13 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
 
 
 def create_verification_token(email: str) -> str:
-    """Generates a single-use JWT token for user email validation purposes.
+    """Generates the JWT of the email-verification link.
 
     There is a specific scope within the token's payload to prevent its usage as a
     general authorization token. Its lifespan is the settings'
-    verification_token_expire_minutes.
+    verification_token_expire_minutes. It carries no identifier and is never stored,
+    so nothing consumes it: the link changes an account once because
+    verify_email_account fills the account's email_verified_at mark (ADR-0022).
 
     Args:
         email (str): Address of the account to verify; becomes the sub claim.
