@@ -1,10 +1,10 @@
 {
   "plan_file": "docs/deuda/BE-50/plan.md",
-  "current_target": "Fase_A",
+  "current_target": "Fase_B",
   "phases": {
     "Fase_A": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "e530980",
       "description": "ADR-0022 (Anexo A): la marca de correo verificado decide el enlace; sin código (797)."
     },
     "Fase_B": {
@@ -19,6 +19,6 @@
     }
   },
   "allowed_statuses": ["pending", "partial", "completed"],
-  "last_handoff": "Estado inicial.",
+  "last_handoff": "Fase_A completada (e530980): ADR-0022 literal del Anexo A con fecha 19 nov 2026 (E0); compuerta con --soft imports (E1) exit 0, 797 passed, 98,69 %, ruff 0, mypy 0 en 66, import-linter tolerado por DLL _rustgrimp bloqueada. Antes de B: contratos medidos por la sesión Mentor (E1.5) y alembic current/check de David.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
