@@ -223,6 +223,9 @@ por el equipo humano"**. → El flujo agéntico es parte de la metodología decl
 - **`null` en las actualizaciones (BE-37, 17 nov; ADR-0020):** en `UserUpdate` y `ServiceUpdate`, un `null` explícito solo se admite donde la columna admite vacío (`phone`,
   `description`); en los otros diez campos es un 422 que se decide en el schema, antes de la política, el CDN y la auditoría, con el marcador `NoExplicitNull`
   (`app/schemas/partial_update.py`) `(backlog BE-37)`. El OpenAPI aún anuncia `null` en esos campos `(backlog BE-60)`.
+- **Auditoría de cambios (BE-38, 19 nov; ADR-0021):** una modificación de usuario o de paquete registra solo lo que cambió, como `{campo: {"old", "new"}}`, calculado con `changed_fields`
+  (`app/services/audit_service.py`) después de la política de acceso; una petición que no cambia nada no deja fila; un alta se audita después de guardar y registra lo guardado; la verificación de correo deja un `UPDATE`
+  y no alcanza a cuentas borradas; el precio de un paquete se escribe con dos decimales al entrar. Las filas anteriores no se migran: la tabla mezcla dos formatos `(backlog BE-38)`. En el cliente, el panel muestra `new` antes que `old` `(backlog FE-15)`.
 - **No existe:** módulo de reservas (ver ADR-0002), pagos, paginación, recuperación de
   contraseña, `display_order` de paquetes.
 - **Tests y calidad:** pytest + mocks; la medición vigente (tests, cobertura, ruff, mypy, contratos) es la última columna
@@ -407,15 +410,14 @@ la Web App la hala al reiniciar. Operación: 2 clics.
 
 ## 8. Próximo paso
 
-Dónde estamos (estado al cierre de la bitácora `2026-11-17`): **`B-GHOST-ADMIN` en curso; BE-58 y BE-37 hechas** (PR #101 y PR #102)
-`(backlog BE-58)` `(backlog BE-37)`. `develop` = `290a942`. Mediciones en `(PLAN §6)`. Quedan BE-38, con BE-61 dentro, y BE-50 `(backlog BE-38)` `(backlog BE-50)`; la rama `item/be-38` lleva solo documentos. Ruta sin cambios: **`B-GHOST-ADMIN` → puesta en `staging` → `B-RESERVAS`**
+Dónde estamos (estado al 19 nov, 10:10; `(bitácora 2026-11-19)`): **`B-GHOST-ADMIN` en curso; BE-58, BE-37 y BE-38 (con BE-61) hechas** (PR #101, PR #102 y PR #103)
+`(backlog BE-58)` `(backlog BE-37)` `(backlog BE-38)`. `develop` = `c478e38`. Mediciones en `(PLAN §6)`. Queda BE-50 `(backlog BE-50)`. Ruta sin cambios: **`B-GHOST-ADMIN` → puesta en `staging` → `B-RESERVAS`**
 `(PLAN §3)`; la semana sigue sin fechar y el re-plan lo hará David el domingo siguiente al 16 nov, por decisión suya.
 
-0. **Siguiente, en este orden** (estado al 19 nov, 09:04; `(bitácora 2026-11-19)`): (a) **BE-38, fase G**, en la rama `item/be-38`: el plan (siete fases, aprobado con E0, E1 y E2 en su sección "Enmiendas aprobadas") lleva **seis fases hechas y auditadas, A a F, todas PASS**; falta `/implementar BE-38 G` (ADR-0021 y los comentarios de `app/models/audit.py`) y `/auditar BE-38 G`. Las dos mediciones de `alembic check` (E0, punto 4) están hechas y coinciden. (b) **Tras la auditoría de G y antes de `/pr`:** David commitea la viñeta de AGENTS §3 sobre ADR-0021 (texto sugerido en el plan). (c) **Antes de mezclar BE-38, David comprueba en el cliente
-   Flutter qué hace el panel de auditoría con `changes`** (su forma cambia) **y qué envía la pantalla de edición de un paquete en `image_urls`** `(backlog BE-38)`. (d) `/pr`, revisión de la descripción y mezcla; después, BE-38 y BE-61 a `Hecho` y la medición en `(PLAN §6)`. (e) **BE-50**, traída al bloque: `/deuda-verificar BE-50` tras mezclar BE-38
-   `(backlog BE-50)`. (f) **El cierre del 18 nov no se hizo ese día:** las versiones de los tres documentos suben una vez, en el cierre del 19.
+0. **Siguiente, en este orden** (estado al 19 nov, 10:10): (a) **BE-50**, último ítem del bloque: rama `item/be-50` desde `develop` (`c478e38`) y `/deuda-verificar BE-50` `(backlog BE-50)`. Desde BE-38 la activación por correo pasa por `get_non_deleted_user_by_email` y `save_user` y deja fila `UPDATE`; `activate_user` ya no existe (nota del 18 nov en la fila). La sesión Mentor avisa a David si el plan va a necesitar el PostgreSQL local encendido. (b) **Cierre de hoy:** cubre el 18 y el 19; las versiones de CONTEXT, PLAN y backlog suben una vez, entonces; §5 recibe lo que enseñaron los dos días (lecciones del 18, en la bitácora `2026-11-19`); §6, la fila del 19 nov con ADR-0021 aceptado; batería documental con el prompt de la bitácora `2026-11-09`.
+   (c) **Sin confirmar por David:** el bloque de la fila FE-15 (`B-FE-LISTA`, propuesto por la sesión Mentor); qué se hace con lo que queda de BE-09. (d) No visto por la sesión Mentor: el CI del PR #103 ni la descripción con que se publicó.
 1. **`B-GHOST-ADMIN`** (BE-34..BE-38, BE-47, BE-50, BE-51, BE-58 y BE-61) `(PLAN §3)`: hechas BE-34, BE-35, BE-36, BE-58
-   (ADR-0019) y BE-37 (ADR-0020). Siguen BE-38 (con BE-61 dentro) y BE-50. **Cada plan se aprueba también en la sesión de Claude Code**, remitiendo
+   (ADR-0019) BE-37 (ADR-0020) y BE-38 con BE-61 (ADR-0021). Sigue BE-50. **Cada plan se aprueba también en la sesión de Claude Code**, remitiendo
    al encabezado y a las enmiendas de `plan.md` `(bitácora 2026-11-12)`. BE-38 ya decidió que un cambio que no cambia nada no deja fila (tres tests esperan esa aserción). **Por comprobar
    en el cliente Flutter:** qué cuerpo envía al pasar una cuenta de "por activar" a "activos" (la excepción de ADR-0018 exige solo `is_active`), y
    ocultar o no las acciones de la tarjeta propia. Dato para dimensionar: el bloque pide más medias jornadas que las de su secuencia `(PLAN §3)`.
