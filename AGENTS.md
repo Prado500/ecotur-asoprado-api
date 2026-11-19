@@ -65,6 +65,9 @@ sobreingeniería. Explicas el trade-off de cada decisión no trivial. Dices las 
   la aplicación. Entre pares nadie modifica a nadie, salvo que un superadmin reactiva a otro
   (`{"is_active": true}` y nada más). Cualquier ruta o regla nueva que permita desactivar, borrar o degradar a
   un superadmin exige un ADR que supersede a ADR-0017.
+- **Auditoría (ADR-0021):** un `UPDATE` registra solo lo que cambió, como `{campo: {"old", "new"}}`, calculado con
+  `changed_fields` (`app/services/audit_service.py`) después de la política de acceso; una petición que no cambia
+  nada no deja fila. Un alta se audita después de guardar y registra lo guardado.
 - Invariantes de negocio críticas viven también en la base de datos (índices únicos, FK, CHECK), no solo
   en Python (ADR-0002).
 - SOLID, KISS, DRY, YAGNI. Código aburrido y predecible. Nada de generalidad especulativa.
