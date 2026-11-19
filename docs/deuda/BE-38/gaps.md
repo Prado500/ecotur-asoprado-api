@@ -358,3 +358,73 @@ Evidencia de lo comprobado (contexto fresco; el relato del handoff no se tomó c
   con argumentos y en orden (`await_args_list`) y la fila `CREATE` completa. Los valores en español de la fila son datos
   guardados del payload, no texto humano de un mensaje; el test de E2 afirma `loc`, no texto. Docstrings en inglés.
 - No es la última fase (queda G): la "Verificación final" completa no aplica.
+
+## Auditoría Fase G — 2026-11-19
+**Veredicto Fase G: PASS (0 bloqueantes, 1 opcionales).**
+
+[OPCIONAL] — Fase G — El comando 16 de la Verificación final da `348	4	tests/test_services.py` y el plan ("Mediciones",
+5, opción (b), plan.md:1021) espera `336	4`; las otras 14 líneas coinciden. No es un defecto de G (G no toca
+`tests/`; `git diff --stat 284b3af HEAD -- app tests` → solo `app/models/audit.py`) sino una cifra del plan que E2 dejó
+vieja: E2.4 (plan.md:2731-2734) cambió el `numstat` de F en ese archivo (`46 2` → `63 7`) y afirmó que "los conteos del
+plan no cambian", sin rehacer la lista del comando 16. Aritmética comprobada: `numstat` por commit en
+`tests/test_services.py` → D `53ea731` `225 2`, E `1d9752e` `66 1`, F `284b3af` `63 7`; las 5 líneas que quita E2 las
+había añadido E (incluida `from app.schemas.service import ServiceUpdate`, ausente en `6cae238`:
+`git show 6cae238:tests/test_services.py | grep app.schemas.service` → sin salida; presente como `+` en `1d9752e`), así
+que contra la base solo se ve el neto: 336 + 17 − 5 = 348 añadidas, 4 borradas sin cambio. Consecuencia aritmética de
+una enmienda aprobada, declarada por el ejecutor en `handoff-G.md` sin "arreglar" nada. Destino: ninguno en el código;
+si se quiere, una línea en el PR o en la bitácora que recoja `348 4` como cifra vigente del comando 16.
+
+Evidencia de lo comprobado (contexto fresco; el relato del handoff no se tomó como evidencia):
+
+- Árbol: `git status --short` vacío al empezar y tras la compuerta. HEAD `04a5a71` (registro), padre `e3cdc4b` (fase),
+  cuyo padre es `6e8919f` (commit de David). `git show --stat e3cdc4b` → solo `app/models/audit.py` (`8 +--`) y
+  `docs/adr/0021-la-auditoria-registra-solo-lo-que-cambio.md` (`84 +++`), `88 insertions(+), 4 deletions(-)`, como la
+  tabla de fases (`84 0` y `4 4`). Los commits intermedios `b8b7b91`, `d18b83e` y `6e8919f` solo tocan `docs/`
+  (`gaps.md`, bitácoras, `CONTEXT.md`, `PLAN.md`, `backlog.md`): ajenos a G y fuera de `app`, `tests` y `docs/adr`.
+- `progress.json`: JSON válido (`json.load`); `Fase_G` `completed` con `e3cdc4b` (commit real, arriba);
+  `current_target` `null` (cierre del ítem, última fase); `last_handoff` presente y apunta a `handoff-G.md`; `edit_rules`
+  sin cambio (`git show 04a5a71 -- docs/deuda/BE-38/progress.json` solo toca `current_target`, `status`, `commit` y
+  `last_handoff`). Las siete fases A–G `completed` con hash.
+- Mensaje de `e3cdc4b`: `diff` entre plan.md:506-519 (sin la sangría del bloque) y `git log -1 --format=%B e3cdc4b` →
+  sin salida (idéntico, `Co-Authored-By` incluido).
+- Plan contra commit: las líneas `+`/`-` de `git diff 284b3af e3cdc4b -- app/models/audit.py` son idénticas a las del
+  Anexo G (plan.md:2491-2520; `diff` sin salida): docstring de `AuditLog`, comentario de `changes` sin `old_values`,
+  `# "User" or "TouristService"`. ADR-0021 reconstruido por el auditor en el scratchpad (plan.md:2526-2609 con `<FECHA>`
+  = `18 nov 2026`, E0.1, más el diff (a)→(b) de plan.md:2615-2651 aplicado con `patch -p1`: `patching file`, sin
+  rechazos) y comparado con el del repo → idéntico. Punto 8, segunda consecuencia y alternativa 6 en la variante (b)
+  (E0.1). 84 líneas, la más larga 100 caracteres. Formato Nygard (Contexto, Decisión, Consecuencias, Alternativas,
+  Evidencia), AGENTS §7.
+- Criterio de aceptación: `git grep -n "old_values" -- app/models/audit.py` → exit 1; `git grep -n "<FECHA>" -- docs/adr`
+  → exit 1; compuerta exit 0 con `797 passed` · 98,69 %, la cifra (b) de G (E0.2).
+- Compuerta (`./venv/Scripts/python.exe scripts/check.py`, exit 0): `71 files already formatted` · `All checks passed!`
+  · `Success: no issues found in 66 source files` · `Contracts: 4 kept, 0 broken.` · `TOTAL 1066 10 154 6 98.69%` ·
+  `797 passed, 25 warnings`. Coincide con el handoff y con F; supera la línea base de `verificacion.md` (757 · 98,49 % ·
+  ruff 0 · mypy 0 · 4 kept); 25 avisos, como la base. Archivo de código tocado: `ruff check app/models/audit.py` →
+  `All checks passed!`; `ruff format --check` → `1 file already formatted`; `mypy` → `Success: no issues found in 1
+  source file`.
+- Verificación final (última fase; cifras (b) por E0.2), ejecutada por el auditor sobre `04a5a71`:
+  1 → 13 líneas (`user_service.py` 6, `tourist_services_service.py` 5, `superadmin_bootstrap.py:66`,
+  `audit_service.py:57`). 2 → 3 (`user_service.py:302`, `:308`; `tourist_services_service.py:292`). 3 → sin salida,
+  exit 1. 4 → 4 (`audit_service.py:28`; `user_service.py:150`, `:308`; `tourist_services_service.py:293`). 5 →
+  `tourist_services_service.py:1`, `user_service.py:2`. 6 → `tourist_services_service.py:136`. 7 → 10 líneas, pares
+  `:94/:97`, `:447/:449`, bootstrap `:64/:66`. 8 → 6 (`audit_repository.py:16`; `service_repository.py:17`, `:93`;
+  `user_repository.py:50`, `:73`, `:101`). 9 → `old_values` exit 1; `ADR-0021` en `audit.py:28` y `:43`. 10 →
+  `app/models/service.py:52`. 11 → `app/schemas/service.py:11`, `:61`, `:147`. 12 → 14 líneas (auth 2, services 3,
+  policy 5, user_service 2, update_audit 1, update_null 1); `BE-38` en la política exit 1. 13 → app 11 y tests 8, en las
+  líneas que dicta el plan (`test_services.py` `:462`, `:904`, `:1124`, `:1199`); `docs/adr`: el archivo 0021. 14 →
+  `test_auth.py:3`, `test_services.py:12`, `test_user_update_audit.py:5`; `36 passed, 761 deselected`. 15 → salida
+  vacía (con `app/repositories/service_repository.py` añadido), exit 0. 16 → 15 líneas, 14 idénticas a "Mediciones", 5
+  (b), y `348 4` en `tests/test_services.py` (opcional de arriba). 17 → la compuerta de arriba. La deuda no asoma: nada
+  audita el cuerpo (comando 3), todas las altas crean antes de auditar (7), A3 intacto (8).
+- AGENTS: comentarios y docstring nuevos en inglés; sin capas, excepciones de dominio ni rutas nuevas (4 kept); el
+  modelo no cambia de esquema (solo comentarios). `test-sanitizer` no aplica: ningún test tocado.
+- Pendientes de David que no son fases de G (no bloquean esta auditoría; el plan no los asigna a G):
+  - E0.5 y paso humano de la Verificación final: en el cliente Flutter, cómo pinta el panel `changes` con `{"old",
+    "new"}` y con valor suelto, y qué envía la pantalla de edición en `image_urls` (siempre, y en qué orden). Antes de
+    mezclar; el resultado va al PR como riesgo declarado. Sin constancia en el repo.
+  - R6: viñeta de ADR-0021 en AGENTS §3, después de esta auditoría y antes de `/pr` (`git grep ADR-0021 -- AGENTS.md`
+    → sin salida: pendiente).
+  - R5: revisar qué queda de BE-09 al cerrar BE-38.
+  - Ya cumplidos, con constancia: R2 y R4 (E0.6), notas en `docs/backlog.md` filas BE-26 y BE-49 ("Nota de BE-38 (18
+    nov…)"); E0.4, `alembic check` M0 y M1 en `docs/bitacora/2026-11-18.md` (`No new upgrade operations detected.`,
+    "E0.4 queda cumplido").
