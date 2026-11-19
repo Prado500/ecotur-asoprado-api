@@ -3,7 +3,7 @@
 > Fuente: `docs/deuda/BE-50/verificacion.md` (confirmada; adenda de David del 19 nov, decisiones 1–13, que este plan
 > toma como dadas). Base: HEAD `4f9e29e` de `item/be-50`; `git diff --stat c478e38 HEAD -- app tests alembic conftest.py
 > pyproject.toml docs/adr AGENTS.md` sale vacío, así que vale la línea base de la verificación (797 passed · 98,69 % ·
-> ruff 0 · mypy 0 en 66 · 4 kept). **Estado: aprobado por David con E0 (19 nov 2026, 12:17); ninguna fase ejecutada.** `Aprobado: 19 nov 2026` (esa es la
+> ruff 0 · mypy 0 en 66 · 4 kept). **Estado: aprobado por David con E0 (19 nov 2026, 12:17) y E1 (12:40); ninguna fase ejecutada.** `Aprobado: 19 nov 2026` (esa es la
 > `<FECHA DE APROBACIÓN>` de ADR-0022). Enmiendas al final.
 > **Qué midió el redactor:** nada se ejecutó (instrucción de la sesión: solo lectura). Las cifras de tests (RED, GREEN,
 > 806) y los conteos de la Verificación final están **calculados leyendo** el código y el texto que este plan dicta. Si
@@ -977,3 +977,48 @@ final, 6) ni texto en español afirmado.
    dos consultas después de B y antes de C, con la salida literal en la bitácora; el residual R3 (qué muestra el
    cliente Flutter tras el segundo clic) antes de mezclar.
 6. `progress.json` no cambia: ninguna descripción de fase depende de las tres cifras.
+
+### E1 — 19 nov 2026, 12:40 (David: "sip. nos vamos con E1"; propuesta de la sesión Mentor)
+
+**Por qué.** El ejecutor de la fase A se detuvo en la comprobación inicial: en la máquina de David el paso
+import-linter de la compuerta sale en rojo sin evaluar ningún contrato. `./venv/Scripts/python.exe -c "import grimp"`
+da `ImportError: DLL load failed while importing _rustgrimp: An Application Control policy has blocked this file.`
+(captura de David, 12:40). Windows bloquea `venv/Lib/site-packages/grimp/_rustgrimp.cp314-win_amd64.pyd`, la extensión
+compilada y sin firma de la que depende import-linter. El archivo no cambió: fecha 25 oct, y su SHA-256
+(`58d6ac15cc6bc94e21f71a7b790aa83dc5a779882d00733de5a2ffb7e225d51b`) es el de la rueda `grimp==3.17` de PyPI
+(comparado por la sesión Mentor). Esta mañana cargaba: la línea base de la verificación midió `4 kept`. No es un
+defecto del repositorio ni del plan `(backlog AF-17)`.
+
+**Qué cambia, solo para BE-50 y solo en esta máquina.** Donde el plan pide "compuerta en verde" o "compuerta completa
+en 0" (comprobación inicial del ejecutor, criterio de aceptación de A, B y C, re-ejecución del auditor y comando 13 de
+la Verificación final), vale lo siguiente:
+
+1. La compuerta se invoca como `./venv/Scripts/python.exe scripts/check.py --soft imports`. `--soft` es una opción que
+   `scripts/check.py` ya tiene (`:7-10`); no se toca el script.
+2. **Se acepta** si se cumplen las cuatro cosas: (a) código de salida 0; (b) el RESUMEN se imprime y su última línea es
+   `Compuerta superada; tolerados en rojo: import-linter` (o `Compuerta superada.` si ese día el archivo carga y el
+   paso sale en verde); (c) el único paso con `✘` es `import-linter (soft)`; (d) la salida del paso import-linter
+   contiene `DLL load failed while importing _rustgrimp`.
+3. **Si el paso import-linter llega a evaluar contratos** (su salida trae una línea `Contracts:`), E1 no tolera nada:
+   tiene que decir `Contracts: 4 kept, 0 broken.`. Un contrato roto es bloqueante aunque `--soft` deje el exit en 0.
+4. El handoff y `gaps.md` copian la salida literal del paso import-linter y el RESUMEN. Las cifras de tests y de
+   cobertura del plan no cambian.
+5. **Los contratos se miden fuera de esta máquina.** La sesión Mentor corre import-linter sobre una copia
+   `git archive <commit de la fase>` en Linux (CPython 3.14, dependencias de `constraints.txt`) después de cada fase y
+   anota la salida en la bitácora; la fase siguiente no empieza sin esa anotación. El CI del PR corre la compuerta
+   completa y estricta en Linux: es la medición que cuenta para mezclar (AGENTS §6). La descripción del PR declara E1
+   como evidencia estructural (precedente: AF-12, 9 nov).
+6. Si otro paso sale en rojo, o import-linter falla con un error distinto del de (d), el ejecutor se detiene como
+   manda el plan.
+
+**Medido por la sesión Mentor antes de escribir esta enmienda** (copia Linux del repositorio; el fallo se simuló
+renombrando la extensión compilada de grimp, porque el bloqueo de Windows no se puede reproducir allí): con `--soft
+imports`, exit 0 y RESUMEN con `✘ import-linter (soft)` y la línea `Compuerta superada; tolerados en rojo:
+import-linter`; sin `--soft`, exit 1 y `Compuerta NO superada: import-linter`; con la extensión en su sitio,
+`Contracts: 4 kept, 0 broken.`. **No medido:** nada en Windows; el texto de (d) viene de la captura de David.
+
+**Riesgo aceptado.** Entre el commit de una fase y la medición de la sesión Mentor, un contrato roto no lo vería la
+compuerta local. Es bajo: A es un documento, B no añade imports y C añade `from datetime import UTC, datetime`
+(biblioteca estándar) a un servicio. Descartado otra vez: apagar Smart App Control (decisión del 9 nov).
+
+`progress.json` no cambia.

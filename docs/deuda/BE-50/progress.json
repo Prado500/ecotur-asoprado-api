@@ -1,0 +1,24 @@
+{
+  "plan_file": "docs/deuda/BE-50/plan.md",
+  "current_target": "Fase_A",
+  "phases": {
+    "Fase_A": {
+      "status": "pending",
+      "commit": null,
+      "description": "ADR-0022 (Anexo A): la marca de correo verificado decide el enlace; sin código (797)."
+    },
+    "Fase_B": {
+      "status": "pending",
+      "commit": null,
+      "description": "Columna users.email_verified_at y migración e50a7c3d9b12, vacía en todas las filas; test de esquema y 2 de migración (797 -> 799). David: alembic check antes y después."
+    },
+    "Fase_C": {
+      "status": "pending",
+      "commit": null,
+      "description": "Regla del enlace en verify_email_account, siete docstrings single-use y el de recover_user_account; 5 tests reescritos y 7 nuevos (799 -> 806)."
+    }
+  },
+  "allowed_statuses": ["pending", "partial", "completed"],
+  "last_handoff": "Estado inicial.",
+  "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
+}
