@@ -68,6 +68,9 @@ sobreingeniería. Explicas el trade-off de cada decisión no trivial. Dices las 
 - **Auditoría (ADR-0021):** un `UPDATE` registra solo lo que cambió, como `{campo: {"old", "new"}}`, calculado con
   `changed_fields` (`app/services/audit_service.py`) después de la política de acceso; una petición que no cambia
   nada no deja fila. Un alta se audita después de guardar y registra lo guardado.
+- **Verificación de correo (ADR-0022):** `users.email_verified_at` solo la escribe `verify_email_account` y ningún
+  DTO la lleva. Con la marca vacía el enlace la llena y activa la cuenta; con la marca llena no cambia nada.
+  Después del enlace, `is_active` es solo del administrador.
 - Invariantes de negocio críticas viven también en la base de datos (índices únicos, FK, CHECK), no solo
   en Python (ADR-0002).
 - SOLID, KISS, DRY, YAGNI. Código aburrido y predecible. Nada de generalidad especulativa.

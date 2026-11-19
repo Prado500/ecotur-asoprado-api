@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from typing import NamedTuple
 
 import jwt
@@ -29,13 +30,13 @@ from app.services.user_access_policy import UserAccessPolicy
 class RegistrationResult(NamedTuple):
     """Outcome of the tourist registration pipeline.
 
-    Bundles the persisted account with its single-use verification token so
+    Bundles the persisted account with its email-verification token so
     the transport layer decides when and how to dispatch the activation email,
     while the service keeps owning the token generation business rule.
 
     Attributes:
         user (User): The newly persisted, still-inactive account.
-        verification_token (str): The signed single-use email-verification JWT.
+        verification_token (str): The signed email-verification JWT.
     """
 
     user: User
@@ -67,7 +68,7 @@ class UserService:
 
         Returns:
             RegistrationResult: The persisted inactive account plus its
-                single-use verification token.
+                email-verification token.
 
         Raises:
             AlreadyExistsError: When the email or cedula is already registered.
@@ -101,23 +102,31 @@ class UserService:
             performed_by=saved_user.cedula,
         )
 
-        # 3. Generate the single-use token (the transport decides when it is emailed)
+        # 3. Generate the verification token (the transport decides when it is emailed)
         token = create_verification_token(saved_user.email)
 
         return RegistrationResult(user=saved_user, verification_token=token)
 
     async def verify_email_account(self, token: str) -> dict:
-        """Decodes the verification token and activates the user account.
+        """Decodes the verification token and verifies the account's email, once.
 
+        The link has one effect per account, not per token: the token is never stored and
+        the email_verified_at mark decides. With the mark empty, the link fills it and
+        activates the account if it is inactive, whatever happened in between: an account
+        that never used its link finishes its registration, also after a recovery. With
+        the mark filled, the link changes nothing, so it never undoes a deactivation by an
+        admin (ADR-0022).
         The activation is audited as the same UPDATE of is_active an admin would write,
-        with the account as its own author. An account already active is left as it is
-        and writes no audit row; a soft-deleted account is never reached (ADR-0021).
+        with the account as its own author. The mark is not audited, so filling it on an
+        account already active writes no row; a soft-deleted account is never reached
+        (ADR-0021).
 
         Args:
-            token (str): Single-use JWT issued during registration.
+            token (str): Email-verification JWT issued during registration.
 
         Returns:
-            dict: Confirmation payload with a success flag.
+            dict: Confirmation payload with a success flag and the message to show,
+                which is another one once the email was already verified.
 
         Raises:
             InvalidVerificationTokenError: Token corrupted, expired or
@@ -147,10 +156,14 @@ class UserService:
         if user is None:
             raise NotFoundError("Usuario no encontrado.")
 
+        if user.email_verified_at is not None:
+            return {"success": True, "message": "Su correo ya fue verificado."}
+
         changes = changed_fields(user, {"is_active": True})
+        user.email_verified_at = datetime.now(UTC)
+        user.is_active = True
+        await self.user_repo.save_user(user)
         if changes:
-            user.is_active = True
-            await self.user_repo.save_user(user)
             await self.audit_service.log_transaction(
                 entity_name="User",
                 entity_id=user.cedula,
@@ -359,6 +372,8 @@ class UserService:
         approval before network access is granted.
         For a recovered superadmin, that approval is another superadmin sending
         is_active true (ADR-0018).
+        One exception: an account that never used its email-verification link
+        finishes its registration with it while the link is valid (ADR-0022).
 
         Args:
             target_cedula (str): The primary identifier of the account to recover.
