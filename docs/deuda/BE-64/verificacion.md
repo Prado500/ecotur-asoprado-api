@@ -131,3 +131,99 @@ dejarlo fuera explícitamente; no hay limitador en la app. No tocar: la regla de
 el texto del login (BE-56), la activación manual (BE-63), la enumeración del registro y del login (SEC3), ni el cliente
 Flutter si se cierra solo con backend (fila `FE-nn` ese día). Cambiar el texto de `user_service.py:141` es contrato visible:
 solo si la decisión lo pide.
+
+## Adenda — decisiones de David antes de planear (19 nov 2026, 17:44, sesión Mentor)
+
+Resuelve lo que la conclusión deja abierto. El planificador toma estas decisiones como dadas; lo demás (fases, tests,
+commits, nombres) es suyo. Regla del verificador: no reescribir, añadir. **Veredicto aceptado: confirmada. Línea base aceptada:** `b6a80ba`, compuerta completa en verde
+(806 passed · 98,70 % · ruff 0 · mypy 0 en 67 archivos · 4 kept).
+
+Contraste de la sesión Mentor contra el código de `7789998`, sin correcciones de hecho sobre el código:
+`app/services/user_service.py:80`, `:106`, `:141`, `:159-164`, `:199` y `:450-460`; `app/schemas/user.py:132`;
+`app/models/user.py:51-58`. No se midió nada con sonda: el rincón 1 sigue "leído, no probado". **Una corrección de
+cita:** las líneas 65 y 129 de este archivo atribuyen "la baja de un admin la decide un superadmin" a ADR-0017; esa
+regla es de ADR-0019 (ADR-0017 trata solo de superadmins). Donde esta verificación dice ADR-0017 para una cuenta de
+admin, léase ADR-0019.
+
+### Decisiones
+
+1. **Decidido (David, 17:23 y 17:44): a quién se le reenvía.** A una cuenta de **turista**, **no borrada** y con
+   `email_verified_at` **vacía**, **esté activa o inactiva**. Las cuentas administrativas quedan fuera siempre, tengan
+   la marca como la tengan: su alta y su baja las decide un superadmin (ADR-0019; ADR-0022, punto 7: no reciben
+   enlace). **No se exige `is_active` en falso:** la sesión Mentor lo propuso y lo retiró (17:36). Un turista que un
+   administrador activó a mano sin haber verificado `(backlog BE-63)` puede pedir el enlace; al usarlo solo se llena la
+   marca (`user_service.py:162-164`: `is_active` ya era verdadero, no cambia nada más ni deja fila). Es la única vía
+   para que esa cuenta llegue a tener su correo probado, que es lo que exigiría el modelo de dos hechos
+   `(backlog BE-62)`. Razones de David (17:44, sus palabras): "está bloqueado o se puede bloquear desde el FE", y "si
+   un admin activa un usuario es porque tiene la potestad jerárquica de poder hacerlo"; si no logra que inicie sesión,
+   los administradores "no tienen total control" sobre los turistas que gestionan.
+2. **Decidido (David, 17:23): riesgo aceptado, opción A.** Un turista anterior a la migración `e50a7c3d9b12` que
+   verificó su correo y que un administrador desactivó después tiene la marca vacía y es indistinguible, por sus
+   columnas, de uno que nunca usó su enlace: con el reenvío puede pedir un enlace y reactivarse (rincón 1, caso iii).
+   David lo acepta porque ningún entorno tiene usuarios reales (palabra de David; la sesión Mentor no ve esas bases) y
+   porque el modelo de dos hechos lo cierra de raíz cuando se haga `(backlog BE-62)`: allí el enlace deja de escribir
+   `is_active`. Descartada la opción B (reenviar solo a cuentas con la hora de último envío llena): deja sin reenvío a
+   todo turista pendiente anterior al despliegue, que es a quien el ítem quiere ayudar. **Dato:** en la base local de
+   David, `SELECT count(*) FROM users WHERE role = 'tourist' AND is_active = false AND deleted_at IS NULL AND
+   email_verified_at IS NULL;` dio **6** (captura de las 17:15); cuántas de las seis tocó un administrador no se
+   midió. Purgar o no las bases antes de promover lo decide David en la puesta en `staging`.
+3. **Decidido (David, 17:13 y 17:31): tiempo mínimo entre envíos, 60 segundos, sin tope total.** Entre dos envíos a
+   la misma cuenta pasan al menos 60 s; no hay máximo de enlaces, porque un tope volvería a dejar la cuenta sin
+   salida. El valor es un campo de `Settings` con 60 por defecto (ADR-0013: campo, línea en `.env.example` y valor
+   en el `conftest.py` de la raíz). Pide guardar cuándo salió el último envío: **columna nueva en `users`** y su
+   migración (nombres, del planificador; estilo de ADR-0010). Varios enlaces vigentes a la vez no son un riesgo: el
+   primero que se usa llena la marca y los demás no cambian nada (ADR-0022). **Por qué 60 s:** ver "Fuentes".
+4. **Decidido (David, 17:31): el registro cuenta como envío.** `POST /usuarios/registro` llena la misma columna, de
+   modo que quien acaba de registrarse no puede pedir otro enlace hasta pasado el primer minuto.
+5. **Decidido (David, 17:26 y 17:28): la ruta responde siempre lo mismo.** 200 con la misma forma que la
+   verificación (`{"success": true, "message": …}`) y el mismo texto, exista o no la cuenta, esté verificada, sea
+   administrativa, esté borrada o no haya pasado el tiempo mínimo. Texto, con la redacción de David ("le acabamos de
+   enviar"): **"Si su correo tiene una cuenta pendiente de verificación, le acabamos de enviar un nuevo enlace. Revise
+   su bandeja de entrada y la carpeta de correo no deseado. Si ya pidió uno hace poco, espere un minuto antes de
+   intentarlo de nuevo."** Un cuerpo inválido (correo mal formado) sigue siendo 422: no revela nada de ninguna cuenta.
+   El correo de entrada usa `LowercaseEmail` (ADR-0016). El texto del enlace caducado (`user_service.py:141`) no cambia.
+6. **Decidido (David, 17:36): el reenvío no deja fila de auditoría**, "porque no es información relevante para el
+   negocio". La marca de correo tampoco se audita (ADR-0022, punto 6) y la hora del último envío es un dato
+   operativo. Descartada: una fila por reenvío, que llenaría el historial con cada clic.
+7. **Decidido (David, 17:44): la diferencia de tiempo de respuesta se declara, no se cierra.** Rincón 2: solo una
+   cuenta elegible genera token, escribe la columna y programa el correo, así que su respuesta puede tardar algo más.
+   El correo ya sale en segundo plano (`BackgroundTasks`), lo que quita la mayor parte. Va como residual junto a
+   `(backlog SEC3)`, que ya recoge el mismo patrón en el login; el registro sigue revelando si un correo o una cédula
+   existen (`user_service.py:79-80`) y esta fila no lo toca: cerrar aquí lo que el registro dice abiertamente no
+   protege nada.
+8. **Decidido (David, 17:44): dos peticiones simultáneas pueden enviar dos correos, y se declara.** Sin bloqueo de
+   fila, las dos leen la columna antes de que ninguna la escriba. David: "para un MVP en realidad es inofensivo y muy
+   justificable". Mismo trato que los dos clics simultáneos de ADR-0022 (A3). No se añade bloqueo.
+9. **Decidido (David, 17:36 y 17:44): alcance solo backend.** El ítem se cierra con la ruta, sus reglas y sus tests,
+   sin tocar el cliente Flutter. La parte del cliente (el punto de entrada al reenvío, natural en la pantalla del
+   enlace caducado y en el login de una cuenta pendiente) recibe su fila `FE-nn` y es lo primero que se hace cuando se
+   toque el frontend, como David dijo a las 11:33. Hasta entonces el turista no puede pedir el enlace desde la
+   aplicación.
+10. **Fuera, sin cambios:** la regla del enlace (`verify_email_account`, ADR-0022); el texto del login
+    `(backlog BE-56)`; la activación a mano `(backlog BE-63)`; el modelo de dos hechos `(backlog BE-62)`.
+
+### Avisos para planear y ejecutar
+
+- **El plan toca `app/models/user.py` y `alembic/`** (decisión 3). El PostgreSQL local de David está encendido
+  (17:13). Los pasos de `alembic` contra la base local, antes y después de la fase que toque el modelo, los corre
+  David desde `cmd`, no un agente (ADR-0010, punto 7).
+- La migración escrita a mano la reescribe el hook de formato `(backlog AF-18)`: el ejecutor la restaura y lo declara,
+  como en BE-50.
+- Si Windows bloquea `_rustgrimp`, el ítem lleva una enmienda como la E1 de BE-50 `(backlog AF-17)`.
+- Ruta nueva: en `PUBLIC_ROUTES` y `_ANONYMOUS_ON_PUBLIC_ROUTE` de `tests/test_route_guards.py` (ADR-0012, punto 4).
+- La decisión pide ADR (ruta pública nueva, columna nueva, riesgo aceptado): el siguiente número libre es 0023.
+
+### Fuentes (para el valor de 60 s)
+
+Buscadas por la sesión Mentor el 19 nov (búsqueda web; extractos, no las páginas enteras). **Si el ADR las cita, el
+planificador las lee antes** (regla del 14 nov: ninguna fuente externa se cita de memoria).
+
+- Supabase Auth, "Rate limits" (`https://supabase.com/docs/guides/auth/rate-limits`): la petición de confirmación de
+  registro se limita por la última petición del usuario, con una ventana por defecto de 60 segundos, configurable; lo
+  mismo para el restablecimiento de contraseña y los enlaces mágicos. Es el valor por defecto de un producto de uso
+  amplio, no una norma.
+- OWASP, Forgot Password Cheat Sheet (`https://cheatsheetseries.owasp.org/cheatsheets/Forgot_Password_Cheat_Sheet.html`):
+  pide protección contra envíos automatizados excesivos, por ejemplo límite por cuenta; no da ninguna cifra. Trata de
+  la recuperación de contraseña: aplica por analogía.
+- Ninguna fuente hallada fija 60 s como estándar: se elige por ser el valor por defecto documentado de Supabase y
+  porque es mucho menor que la vida del enlace (15 min, `app/core/config.py:51`).
