@@ -143,3 +143,96 @@ Coincide con lo que pegó el ejecutor (handoff-Fase_B.md, "Compuerta de salida")
 **AGENTS §3-§5 en el código nuevo:** no hay excepción de dominio nueva, ni ruta, ni DTO. El modelo no es nuevo, así que `__all__` no cambia. El test nuevo no usa mocks y construye los usuarios con `make_user`. `grep` de `Mock|patch` y de caracteres en español sobre el test nuevo → 0 coincidencias. La invariante "nace vacía" está en la base (la columna sin `server_default`) y la prueba el test de migración.
 
 **Condición previa de C** (plan.md:187-188, E0.5, E1.5): los cuatro comandos de `alembic` y las dos consultas de David en PostgreSQL, con su salida literal en la bitácora. Ver el primer opcional.
+
+## Auditoría Fase C — 2026-11-19
+**Veredicto Fase C: PASS (0 bloqueantes, 1 opcionales).**
+[OPCIONAL] — Fase C — Quedan pasos humanos que el plan pone antes de mezclar y que no son defectos de C: la medición de contratos del Mentor sobre `git archive 86b30f2` en Linux (E1.5), la comprobación de R3 en el cliente Flutter y la viñeta R5 de AGENTS §3. El riesgo de E1.5 es nulo, porque en esta re-ejecución import-linter cargó y midió `Contracts: 4 kept, 0 broken.` sobre un árbol cuyo `app/` y `tests/` son los de `86b30f2` (`git diff --name-only 86b30f2 HEAD` solo lista `docs/deuda/BE-50/`). El CI del PR sigue siendo la medición que cuenta — evidencia: plan.md E1.5, R3 y R5 (líneas 306 y 308); docs/bitacora/2026-11-19.md:423-424 ("Siguiente"); handoff-Fase_C.md, "Pendientes para David".
+
+### Evidencia
+
+**Árbol y commits.** `git status --short` → vacío (antes y después de la compuerta). `git log --oneline -5`: `2ba6ed5 docs(progress): record BE-50 Fase_C completion`, `86b30f2 fix(auth): let the verification link change an account only once`, `ba493f3`, `a8be15a`, `cba3ddd`.
+
+**Commit de la fase (`86b30f2`).** `git show --stat 86b30f2` → 5 archivos, 228 inserciones y 33 borrados: `app/api/routers/user.py`, `app/core/security.py`, `app/services/user_service.py`, `tests/test_auth.py`, `tests/test_user_service.py`. Son los cinco de plan.md:185-186. Mensaje: `diff` entre plan.md:216-239 (sin la sangría) y `git log -1 --format=%B 86b30f2` → solo la valla de apertura del bloque y la línea vacía final que añade git; el texto es idéntico.
+
+**Condición previa de C** (plan.md:187-188, E0.5, E1.5). docs/bitacora/2026-11-19.md:385-420 contiene los pasos de David en PostgreSQL después de B (`upgrade head`, `check` → `No new upgrade operations detected.`, `downgrade -1`, `upgrade head`, `timestamp with time zone | YES` y `count` = 0) y los contratos del Mentor sobre `git archive cba3ddd` (`Contracts: 4 kept, 0 broken.`). Se commitearon en `ba493f3` (15:19:37), antes de `86b30f2` (15:25:25).
+
+**Cambios exactos contra el Anexo C** (`git diff 86b30f2~1 86b30f2`):
+- `user_service.py`: `from datetime import UTC, datetime` en la línea 1. Los cinco "single-use" se reescribieron con el texto del Anexo (`:33`, `:39`, `:71`, `:105` y el `Args` de `verify_email_account`). El docstring de `verify_email_account` es literal. En el cuerpo, la guarda `if user.email_verified_at is not None:` (`:159`) devuelve `"Su correo ya fue verificado."` antes de `changed_fields` (`:162`). Después se escriben la marca (`:163`) e `is_active`, `save_user` se llama siempre y `log_transaction` solo `if changes:`. Las dos líneas de excepción están en `recover_user_account`. El decode y la búsqueda no cambiaron.
+- `security.py` y `routers/user.py`: solo los docstrings, con el texto del Anexo.
+- `tests/test_user_service.py`: el import, `VERIFIED_AT`, C1 ampliado con `before` y el intervalo, C2 en lugar de `test_verify_email_on_active_account_writes_nothing`, y C3 y C4 nuevos. El texto es el del Anexo.
+- `tests/test_auth.py`: C5 con la aserción de la marca, C6 y C7 en el sitio de los dos tests `test_be38_*`, y C8 a C12 tras C7 y antes de `test_verify_email_invalid_token_returns_400`. El texto es el del Anexo.
+
+**Segundo commit (`2ba6ed5`).** Toca solo `docs/deuda/BE-50/handoff-Fase_C.md` (nuevo) y `progress.json`, con el mensaje `docs(progress): record BE-50 Fase_C completion`, que es la convención de `fase-ejecutor` y la de A y B.
+
+**progress.json** (`git show 2ba6ed5 -- docs/deuda/BE-50/progress.json`). JSON válido (`json.load` correcto). `Fase_C`: `pending`/`null` → `completed`/`"86b30f2"`, un hash real. `current_target`: `Fase_C` → `null`. Es correcto para la última fase: de las 25 carpetas de `docs/deuda/`, 23 tienen `progress.json` y las 23 dicen `"current_target": null`, contando BE-50. Las otras 22 son ítems cerrados; A2 y BE-07 no tienen `progress.json`. `last_handoff` está presente. `edit_rules`, `allowed_statuses` y las descripciones no cambiaron.
+
+**Compuerta re-ejecutada por el auditor** (`./venv/Scripts/python.exe scripts/check.py --soft imports`, E1.1). Exit `0`. import-linter cargó y evaluó los contratos, así que rige E1.3 y se cumple.
+
+Paso import-linter (literal, líneas significativas):
+```
+Analyzed 56 files, 148 dependencies.
+------------------------------------
+
+Capas: api | cli -> services -> repositories -> models KEPT
+Los servicios no conocen el transporte HTTP KEPT
+Los repositorios solo conocen SQLAlchemy y los modelos KEPT
+Los modelos y los schemas no dependen de capas superiores KEPT
+
+Contracts: 4 kept, 0 broken.
+--- import-linter: OK en 1.0s
+```
+
+RESUMEN (literal):
+```
+=== RESUMEN ===
+  ✔ ruff format --check
+  ✔ ruff check
+  ✔ mypy
+  ✔ import-linter
+  ✔ docs (coherencia)
+  ✔ pytest + cobertura
+
+Compuerta superada.
+```
+
+Otras líneas: `Python 3.14.3` · `72 files already formatted` · `All checks passed!` · `Success: no issues found in 67 source files` · `Documentación coherente (...)` · `TOTAL 1071 10 156 6 98.70%` · `Required test coverage of 92.0% reached. Total coverage: 98.70%` · `806 passed, 25 warnings in 34.93s`.
+
+**E1.2:** (a) exit 0 ✔; (b) la última línea es `Compuerta superada.` ✔; (c) no hay ningún `✘` ✔; (d) no aplica. **E1.3:** `Contracts: 4 kept, 0 broken.` ✔.
+
+**Ratchet frente a la línea base** (verificacion.md: 797 · 98,69 % · ruff 0 · mypy 0 en 66 · 4 kept):
+
+| Medida | Línea base | Auditoría C | Lectura |
+|---|---|---|---|
+| pytest | 797 (799 tras B) | 806 passed, 0 failed | +7, los del plan |
+| Cobertura | 98,69 % | 98,70 % (1071 sentencias, 156 ramas) | sube |
+| ruff | 0 | 0 | igual |
+| mypy | 0 en 66 (67 tras B) | 0 en 67 | igual |
+| Contratos | 4 kept | 4 kept, 0 broken | igual |
+
+Coincide con lo que pegó el ejecutor (handoff-Fase_C.md, "Compuerta de salida") y con lo que E0.3 midió en Linux.
+
+**Archivos tocados.** `ruff check` sobre los cinco → `All checks passed!`; `ruff format --check` → `5 files already formatted`; `mypy` → `Success: no issues found in 5 source files`.
+
+**Tests exigidos.** Los doce del plan (C1 a C12) existen. Corridos por nombre: `12 passed, 41 deselected`. Las cifras RED (`11 failed, 795 passed`) y los mutantes MC1-MC6 (MC2 con 9 y MC4 con 5, como dice E0.2) constan en el handoff con su salida; el auditor no los repitió.
+
+**Verificación final** (plan.md:246-291, con E0.2; Git Bash, HEAD `2ba6ed5`, cuyo código es el de `86b30f2`):
+
+| # | Resultado del auditor | Esperado |
+|---|---|---|
+| 1 | `0` | 0 |
+| 2 | `159:` guarda / `162:` `changed_fields` | 1 y 1; la guarda antes |
+| 3 | `1` / `1` / `0` | 1 / 1 / 0 |
+| 4 | `7` | 7 (E0.2) |
+| 5 | `0` | 0 |
+| 6 | `app/models/user.py:57`, `tests/test_migration_email_verified_at.py:1`, `alembic/versions/e50a7c3d9b12_users_email_verified_at.py:1` | esos 3 |
+| 7 | `tests/test_auth.py`, `tests/test_email.py`, `tests/test_email_case.py` | esos 3 |
+| 8 | `8` | 8 |
+| 9 | `5` / `app/services/user_service.py:163: user.email_verified_at = datetime.now(UTC)` / `0` | 5 / 1 escritura / 0 |
+| 10 | `1` (`alembic heads` → `e50a7c3d9b12 (head)`) | 1 |
+| 11 | `docs/adr/0022-la-marca-de-correo-verificado-decide-el-enlace.md`; `<FECHA` = `0` | 1 archivo; 0 |
+| 12 | los 10 archivos de plan.md:294-297, ni uno más | los 10 |
+| 13 | exit 0; 806 passed; 98,70 %; ruff 0; mypy 0; 4 kept | igual |
+
+La deuda no aparece en el repo: no queda ningún "single-use" en `app` ni en `tests`, la marca tiene una sola escritura y no hay ningún test con el nombre viejo. Fuera de `app`, `alembic`, `tests` y `docs/adr`, la rama solo cambió `docs/` del ítem, la bitácora, `docs/backlog.md` y `docs/CONTEXT.md`. Esos tres últimos los tocaron solo commits de la sesión Mentor (`79839fb`, `271abf5`, `3998cb3`, `ba493f3`), ninguno de una fase.
+
+**AGENTS §3-§5 en el código nuevo.** No hay excepción de dominio nueva, ni ruta, ni DTO. La marca no aparece en `app/schemas/` (comando 9, `0`), y C12 prueba que un PATCH no la escribe ni la expone. El servicio solo importa `datetime` de la biblioteca estándar (contratos KEPT). Los unitarios usan `user_repo` y `audit_service` con `create_autospec(..., instance=True)` (`tests/test_user_service.py:71-79`). Los de integración no usan mocks, construyen los usuarios con `persist_user` y las cabeceras con `make_auth_headers`, y hacen `refresh` después de cada petición (ADR-0011). Los tests no afirman ningún texto en español (comando 3, `0`): el segundo mensaje se compara como distinto del primero. La auditoría de ADR-0021 se mantiene: hay fila solo cuando `is_active` cambia (C2, C6, C7 y C8 lo afirman).
