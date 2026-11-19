@@ -1,6 +1,6 @@
 {
   "plan_file": "docs/deuda/BE-50/plan.md",
-  "current_target": "Fase_C",
+  "current_target": null,
   "phases": {
     "Fase_A": {
       "status": "completed",
@@ -13,12 +13,12 @@
       "description": "Columna users.email_verified_at y migración e50a7c3d9b12, vacía en todas las filas; test de esquema y 2 de migración (797 -> 799). David: alembic check antes y después."
     },
     "Fase_C": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "86b30f2",
       "description": "Regla del enlace en verify_email_account, siete docstrings single-use y el de recover_user_account; 5 tests reescritos y 7 nuevos (799 -> 806)."
     }
   },
   "allowed_statuses": ["pending", "partial", "completed"],
-  "last_handoff": "Fase_B completada (cba3ddd): users.email_verified_at + migración e50a7c3d9b12 (Anexo B literal); RED 1 failed, 796 passed, 2 errors; GREEN con --soft imports (E1) exit 0, 799 passed, 98,69 %, ruff 0, mypy 0 en 67, import-linter tolerado por DLL _rustgrimp; SQL fuera de línea con el ALTER y sin UPDATE users; MB1-MB4 muertos. Antes de C: contratos del Mentor sobre cba3ddd (E1.5) y upgrade/check/downgrade/upgrade + 2 consultas de David en PostgreSQL.",
+  "last_handoff": "Fase_C completada (86b30f2): regla del enlace con email_verified_at, 7 docstrings single-use y el de recover_user_account (Anexo C literal, E0 y E1); RED 11 failed, 795 passed; GREEN con --soft imports exit 0, Compuerta superada, 806 passed, 98,70 %, ruff 0, mypy 0 en 67, Contracts 4 kept 0 broken; MC1-MC6 muertos (MC2 9 y MC4 5, como E0); Verificación final 1-13 conforme (comando 4 = 7, E0). Pendiente: /auditar BE-50 C, contratos del Mentor sobre 86b30f2 (E1.5), R3 Flutter, R5 viñeta AGENTS, /pr.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
