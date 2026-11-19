@@ -77,6 +77,7 @@ EXPECTED: dict[str, dict[str, FrozenColumn]] = {
         "is_active": FrozenColumn("BOOLEAN", default=False),
         "created_at": FrozenColumn(TZ, nullable=True, server_default="now()"),
         "deleted_at": FrozenColumn(TZ, nullable=True),
+        "email_verified_at": FrozenColumn(TZ, nullable=True),
     },
     "tourist_services": {
         "id": FrozenColumn("INTEGER", primary_key=True, indexed=True),

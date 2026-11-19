@@ -53,3 +53,6 @@ class User(Base):
         DateTime(timezone=True), server_default=func.now()
     )
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Filled once, only by the email-verification link; no admin action writes or clears it
+    # (BE-50, ADR-0022). Empty means the link was never used, not that the account is inactive.
+    email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
