@@ -25,7 +25,7 @@
     "Fase_E": {
       "status": "pending",
       "commit": null,
-      "description": "POST /usuarios/reenviar-verificacion: same 200 body always, 422 on a bad body, route inventory."
+      "description": "POST /usuarios/reenviar-verificacion with MessageResponse as response_model (E0.2): same 200 body always, 422 on a bad body, route inventory."
     }
   },
   "allowed_statuses": ["pending", "partial", "completed"],

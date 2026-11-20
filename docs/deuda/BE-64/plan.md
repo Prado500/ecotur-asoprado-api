@@ -2,8 +2,8 @@
 
 > Fuente: `docs/deuda/BE-64/verificacion.md` (confirmada; adenda de David del 19 nov, decisiones 1–10, que este plan
 > toma como dadas). Base: HEAD `22328ce` de `item/be-64`; encima de `b6a80ba` solo hay commits de docs, así que vale la
-> línea base de la verificación, y además se volvió a medir (abajo). **Estado: sin aprobar; decisiones de David en E0 (19 nov 2026, 19:10): la fase E vuelve
-> al planificador para nacer con schema de salida; ninguna fase ejecutada.** ADR propuesto: ADR-0023 (Anexo A), con `<FECHA DE APROBACIÓN>` por rellenar.
+> línea base de la verificación, y además se volvió a medir (abajo). **Estado: aprobado por David con E0 (19 nov 2026, 19:10) y E1 (19:37); ninguna fase
+> ejecutada.** `Aprobado: 19 nov 2026`. ADR propuesto: ADR-0023 (Anexo A), con `<FECHA DE APROBACIÓN>` por rellenar.
 
 ## Qué se midió y qué no
 
@@ -24,14 +24,34 @@ reemplazo exacto (cada ancla debía aparecer una vez); los Anexos son el `git di
 | C GREEN | `scripts/check.py` | exit 0 · `810 passed` · `98.70%` · mypy 68 · `4 kept` |
 | D RED (solo tests de D) | `pytest -q` | `15 failed, 810 passed`: 10 de `test_user_repository.py` (`'UserRepository' object has no attribute 'get_tourist_due_a_verification_link'`), 4 de reenvío en `test_user_service.py` (`Mock object has no attribute …`) y `test_register_tourist_counts_as_the_first_link_sent` (`assert None is not None`) |
 | D GREEN | `scripts/check.py` | exit 0 · `825 passed` · `98.71%` · mypy 68 · `4 kept` |
-| E RED (solo tests de E) | `pytest -q` | `20 failed, 824 passed`: los 18 de `test_verification_resend.py` (17 con `405 Method Not Allowed` en la aserción de estado, 1 con `(201, 405) != (201, 200)`), `test_every_route_is_listed_as_protected_or_public` (conjunto de rutas) y `test_public_route_answers_without_token[POST /usuarios/reenviar-verificacion]` (`assert 405 == 422`) |
-| **E GREEN = estado final** | `scripts/check.py` | exit 0 · `74 files already formatted` · `All checks passed!` · `Success: no issues found in 69 source files` · `Contracts: 4 kept, 0 broken.` · `844 passed, 29 warnings` · `TOTAL 1095 10 160 6 98.73%` · `Compuerta superada.` |
-| Mutantes | `pytest -q` completo por copia | 29 mutantes, cada uno en la copia del estado de su fase: **29 muertos, 0 vivos** (tabla en el Análisis). Seis de D, repetidos sobre el estado final: también los matan tests HTTP de E |
-| Verificación final | comandos 1–13 sobre la copia final | los valores que se dan abajo; el 14 con `diff -rq` entre copias (16 archivos; el ADR no se escribió en la copia) |
+| E RED, re-medido tras E0 (solo tests de E) | `pytest -q` | `21 failed, 824 passed`: los 19 de `test_verification_resend.py` (17 con `405 Method Not Allowed` en la aserción de estado, 1 con `(201, 405) != (201, 200)`, y `test_route_declares_its_response_schema` con `KeyError: '/usuarios/reenviar-verificacion'`), `test_every_route_is_listed_as_protected_or_public` (conjunto de rutas) y `test_public_route_answers_without_token[POST /usuarios/reenviar-verificacion]` (`assert 405 == 422`) |
+| **E GREEN = estado final, re-medido tras E0** | `scripts/check.py` | exit 0 · `75 files already formatted` · `All checks passed!` · `Success: no issues found in 70 source files` · `Contracts: 4 kept, 0 broken.` · `845 passed, 29 warnings` · `TOTAL 1098 10 160 6 98.73%` · `Compuerta superada.` |
+| Mutantes | `pytest -q` completo por copia | 33 mutantes, cada uno en la copia del estado de su fase: **33 muertos, 0 vivos** (tabla en el Análisis). MB, MC y MD de la primera medición; ME1–ME9 re-medidos tras E0. Seis de D, repetidos sobre el estado final de la primera medición: también los matan tests HTTP de E |
+| Verificación final | comandos 1–14 sobre la copia final re-medida | los valores que se dan abajo; el 15 con `diff -rq` entre copias (17 archivos; el ADR no se escribió en la copia) |
 
 Cobertura: 98,70 % en la base → 98,73 % al final (no baja). Avisos: 25 → 29; los 4 nuevos son el
 `StarletteDeprecationWarning` de `HTTP_422_UNPROCESSABLE_ENTITY` del handler de `app/main.py` (backlog S5), que emiten
 los tres 422 de `test_invalid_body_is_422_and_sends_nothing` y el 422 nuevo de `test_route_guards.py`.
+
+### Re-medición tras E0, punto 2 (19 nov 2026)
+
+Qué se volvió a medir, y solo eso: la fase E con su DTO de salida. Copias nuevas `git archive be9d385` (HEAD de
+`item/be-64`; entre `22328ce` y `be9d385` solo cambian `docs/`) en carpetas `be64r-…` del scratchpad, sin reutilizar
+ninguna de la primera medición; encima, los mismos parches de B, C y D, sin cambios. Mismo intérprete por ruta, cwd =
+la copia; comprobado `app.__file__` → `…\scratchpad\be64r-faseE-red\app\__init__.py`.
+
+- Línea base de `be9d385` (copia limpia): exit 0 · `72 files` · mypy 67 · `4 kept` · `806 passed, 25 warnings` ·
+  `98.70%` · `Compuerta superada.` (igual que en `22328ce`).
+- E RED y E GREEN: las dos filas marcadas "re-medido tras E0" de la tabla de arriba.
+- Paso import-linter del GREEN, literal: `Analyzed 57 files, 150 dependencies.` · `Capas: api | cli -> services ->
+  repositories -> models KEPT` · `Los servicios no conocen el transporte HTTP KEPT` · `Los repositorios solo conocen
+  SQLAlchemy y los modelos KEPT` · `Los modelos y los schemas no dependen de capas superiores KEPT` · `Contracts: 4 kept,
+  0 broken.` · `--- import-linter: OK en 0.5s`. Windows no bloqueó `_rustgrimp`: E0 punto 3 no aplicó.
+- Mutantes ME1–ME9, cada uno en su copia del estado final nuevo (tabla del Análisis).
+- Verificación final 1–14 sobre la copia final nueva; el 15, `diff -rq` contra la copia de `22328ce`.
+
+**No re-medido:** las fases B, C y D (sus parches no cambian: siguen valiendo sus cifras y sus mutantes MB, MC y MD de
+la primera medición) y todo lo de la lista siguiente.
 
 **No medido, y por qué:** (1) nada en PostgreSQL: los pasos de `alembic` de David y la comparación `timestamptz <=`
 con un parámetro con zona; la suite corre en SQLite, que guarda la fecha como texto sin zona (Referencias). (2) El hook
@@ -50,15 +70,14 @@ zona, admite vacío) y su migración `a64d0c2e7f15`; nace vacía en todas las fi
 `VERIFICATION_RESEND_INTERVAL_SECONDS`, 60 por defecto. (D) La regla: una consulta del repositorio encuentra al turista
 no borrado, con la marca de correo vacía (activo o no) y cuyo último enlace salió hace al menos el intervalo; el servicio
 sella la hora y firma el token de siempre; el registro sella la misma hora (cuenta como primer envío); sin fila de
-auditoría. (E) La ruta pública `POST /usuarios/reenviar-verificacion` con `{"email"}`: responde siempre 200 y el mismo
-texto de David, envíe o no; 422 si el cuerpo no es un correo; el correo sale en segundo plano como en el registro.
+auditoría. (E) La ruta pública `POST /usuarios/reenviar-verificacion` con `{"email"}` y `MessageResponse` como
+`response_model` (E0, punto 2): responde siempre 200 y el mismo texto de David, envíe o no; 422 si el cuerpo no es un correo; el correo sale en segundo plano como en el registro.
 **Riesgo principal:** cambio de esquema medido solo en SQLite; David corre los pasos de PostgreSQL antes y después de B,
 y D no empieza sin su salida. **Riesgos aceptados por David, declarados:** el turista anterior a BE-50 que un admin
 desactivó puede reactivarse; la respuesta puede tardar distinto; dos peticiones simultáneas pueden enviar dos correos.
 **No se toca:** la regla del enlace (ADR-0022), el texto del enlace caducado, el login (BE-56), la activación a mano
-(BE-63), BE-62, el `commit()` de los repositorios (A3), el cliente Flutter (FE-18). **Dos decisiones del redactor para
-que David las confirme:** la ruta en español (`reenviar-verificacion`, junto a `verificar-email`) y la respuesta como
-`dict` sin `response_model`, igual que `verificar-email`.
+(BE-63), BE-62, el `commit()` de los repositorios (A3), el cliente Flutter (FE-18). **Decidido por David en E0:** la ruta
+queda en español (punto 1) y nace con schema de salida (punto 2); las demás rutas sin schema son BE-65.
 
 ## Objetivo y decisiones bloqueadas
 
@@ -79,9 +98,13 @@ tienen cuenta y sin que nadie pueda inundar un buzón.
 5. **Sin auditoría** (adenda 6): ni el sello del registro ni el del reenvío dejan fila.
 6. **El token no cambia:** `create_verification_token` tal cual (ADR-0022, punto 3).
 7. **Alcance solo backend** (adenda 9): FE-18 es del cliente.
-8. **Ruta y forma** (del redactor, a confirmar): `POST /usuarios/reenviar-verificacion` en `public_router`; manejador en
-   inglés `resend_verification_email` (AGENTS §4); devuelve `dict[str, bool | str]` sin `response_model`, como
-   `verificar-email`. Si David prefiere ruta en inglés o un schema de salida, es una enmienda antes de E.
+8. **Ruta y forma** (E0, puntos 1 y 2): `POST /usuarios/reenviar-verificacion` en `public_router`; manejador en
+   inglés `resend_verification_email` (AGENTS §4); `response_model=MessageResponse`, un DTO de salida nuevo en
+   `app/schemas/message.py` con exactamente `success: bool` y `message: str`, sobre `BaseModel` y sin validadores
+   (AGENTS §3, A9). Módulo propio porque la forma no es de usuarios y BE-65 la reutiliza en `/servicios`. El
+   manejador sigue construyendo un `dict` y lo anota `-> dict[str, bool | str]`: FastAPI da prioridad a
+   `response_model` sobre la anotación (Referencias), y así quitar el `response_model` cambia el OpenAPI y lo ve un
+   test. El cuerpo de la respuesta no cambia.
 9. **ADR-0023** es la fase A. La viñeta de AGENTS §3 la propone el plan (Residual R6) y la commitea David.
 
 ## Análisis del redactor
@@ -141,11 +164,18 @@ variable, así que va después de las dos. Entre B y D, David corre los pasos de
 | MD13 | consulta exige `is_active` falso | `…_is_found[active-unverified]`; final: + `test_tourist_an_admin_activated_without_verifying_gets_a_link` |
 | MD14 | consulta sin `User.email == email` | `test_due_verification_link_lookup_matches_only_its_email` |
 | MD15 | `save_user` en `try/except: pass` | `test_resend_save_failure_propagates_without_a_link` |
-| ME1 | otro `message` cuando no se envía | los 6 `…_same_answer_and_no_email[…]`, `test_unknown_email_…`, `test_second_request_within_the_interval_sends_nothing` |
+| ME1 | otro `message` cuando no se envía | los 6 `…_same_answer_and_no_email[…]`, `test_unknown_…`, `test_second_request_within_the_interval_sends_nothing` (8) |
 | ME2 | programa el correo aunque el servicio dé `None` | los 6 `…_same_answer_and_no_email[…]`, `test_unknown_…`, `test_registration_counts_as_the_first_link`, `test_second_request_…` (9) |
 | ME3 | `VerificationResendRequest.email: EmailStr` (sin minúsculas) | `test_email_is_matched_in_lowercase` |
 | ME4 | `base_url=settings.frontend_url` sin `rstrip` | `test_link_is_built_from_frontend_url` |
-| ME5 | `status.HTTP_202_ACCEPTED` | 14 de `test_verification_resend.py` |
+| ME5 | `status.HTTP_202_ACCEPTED` | 15 de `test_verification_resend.py`, `test_route_declares_its_response_schema` incluido |
+| ME6 | sin `response_model=MessageResponse` | `test_route_declares_its_response_schema` |
+| ME7 | `MessageResponse` gana `detail: str \| None = None` | `test_pending_tourist_gets_a_new_link` (claves del cuerpo), `test_route_declares_its_response_schema` |
+| ME8 | `message: str \| None = None` (opcional) | `test_route_declares_its_response_schema` |
+| ME9 | sin `response_model` y el `dict` con una clave de más (`"email": body.email`) | `test_pending_tourist_gets_a_new_link`, los 6 `…_same_answer_and_no_email[…]`, `test_unknown_…`, `test_route_declares_its_response_schema` (9) |
+
+ME1–ME9 son de la re-medición tras E0, sobre el estado final nuevo. Con el `response_model` puesto, una clave de más
+en el `dict` no sale de la API (el schema la filtra): por eso ME9 la combina con quitarlo.
 
 **Riesgos.** (1) SQLite frente a PostgreSQL `(backlog BE-31)`: lo cubren el test de esquema compilado para PostgreSQL,
 el SQL fuera de línea y los pasos de David. (2) Carrera de dos peticiones: dos lecturas antes de la escritura, dos
@@ -160,8 +190,8 @@ y los demás DTO, `save_user`/`create_user` (A3), el cliente Flutter.
 ## Regla de alcance
 
 **Sí:** ADR-0023; la columna y su migración; la variable; la consulta, el método del servicio y el sello del registro;
-el DTO de entrada, la ruta y su inventario; los tests de todo eso.
-**No:** BE-56, BE-62, BE-63, SEC3, S5, A3, FE-18; `docs/backlog.md`, `docs/CONTEXT.md`, `AGENTS.md` (los actualiza
+el DTO de entrada, el de salida (`MessageResponse`), la ruta y su inventario; los tests de todo eso.
+**No:** BE-56, BE-62, BE-63, BE-65 (las otras siete rutas sin schema), SEC3, S5, A3, FE-18; `docs/backlog.md`, `docs/CONTEXT.md`, `AGENTS.md` (los actualiza
 David al cerrar). Un hallazgo nuevo va a Residuales del handoff, nunca al código.
 
 ## Fases
@@ -315,11 +345,13 @@ David al cerrar). Un hallazgo nuevo va a Residuales del handoff, nunca al códig
   ```
 
 ### Fase E — La ruta pública de reenvío
-- **Archivos (4):** `app/schemas/user.py`, `app/api/routers/user.py`, `tests/test_route_guards.py`,
-  `tests/test_verification_resend.py` (nuevo).
-- **Cambios exactos:** Anexo E. DTO `VerificationResendRequest` tras `UserLogin` (`:135-137`); en el router, el import
-  en varias líneas, `RESEND_VERIFICATION_MESSAGE` tras `public_router` (`:32`) y `resend_verification_email` antes de
-  `login` (`:98`); dos entradas en las tablas de rutas públicas (`:81`, `:96`).
+- **Archivos (5):** `app/schemas/message.py` (nuevo), `app/schemas/user.py`, `app/api/routers/user.py`,
+  `tests/test_route_guards.py`, `tests/test_verification_resend.py` (nuevo).
+- **Cambios exactos:** Anexo E. `MessageResponse` en su módulo; DTO `VerificationResendRequest` tras `UserLogin`
+  (`:135-137`); en el router, el import de `MessageResponse`, el de `app.schemas.user` en varias líneas,
+  `RESEND_VERIFICATION_MESSAGE` tras `public_router` (`:32`) y `resend_verification_email` con
+  `response_model=MessageResponse` antes de `login` (`:98`); dos entradas en las tablas de rutas públicas (`:81`,
+  `:96`).
 - **Tests (RED primero):** `tests/test_route_guards.py` y el archivo nuevo sin tocar `app/`. Casos:
   `test_pending_tourist_gets_a_new_link`, `test_the_new_link_verifies_the_account`,
   `test_account_not_due_a_link_gets_the_same_answer_and_no_email` ×6 (`admin`, `superadmin`, `soft-deleted-tourist`,
@@ -328,11 +360,15 @@ David al cerrar). Un hallazgo nuevo va a Residuales del handoff, nunca al códig
   `test_registration_counts_as_the_first_link`, `test_second_request_within_the_interval_sends_nothing`,
   `test_link_is_sent_again_once_the_interval_passed`, `test_email_is_matched_in_lowercase`,
   `test_invalid_body_is_422_and_sends_nothing` ×3 (`malformed`, `null`, `missing`),
-  `test_link_is_built_from_frontend_url`. Esperado: `20 failed, 824 passed`.
-- **Criterio de aceptación:** compuerta completa en 0 con `844 passed`, cobertura ≥ 98,70 % (medido 98,73 %), mypy en
-  69 archivos, `4 kept`; Verificación final 1–14 con los valores dados. Mutantes ME1–ME5 muertos. Skill
+  `test_link_is_built_from_frontend_url`, `test_route_declares_its_response_schema` (el 200 del OpenAPI es
+  `$ref` a `MessageResponse`, con `success` booleano y `message` texto, los dos obligatorios). Esperado: `21 failed,
+  824 passed`.
+- **Criterio de aceptación:** compuerta completa en 0 con `845 passed`, cobertura ≥ 98,70 % (medido 98,73 %), mypy en
+  70 archivos, `4 kept` (o E0 punto 3 si Windows bloquea `_rustgrimp`); Verificación final 1–16 con los valores
+  dados. Mutantes ME1–ME9 muertos. Skill
   `test-sanitizer` sobre los dos archivos de test. Ningún test afirma sobre el texto en español (comando 10).
-- **Fuera de alcance:** `app/main.py` (S5), `verificar-email`, el cliente (FE-18), `docs/`.
+- **Fuera de alcance:** `app/main.py` (S5), `verificar-email` y las otras seis rutas sin schema (BE-65), el cliente
+  (FE-18), `docs/`.
 - **Commit:**
   ```
   feat(auth): add the public route that resends the verification link
@@ -343,23 +379,29 @@ David al cerrar). Un hallazgo nuevo va a Residuales del handoff, nunca al códig
   link leaves, so it does not tell which addresses have an account
   (ADR-0023).
 
+  - app/schemas/message.py: MessageResponse, success and message and
+    nothing else, on BaseModel with no validators (backlog A9). Its own
+    module: the shape is not about users and BE-65 reuses it.
   - app/schemas/user.py: VerificationResendRequest, a LowercaseEmail
     only (ADR-0016); anything else is a 422.
-  - app/api/routers/user.py: the route asks the service for a link and,
-    when there is one, schedules the usual email as a background task,
-    as registration does; the message is David's text.
-  - tests: the route in the public inventory (ADR-0012); a pending and
-    an admin-activated tourist get a working link; admins, deleted or
-    verified accounts, an unknown address and a request inside the
-    interval get the same body and no email; registration counts as
-    the first link; the email is matched in lower case.
+  - app/api/routers/user.py: the route declares MessageResponse as its
+    response_model, asks the service for a link and, when there is one,
+    schedules the usual email as a background task, as registration
+    does; the message is David's text.
+  - tests: the route in the public inventory (ADR-0012); its 200 schema
+    in the OpenAPI; a pending and an admin-activated tourist get a
+    working link; admins, deleted or verified accounts, an unknown
+    address and a request inside the interval get the same body and
+    no email; registration counts as the first link; the email is
+    matched in lower case.
 
   Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
   ```
 
 ## Verificación final
 
-Desde la raíz, en Git Bash, tras la fase E. Valores medidos en la copia final (el 14, con `diff -rq` más el ADR). Los
+Desde la raíz, en Git Bash, tras la fase E. Valores medidos en la copia final re-medida tras E0 (el 15, con `diff -rq`
+más el ADR). Los
 números cuentan el texto que dictan los Anexos (docstrings, comentarios, nombres de tests).
 
 ```bash
@@ -396,21 +438,26 @@ grep -c "log_transaction" app/services/user_service.py
 # 12. Variable documentada y fijada en la suite → 1 y 1
 grep -c "^VERIFICATION_RESEND_INTERVAL_SECONDS=60$" .env.example
 grep -c '"VERIFICATION_RESEND_INTERVAL_SECONDS": "60"' conftest.py
-# 13. Menciones en .py → BE-64: 9 líneas en 9 archivos; ADR-0023: 13 líneas
+# 13. Menciones en .py → BE-64: 10 líneas en 10 archivos; ADR-0023: 13 líneas
 grep -rn "BE-64" app tests alembic --include=*.py | wc -l
 grep -rn "ADR-0023" app tests alembic --include=*.py | wc -l
-# 14. Alcance del diff → exactamente los 17 archivos de abajo
+# 14. Schema de salida (E0, punto 2): declarado en la ruta → 1; líneas en app → 4 (el import y la ruta en el
+#     router, una línea del docstring del manejador, la clase); en tests → 3
+grep -c "response_model=MessageResponse" app/api/routers/user.py
+grep -rn "MessageResponse" app --include=*.py | wc -l
+grep -rn "MessageResponse" tests --include=*.py | wc -l
+# 15. Alcance del diff → exactamente los 18 archivos de abajo
 git diff --name-only 22328ce HEAD -- app alembic tests conftest.py .env.example docs/adr
-# 15. Compuerta → exit 0; 844 passed; cobertura ≥ 98,70 % (medido 98,73 %); ruff 0; mypy 0 en 69; 4 kept
+# 16. Compuerta → exit 0; 845 passed; cobertura ≥ 98,70 % (medido 98,73 %); ruff 0 en 75; mypy 0 en 70; 4 kept
 ./venv/Scripts/python.exe scripts/check.py
 ```
 
-El 13 por archivo: BE-64 en la migración, `routers/user.py`, `config.py`, `models/user.py`, `schemas/user.py`,
-`user_service.py`, `test_migration_verification_sent_at.py`, `test_user_service.py`, `test_verification_resend.py`;
-ADR-0023 dos veces en `routers/user.py` y en `user_service.py`, una en los otros nueve. El 14 lista: `.env.example`,
+El 13 por archivo: BE-64 en la migración, `routers/user.py`, `config.py`, `models/user.py`, `schemas/message.py`,
+`schemas/user.py`, `user_service.py`, `test_migration_verification_sent_at.py`, `test_user_service.py`, `test_verification_resend.py`;
+ADR-0023 dos veces en `routers/user.py` y en `user_service.py`, una en los otros nueve (`schemas/message.py` no la cita). El 15 lista: `.env.example`,
 `alembic/versions/a64d0c2e7f15_users_verification_sent_at.py`, `app/api/routers/user.py`, `app/core/config.py`,
-`app/models/user.py`, `app/repositories/user_repository.py`, `app/schemas/user.py`, `app/services/user_service.py`,
-`conftest.py`, `docs/adr/0023-el-enlace-de-verificacion-se-puede-pedir-de-nuevo.md`, `tests/test_config.py`,
+`app/models/user.py`, `app/repositories/user_repository.py`, `app/schemas/message.py`, `app/schemas/user.py`,
+`app/services/user_service.py`, `conftest.py`, `docs/adr/0023-el-enlace-de-verificacion-se-puede-pedir-de-nuevo.md`, `tests/test_config.py`,
 `tests/test_migration_verification_sent_at.py`, `tests/test_models_schema.py`, `tests/test_route_guards.py`,
 `tests/test_user_repository.py`, `tests/test_user_service.py`, `tests/test_verification_resend.py`.
 **Paso humano antes de `/pr`:** los pasos de PostgreSQL de la fase B están en la bitácora con su salida literal.
@@ -423,11 +470,11 @@ turista pendiente envían un solo correo (prueba la comparación `timestamptz`, 
 |---|---|---|
 | R1 | La ruta tarda algo más cuando la cuenta es elegible (firma token, escribe la columna, programa la tarea); OWASP pide tiempo uniforme. Aceptado (adenda 7). | Nota en la fila SEC3. |
 | R2 | Dos peticiones simultáneas leen la columna antes de que ninguna la escriba y envían dos correos (adenda 8; razonado, no medido). | Nota en A3/BE-31; sin fila nueva. |
-| R3 | Las rutas que devuelven `{"success", "message"}` (`verificar-email`, `DELETE /usuarios/{cedula}`, `recuperar`, ahora el reenvío) no declaran `response_model`; AGENTS §3 pide schemas de salida. | Fila nueva, Baja: un `MessageResponse` común. |
+| R3 | Las demás rutas que devuelven un `dict` sin `response_model` (siete, medido por la sesión Mentor). La de este ítem ya nace con `MessageResponse` (E0, punto 2), que BE-65 reutiliza. | Ya es la fila `(backlog BE-65)`; sin fila nueva. |
 | R4 | Los 422 nuevos suben los avisos de la suite de 25 a 29 (`HTTP_422_UNPROCESSABLE_ENTITY`, `app/main.py`; medido). | Nota en la fila S5. |
 | R5 | `VERIFICATION_RESEND_INTERVAL_SECONDS` acepta 0 o negativos (sin espera) y el texto fijo dice "un minuto". | Nota en BE-64 al cerrar; validar rango solo si David lo pide. |
 | R6 | Viñeta para AGENTS §3. Propuesta: "**Reenvío del enlace (ADR-0023):** solo lo recibe un turista no borrado con `email_verified_at` vacía; entre dos enlaces pasan `VERIFICATION_RESEND_INTERVAL_SECONDS` (`users.verification_sent_at`, que escriben el registro y el reenvío); `POST /usuarios/reenviar-verificacion` responde siempre lo mismo." | David, tras la última auditoría. |
-| R7 | FE-18 necesita el contrato: `POST /usuarios/reenviar-verificacion`, cuerpo `{"email"}`, 200 `{"success","message"}` siempre, 422 `{"detalle": [...]}`. | Nota en la fila FE-18 al mezclar. |
+| R7 | FE-18 necesita el contrato: `POST /usuarios/reenviar-verificacion`, cuerpo `{"email"}`, 200 `MessageResponse` (`{"success": bool, "message": str}`, documentado en `/openapi.json`) siempre, 422 `{"detalle": [...]}`. | Nota en la fila FE-18 al mezclar. |
 | R8 | El mensaje del login de una cuenta inactiva (`user_service.py:199`) podría remitir al reenvío. | Nota en la fila BE-56. |
 
 ## Referencias
@@ -438,6 +485,9 @@ turista pendiente envían un solo correo (prueba la comparación `timestamptz`, 
 - Alembic 1.18.4 · `batch_alter_table` y `alembic check` (precedente de BE-50) · https://alembic.sqlalchemy.org/en/latest/batch.html
 - FastAPI 0.135.1 / Starlette 1.3.1 · `BackgroundTasks` (patrón ya usado en `/registro`) ·
   https://fastapi.tiangolo.com/tutorial/background-tasks/
+- FastAPI 0.135.1 · "`response_model` Priority": si hay anotación de retorno y `response_model`, manda
+  `response_model` (validación, documentación y filtrado de la salida) · https://fastapi.tiangolo.com/tutorial/response-model/
+  (leído en Context7, `/websites/fastapi_tiangolo`).
 - OWASP Cheat Sheet Series · Forgot Password, "Forgot Password Request": mensaje igual para cuentas que existen y que
   no, tiempo de respuesta uniforme, y "rate-limiting on a per-account basis" contra envíos automatizados; no da cifra ·
   https://cheatsheetseries.owasp.org/cheatsheets/Forgot_Password_Cheat_Sheet.html (leído en Context7,
@@ -463,7 +513,7 @@ turista pendiente envían un solo correo (prueba la comparación `timestamptz`, 
   `docs/deuda/BE-64/plan.md`. Relación: ADR-0022 (la regla del enlace no cambia; esta decisión responde a su
   consecuencia "sin reenvío"), ADR-0019 (las cuentas administrativas las decide un superadmin), ADR-0016 (correo en
   minúsculas), ADR-0013 (variable nueva), ADR-0012 (ruta pública en el inventario), ADR-0010 (estilo de la columna),
-  ADR-0021 (qué se audita).
+  ADR-0021 (qué se audita). BE-65 reutiliza su schema de salida.
 
 ## Contexto
 
@@ -476,9 +526,14 @@ cuenta. La aplicación no tiene limitador de peticiones ni guardaba cuándo sali
 
 ## Decisión
 
-1. **Ruta pública `POST /usuarios/reenviar-verificacion`**, cuerpo `{"email": …}` (`LowercaseEmail`). Responde siempre
-   200 `{"success": true, "message": …}` con el mismo texto, exista o no la cuenta, sea cual sea su estado y haya
-   pasado o no el intervalo. Un cuerpo que no es un correo es 422.
+1. **Ruta pública `POST /usuarios/reenviar-verificacion`**, cuerpo `{"email": …}` (`LowercaseEmail`), con
+   `response_model=MessageResponse` (`app/schemas/message.py`: exactamente `success: bool` y `message: str`, sobre
+   `BaseModel`, sin validadores ni herencia de un DTO de entrada). Responde siempre 200 `{"success": true,
+   "message": …}` con el mismo texto, exista o no la cuenta, sea cual sea su estado y haya pasado o no el intervalo.
+   Un cuerpo que no es un correo es 422. La ruta va en español aunque es nueva: AGENTS §4 (b) exceptúa del inglés
+   solo las rutas públicas ya existentes, y esta sigue a sus vecinas de `/usuarios` a sabiendas, porque unificar el
+   idioma es `(backlog P2)`, en `B-FUTURO`, y una sola ruta en inglés haría la asimetría más visible. El manejador va
+   en inglés.
 2. **A quién:** a una cuenta de turista, no borrada, con `email_verified_at` vacía, activa o inactiva. Nunca a una
    cuenta administrativa. El filtro es la consulta del repositorio, no un `if` sobre el rol en el servicio.
 3. **Cuándo:** columna `users.verification_sent_at` (`TIMESTAMP WITH TIME ZONE`, admite vacío). La escriben el registro
@@ -517,12 +572,14 @@ cuenta. La aplicación no tiene limitador de peticiones ni guardaba cuándo sali
 5. **Una fila de auditoría por reenvío.** Rechazada: llenaría el historial con cada clic sin valor para el negocio.
 6. **Respuestas distintas (404 sin cuenta, 429 dentro del intervalo).** Rechazadas: dirían qué correos tienen cuenta.
 7. **Un limitador de peticiones por librería.** Fuera: no está en las dependencias, y el límite pedido es por cuenta.
+8. **Devolver un `dict` sin `response_model`, como `verificar-email`.** Rechazada por David (AGENTS §3: un router
+   devuelve schemas): sin schema nada limita qué claves salen ni las documenta. Las rutas que ya lo hacen son BE-65.
 
 ## Evidencia
 
 - Verificación (19 nov): un solo emisor del token y una sola ruta que programa el correo (grep global); rincón 1 leído
   en el código; adenda con las decisiones 1 a 10.
-- Plan: RED y GREEN de cada fase, compuerta completa y 29 mutantes medidos en copias del repositorio
+- Plan: RED y GREEN de cada fase, compuerta completa y 33 mutantes medidos en copias del repositorio
   (`docs/deuda/BE-64/plan.md`).
 - OWASP, Forgot Password Cheat Sheet, "Forgot Password Request": mensaje igual exista o no la cuenta, tiempo de
   respuesta uniforme y límite por cuenta contra envíos automatizados, sin cifra. Trata de la recuperación de
@@ -533,12 +590,13 @@ cuenta. La aplicación no tiene limitador de peticiones ni guardaba cuándo sali
 - Fuentes leídas el 19 nov en el texto fuente que sirve Context7, no en la página publicada.
 ```
 
-El Anexo A dice "29 mutantes"; si una enmienda cambia esa cifra, se cambia aquí antes de la fase A.
+El Anexo A dice "33 mutantes" (cifra re-medida tras E0); si una enmienda cambia esa cifra, se cambia aquí antes de
+la fase A.
 
 ## Anexos B a E — cambios exactos de cada fase
 
 Son la salida literal de `git diff --no-index -U2` entre las copias de una fase y la siguiente (las que dieron los
-GREEN de arriba). El ejecutor aplica ese contenido; el auditor compara el diff de la fase con su anexo. Los saltos de
+GREEN de arriba; el Anexo E, de las copias re-medidas tras E0). El ejecutor aplica ese contenido; el auditor compara el diff de la fase con su anexo. Los saltos de
 línea los decide el `ruff format` del hook; el contenido no cambia. La migración nueva es la excepción `(backlog
 AF-18)`: queda como en el Anexo B, con comillas simples y el import de `alembic` antes que el de `sqlalchemy`.
 
@@ -1099,15 +1157,17 @@ index 40f20eb..8587f9c 100644
  # ADMINISTRATIVE PROVISIONING
 ```
 
-### Anexo E — fase E
+### Anexo E — fase E (re-medido tras E0)
 
 ```diff
 diff --git a/app/api/routers/user.py b/app/api/routers/user.py
-index ed616f8..66eb8cf 100644
+index ed616f8..d630362 100644
 --- a/app/api/routers/user.py
 +++ b/app/api/routers/user.py
-@@ -13,5 +13,12 @@ from app.core.config import Settings, get_settings
+@@ -12,6 +12,14 @@ from app.api.dependencies import (
+ from app.core.config import Settings, get_settings
  from app.core.email import send_verification_email
++from app.schemas.message import MessageResponse
  from app.schemas.token import TokenResponse
 -from app.schemas.user import UserCreate, UserCreateByAdmin, UserLogin, UserResponse, UserUpdate
 +from app.schemas.user import (
@@ -1120,7 +1180,7 @@ index ed616f8..66eb8cf 100644
 +)
  from app.services.user_service import UserService
  
-@@ -31,4 +38,12 @@ from app.services.user_service import UserService
+@@ -31,4 +39,12 @@ from app.services.user_service import UserService
  
  public_router = APIRouter()
 +
@@ -1133,10 +1193,12 @@ index ed616f8..66eb8cf 100644
 +)
  self_service_router = APIRouter(dependencies=[Depends(get_current_user)])
  admin_router = APIRouter(dependencies=[Depends(get_current_admin_user)])
-@@ -96,4 +111,39 @@ async def verificar_cuenta(token: str, user_service: UserService = Depends(get_u
+@@ -96,4 +112,42 @@ async def verificar_cuenta(token: str, user_service: UserService = Depends(get_u
  
  
-+@public_router.post("/reenviar-verificacion", status_code=status.HTTP_200_OK)
++@public_router.post(
++    "/reenviar-verificacion", response_model=MessageResponse, status_code=status.HTTP_200_OK
++)
 +async def resend_verification_email(
 +    body: VerificationResendRequest,
 +    background_tasks: BackgroundTasks,
@@ -1147,7 +1209,8 @@ index ed616f8..66eb8cf 100644
 +
 +    The service decides whether a link is due (a non-deleted, unverified tourist past the
 +    resend interval) and signs it; the email leaves as a background task, as after a
-+    registration. The answer is the same in every case (ADR-0023).
++    registration. The answer is the same in every case (ADR-0023); MessageResponse, the
++    response_model, documents it and lets no other key out.
 +
 +    Args:
 +        body (VerificationResendRequest): The address the link is asked for.
@@ -1173,6 +1236,28 @@ index ed616f8..66eb8cf 100644
 +
  @public_router.post("/login", response_model=TokenResponse)
  async def login(credenciales: UserLogin, user_service: UserService = Depends(get_user_service)):
+diff --git a/app/schemas/message.py b/app/schemas/message.py
+new file mode 100644
+index 0000000..4c114a9
+--- /dev/null
++++ b/app/schemas/message.py
+@@ -0,0 +1,16 @@
++from pydantic import BaseModel
++
++
++class MessageResponse(BaseModel):
++    """Body of the routes that answer with a success flag and a message to show (BE-64).
++
++    Declared on BaseModel with no validators: an output DTO never re-applies input rules
++    (backlog A9). The shape is not specific to users, so it lives in its own module.
++
++    Attributes:
++        success: Whether the request was handled.
++        message: Text for the end user.
++    """
++
++    success: bool
++    message: str
 diff --git a/app/schemas/user.py b/app/schemas/user.py
 index d254dfd..3ba2f30 100644
 --- a/app/schemas/user.py
@@ -1209,10 +1294,10 @@ index ecaf4b1..039299b 100644
      ("GET", "/servicios/"): 200,
 diff --git a/tests/test_verification_resend.py b/tests/test_verification_resend.py
 new file mode 100644
-index 0000000..ff4d1c4
+index 0000000..018a151
 --- /dev/null
 +++ b/tests/test_verification_resend.py
-@@ -0,0 +1,246 @@
+@@ -0,0 +1,260 @@
 +"""HTTP tests for POST /usuarios/reenviar-verificacion (BE-64, ADR-0023).
 +
 +The route answers 200 with the same body whether or not a link leaves, so each case that sends
@@ -1459,6 +1544,20 @@ index 0000000..ff4d1c4
 +        token=ANY,
 +        base_url="https://front.example",
 +    )
++
++
++async def test_route_declares_its_response_schema(client):
++    """Edge case: the 200 answer is MessageResponse in the OpenAPI, two required keys, no more."""
++    spec = (await client.get("/openapi.json")).json()
++
++    answer = spec["paths"][URL]["post"]["responses"]["200"]["content"]["application/json"]
++    assert answer["schema"] == {"$ref": "#/components/schemas/MessageResponse"}
++    schema = spec["components"]["schemas"]["MessageResponse"]
++    assert {name: field.get("type") for name, field in schema["properties"].items()} == {
++        "success": "boolean",
++        "message": "string",
++    }
++    assert sorted(schema["required"]) == ["message", "success"]
 ```
 
 ## Enmiendas aprobadas
@@ -1512,3 +1611,50 @@ enmienda difieran, rige la enmienda.
    `commit()`, 6 `log_transaction`, 10 líneas con `email_verified_at`, 1 con `resend`); `expire_on_commit=False` en
    las dos fábricas de sesiones (`app/db/database.py:17`, `tests/conftest.py:31`), así que leer `resend.user` tras el
    `commit()` no falla. **No se ejecutó nada:** las mediciones son las del planificador, en Windows.
+
+### E1 — 19 nov 2026, 19:37 (David: "listo, apruebo"; contraste de la sesión Mentor sobre la re-medición)
+
+1. **Plan aprobado, cinco fases, con la fase E recalculada tras E0, y ADR-0023 aceptado** con el texto del Anexo A.
+   `<FECHA DE APROBACIÓN>` = `19 nov 2026`. La aprobación se da también en la sesión de Claude Code, remitiendo a la
+   cabecera, a E0 y a E1.
+2. **Contraste de la re-medición.** El planificador aplicó solo E0.2: `MessageResponse` en `app/schemas/message.py`,
+   `response_model` en la ruta, `test_route_declares_its_response_schema` y los mutantes ME6 a ME9; estado final
+   `845 passed` · 98,73 % · mypy 0 en 70 · 4 kept · 33 mutantes muertos. La sesión Mentor leyó el diff entero contra
+   `be9d385` y rehízo a mano los conteos de la Verificación final sobre el texto de los anexos (4 menciones de
+   `MessageResponse` en `app` y 3 en `tests`; 18 archivos en el comando 15; 13 menciones de ADR-0023 y 10 de BE-64;
+   5 + 4 + 15 + 9 = 33 mutantes). E0, la línea `Estado` y las fases A a D, sin tocar. **No ejecutó nada.**
+3. **Pruebas contra el PostgreSQL local: tres momentos, los tres de David y los tres obligatorios.** Ningún agente los
+   corre (Alembic y la API leen el `.env`, que un agente no lee) y ninguna fase los sustituye con SQLite. La salida
+   literal de cada uno va a la bitácora del día. Los comandos van en la sintaxis de `cmd`, desde
+   `C:\projects\ecotur-asoprado`.
+   - **Momento 1, antes de `/implementar BE-64 B`:** `venv\Scripts\python.exe -m alembic current` debe dar
+     `e50a7c3d9b12 (head)` y `venv\Scripts\python.exe -m alembic check` debe dar `No new upgrade operations
+     detected.`. Es la medición de antes (ADR-0010, punto 7). Si no da eso, la fase B no empieza.
+   - **Momento 2, después de la auditoría de la fase B y antes de `/implementar BE-64 D`** (la fase C puede correr
+     entre medias): los cuatro comandos de `alembic` y las dos consultas de "Después del commit" de la fase B, con los
+     resultados que allí se dan (`Running upgrade e50a7c3d9b12 -> a64d0c2e7f15`; `check` sin operaciones;
+     `downgrade -1`; `upgrade head`; la columna `timestamp with time zone | YES`; 0 filas con la columna llena). Si
+     `check` lista operaciones, el ítem se detiene. La fase D tiene esta salida como requisito previo.
+   - **Momento 3, después de la auditoría de la fase E y antes de `/pr`.** Sustituye a la frase "Recomendado, no
+     exigido" de la Verificación final, que deja de regir (E0, punto 4). Con la API de la rama levantada en local
+     sobre el PostgreSQL local ya migrado, y un buzón que David pueda abrir, en este orden:
+     1. `POST /usuarios/registro` con una cuenta nueva: 201 y llega **un** correo.
+     2. Enseguida, `POST /usuarios/reenviar-verificacion` con ese correo: 200 con el cuerpo de siempre y **ningún**
+        correo nuevo (el registro cuenta como envío).
+     3. `SELECT email, is_active, email_verified_at, verification_sent_at FROM users WHERE email = '<ese correo>';`
+        y se anota la hora de `verification_sent_at` (T1).
+     4. Pasados más de 60 segundos, el mismo `POST`: 200 con el mismo cuerpo y llega el **segundo** correo; la
+        consulta del paso 3 da una hora posterior (T2 > T1).
+     5. Enseguida, otro `POST`: 200 con el mismo cuerpo, ningún correo y la hora sigue en T2.
+     6. Se usa el enlace del **segundo** correo (desde el cliente, o con `GET /usuarios/verificar-email?token=…`): la
+        consulta da `is_active` verdadero y `email_verified_at` llena.
+     7. Otro `POST` con ese correo, pasado el minuto: 200 con el mismo cuerpo y ningún correo (ya está verificado).
+     8. Un `POST` con un correo que no tiene cuenta: 200 con el mismo cuerpo y ningún correo.
+     9. En el historial de auditoría, esa cuenta tiene solo su `CREATE` y el `UPDATE` de `is_active` del paso 6:
+        ninguna fila por los reenvíos.
+     Lo que esto prueba y la suite no puede: la comparación de la hora en PostgreSQL (`timestamptz` contra un
+     parámetro con zona); en SQLite, donde corre la suite, es una comparación de texto. Si algún paso da otra cosa,
+     no hay `/pr`: se anota en la bitácora con la salida y vuelve al flujo como hallazgo.
+4. **Lo demás de E0 sigue vigente:** la ruta en español (punto 1), la cláusula por si Windows bloquea
+   `_rustgrimp` (punto 3) y la observación sin acción sobre `monkeypatch.setattr` (punto 5).
+5. **`progress.json`:** el planificador cambió la descripción de la fase E; nada más depende de E1.
