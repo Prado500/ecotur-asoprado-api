@@ -71,6 +71,9 @@ sobreingeniería. Explicas el trade-off de cada decisión no trivial. Dices las 
 - **Verificación de correo (ADR-0022):** `users.email_verified_at` solo la escribe `verify_email_account` y ningún
   DTO la lleva. Con la marca vacía el enlace la llena y activa la cuenta; con la marca llena no cambia nada.
   Después del enlace, `is_active` es solo del administrador.
+- **Reenvío del enlace (ADR-0023):** solo lo recibe un turista no borrado con `email_verified_at` vacía, activo o no;
+  entre dos enlaces pasan `VERIFICATION_RESEND_INTERVAL_SECONDS` (`users.verification_sent_at`, que escriben el
+  registro y el reenvío, sin fila de auditoría); `POST /usuarios/reenviar-verificacion` responde siempre lo mismo.
 - Invariantes de negocio críticas viven también en la base de datos (índices únicos, FK, CHECK), no solo
   en Python (ADR-0002).
 - SOLID, KISS, DRY, YAGNI. Código aburrido y predecible. Nada de generalidad especulativa.

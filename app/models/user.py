@@ -56,3 +56,6 @@ class User(Base):
     # Filled once, only by the email-verification link; no admin action writes or clears it
     # (BE-50, ADR-0022). Empty means the link was never used, not that the account is inactive.
     email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # When the last verification link was issued: registration and every resend write it, so
+    # a new link waits the configured interval (BE-64, ADR-0023). Empty: no link on record.
+    verification_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

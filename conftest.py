@@ -13,6 +13,7 @@ TEST_ENVIRONMENT = {
     "ALGORITHM": "HS256",
     "ACCESS_TOKEN_EXPIRE_MINUTES": "30",
     "VERIFICATION_TOKEN_EXPIRE_MINUTES": "15",
+    "VERIFICATION_RESEND_INTERVAL_SECONDS": "60",
     "MAIL_USERNAME": "smtp-account@test.com",
     "MAIL_PASSWORD": "test-mail-password",
     "MAIL_FROM": "sender@test.com",

@@ -11,8 +11,16 @@ from app.api.dependencies import (
 )
 from app.core.config import Settings, get_settings
 from app.core.email import send_verification_email
+from app.schemas.message import MessageResponse
 from app.schemas.token import TokenResponse
-from app.schemas.user import UserCreate, UserCreateByAdmin, UserLogin, UserResponse, UserUpdate
+from app.schemas.user import (
+    UserCreate,
+    UserCreateByAdmin,
+    UserLogin,
+    UserResponse,
+    UserUpdate,
+    VerificationResendRequest,
+)
 from app.services.user_service import UserService
 
 # -------------------------------------------------------------------
@@ -30,6 +38,14 @@ from app.services.user_service import UserService
 # -------------------------------------------------------------------
 
 public_router = APIRouter()
+
+# The resend answers this whether or not a link left, so it never tells whether an account
+# exists (BE-64, ADR-0023).
+RESEND_VERIFICATION_MESSAGE = (
+    "Si su correo tiene una cuenta pendiente de verificación, le acabamos de enviar un nuevo "
+    "enlace. Revise su bandeja de entrada y la carpeta de correo no deseado. Si ya pidió uno "
+    "hace poco, espere un minuto antes de intentarlo de nuevo."
+)
 self_service_router = APIRouter(dependencies=[Depends(get_current_user)])
 admin_router = APIRouter(dependencies=[Depends(get_current_admin_user)])
 superadmin_router = APIRouter(dependencies=[Depends(get_current_superadmin_user)])
@@ -93,6 +109,44 @@ async def verificar_cuenta(token: str, user_service: UserService = Depends(get_u
         dict: Success flag and the message to show.
     """
     return await user_service.verify_email_account(token)
+
+
+@public_router.post(
+    "/reenviar-verificacion", response_model=MessageResponse, status_code=status.HTTP_200_OK
+)
+async def resend_verification_email(
+    body: VerificationResendRequest,
+    background_tasks: BackgroundTasks,
+    user_service: UserService = Depends(get_user_service),
+    settings: Settings = Depends(get_settings),
+) -> dict[str, bool | str]:
+    """Public endpoint: emails a new verification link to an account still waiting for one.
+
+    The service decides whether a link is due (a non-deleted, unverified tourist past the
+    resend interval) and signs it; the email leaves as a background task, as after a
+    registration. The answer is the same in every case (ADR-0023); MessageResponse, the
+    response_model, documents it and lets no other key out.
+
+    Args:
+        body (VerificationResendRequest): The address the link is asked for.
+        background_tasks (BackgroundTasks): Starlette task queue for email dispatch.
+        user_service (UserService): Injected business-logic service.
+        settings (Settings): Injected configuration; frontend_url is the base of the emailed link.
+
+    Returns:
+        dict: Success flag and the message to show, identical whether or not a link left.
+    """
+    resend = await user_service.resend_verification_link(body.email)
+    if resend is not None:
+        background_tasks.add_task(
+            send_verification_email,
+            email_to=resend.user.email,
+            first_name=resend.user.first_name,
+            token=resend.verification_token,
+            base_url=settings.frontend_url.rstrip("/"),
+        )
+
+    return {"success": True, "message": RESEND_VERIFICATION_MESSAGE}
 
 
 @public_router.post("/login", response_model=TokenResponse)

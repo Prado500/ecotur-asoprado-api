@@ -49,6 +49,8 @@ class Settings(DatabaseSettings):
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
     verification_token_expire_minutes: int = 15
+    # Minimum wait between two verification links to one account (BE-64, ADR-0023).
+    verification_resend_interval_seconds: int = 60
 
     mail_username: str = Field(min_length=1)
     mail_password: str = Field(min_length=1)

@@ -45,6 +45,34 @@ class UserRepository:
         result = await self.db.execute(stmt)
         return result.scalars().first()
 
+    async def get_tourist_due_a_verification_link(
+        self, email: str, sent_before: datetime
+    ) -> User | None:
+        """Finds the account that may receive a new email-verification link (ADR-0023).
+
+        A tourist, not soft-deleted, whose email is not verified yet, active or not, and whose
+        last link was issued at or before sent_before, or is not on record. Administrative
+        accounts never match: their sign-up and their retirement belong to a superadmin
+        (ADR-0019).
+
+        Args:
+            email (str): Lowercased address of the account.
+            sent_before (datetime): Latest issue time of the previous link that still allows a
+                new one: now minus the resend interval.
+
+        Returns:
+            User | None: The matching account, or None.
+        """
+        stmt = select(User).where(
+            User.email == email,
+            User.role == UserRole.tourist,
+            User.deleted_at.is_(None),
+            User.email_verified_at.is_(None),
+            or_(User.verification_sent_at.is_(None), User.verification_sent_at <= sent_before),
+        )
+        result = await self.db.execute(stmt)
+        return result.scalars().first()
+
     async def create_user(self, user: User) -> User:
         self.db.add(user)
         await self.db.commit()

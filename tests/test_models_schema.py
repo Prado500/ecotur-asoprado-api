@@ -78,6 +78,7 @@ EXPECTED: dict[str, dict[str, FrozenColumn]] = {
         "created_at": FrozenColumn(TZ, nullable=True, server_default="now()"),
         "deleted_at": FrozenColumn(TZ, nullable=True),
         "email_verified_at": FrozenColumn(TZ, nullable=True),
+        "verification_sent_at": FrozenColumn(TZ, nullable=True),
     },
     "tourist_services": {
         "id": FrozenColumn("INTEGER", primary_key=True, indexed=True),
