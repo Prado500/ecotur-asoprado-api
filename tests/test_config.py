@@ -36,6 +36,7 @@ OPTIONAL_DEFAULTS = {
     "algorithm": "HS256",
     "access_token_expire_minutes": 30,
     "verification_token_expire_minutes": 15,
+    "verification_resend_interval_seconds": 60,
     "mail_from": None,
     "mail_port": 465,
     "mail_server": "smtp.gmail.com",
@@ -123,6 +124,31 @@ def test_optional_variables_keep_their_current_defaults(monkeypatch: pytest.Monk
 
     assert set(Settings.model_fields) == set(REQUIRED) | set(OPTIONAL_DEFAULTS)
     assert {n: getattr(settings, n) for n in OPTIONAL_DEFAULTS} == OPTIONAL_DEFAULTS
+
+
+def test_verification_resend_interval_is_read_in_seconds(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Edge case: the minimum wait between two verification links comes from the environment."""
+    _set_required(monkeypatch)
+    monkeypatch.setenv("VERIFICATION_RESEND_INTERVAL_SECONDS", "90")
+
+    assert Settings(_env_file=None).verification_resend_interval_seconds == 90
+
+
+def test_verification_resend_interval_rejects_a_non_integer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Unhappy path: a wait that is not a whole number of seconds stops the app, naming it."""
+    _set_required(monkeypatch)
+    monkeypatch.setenv("VERIFICATION_RESEND_INTERVAL_SECONDS", "1m")
+
+    with pytest.raises(ValidationError) as exc_info:
+        Settings(_env_file=None)
+
+    assert [(e["type"], e["loc"]) for e in exc_info.value.errors()] == [
+        ("int_parsing", ("verification_resend_interval_seconds",))
+    ]
 
 
 def test_mail_sender_defaults_to_mail_username(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -230,7 +256,8 @@ def test_env_example_is_a_valid_configuration(monkeypatch: pytest.MonkeyPatch) -
         settings.algorithm,
         settings.access_token_expire_minutes,
         settings.verification_token_expire_minutes,
-    ) == ("HS256", 30, 15)
+        settings.verification_resend_interval_seconds,
+    ) == ("HS256", 30, 15, 60)
 
 
 def test_env_example_documents_every_setting() -> None:
