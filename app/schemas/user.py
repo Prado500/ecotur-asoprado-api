@@ -137,6 +137,15 @@ class UserLogin(BaseModel):
     password: str
 
 
+class VerificationResendRequest(BaseModel):
+    """Body of the request for a new email-verification link (BE-64).
+
+    Only the address: the answer is the same whether or not it names an account (ADR-0023).
+    """
+
+    email: LowercaseEmail
+
+
 class UserResponse(BaseModel):
     """Serialized view of a stored user account.
 

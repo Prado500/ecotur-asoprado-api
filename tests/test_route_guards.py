@@ -79,6 +79,7 @@ PUBLIC_ROUTES: frozenset[tuple[str, str]] = frozenset(
     {
         ("POST", "/usuarios/registro"),
         ("GET", "/usuarios/verificar-email"),
+        ("POST", "/usuarios/reenviar-verificacion"),
         ("POST", "/usuarios/login"),
         ("GET", "/servicios/"),
         ("GET", "/"),
@@ -94,6 +95,7 @@ PUBLIC_ROUTES: frozenset[tuple[str, str]] = frozenset(
 _ANONYMOUS_ON_PUBLIC_ROUTE: dict[tuple[str, str], int] = {
     ("POST", "/usuarios/registro"): 422,
     ("GET", "/usuarios/verificar-email"): 422,
+    ("POST", "/usuarios/reenviar-verificacion"): 422,
     ("POST", "/usuarios/login"): 422,
     ("GET", "/servicios/"): 200,
     ("GET", "/"): 200,
