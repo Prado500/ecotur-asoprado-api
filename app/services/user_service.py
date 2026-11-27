@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import NamedTuple
 
 import jwt
@@ -43,6 +43,21 @@ class RegistrationResult(NamedTuple):
     verification_token: str
 
 
+class VerificationResend(NamedTuple):
+    """A new email-verification link for an account that still waits for one (BE-64).
+
+    The service picks the account and signs the token; the transport layer schedules the
+    email, as it does after a registration.
+
+    Attributes:
+        user (User): The tourist the link is for.
+        verification_token (str): The signed email-verification JWT.
+    """
+
+    user: User
+    verification_token: str
+
+
 class UserService:
     """Encapsulates the business rules, validations and operational logic of the User entity."""
 
@@ -62,6 +77,8 @@ class UserService:
         The email dispatch is deliberately excluded: scheduling work belongs
         to the transport layer (the router's BackgroundTasks), while the
         service decides what to send (the token) and persists the account.
+        Registration counts as the first link sent: it stamps verification_sent_at, so a
+        resend waits the configured interval (ADR-0023).
 
         Args:
             user_data (UserCreate): Validated payload describing the new account.
@@ -89,6 +106,7 @@ class UserService:
             role=UserRole.tourist,
             data_consent=user_data.data_consent,
             is_active=False,
+            verification_sent_at=datetime.now(UTC),
         )
 
         # 1. Persist the inactive user
@@ -176,6 +194,36 @@ class UserService:
             "success": True,
             "message": "Cuenta verificada exitosamente. Ya puede iniciar sesión.",
         }
+
+    async def resend_verification_link(self, email: str) -> VerificationResend | None:
+        """Issues a new email-verification link when the account may receive one now.
+
+        Only a non-deleted tourist whose email is not verified yet receives it, active or
+        inactive, and only once the resend interval has passed since its last link,
+        registration included. Any other address gets None, and the caller answers the same
+        either way, so the answer does not tell whether an account exists (ADR-0023). The
+        send time is operational data: stamping it writes no audit row.
+
+        Args:
+            email (str): Lowercased address the link is asked for.
+
+        Returns:
+            VerificationResend | None: The account and its new token, or None when no link
+                is due.
+        """
+        now = datetime.now(UTC)
+        interval = timedelta(seconds=get_settings().verification_resend_interval_seconds)
+        user = await self.user_repo.get_tourist_due_a_verification_link(
+            email, sent_before=now - interval
+        )
+        if user is None:
+            return None
+
+        user.verification_sent_at = now
+        await self.user_repo.save_user(user)
+        return VerificationResend(
+            user=user, verification_token=create_verification_token(user.email)
+        )
 
     async def authenticate_user(self, credentials: UserLogin) -> TokenResponse:
         """Authenticates credentials and issues an access token.

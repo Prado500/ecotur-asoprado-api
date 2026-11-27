@@ -140,6 +140,19 @@ async def test_register_tourist_duplicate_raises_already_exists(user_repo, user_
     user_repo.create_user.assert_not_called()
 
 
+async def test_register_tourist_counts_as_the_first_link_sent(user_repo, user_service):
+    """Edge case: registration stamps the send time, so a resend waits (ADR-0023)."""
+    user_repo.get_user_by_email_or_cedula.return_value = None
+    user_repo.create_user.side_effect = lambda user: user
+    before = datetime.now(UTC)
+
+    result = await user_service.register_tourist(_tourist_payload())
+
+    sent_at = result.user.verification_sent_at
+    assert sent_at is not None
+    assert before <= sent_at <= datetime.now(UTC)
+
+
 # ==========================================
 # ORDER INVARIANT: 404 EXISTENCE BEFORE 403 HIERARCHY
 # ==========================================
@@ -406,6 +419,82 @@ async def test_verify_email_missing_user_raises_not_found(user_repo, audit_servi
 
     user_repo.get_non_deleted_user_by_email.assert_awaited_once_with("ghost@example.com")
     user_repo.save_user.assert_not_awaited()
+    audit_service.log_transaction.assert_not_awaited()
+
+
+# ==========================================
+# VERIFICATION LINK RESEND (BE-64)
+# ==========================================
+
+RESEND_INTERVAL = timedelta(seconds=60)  # root conftest.py
+
+
+async def test_resend_issues_a_link_to_the_account_due_one(
+    user_repo, audit_service, user_service, make_user
+):
+    """Happy path: the account the query finds gets a new token and its send is stamped."""
+    user = make_user(email="turista@example.com", is_active=False)
+    user_repo.get_tourist_due_a_verification_link.return_value = user
+    before = datetime.now(UTC)
+
+    result = await user_service.resend_verification_link("turista@example.com")
+
+    assert result is not None
+    assert result.user is user
+    settings = get_settings()
+    claims = jwt.decode(
+        result.verification_token, settings.jwt_secret_key, algorithms=[settings.algorithm]
+    )
+    assert (claims["sub"], claims["scope"]) == ("turista@example.com", EMAIL_VERIFICATION_SCOPE)
+    sent_at = user.verification_sent_at
+    assert sent_at is not None
+    assert before <= sent_at <= datetime.now(UTC)
+    assert user.is_active is False
+    user_repo.get_tourist_due_a_verification_link.assert_awaited_once_with(
+        "turista@example.com", sent_before=sent_at - RESEND_INTERVAL
+    )
+    user_repo.save_user.assert_awaited_once_with(user)
+    audit_service.log_transaction.assert_not_awaited()
+
+
+async def test_resend_with_no_account_due_writes_nothing(user_repo, audit_service, user_service):
+    """Unhappy path: no account due a link, so no token, no write and no audit row."""
+    user_repo.get_tourist_due_a_verification_link.return_value = None
+
+    result = await user_service.resend_verification_link("nadie@example.com")
+
+    assert result is None
+    user_repo.get_tourist_due_a_verification_link.assert_awaited_once()
+    assert user_repo.get_tourist_due_a_verification_link.call_args.args == ("nadie@example.com",)
+    user_repo.save_user.assert_not_awaited()
+    audit_service.log_transaction.assert_not_awaited()
+
+
+async def test_resend_interval_comes_from_the_settings(
+    user_repo, user_service, monkeypatch: pytest.MonkeyPatch
+):
+    """Edge case: the cutoff is now minus the configured interval, not a fixed minute."""
+    monkeypatch.setattr(get_settings(), "verification_resend_interval_seconds", 300)
+    user_repo.get_tourist_due_a_verification_link.return_value = None
+    before = datetime.now(UTC)
+
+    await user_service.resend_verification_link("turista@example.com")
+
+    sent_before = user_repo.get_tourist_due_a_verification_link.call_args.kwargs["sent_before"]
+    interval = timedelta(seconds=300)
+    assert before - interval <= sent_before <= datetime.now(UTC) - interval
+
+
+async def test_resend_save_failure_propagates_without_a_link(
+    user_repo, audit_service, user_service, make_user
+):
+    """Unhappy path: if the send time cannot be saved, the error surfaces and no link leaves."""
+    user_repo.get_tourist_due_a_verification_link.return_value = make_user(is_active=False)
+    user_repo.save_user.side_effect = OperationalError("UPDATE users", {}, Exception("db down"))
+
+    with pytest.raises(OperationalError):
+        await user_service.resend_verification_link("turista@example.com")
+
     audit_service.log_transaction.assert_not_awaited()
 
 
