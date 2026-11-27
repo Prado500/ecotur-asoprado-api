@@ -1,6 +1,6 @@
 {
   "plan_file": "docs/deuda/BE-64/plan.md",
-  "current_target": "Fase_D",
+  "current_target": "Fase_E",
   "phases": {
     "Fase_A": {
       "status": "completed",
@@ -18,8 +18,8 @@
       "description": "Settings.verification_resend_interval_seconds (60), .env.example line and root conftest value."
     },
     "Fase_D": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "62c5c74",
       "description": "Repository query for the tourist due a link, UserService.resend_verification_link, registration stamps the send."
     },
     "Fase_E": {
@@ -29,6 +29,6 @@
     }
   },
   "allowed_statuses": ["pending", "partial", "completed"],
-  "last_handoff": "Fase_C completada (a218a65): Settings.verification_resend_interval_seconds=60, su línea en .env.example y su valor en el conftest.py raíz, con el Anexo C byte a byte; RED 4 failed/806 passed; compuerta exit 0, 810 passed, 98.70%, mypy 68, 4 kept; MC1-MC4 muertos. Requisito de la fase D (momento 2 de David) ya en docs/bitacora/2026-11-27.md; falta la auditoría de C.",
+  "last_handoff": "Fase_D completada (62c5c74): consulta get_tourist_due_a_verification_link, UserService.resend_verification_link y sello del registro, con el Anexo D byte a byte (blobs c31fa77, 990c6e1, 5a9220a, 8587f9c); RED 15 failed/810 passed; compuerta exit 0, 825 passed, 98.71%, mypy 68, 4 kept; MD1-MD15 muertos; grep de E2 punto 4 = 1. Falta la auditoría de D.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
