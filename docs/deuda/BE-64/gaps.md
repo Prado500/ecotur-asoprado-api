@@ -288,3 +288,100 @@ fase. R5 (sin validación de rango) sigue fuera de alcance, como dice el plan.
 **Criterio de aceptación de la fase C:** compuerta en 0 con `810 passed` ✔; cobertura 98,70 % ≥ 98,70 % ✔; MC1–MC4
 muertos ✔. No es la última fase: la Verificación final corre tras la fase E. Siguiente: `/implementar BE-64 D` (el
 momento 2 de David está en la bitácora y E2 ya está commiteada en `458fc01`).
+
+## Auditoría Fase D — 2026-11-27
+**Veredicto Fase D: PASS (0 bloqueantes, 0 opcionales).**
+Sin hallazgos.
+
+### Evidencia
+
+**Árbol y commits.** `git status --short` al empezar → vacío. `git log --oneline -3`: `c641d47 docs(progress): record
+BE-64 Fase_D completion`, `62c5c74 feat(auth): decide who may get a new verification link, and when`, `fa74b16
+docs(item-be64): phase C audit PASS (0 blocking, 0 optional)`. `git cat-file -p 62c5c74` → `parent fa74b16…`.
+`git show --stat 62c5c74` → los 4 archivos del plan (`app/repositories/user_repository.py` 28,
+`app/services/user_service.py` 50, `tests/test_user_repository.py` 70, `tests/test_user_service.py` 89; `234
+insertions(+), 3 deletions(-)`); `c641d47` toca solo `handoff-Fase_D.md` y `progress.json`.
+
+**Igualdad con el Anexo D.** `git diff --raw fa74b16 62c5c74` → `b1b6e34 c31fa77`, `6e7d6ee 990c6e1`, `9ce3827
+5a9220a`, `40f20eb 8587f9c`: preimágenes y postimágenes iguales a las líneas `index` del Anexo D (`plan.md:861-1157`);
+`git ls-tree HEAD` da los mismos cuatro blobs (nada los cambió después). Mismo hash = mismo contenido byte a byte: cada
+punto de "Cambios exactos" está en el diff (consulta tras `get_non_deleted_user_by_email`, solo `select`; `timedelta`
+en el import; `VerificationResend` tras `RegistrationResult`; dos líneas en el docstring y
+`verification_sent_at=datetime.now(UTC)` en el `User(...)` de `register_tourist`; `resend_verification_link` antes de
+`authenticate_user`). Código y tests del Anexo sin cambios, como exige E2 punto 2.
+
+**Mensaje de commit.** `plan.md:324-344` sin la sangría, contra `git log -1 --format=%B 62c5c74` sin la línea vacía
+final, con `diff` → idénticos (incluido `Co-Authored-By`).
+
+**progress.json.** JSON válido. `Fase_D`: `completed`, `commit` `62c5c74` (hash real); `current_target` `Fase_E`;
+`last_handoff` presente; `edit_rules` y `allowed_statuses` sin cambios (`git show c641d47 -- …progress.json`: solo
+cambian `current_target`, `status`/`commit` de D y `last_handoff`).
+
+**Requisito previo.** Momento 2 de E1 en `docs/bitacora/2026-11-27.md` (`a3c0e90`): `:118` `Running upgrade
+e50a7c3d9b12 -> a64d0c2e7f15`, `:124` `No new upgrade operations detected.`.
+
+**Compuerta re-ejecutada por el auditor** (`./venv/Scripts/python.exe scripts/check.py`, árbol de trabajo en
+`c641d47`, sin `--soft`; Windows no bloqueó `_rustgrimp`, E0 punto 3 no aplica). Exit 0. RESUMEN literal:
+```
+=== RESUMEN ===
+  ✔ ruff format --check
+  ✔ ruff check
+  ✔ mypy
+  ✔ import-linter
+  ✔ docs (coherencia)
+  ✔ pytest + cobertura
+
+Compuerta superada.
+```
+Otras líneas: `73 files already formatted` · `All checks passed!` · `Success: no issues found in 68 source files` ·
+`Analyzed 56 files, 148 dependencies.` · `Contracts: 4 kept, 0 broken.` · `TOTAL 1087 10 158 6 98.71%` · `825 passed,
+25 warnings in 35.40s`. Coinciden con lo que pegó el ejecutor.
+
+**Ratchet frente a la línea base** (`verificacion.md`: 806 passed · 98,70 % · ruff 0 · mypy 0 en 67 · 4 kept): pytest
+825, 0 failed (= criterio de la fase); cobertura 98,71 % ≥ 98,70 % (= lo medido por el plan); ruff 0 en 73; mypy 0 en
+68; 4 kept, igual. Avisos 25, los de la base.
+
+**Ruff y mypy por archivo.** `ruff check <los cuatro>` → `All checks passed!`; `ruff format --check <los cuatro>` →
+`4 files already formatted`; `mypy <los cuatro>` → `Success: no issues found in 4 source files`.
+
+**RED re-medido por el auditor** (copia `git archive fa74b16` con los dos archivos de test de `62c5c74`, sin `app/`,
+`pytest -q -p no:cacheprovider`): `15 failed, 810 passed, 25 warnings`: los 10 de `test_user_repository.py` y los 5
+de `test_user_service.py` que nombra el plan, ni uno más. Los 15 tests exigidos por "Tests (RED primero)" existen y
+pasan en el GREEN.
+
+**Criterios del plan, por grep.** `grep -c "commit()" app/repositories/user_repository.py` → `3` (A3: la consulta solo
+lee); `grep -c "log_transaction" app/services/user_service.py` → `6` (el reenvío no audita, ADR-0023);
+`grep -rn "create_verification_token(" app --include=*.py | wc -l` → `3`; escritores de `email_verified_at` → solo
+`app/services/user_service.py:181`, dentro de `verify_email_account` (`:128`, ADR-0022); escritores de
+`verification_sent_at` → `:109` (registro) y `:222` (reenvío). **E2 punto 4:**
+`grep -rn "monkeypatch.setattr(get_settings()" tests` → `tests/test_user_service.py:477` y nada más (1).
+
+**Mutantes, muestra re-medida por el auditor** (7 de 15; una copia `git archive 62c5c74` por mutante, reemplazo con
+ancla única, `import app` → la copia, suite completa): MD1 (registro sin sello) → `1 failed, 824 passed`
+(`test_register_tourist_counts_as_the_first_link_sent`); MD2 (sin filtro de rol) → `2 failed, 823 passed` (`[admin]`,
+`[superadmin]`); MD6 (`<=` → `<`) → `1 failed, 824 passed` (`[sent-at-the-cutoff]`); MD8 (sin sello en el reenvío) →
+`1 failed, 824 passed` (`test_resend_issues_a_link_to_the_account_due_one`); MD10 (`timedelta(seconds=60)` fijo) →
+`1 failed, 824 passed` (`test_resend_interval_comes_from_the_settings`); MD12 (`log_transaction` con la firma real tras
+`save_user`) → `1 failed, 824 passed` (`test_resend_issues_a_link…`, `Expected log_transaction to not have been
+awaited`); MD15 (`save_user` en `try/except Exception: pass`) → `1 failed, 824 passed`
+(`test_resend_save_failure_…`, `DID NOT RAISE OperationalError`). 7 muertos, 0 vivos; asesinos y conteos iguales a la
+tabla del handoff.
+
+**AGENTS.md y ADR.** §3: la consulta vive en el repositorio y no hace `commit()`; el servicio no importa FastAPI ni
+Starlette (`grep "fastapi\|starlette"` → 0) y no tiene `role ==` (el filtro de turista es de la consulta, data
+scoping); no hay excepciones de dominio nuevas; el intervalo se lee con `get_settings()` (consumidor sin petición,
+ADR-0013); sin fila de auditoría por el sello (ADR-0021/ADR-0023, probado con `assert_not_awaited` y MD12).
+Addendum de ADR-0013 (`458fc01`): `UserService` llama a `get_settings()` por dentro (`user_service.py:215`) y no recibe
+`Settings` por `Depends` ni por argumento, así que (a), (b) y (c) no aplican; el test usa `monkeypatch`, no asignación
+directa, y es el único caso. §4: identificadores, docstrings y comentarios en inglés; Google Style con Args/Returns en
+los dos métodos y en `VerificationResend`; anotaciones completas. §5: `user_repo` y `audit_service` son
+`create_autospec(…, instance=True)`; preparación con `persist_user` y `make_user`; aserciones sobre identidad, `None`,
+claims del JWT, horas y llamadas con argumentos (`assert_awaited_once_with`); ninguna sobre texto en español
+(líneas `+` de tests en el diff con `[áéíóúñ]|enviar|enlace|cuenta` → 0). Servicio: 1 feliz, 2 de fallo (sin cuenta,
+fallo de BD), 2 de borde (intervalo de la configuración, sello del registro); repositorio: 4 felices, 5 de fallo, 1 de
+borde (otro correo) más los dos cortes exactos. ADR-0011: los tests de repositorio usan `persist_user` (commit antes)
+y la misma sesión, sin cliente HTTP, así que no hay instancia vieja que releer.
+
+**Criterio de aceptación de la fase D:** compuerta en 0 con `825 passed` ✔; cobertura 98,71 % ≥ 98,70 % ✔; `commit()`
+= 3 ✔; MD1–MD15 muertos (7 re-medidos aquí, los 15 en el handoff) ✔. No es la última fase: la Verificación final
+corre tras la fase E. Siguiente: `/implementar BE-64 E`.
