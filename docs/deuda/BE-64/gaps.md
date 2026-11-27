@@ -182,3 +182,109 @@ variables nuevas en esta fase.
 archivos ✔; SQL fuera de línea con el `ALTER TABLE` y sin `UPDATE users` ✔ (copiado en el handoff ✔); MB1–MB5 muertos ✔.
 No es la última fase: la Verificación final corre tras la fase E. Siguiente, de David: momento 2 de E1.3 (cuatro
 comandos de `alembic` y dos consultas) antes de `/implementar BE-64 D`.
+
+## Auditoría Fase C — 2026-11-27
+**Veredicto Fase C: PASS (0 bloqueantes, 0 opcionales).**
+Sin hallazgos.
+
+### Evidencia
+
+**Árbol y commits.** `git status --short` al empezar → vacío. `git log --oneline -3`: `f3a2ff2 docs(progress): record
+BE-64 Fase_C completion`, `a218a65 feat(config): add the minimum wait between two verification links`, `a3c0e90
+docs(item-be64): log David's PostgreSQL steps after phase B`. Durante la auditoría (10:53:07) aparecieron sin commitear
+los archivos de la enmienda E2 de la sesión Mentor (`docs/adr/0013-…`, `docs/bitacora/2026-11-27.md`,
+`docs/deuda/BE-64/plan.md`, `docs/commit-msg.txt`); David los commiteó en `458fc01` (10:56:05, `docs(adr): add an
+addendum to ADR-0013 on patching the cached Settings`, 3 archivos, ninguno de código) y el árbol volvió a quedar vacío.
+No son de la fase C ni cambian sus cifras: la compuerta se repitió en una copia limpia de `f3a2ff2` (abajo) y
+`scripts/check.py --no-tests` sobre `458fc01` → `Compuerta superada.` (docs coherentes).
+
+**Requisito de la fase D (E1.3, momento 2), ya presente.** `docs/bitacora/2026-11-27.md:110-146` en `f3a2ff2` (commit
+`a3c0e90`, padre de la fase): `Running upgrade e50a7c3d9b12 -> a64d0c2e7f15`, `No new upgrade operations detected.`,
+`verification_sent_at | timestamp with time zone | YES`. Lo corrió David; el auditor no corrió Alembic contra ninguna base.
+
+**Commit de la fase (`a218a65`).** Hash real (`git cat-file -t` → `commit`), padre `a3c0e90`. `git show --stat` → 4
+archivos, 33 inserciones y 1 borrado: `.env.example`, `app/core/config.py`, `conftest.py`, `tests/test_config.py`, los
+cuatro de la fase C. Mensaje: `diff` entre el bloque **Commit** de la fase C de `plan.md` en `f3a2ff2` (líneas 284-299,
+sin la sangría de dos espacios) y `git log -1 --format=%B a218a65` (sin la línea vacía final) → idéntico,
+`Co-Authored-By` incluido.
+
+**Cambios exactos (Anexo C).** Blobs de `a3c0e90` / `a218a65` (`git rev-parse --short`) = lados izquierdo / derecho de
+las líneas `index` del Anexo C: `.env.example` `8579089`→`4000dc2`, `app/core/config.py` `38173b7`→`35cd82a`,
+`conftest.py` `ff2cd6d`→`7a65482`, `tests/test_config.py` `131e0db`→`de1c8ab`. Además, `git diff -U2 a3c0e90 a218a65`
+sin las líneas `index`, comparado con `diff` contra el Anexo C de `plan.md` → idéntico. Ninguno de los cuatro archivos
+cambió después (`git diff --name-only a218a65 HEAD -- <los cuatro>` → vacío). E2 no cambia la fase C (E2.2, E2.5).
+
+**Segundo commit (`f3a2ff2`).** Toca solo `docs/deuda/BE-64/handoff-Fase_C.md` y `docs/deuda/BE-64/progress.json`
+(`git diff --name-only a218a65 f3a2ff2`). Ningún archivo de otra fase.
+
+**progress.json.** JSON válido. `Fase_C`: `pending` → `completed`, `commit: null` → `"a218a65"`. `current_target`:
+`Fase_C` → `Fase_D`. `last_handoff` presente. `edit_rules` y `allowed_statuses` sin cambios (`git diff a3c0e90 f3a2ff2
+-- docs/deuda/BE-64/progress.json`: solo cambian esas cuatro claves).
+
+**RED reproducido por el auditor.** Copia `git archive a3c0e90` + `tests/test_config.py` y `conftest.py` de `a218a65`,
+sin `app/` ni `.env.example` de la fase, sin `.env` (`import app` → la copia): `4 failed, 806 passed, 25 warnings in
+34.66s`; FAILED `test_optional_variables_keep_their_current_defaults`,
+`test_verification_resend_interval_is_read_in_seconds`, `test_verification_resend_interval_rejects_a_non_integer`,
+`test_env_example_is_a_valid_configuration`. Igual al plan y al handoff.
+
+**Compuerta re-ejecutada por el auditor** (`./venv/Scripts/python.exe scripts/check.py`, sin `--soft`), dos veces: en el
+árbol de trabajo y en una copia limpia `git archive f3a2ff2` (`Raíz del repo: …\audC-head · Python 3.14.3`). Código de
+salida `0` en las dos, con las mismas cifras. Windows no bloqueó `_rustgrimp`: E0.3 no aplica.
+
+Paso import-linter (literal, extracto):
+```
+Analyzed 56 files, 148 dependencies.
+------------------------------------
+
+Capas: api | cli -> services -> repositories -> models KEPT
+Los servicios no conocen el transporte HTTP KEPT
+Los repositorios solo conocen SQLAlchemy y los modelos KEPT
+Los modelos y los schemas no dependen de capas superiores KEPT
+
+Contracts: 4 kept, 0 broken.
+--- import-linter: OK en 0.2s
+```
+
+RESUMEN (literal):
+```
+=== RESUMEN ===
+  ✔ ruff format --check
+  ✔ ruff check
+  ✔ mypy
+  ✔ import-linter
+  ✔ docs (coherencia)
+  ✔ pytest + cobertura
+
+Compuerta superada.
+```
+
+Otras líneas: `73 files already formatted` · `All checks passed!` · `Success: no issues found in 68 source files` ·
+`Documentación coherente (...)` · `TOTAL 1073 10 156 6 98.70%` · `Required test coverage of 92.0% reached. Total
+coverage: 98.70%` · `810 passed, 25 warnings in 32.63s` (copia limpia: `33.15s`).
+
+**Ratchet frente a la línea base** (verificacion.md: 806 passed · 98,70 % · ruff 0 · mypy 0 en 67 · 4 kept): pytest 810,
+0 failed (= criterio de la fase, `810 passed`); cobertura 98,70 %, igual; ruff 0 en 73; mypy 0 en 68; 4 kept, igual.
+Avisos 25, los mismos de la base.
+
+**Ruff y mypy por archivo.** `ruff check app/core/config.py conftest.py tests/test_config.py` → `All checks passed!`;
+`ruff format --check <los tres>` → `3 files already formatted`; `mypy <los tres>` → `Success: no issues found in 3
+source files`. `.env.example` no es Python; lo cubren `test_env_example_documents_every_setting` y
+`test_env_example_is_a_valid_configuration`.
+
+**Mutantes MC1–MC4, re-medidos por el auditor** (una copia `git archive f3a2ff2` por mutante, reemplazo con ancla única,
+`import app` → la copia, suite completa): MC1 (`= 30` en `config.py`) → `1 failed, 809 passed`
+(`test_optional_variables_keep_their_current_defaults`); MC2 (`=61` en `.env.example`) → `1 failed, 809 passed`
+(`test_env_example_is_a_valid_configuration`); MC3 (sin la línea en `.env.example`) → `1 failed, 809 passed`
+(`test_env_example_documents_every_setting`); MC4 (sin la entrada del `conftest.py` raíz) → `1 failed, 809 passed`
+(`test_test_environment_fixes_every_setting`). 4 muertos, 0 vivos; los asesinos coinciden con el plan y el handoff.
+
+**AGENTS.md.** §3 / ADR-0013: la variable es un campo de `Settings` con tipo y default (`app/core/config.py:53`), con su
+línea en `.env.example:24` y su valor de prueba en `conftest.py:16`; `grep -rn "os.getenv\|load_dotenv" app alembic
+tests conftest.py` → 0. Nadie la lee aún (lo hace la fase D). Comentario y nombres en inglés. §5: sin mocks; el entorno
+se prepara con `_set_required` y `monkeypatch`; el test de fallo afirma `(type, loc)` de pydantic (`int_parsing`), sin
+texto humano; ninguna aserción sobre texto en español. Sin excepciones de dominio, rutas, modelos ni migraciones en esta
+fase. R5 (sin validación de rango) sigue fuera de alcance, como dice el plan.
+
+**Criterio de aceptación de la fase C:** compuerta en 0 con `810 passed` ✔; cobertura 98,70 % ≥ 98,70 % ✔; MC1–MC4
+muertos ✔. No es la última fase: la Verificación final corre tras la fase E. Siguiente: `/implementar BE-64 D` (el
+momento 2 de David está en la bitácora y E2 ya está commiteada en `458fc01`).
