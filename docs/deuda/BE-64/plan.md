@@ -2,8 +2,8 @@
 
 > Fuente: `docs/deuda/BE-64/verificacion.md` (confirmada; adenda de David del 19 nov, decisiones 1–10, que este plan
 > toma como dadas). Base: HEAD `22328ce` de `item/be-64`; encima de `b6a80ba` solo hay commits de docs, así que vale la
-> línea base de la verificación, y además se volvió a medir (abajo). **Estado: aprobado por David con E0 (19 nov 2026, 19:10) y E1 (19:37); ninguna fase
-> ejecutada.** `Aprobado: 19 nov 2026`. ADR propuesto: ADR-0023 (Anexo A), con `<FECHA DE APROBACIÓN>` por rellenar.
+> línea base de la verificación, y además se volvió a medir (abajo). **Estado: aprobado por David con E0 (19 nov 2026, 19:10) y E1 (19:37); E2 (27 nov 2026, 10:51) añade un
+> addendum a ADR-0013. Fases ejecutadas: `progress.json`.** `Aprobado: 19 nov 2026`. ADR propuesto: ADR-0023 (Anexo A), con `<FECHA DE APROBACIÓN>` por rellenar.
 
 ## Qué se midió y qué no
 
@@ -1658,3 +1658,27 @@ enmienda difieran, rige la enmienda.
 4. **Lo demás de E0 sigue vigente:** la ruta en español (punto 1), la cláusula por si Windows bloquea
    `_rustgrimp` (punto 3) y la observación sin acción sobre `monkeypatch.setattr` (punto 5).
 5. **`progress.json`:** el planificador cambió la descripción de la fase E; nada más depende de E1.
+
+### E2 — 27 nov 2026, 10:51 (David: addendum a ADR-0013 por el test que cambia el `Settings` en caché)
+
+Sustituye al punto 5 de E0 ("sin acción"). Donde el plan y esta enmienda difieran, rige la enmienda.
+
+1. **ADR-0013 recibe un addendum** (`docs/adr/0013-configuracion-centralizada-con-pydantic-settings.md`, al final;
+   regla de ADR-0009). Decisión de David (10:51, sus palabras): "quiero el addendum solo en este caso que no se pueden
+   usar las otras 3 alternativas, dejando debidamente declarados aquellos riesgos aceptados". El addendum admite
+   `monkeypatch.setattr(get_settings(), "<campo>", <valor>)` solo para un consumidor sin petición que llama a
+   `get_settings()` por dentro, y declara tres riesgos aceptados. Lo escribe la sesión Mentor y lo commitea David
+   antes de `/implementar BE-64 D`; ningún agente lo toca.
+2. **El código y los tests del Anexo D no cambian:** `test_resend_interval_comes_from_the_settings` queda como está
+   dictado. Tampoco cambian los conteos de RED y GREEN, los mutantes ni los comandos 1 a 14 y 16 de la Verificación
+   final (el 13 cuenta menciones solo en archivos `.py`).
+3. **Comando 15 de la Verificación final: 19 archivos, no 18.** Su ruta incluye `docs/adr`, así que la lista gana
+   `docs/adr/0013-configuracion-centralizada-con-pydantic-settings.md`. Los otros 18 son los que da el plan.
+4. **Para la auditoría de la fase D:** el test nombrado usa `monkeypatch.setattr` sobre `get_settings()`, como admite
+   el addendum, y ningún otro test de la fase cambia la configuración por esa vía (`grep -rn
+   "monkeypatch.setattr(get_settings()" tests` → 1 tras la fase D).
+5. **`progress.json`:** nada en él depende de E2.
+6. **Qué midió la sesión Mentor y qué no.** Leído: `app/core/config.py:30-35` (`model_config` sin `frozen` y sin
+   `validate_assignment`), `:101-102` (`get_settings` con `lru_cache`), `conftest.py:16` (60 en la suite),
+   `constraints.txt` y `pyproject.toml` (sin `pytest-xdist`), y el texto del test en el Anexo D. **No ejecutó nada:**
+   que el test pasa y restaura el valor es medición del planificador (fila "D GREEN").

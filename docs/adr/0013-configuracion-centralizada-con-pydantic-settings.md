@@ -70,3 +70,28 @@ del CI. `pydantic-settings` estaba declarado e instalado, pero no se usaba.
 - `alembic upgrade head --sql` con solo `DATABASE_URL`, sobre la misma exportación: exit 0 (116 líneas de SQL).
 - Documentación: FastAPI, "Settings and Environment Variables"; pydantic-settings, "Dotenv (.env) support". Enlaces
   en `docs/deuda/A4/plan.md`, sección Referencias.
+
+## Addendum — 27 nov 2026 (David, sesión Mentor; bitácora `2026-11-27`)
+
+Dice cómo se cumple la consecuencia "Cómo cambia la configuración un test" en un caso que sus tres formas no cubren.
+No altera el texto anterior ni cambia la decisión. Si esa consecuencia y este addendum difieren, rige el addendum.
+
+- **El caso.** Un consumidor sin petición que llama a `get_settings()` por dentro, en vez de recibir `Settings` por
+  `Depends` o por argumento. Hoy es `UserService` (alternativa 3: no se le inyecta `Settings` en el constructor). La
+  forma (a) prueba `Settings`, no al consumidor; la (b) solo alcanza a quien recibe `Settings` con `Depends`; la (c)
+  pide un argumento que ese consumidor no tiene. Para este caso el ADR preveía cambiar el entorno y llamar a
+  `get_settings.cache_clear()` antes y después.
+- **Forma admitida, solo para ese caso:** `monkeypatch.setattr(get_settings(), "<campo>", <valor>)` sobre la instancia
+  en caché. Se prefiere a `cache_clear()` porque `monkeypatch` devuelve el valor al terminar el test, también si
+  falla, y no reconstruye la configuración entera; con `cache_clear()`, un test que olvide la segunda llamada deja su
+  valor a los tests siguientes. `cache_clear()` sigue siendo válida.
+- **Condiciones.** Solo cuando (a), (b) y (c) no pueden aplicarse; siempre con `monkeypatch`, nunca con una
+  asignación directa; un test que pueda usar (b) o (c) las usa. Primer caso:
+  `test_resend_interval_comes_from_the_settings` (`tests/test_user_service.py`, BE-64).
+- **Riesgos aceptados (David, 27 nov 2026):**
+  1. El test cambia, mientras corre, la instancia que comparte toda la suite. Con la suite en serie, como corre hoy,
+     ningún otro test lo ve. Si un día corriera en paralelo con hilos dentro de un mismo proceso, otro test podría
+     leer el valor cambiado; en paralelo por procesos, cada proceso tiene su instancia.
+  2. La asignación no pasa por la validación de `Settings` (el modelo no valida al asignar): el test puede poner un
+     valor que el arranque rechazaría. Que el entorno se lee y se valida lo prueba `tests/test_config.py` con (a).
+  3. Si `Settings` se declarara inmutable, la asignación fallaría y estos tests tendrían que pasar a `cache_clear()`.
