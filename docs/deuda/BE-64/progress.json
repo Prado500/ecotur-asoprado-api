@@ -1,6 +1,6 @@
 {
   "plan_file": "docs/deuda/BE-64/plan.md",
-  "current_target": "Fase_C",
+  "current_target": "Fase_D",
   "phases": {
     "Fase_A": {
       "status": "completed",
@@ -13,8 +13,8 @@
       "description": "users.verification_sent_at and migration a64d0c2e7f15, empty in every row; David's PostgreSQL steps before and after."
     },
     "Fase_C": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "a218a65",
       "description": "Settings.verification_resend_interval_seconds (60), .env.example line and root conftest value."
     },
     "Fase_D": {
@@ -29,6 +29,6 @@
     }
   },
   "allowed_statuses": ["pending", "partial", "completed"],
-  "last_handoff": "Fase_B completada (f22ce02): columna users.verification_sent_at y migración a64d0c2e7f15 con el Anexo B byte a byte; RED 1 failed/805 passed/2 errors; compuerta exit 0, 808 passed, 98.70%, mypy 68, 4 kept; SQL fuera de línea solo ALTER TABLE; MB1-MB5 muertos. Antes de la fase D: auditoría de B y momento 2 de David (alembic upgrade/check/downgrade/upgrade y dos consultas); la fase C puede correr entre medias.",
+  "last_handoff": "Fase_C completada (a218a65): Settings.verification_resend_interval_seconds=60, su línea en .env.example y su valor en el conftest.py raíz, con el Anexo C byte a byte; RED 4 failed/806 passed; compuerta exit 0, 810 passed, 98.70%, mypy 68, 4 kept; MC1-MC4 muertos. Requisito de la fase D (momento 2 de David) ya en docs/bitacora/2026-11-27.md; falta la auditoría de C.",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
