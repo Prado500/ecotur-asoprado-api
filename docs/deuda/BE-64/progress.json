@@ -1,10 +1,10 @@
 {
   "plan_file": "docs/deuda/BE-64/plan.md",
-  "current_target": "Fase_A",
+  "current_target": "Fase_B",
   "phases": {
     "Fase_A": {
-      "status": "pending",
-      "commit": null,
+      "status": "completed",
+      "commit": "0a07a47",
       "description": "ADR-0023: a verification link can be asked for again (Anexo A)."
     },
     "Fase_B": {
@@ -29,6 +29,6 @@
     }
   },
   "allowed_statuses": ["pending", "partial", "completed"],
-  "last_handoff": "Estado inicial.",
+  "last_handoff": "Fase_A completada (0a07a47): ADR-0023 escrito con el Anexo A literal y fecha 19 nov 2026; compuerta exit 0, 806 passed, 98.70%, 4 kept. Fase B espera el momento 1 de David (alembic current/check).",
   "edit_rules": "Solo la sesión que ejecuta una fase modifica su status, su commit, current_target y last_handoff."
 }
