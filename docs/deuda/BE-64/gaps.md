@@ -385,3 +385,139 @@ y la misma sesión, sin cliente HTTP, así que no hay instancia vieja que releer
 **Criterio de aceptación de la fase D:** compuerta en 0 con `825 passed` ✔; cobertura 98,71 % ≥ 98,70 % ✔; `commit()`
 = 3 ✔; MD1–MD15 muertos (7 re-medidos aquí, los 15 en el handoff) ✔. No es la última fase: la Verificación final
 corre tras la fase E. Siguiente: `/implementar BE-64 E`.
+
+## Auditoría Fase E — 2026-11-27
+**Veredicto Fase E: PASS (0 bloqueantes, 0 opcionales).**
+
+Sin hallazgos. Bloqueantes de auditorías anteriores: ninguno pendiente (A, B, C y D en PASS sin hallazgos). Fase E es
+la última del plan: se corrió la Verificación final completa (comandos 1–16).
+
+**Git.** `git status --short` → vacío (árbol limpio). `git log --oneline -15`: `05dc105 docs(progress): record BE-64
+Fase_E completion` sobre `2b6db40 feat(auth): add the public route that resends the verification link`, padre
+`a6d1b8a` (auditoría PASS de D). `git show --stat 2b6db40` → los 5 archivos del plan (`app/api/routers/user.py` 56,
+`app/schemas/message.py` 16, `app/schemas/user.py` 9, `tests/test_route_guards.py` 2,
+`tests/test_verification_resend.py` 260; `342 insertions(+), 1 deletion(-)`); `05dc105` toca solo
+`handoff-Fase_E.md` y `progress.json`. Nada fuera de alcance (`app/main.py`, `docs/` fuera de la carpeta del ítem):
+`git diff --name-only a6d1b8a 05dc105` → esos 7.
+
+**Igualdad con el Anexo E.** `git diff --full-index a6d1b8a 2b6db40 | grep ^index` → `ed616f8..d630362`,
+`0000000..4c114a9`, `d254dfd..3ba2f30`, `ecaf4b1..039299b`, `0000000..018a151`: las líneas `index` del Anexo E
+(`plan.md:1163-1560`). Comprobación independiente: `git archive a6d1b8a` en una copia, `git apply` de
+`plan.md:1163-1560` (`--check` limpio) y `git hash-object` de los cinco → `d630362`, `4c114a9`, `3ba2f30`, `039299b`,
+`018a151`. Byte a byte. Cada punto de "Cambios exactos" está: `MessageResponse` en su módulo;
+`VerificationResendRequest` tras `UserLogin`; import de `MessageResponse` y de `app.schemas.user` en varias líneas;
+`RESEND_VERIFICATION_MESSAGE` tras `public_router`; `resend_verification_email` con `response_model=MessageResponse` y
+`HTTP_200_OK` antes de `login`; dos entradas en `PUBLIC_ROUTES` y `_ANONYMOUS_ON_PUBLIC_ROUTE` (422).
+
+**Mensaje de commit.** `plan.md:374-398` sin la sangría, contra `git log -1 --format=%B 2b6db40` sin la línea vacía
+final, con `diff` → idénticos (incluido `Co-Authored-By`).
+
+**progress.json.** JSON válido. `Fase_E`: `completed`, `commit` `2b6db40` (hash real, `git show --stat` lo confirma);
+`current_target` `null` (última fase); `last_handoff` presente; `edit_rules` y `allowed_statuses` sin cambios
+(`git show 05dc105 -- …progress.json`: solo cambian `current_target`, `status`/`commit` de E y `last_handoff`).
+
+**Compuerta re-ejecutada por el auditor** (`./venv/Scripts/python.exe scripts/check.py`, árbol en `05dc105`, sin
+`--soft`; Windows no bloqueó `_rustgrimp`, E0 punto 3 no aplica). Exit 0. RESUMEN literal:
+```
+=== RESUMEN ===
+  ✔ ruff format --check
+  ✔ ruff check
+  ✔ mypy
+  ✔ import-linter
+  ✔ docs (coherencia)
+  ✔ pytest + cobertura
+
+Compuerta superada.
+```
+Otras líneas: `75 files already formatted` · `All checks passed!` · `Success: no issues found in 70 source files` ·
+`Analyzed 57 files, 150 dependencies.` · `Contracts: 4 kept, 0 broken.` · `TOTAL 1098 10 160 6 98.73%` · `845 passed,
+29 warnings in 38.74s`. Coinciden con lo que pegó el ejecutor y con la fila "E GREEN" del plan.
+
+**Ratchet frente a la línea base** (`verificacion.md:139`: 806 passed · 98,70 % · ruff 0 · mypy 0 en 67 · 4 kept):
+pytest 845, 0 failed (= criterio de la fase); cobertura 98,73 % ≥ 98,70 % (= lo medido por el plan); ruff 0 en 75;
+mypy 0 en 70; 4 kept, igual.
+
+**Avisos 25 → 29, origen medido.** Con el aviso de `HTTP_422_UNPROCESSABLE_ENTITY` convertido en error (`-W error:…`)
+sobre `tests/test_verification_resend.py tests/test_route_guards.py` caen exactamente 7: los 3
+`test_invalid_body_is_422_and_sends_nothing[malformed|null|missing]` y 4 `test_public_route_answers_without_token[…]`
+(`registro`, `verificar-email`, `login` y la nueva `reenviar-verificacion`). Los nuevos son 3 + 1 = 4, todos el
+`StarletteDeprecationWarning` del handler de 422 (`app/main.py:94`, fuera de alcance): residual R4 (S5), como dice el
+plan.
+
+**Ruff y mypy por archivo.** `ruff check <los cinco>` → `All checks passed!`; `ruff format --check <los cinco>` →
+`5 files already formatted`; `mypy <los cinco>` → `Success: no issues found in 5 source files`.
+
+**RED re-medido por el auditor** (copia `git archive a6d1b8a` + `git apply --include='tests/*'` del Anexo E, sin
+`app/`; `import app` → la copia; `pytest -q -p no:cacheprovider`): `21 failed, 824 passed, 25 warnings`, los 21
+nombres del handoff (19 de `test_verification_resend.py`, `test_every_route_is_listed_as_protected_or_public` y
+`test_public_route_answers_without_token[POST /usuarios/reenviar-verificacion]`). Causa de
+`test_the_new_link_verifies_the_account`, medida aislada: `AttributeError: 'NoneType' object has no attribute
+'kwargs'`. Valoración del matiz que anota el ejecutor: la fila "E RED" (`plan.md:27`) atribuye 17 de los 19 a un 405
+en la aserción de estado; son 16, y ese caso cae un paso después porque no comprueba el estado del `POST` y lee
+`call_args` de un correo que no salió. Es la descripción de la causa en la tabla de medición, no el criterio: la fase
+exige `21 failed, 824 passed` (`plan.md:364-365`) y se cumple; el test cae por la razón correcta (sin ruta no hay
+enlace) y en GREEN comprueba el `200` del enlace. Ni desajuste del código ni hallazgo. Los 19 tests exigidos por
+"Tests (RED primero)" existen y pasan en el GREEN (`83 passed` en los dos archivos).
+
+**Mutantes, muestra re-medida por el auditor** (6 de 9; una copia `git archive 2b6db40` por mutante, reemplazo con
+ancla única, `import app` → la copia, suite completa): ME1 (otro `message` si `resend is None`) → `8 failed, 837
+passed` (los 6 `…_same_answer_and_no_email[…]`, `test_unknown_…`,
+`test_second_request_within_the_interval_sends_nothing`); ME3 (`email: EmailStr`) → `1 failed, 844 passed`
+(`test_email_is_matched_in_lowercase`); ME4 (sin `rstrip`) → `1 failed, 844 passed`
+(`test_link_is_built_from_frontend_url`); ME6 (sin `response_model`) → `1 failed, 844 passed`
+(`test_route_declares_its_response_schema`); ME7 (`detail: str | None = None` en `MessageResponse`) → `2 failed, 843
+passed` (`test_pending_tourist_gets_a_new_link`, `test_route_declares_its_response_schema`); ME9 (sin `response_model`
+y `"email": body.email` en el `dict`) → `9 failed, 836 passed` (`test_pending_…`, los 6 `…_same_answer…`,
+`test_unknown_…`, `test_route_declares_its_response_schema`). 6 muertos, 0 vivos; asesinos y conteos iguales a la
+tabla del plan (`plan.md:167-175`) y a la del handoff.
+
+**AGENTS.md y ADR.** §3: el router solo orquesta (llama a `resend_verification_link`, programa
+`send_verification_email` como tarea de fondo si hay enlace, devuelve el cuerpo); declara
+`response_model=MessageResponse` y nunca devuelve el ORM (`resend.user` solo alimenta los kwargs del correo).
+`MessageResponse` hereda de `BaseModel`, sin validadores ni herencia de un DTO de entrada (A9).
+`VerificationResendRequest.email` es `LowercaseEmail` (ADR-0016; ME3 lo prueba). Inventario ADR-0012 punto 4: la
+ruta en `PUBLIC_ROUTES` (`tests/test_route_guards.py:82`) y en `_ANONYMOUS_ON_PUBLIC_ROUTE` con 422 (`:98`).
+ADR-0023 decisión 1: 200 con el mismo cuerpo en cada caso que no envía (6 estados de cuenta, correo desconocido,
+dentro del intervalo), comparado contra el cuerpo de un turista pendiente; 422 solo por cuerpo inválido; decisión 5:
+sin fila de auditoría (`test_pending_tourist_gets_a_new_link` afirma `AuditLog` vacío). El servicio devuelve `None`
+sin lanzar para toda cuenta no elegible (`user_service.py:220`): no hay excepción de dominio nueva que registrar. §4:
+la ruta en español es la excepción declarada por E0 punto 1 y ADR-0023; manejador, identificadores, docstrings y
+comentarios en inglés; el único texto en español es el `message` al usuario final (excepción c); Google Style con
+Args/Returns; anotaciones completas (mypy 0). §5: el único doble es `mock_send_email` (`patch(…, autospec=True)`,
+`tests/conftest.py:156`); preparación con `persist_user`; aserciones sobre código HTTP, claves del JSON, estado
+releído y `assert_called_once_with` con argumentos, y claims del token decodificados con la clave de la app; ninguna
+sobre texto en español (comando 10 → 0); el 422 sobre `detalle[*].raw_field`. 2 felices (pendiente, enlace que
+verifica), fallos (6 no elegibles, correo desconocido, 3 cuerpos inválidos) y bordes (activado por admin, registro
+como primer envío, segunda petición, intervalo vencido, minúsculas, `frontend_url`, esquema OpenAPI). ADR-0011:
+`persist_user` confirma antes de cada petición y cada objeto ya cargado se relee con `db_session.refresh` después; el
+override de `get_settings` lo limpia el `app.dependency_overrides.clear()` del fixture `client` (`conftest.py:98`).
+
+**Verificación final (comandos 1–16), corrida por el auditor desde la raíz en Git Bash:**
+```
+1  create_verification_token(           → 3
+2  send_verification_email,             → 2
+3  resend|reenv en app                  → 26 (routers/user.py 14, user_service.py 7, config.py 1, models/user.py 1,
+                                              user_repository.py 1, schemas/user.py 1, user_access_policy.py 1)
+4  @public_router.                      → 4 ; reenviar-verificacion en test_route_guards.py → 2
+5  solicite uno nuevo                   → 1
+6  email_verified_at                    → 11 ; escritores → 1
+7  verification_sent_at                 → 10 ; escritores → 2 ; en app/schemas → 0
+8  slowapi|limiter|rate.limit|throttl   → 0
+9  down_revision 'e50a7c3d9b12'         → 1
+10 le acabamos de enviar un nuevo (app) → 1 ; acabamos de enviar|espere un minuto (tests) → 0
+11 commit() en user_repository.py       → 3 ; log_transaction en user_service.py → 6
+12 .env.example → 1 ; conftest.py → 1
+13 BE-64 → 10 líneas en 10 archivos ; ADR-0023 → 13 (2 en routers/user.py y user_service.py, 1 en los otros nueve;
+   schemas/message.py no la cita)
+14 response_model=MessageResponse → 1 ; MessageResponse en app → 4 ; en tests → 3
+15 git diff --name-only 22328ce HEAD -- app alembic tests conftest.py .env.example docs/adr → 19 archivos: los 18 del
+   plan (plan.md:458-462) más docs/adr/0013-configuracion-centralizada-con-pydantic-settings.md (E2 punto 3)
+16 compuerta → exit 0 ; 845 passed ; 98,73 % ; ruff 0 en 75 ; mypy 0 en 70 ; 4 kept (bloque de arriba)
+```
+Todos los valores son los del plan con E2. La deuda no asoma: la API ya tiene dónde pedir el enlace nuevo, el texto
+del enlace caducado no cambia y no entra ninguna librería de limitación.
+
+**Criterio de aceptación de la fase E:** compuerta en 0 con `845 passed` ✔; cobertura 98,73 % ≥ 98,70 % ✔; mypy en
+70 ✔; `4 kept` ✔; Verificación final 1–16 ✔; ME1–ME9 muertos (6 re-medidos aquí, los 9 en el handoff) ✔; comando 10
+→ 0 ✔. **Pendiente antes de `/pr`, fuera de esta auditoría:** el momento 3 de E1 punto 3 (David, API de la rama sobre
+su PostgreSQL, nueve pasos, salida a la bitácora). Si algún paso da otra cosa, no hay `/pr`.
